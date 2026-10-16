@@ -1,0 +1,531 @@
+# 01 | TypeScript Cheat Sheet | Everything on one page: setup, types, interfaces, functions, classes, generics, narrowing, utility and advanced types, modules, declarations, TS 5 to 7 | TypeScript on one page
+
+## Setup & Compile
+```bash
+npm i -D typescript  # project-local compiler
+npx tsc --init  # create tsconfig.json
+npx tsc  # compile the project
+npx tsc --noEmit  # type-check only (CI)
+npx tsc -w  # watch
+npx tsx app.ts  # run in development
+node app.ts  # Node 22.18+: strips types
+```
+- TypeScript = JavaScript + static types, by Microsoft (2012). Types are **erased**: the output is plain JS.
+
+## tsconfig Essentials
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "nodenext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "outDir": "dist", "rootDir": "src",
+    "declaration": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "paths": { "@app/*": ["./src/app/*"] }
+  },
+  "include": ["src"]
+}
+```
+- `strict` = `noImplicitAny` + `strictNullChecks` + more; on by default since TS 6. Bundlers use `"module": "esnext"` + `"moduleResolution": "bundler"`.
+
+## Basic Types
+```ts
+let count: number = 5;  // no int: all floats
+let big: bigint = 100n;
+let title: string = 'TS';
+let done: boolean = false;
+let nothing: null = null;
+let missing: undefined = undefined;
+let sym: symbol = Symbol('id');
+let inferred = 42;  // number (inference)
+let obj: object = { a: 1 }; // any non-primitive
+```
+- Use lowercase `string`, `number`, `boolean`, never `String`/`Number`.
+
+## any · unknown · never · void
+```ts
+let a: any = 4;  // checks OFF
+let u: unknown = JSON.parse('"x"');
+if (typeof u === 'string') u.toUpperCase(); // must narrow
+function fail(msg: string): never { throw new Error(msg); }
+function log(msg: string): void { console.log(msg); }
+```
+- `any` disables checking · `unknown` = safe any · `never` = no value possible · `void` = return value ignored.
+
+## Arrays & Tuples
+```ts
+let nums: number[] = [1, 2, 3];  // = Array<number>
+let ro: readonly number[] = [1, 2];
+let pair: [string, number] = ['age', 30];
+let pt: [x: number, y: number, z?: number] = [1, 2];
+let row: [string, ...number[]] = ['s', 90, 85];
+const rgb = [255, 0, 0] as const; // readonly [255, 0, 0]
+let mixed: (string | number)[] = [1, 'a'];
+```
+
+## Literals, Unions, Intersections
+```ts
+type Direction = 'up' | 'down' | 'left' | 'right';
+type Status = 200 | 404 | 500;
+let id: number | string = 7;  // either
+type Stamped = { createdAt: Date } & { updatedAt: Date }; // both
+let s = 'hello';  // string
+const t = 'hello';  // literal 'hello'
+const cfg = { mode: 'dark', n: 3 } as const; // readonly literals
+```
+
+## Enums & Alternatives
+```ts
+enum Role { Admin, User }  // 0, 1
+Role[0];  // 'Admin' (reverse map)
+enum Color { Red = 'RED', Green = 'GREEN' }
+const enum Dir { Up = 1, Down }  // inlined, Down = 2
+const Roles = { Admin: 'admin', User: 'user' } as const;
+type RoleName = (typeof Roles)[keyof typeof Roles];
+// 'admin' | 'user'  (preferred: no runtime enum)
+```
+
+## Assertions & Operators
+```ts
+const el = document.getElementById('name') as HTMLInputElement;
+const btn = document.querySelector('button')!;  // non-null
+const palette = { primary: '#000' } satisfies Record<string, string>;
+type User = { address?: { city?: string } };
+const user: User | undefined = { address: {} };
+const city = user?.address?.city ?? 'unknown';
+let retries = 0;
+retries ||= 3;  // 3 (0 is falsy)
+let label: string | undefined;
+label ??= 'default';  // only null/undefined
+```
+- `as` changes what the compiler believes, never the value. `??` falls back only on `null`/`undefined`; `||` also on `0`, `''`, `false`.
+
+## Interfaces
+```ts
+interface User {
+  readonly id: number;
+  name: string;
+  email?: string;  // optional
+  greet(): string;  // method
+}
+interface Admin extends User { perms: string[] }
+interface Box { width: number }
+interface Box { height: number } // merged: both
+const box: Box = { width: 1, height: 2 };
+```
+
+## Type Aliases
+```ts
+type ID = string | number;
+type Point = { x: number; y: number };
+type Point3D = Point & { z: number };
+type Handler = (event: string) => void;
+type Pair<T> = [T, T];
+type Tree<T> = { value: T; children: Tree<T>[] };
+```
+
+## interface vs type
+```text
+                 interface         type
+object shape     yes               yes
+union / tuple    no                yes
+extend           extends           & intersection
+merging          yes               no
+use for          public contracts  unions, functions,
+                                   computed types
+```
+
+## Index Signatures & Record
+```ts
+interface Scores { [student: string]: number }
+const scores: Scores = { ann: 90 };
+type Flags = Record<'dark' | 'beta', boolean>;
+const flags: Flags = { dark: true, beta: false };
+type Cache = Record<string, string[]>;
+const m = new Map<string, number>([['a', 1]]);
+```
+- `noUncheckedIndexedAccess`: `scores['x']` becomes `number | undefined`.
+
+## Readonly & Optional
+```ts
+interface Settings { readonly apiUrl: string; timeout?: number }
+type Frozen = Readonly<Settings>;
+type Draft = Partial<Settings>;
+const st: Settings = { apiUrl: '/api' };
+const ms = st.timeout ?? 5000;
+const arr: ReadonlyArray<number> = [1, 2];
+```
+- `readonly` is compile-time and **shallow**; `Object.freeze` at runtime.
+
+## Structural Typing
+```ts
+interface Named { name: string }
+class Person { constructor(public name: string, public age: number) {} }
+const n: Named = new Person('Ann', 30);  // OK: same shape
+function hello(x: Named) { return x.name; }
+const extra = { name: 'Bob', role: 'dev' };
+hello(extra);  // OK
+// hello({ name: 'Bob', role: 'dev' });  // error: excess property
+```
+- Compatibility is by **shape**, not name. Fresh object literals get an excess-property check.
+
+## Functions
+```ts
+function add(a: number, b: number): number { return a + b; }
+const mul = (a: number, b: number) => a * b;
+function greet(name: string, greeting = 'Hello', end?: string) {
+  return `${greeting}, ${name}${end ?? '!'}`;
+}
+function sum(...xs: number[]) { return xs.reduce((t, x) => t + x, 0); }
+greet('Ann');  // 'Hello, Ann!'
+sum(1, 2, 3);  // 6
+```
+- Optional params last. Annotate params; let returns infer.
+
+## Function Types & Overloads
+```ts
+type BinaryOp = (a: number, b: number) => number;
+const sub: BinaryOp = (a, b) => a - b;
+interface Ctor { new (name: string): { name: string } }
+function parse(v: string): number;
+function parse(v: number): string;
+function parse(v: string | number): number | string {
+  return typeof v === 'string' ? Number(v) : String(v);
+}
+const p1 = parse('42');  // number
+const p2 = parse(42);  // string
+```
+
+## this · void · async
+```ts
+interface Counter { count: number; inc(this: Counter): void }
+async function getUser(id: number): Promise<{ id: number; name: string }> {
+  const res = await fetch(`/api/users/${id}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+type Data = Awaited<ReturnType<typeof getUser>>;
+try { await getUser(1); }
+catch (e) { if (e instanceof Error) console.log(e.message); }
+```
+- `catch (e)`: `e` is `unknown` in strict mode.
+
+## Classes
+```ts
+class Account {
+  static count = 0;
+  readonly id: string;
+  #pin: string;  // JS private (runtime)
+  private history: number[] = [];// TS private (compile time)
+  protected owner: string;
+  balance = 0;  // public by default
+  constructor(id: string, owner: string, pin: string) {
+    this.id = id; this.owner = owner; this.#pin = pin;
+    Account.count++;
+  }
+  get summary() { return `${this.id}: ${this.balance}`; }
+  checkPin(p: string) { return p === this.#pin; }
+}
+```
+
+## Parameter Properties & Inheritance
+```ts
+class Animal {
+  constructor(public readonly name: string, protected sound = '...') {}
+  speak() { return `${this.name} says ${this.sound}`; }
+}
+class Dog extends Animal {
+  constructor(name: string) { super(name, 'woof'); }
+  override speak() { return super.speak() + '!'; }
+}
+new Dog('Rex').speak();  // 'Rex says woof!'
+```
+
+## Abstract Classes & implements
+```ts
+interface Shape { area(): number }
+abstract class Base implements Shape {
+  abstract area(): number;
+  describe() { return `area ${this.area().toFixed(2)}`; }
+}
+class Circle extends Base {
+  constructor(private r: number) { super(); }
+  area() { return Math.PI * this.r ** 2; }
+}
+// new Base();  // error: abstract
+```
+- `implements` only **checks**; nothing is inherited.
+
+## Decorators
+```ts
+function logged<This, A extends unknown[], R>(
+  target: (this: This, ...args: A) => R,
+  ctx: ClassMethodDecoratorContext<This, (this: This, ...args: A) => R>,
+) {
+  return function (this: This, ...args: A): R {
+    console.log(`-> ${String(ctx.name)}(${args.join(', ')})`);
+    return target.call(this, ...args);
+  };
+}
+class Calc { @logged add(a: number, b: number) { return a + b; } }
+new Calc().add(2, 3);  // logs "-> add(2, 3)"
+```
+- TS 5 standard decorators. Angular/NestJS still use `experimentalDecorators` (with parameter decorators).
+
+## Generics
+```ts
+function identity<T>(v: T): T { return v; }
+const lit = identity(42);  // T = 42
+let wide = identity(42);  // number
+function first<T>(xs: readonly T[]): T | undefined { return xs[0]; }
+function pair<K, V>(k: K, v: V): [K, V] { return [k, v]; }
+interface ApiResponse<T = unknown> { data: T; status: number }
+```
+
+## Constraints & keyof
+```ts
+function longest<T extends { length: number }>(a: T, b: T) {
+  return a.length >= b.length ? a : b;
+}
+longest('abc', 'de');  // OK
+// longest(10, 20);  // error: no length
+function getProp<T, K extends keyof T>(obj: T, key: K): T[K] {
+  return obj[key];
+}
+const age = getProp({ name: 'Ann', age: 30 }, 'age'); // number
+function routes<const T extends readonly string[]>(p: T) { return p; }
+routes(['/home', '/about']);  // readonly ['/home', '/about']
+```
+
+## Generic Classes
+```ts
+class Stack<T> {
+  #items: T[] = [];
+  push(item: T): this { this.#items.push(item); return this; }
+  pop(): T | undefined { return this.#items.pop(); }
+}
+new Stack<number>().push(1).push(2).pop();  // 2
+interface Repo<T extends { id: number }> {
+  findById(id: number): T | undefined;
+  save(entity: T): void;
+}
+```
+
+## Narrowing
+```ts
+function fmt(v: string | number | Date | string[] | null) {
+  if (v === null) return 'null';
+  if (typeof v === 'string') return v.trim();
+  if (typeof v === 'number') return v.toFixed(2);
+  if (v instanceof Date) return v.toISOString();
+  if (Array.isArray(v)) return v.join(', ');
+  return v;  // never
+}
+type Cat = { meow(): void }; type Dog2 = { bark(): void };
+function speak(p: Cat | Dog2) { if ('meow' in p) p.meow(); else p.bark(); }
+```
+- `typeof null === 'object'`; `x == null` matches null and undefined.
+
+## Discriminated Unions
+```ts
+type Shape2 =
+  | { kind: 'circle'; radius: number }
+  | { kind: 'square'; side: number };
+function area(s: Shape2): number {
+  switch (s.kind) {
+    case 'circle': return Math.PI * s.radius ** 2;
+    case 'square': return s.side ** 2;
+    default: {
+      const nope: never = s;  // exhaustiveness check
+      throw new Error(String(nope));
+    }
+  }
+}
+type Result<T> = { ok: true; value: T } | { ok: false; error: string };
+```
+
+## Type Guards & Assertions
+```ts
+interface Fish { swim(): void }
+interface Bird { fly(): void }
+function isFish(p: Fish | Bird): p is Fish { return 'swim' in p; }
+function assertDefined<T>(v: T): asserts v is NonNullable<T> {
+  if (v == null) throw new Error('missing');
+}
+const nm: string | undefined = 'Ann';
+assertDefined(nm);
+nm.toUpperCase();  // narrowed to string
+const words = ['a', undefined, 'b'].filter(w => w !== undefined);
+// string[]  (inferred predicate, TS 5.5)
+```
+
+## Utility Types
+```ts
+interface U { id: number; name: string; email?: string }
+type A = Partial<U>;  // all optional
+type B = Required<U>;  // all required
+type C = Readonly<U>;  // all readonly
+type D = Pick<U, 'id' | 'name'>;
+type E = Omit<U, 'email'>;
+type F = Record<'en' | 'fr', string>;
+type T1 = Exclude<'a' | 'b' | 'c', 'a'>;  // 'b' | 'c'
+type T2 = Extract<'a' | 'b', 'a' | 'z'>;  // 'a'
+type T3 = NonNullable<string | null>;  // string
+```
+
+## Function Utility Types
+```ts
+function createUser(name: string, age: number) { return { id: 1, name, age }; }
+type R = ReturnType<typeof createUser>;  // { id; name; age }
+type P = Parameters<typeof createUser>;  // [name: string, age: number]
+class Service { constructor(public url: string) {} }
+type CP = ConstructorParameters<typeof Service>; // [url: string]
+type I = InstanceType<typeof Service>;  // Service
+type AW = Awaited<Promise<Promise<number>>>; // number
+type UP = Uppercase<'get'>;  // 'GET'
+```
+
+## Build Your Own Utilities
+```ts
+type MyPartial<T> = { [K in keyof T]?: T[K] };
+type MyRequired<T> = { [K in keyof T]-?: T[K] };
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+type MyPick<T, K extends keyof T> = { [P in K]: T[P] };
+type MyExclude<T, U> = T extends U ? never : T;
+type MyOmit<T, K extends keyof any> = MyPick<T, MyExclude<keyof T, K>>;
+type MyReturnType<T extends (...a: any) => any> =
+  T extends (...a: any) => infer R ? R : never;
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
+};
+```
+
+## keyof · typeof · Indexed Access
+```ts
+const person = { name: 'Ann', age: 30, tags: ['a'] };
+type Person2 = typeof person;
+type Keys = keyof Person2;  // 'name' | 'age' | 'tags'
+type Age = Person2['age'];  // number
+type Tag = Person2['tags'][number]; // string
+const roles = ['admin', 'user'] as const;
+type RoleU = (typeof roles)[number];// 'admin' | 'user'
+```
+
+## Mapped Types
+```ts
+type Flags2<T> = { [K in keyof T]: boolean };
+type Getters<T> = {
+  [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
+};
+type G = Getters<{ name: string }>;  // { getName: () => string }
+type OnlyStrings<T> = {
+  [K in keyof T as T[K] extends string ? K : never]: T[K];
+};
+type Nullable<T> = { [K in keyof T]: T[K] | null };
+```
+
+## Conditional Types & infer
+```ts
+type IsString<T> = T extends string ? true : false;
+type X1 = IsString<'a'>;  // true
+type Elem<T> = T extends (infer E)[] ? E : T;
+type X2 = Elem<string[]>;  // string
+type ToArray<T> = T extends any ? T[] : never;
+type X3 = ToArray<string | number>;  // string[] | number[]
+type NoDist<T> = [T] extends [any] ? T[] : never;
+type X4 = NoDist<string | number>;  // (string | number)[]
+```
+- Conditional types **distribute** over naked unions; wrap in `[ ]` to stop it.
+
+## Template Literal Types
+```ts
+type Lang = 'en' | 'fr';
+type Route = `/${Lang}/home`;  // '/en/home' | '/fr/home'
+type CssSize = `${number}px`;
+const w: CssSize = '12px';
+type Split<S extends string> =
+  S extends `${infer H}.${infer T}` ? [H, ...Split<T>] : [S];
+type Parts = Split<'a.b.c'>;  // ['a', 'b', 'c']
+```
+
+## Branded & Recursive Types
+```ts
+type UserId = string & { readonly __brand: 'UserId' };
+const asUserId = (s: string) => s as UserId;
+function load(id: UserId) { return id; }
+load(asUserId('u1'));  // plain string rejected
+type Json = string | number | boolean | null
+  | Json[] | { [key: string]: Json };
+interface Producer<out T> { get(): T }  // variance (4.7)
+```
+
+## Modules
+```ts
+export const PI = 3.14;  // named export
+export default class Calculator {}  // one default
+export type Shape3 = { r: number };
+// import Calculator, { PI } from './math';
+// import * as math from './math';
+// import type { Shape3 } from './math';  // erased
+// const mod = await import('./math');  // lazy load
+```
+- File with `import`/`export` = module; otherwise a global script. `verbatimModuleSyntax` requires `import type` for types.
+
+## Declaration Files
+```ts globals.d.ts
+declare const __APP_VERSION__: string;
+declare function track(event: string): void;
+interface Window { analytics?: { track(e: string): void } }
+declare module 'legacy-lib' {
+  export function slugify(text: string): string;
+}
+declare module '*.svg' { const url: string; export default url; }
+```
+- `.d.ts` = types only. Sources: the package itself, `@types/x` (DefinitelyTyped), or your own. In a **module** file use `declare global { }` to add globals.
+
+## using & Newer Features
+```ts
+class TempFile implements Disposable {
+  constructor(public path: string) {}
+  [Symbol.dispose]() { console.log('delete', this.path); }
+}
+function work() {
+  using f = new TempFile('/tmp/a');  // TS 5.2
+  console.log('use', f.path);
+}  // auto-disposed here
+work();
+```
+- `satisfies` (4.9) · `const` type params (5.0) · `NoInfer<T>` (5.4) · inferred predicates (5.5) · `erasableSyntaxOnly` (5.8).
+
+## Versions
+- **2.0** `strictNullChecks` · **2.8** conditional types · **3.7** `?.` and `??` · **4.1** template literal types · **4.9** `satisfies`.
+- **5.0** standard decorators · **5.2** `using`.
+- **6.0** (2026): `strict` on by default, deprecates `baseUrl`, ES5 target, `outFile`. Angular 22 uses 6.0.
+- **7.0** (Jul 2026): compiler rewritten in **Go**, about 10x faster.
+
+## Gotchas
+```ts
+const xs: number[] = [];
+const first0 = xs[0];  // number, but undefined at runtime
+const parsed = JSON.parse('{}'); // any: validate it (Zod)
+const ks = Object.keys({ a: 1 }); // string[], not 'a'[]
+const anything: {} = 42;  // {} = any non-null value
+const sorted = [10, 9, 1].sort(); // [1, 10, 9]: string sort!
+```
+- Types vanish at runtime: no `instanceof` for interfaces. `@ts-ignore` hides errors; prefer `@ts-expect-error`.
+
+## Interview One-Liners
+- **interface vs type**: extendable/mergeable objects vs any type incl. unions.
+- **any vs unknown**: no checks vs must narrow first.
+- **never**: impossible values, exhaustive checks.
+- **Generics**: reusable code with type parameters.
+- **Narrowing**: typeof, instanceof, in, equality, discriminant, type guards.
+- **Discriminated union**: union with a shared literal tag.
+- **satisfies**: check against a type without widening.
+- **private vs #private**: compile-time vs runtime.
+- **Type erasure**: no types at runtime → validate external data.
+- **Enums vs unions**: runtime object vs zero-cost literal types.

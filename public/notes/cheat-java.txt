@@ -1,0 +1,776 @@
+# 01 | Java Cheat Sheet | Everything on one page: syntax, types, OOP, collections, generics, lambdas, streams, exceptions, I/O, concurrency, JVM and Java 8 to 25 | Java on one page
+
+## Program & Run
+```java
+public class Hello {
+  public static void main(String[] args) {
+    System.out.println("Hello " + args.length);
+  }
+}
+// Java 25 compact file:
+// void main() { IO.println("Hi"); }
+```
+```bash
+javac Hello.java && java Hello
+java Hello.java  # run source (11+)
+jar cfe app.jar Hello Hello.class
+java -jar app.jar
+jshell  # REPL (9+)
+```
+
+## Variables & Constants
+```java
+int count = 0;  // locals: no default
+final int MAX = 10;  // assign once
+static final double PI = 3.14159;
+var list = new ArrayList<String>(); // 10+
+// var: locals only, needs a value
+```
+- Naming: `ClassName`, `methodName`, `CONSTANT_NAME`, `com.acme.pkg`.
+
+## Primitive Types
+```text
+byte    8   -128..127
+short  16   -32,768..32,767
+int    32   about ±2.1 billion
+long   64   10L
+float  32   3.14f  (~7 digits)
+double 64   3.14   (~15 digits)
+char   16   'A'  'A'
+boolean     true / false
+```
+- Field defaults: `0`, `0.0`, `'\u0000'`, `false`, `null`. Literals: `1_000_000`, `0x1F`, `0b101`; `010` is octal 8.
+
+## Operators
+```java
+7 / 2  // 3  (int division)
+-7 / 2  // -3
+-7 % 3  // -1
+Math.floorMod(-7, 3)  // 2
+7 / 2.0  // 3.5
+1.0 / 0  // Infinity (1 / 0 throws)
+6 & 3  // 2 ·  6 | 3 = 7 ·  6 ^ 3 = 5
+~6  // -7 · 1 << 4 = 16
+-16 >> 2  // -4 (keeps sign)
+-16 >>> 28  // 15 (zero fill)
+1 + 2 + "3" + 4  // "334"
+```
+- `&&` `||` short-circuit. `==` on objects compares references: use `equals`.
+
+## Casting & Promotion
+```java
+long l = 100;  // widening: automatic
+int i = (int) 3.99;  // 3 (truncates)
+byte b = (byte) 200;  // -56
+char c = (char) 66;  // 'B'
+byte x = 10, y = 20;
+// byte z = x + y;  // error: int result
+x += 5;  // OK: implicit cast
+long bad = 1000 * 60 * 60 * 24 * 365;  // overflow
+long ok = 1000L * 60 * 60 * 24 * 365;  // fixed
+```
+
+## Wrappers & Autoboxing
+```java
+Integer a = 127, b = 127;  // a == b  true
+Integer c = 128, d = 128;  // c == d  false!
+c.equals(d);  // true
+int n = Integer.parseInt("42");
+Integer.toBinaryString(10);  // "1010"
+Integer.MAX_VALUE + 1;  // -2147483648
+Character.isDigit('7');  // true
+int digit = '7' - '0';  // 7
+```
+- Cache: `Integer.valueOf` reuses -128..127. Unboxing `null` → `NullPointerException`.
+
+## Math & BigDecimal
+```java
+Math.max(3, 9); Math.abs(-5); Math.pow(2, 10);
+Math.sqrt(16);  // 4.0
+Math.round(2.5);  // 3   (-2.5 -> -2)
+Math.floor(-1.5); // -2.0
+0.1 + 0.2;  // 0.30000000000000004
+var p = new BigDecimal("19.99"); // String ctor!
+p.multiply(BigDecimal.valueOf(3))
+ .setScale(2, RoundingMode.HALF_UP); // 59.97
+new BigDecimal("2.0")
+ .compareTo(new BigDecimal("2.00")); // 0
+BigInteger.valueOf(2).pow(100);
+```
+
+## Output & printf
+```java
+System.out.println("line");
+System.out.printf("%-6s|%6.2f|%05d%n",
+    "pi", Math.PI, 42);  // pi    |  3.14|00042
+String s = "%s=%d".formatted("x", 5);
+```
+- `%d` int · `%f` decimal · `%s` string · `%c` char · `%b` boolean · `%x` hex · `%n` newline · `%,d` 1,234.
+
+## Console Input
+```java ReadInput.java
+import java.util.Scanner;
+class ReadInput {
+  public static void main(String[] a) {
+    Scanner sc = new Scanner(System.in);
+    int n = sc.nextInt();
+    sc.nextLine();  // eat the newline
+    String line = sc.nextLine();
+  }
+}
+```
+- Faster: `new BufferedReader(new InputStreamReader(System.in)).readLine()`.
+
+## if & switch
+```java
+char grade;
+if (score >= 90) grade = 'A';
+else if (score >= 75) grade = 'B';
+else grade = 'C';
+
+String kind = switch (day) {  // 14+
+  case "SAT", "SUN" -> "weekend";
+  default -> {
+    yield "weekday";
+  }
+};
+```
+- Old `case X:` falls through without `break`. Switch works on int types, `String`, enums and (21) any type with patterns.
+
+## Pattern Matching (16-21)
+```java
+if (obj instanceof String s && !s.isBlank())
+  System.out.println(s.length());
+
+String describe(Object o) {
+  return switch (o) {
+    case null -> "null";
+    case Integer i when i > 100 -> "big";
+    case Integer i -> "int " + i;
+    case String s -> "str " + s;
+    default -> "other";
+  };
+}
+```
+
+## Loops
+```java
+for (int i = 0; i < 5; i++) { }
+for (String s : List.of("a", "b")) { }
+int k = 0;
+while (k < 3) k++;
+do { k--; } while (k > 0);  // runs once at least
+outer:
+for (int i = 0; i < 3; i++)
+  for (int j = 0; j < 3; j++)
+    if (j == 1) continue outer; // or break outer
+List.of(1, 2).forEach(System.out::println);
+```
+
+## Strings
+```java
+String h = "Hello, World";
+h.length();  // 12
+h.charAt(0);  // 'H'
+h.substring(7);  // "World"
+h.substring(0, 5);  // "Hello"  [begin, end)
+h.indexOf('o');  // 4  (-1 if missing)
+h.contains("World"); h.startsWith("He");
+h.toUpperCase(); h.trim(); h.strip();
+h.replace("World", "Java");
+"a,b,,".split(",");  // [a, b]
+String.join("-", "a", "b");  // "a-b"
+"ab".repeat(3);  // "ababab"
+"  ".isBlank();  // true (11+)
+h.toCharArray(); String.valueOf(42);
+```
+- Immutable and pooled: `"a" == new String("a")` is false. Compare with `equals` / `equalsIgnoreCase`.
+
+## StringBuilder & Text Blocks
+```java
+var sb = new StringBuilder("hello");
+sb.append(' ').append(42);  // "hello 42"
+sb.insert(0, ">");
+sb.reverse();
+sb.deleteCharAt(0);
+sb.setLength(0);  // clear
+String json = """
+    {"name": "Ann"}
+    """;  // 15+
+```
+- Use `StringBuilder` in loops. `StringBuffer` = synchronized legacy twin.
+
+## Regex
+```java
+Pattern p = Pattern.compile("(\\w+)@(\\w+)\\.com");
+Matcher m = p.matcher("ann@acme.com");
+while (m.find()) System.out.println(m.group(1));
+"2026-10-16".matches("\\d{4}-\\d{2}-\\d{2}");
+"a1b22".replaceAll("\\d+", "#");  // "a#b#"
+```
+- `\d \w \s` · `[a-z]` · `* + ? {n,m}` · `^ $` · `( )` groups · double each backslash in Java strings.
+
+## Arrays
+```java
+int[] a = new int[5];  // zeros
+int[] b = {3, 1, 2};
+int[][] grid = new int[3][4];  // rows x cols
+int len = b.length;  // field, no ()
+Arrays.sort(b);  // [1, 2, 3]
+Arrays.toString(b);  // "[1, 2, 3]"
+Arrays.binarySearch(b, 2);  // 1 (sorted!)
+Arrays.fill(a, -1);
+int[] c = Arrays.copyOf(b, 5); // [1,2,3,0,0]
+Arrays.stream(b).sum();  // 6
+```
+
+## Utility Classes
+```java
+var l = new ArrayList<>(List.of(5, 3, 9));
+Collections.sort(l);  // [3, 5, 9]
+Collections.reverse(l);
+Collections.max(l);  // 9
+Collections.frequency(l, 3);  // 1
+Collections.unmodifiableList(l);  // read-only view
+var fixed = Arrays.asList("a", "b"); // no add()
+Objects.equals(null, null);  // true
+Objects.hash(1, "a");
+Objects.requireNonNull(x, "x is null");
+```
+
+## Classes & Constructors
+```java
+public class Account {
+  private static int count;  // shared
+  private final String id;  // set once
+  private double balance;
+
+  public Account(String id) { this(id, 0); }
+  public Account(String id, double balance) {
+    this.id = id;
+    this.balance = balance;
+    count++;
+  }
+  public double getBalance() { return balance; }
+}
+Account acc = new Account("A1");
+```
+- No constructor written → a no-arg one is added. Java is always **pass-by-value** (references are copied).
+
+## Access Modifiers
+```text
+            class  package  subclass  world
+private      yes    no       no        no
+(default)    yes    yes      no        no
+protected    yes    yes      yes       no
+public       yes    yes      yes       yes
+```
+
+## static · final · this · super
+- `static`: belongs to the class; no `this`; static blocks run once at class load.
+- `final`: variable = assign once · method = no override · class = no subclass.
+- `this(...)` calls another constructor; `super(...)` the parent's (first statement).
+- Init order: parent static → child static → parent fields + ctor → child fields + ctor.
+
+## Inheritance & Polymorphism
+```java
+abstract class Shape {
+  abstract double area();
+}
+class Circle extends Shape {
+  private final double r;
+  Circle(double r) { this.r = r; }
+  @Override double area() { return Math.PI * r * r; }
+}
+Shape s = new Circle(2);  // upcast
+s.area();  // runtime dispatch
+if (s instanceof Circle cc) { } // safe downcast
+```
+- One superclass (`extends`), many interfaces (`implements`). Fields and static methods are not polymorphic.
+
+## Overriding vs Overloading
+- **Override** (runtime): same signature in a subclass, covariant return, same or wider access, no broader checked exceptions; not `static`, `final`, `private`.
+- **Overload** (compile time): same name, different parameters. Picks exact → widening → boxing → varargs.
+```java
+static void f(long v) { System.out.println("long"); }
+static void f(Integer v) { System.out.println("Integer"); }
+f(5);  // "long": widening beats boxing
+```
+
+## Interfaces
+```java
+interface Greeter {
+  String PREFIX = "Hi ";  // public static final
+  String name();  // abstract
+  default String greet() { return PREFIX + name(); }
+  static Greeter of(String n) { return () -> n; }
+  private void help() { }  // 9+
+}
+interface A { default String hi() { return "A"; } }
+interface B { default String hi() { return "B"; } }
+class AB implements A, B {  // clash: must choose
+  public String hi() { return A.super.hi(); }
+}
+```
+
+## Abstract Class vs Interface
+```text
+              abstract class    interface
+state         instance fields   constants only
+constructor   yes               no
+inheritance   extend ONE        implement MANY
+methods       any kind          abstract, default,
+                                static, private
+use for       shared base code  capability/contract
+```
+
+## Enums
+```java
+enum Planet {
+  MERCURY(3.3e23), EARTH(5.97e24);
+  private final double mass;
+  Planet(double mass) { this.mass = mass; }
+  double mass() { return mass; }
+}
+Planet.valueOf("EARTH");
+Planet.values();
+Planet.EARTH.ordinal();  // 1
+var notes = new EnumMap<Planet, String>(Planet.class);
+enum Registry { INSTANCE }  // simplest singleton
+```
+
+## Records & Sealed Types
+```java
+record Money(BigDecimal amount, String cur) { // 16+
+  public Money {  // validate
+    if (amount.signum() < 0)
+      throw new IllegalArgumentException();
+  }
+}  // gives ctor, amount(), equals, hashCode, toString
+
+sealed interface Result permits Ok, Err {}  // 17+
+record Ok(String v) implements Result {}
+record Err(String msg) implements Result {}
+String show(Result r) {
+  return switch (r) {  // exhaustive
+    case Ok(String v) -> "ok " + v;
+    case Err(String m) -> "err " + m;
+  };
+}
+```
+
+## equals · hashCode · Comparator
+```java
+final class Point {
+  final int x, y;
+  Point(int x, int y) { this.x = x; this.y = y; }
+  @Override public boolean equals(Object o) {
+    return o instanceof Point p && x == p.x && y == p.y;
+  }
+  @Override public int hashCode() { return Objects.hash(x, y); }
+}
+var people = new ArrayList<>(emps);
+people.sort(Comparator.comparing(Emp::dept)
+    .thenComparing(Emp::salary, Comparator.reverseOrder()));
+```
+- Equal objects **must** have equal hash codes. `Comparable` = natural order inside the class; `Comparator` = any order outside. Use `Integer.compare(a, b)`, never `a - b`.
+
+## Nested & Anonymous Classes
+```java
+class Outer {
+  static class Nested { }  // new Outer.Nested()
+  class Inner { }  // outer.new Inner()
+  Runnable r = new Runnable() { // anonymous class
+    public void run() { }
+  };
+  Runnable l = () -> { };  // lambda: prefer it
+}
+```
+- Immutable class: `final` class, `private final` fields, no setters, defensive copies (`List.copyOf`), or simply a `record`.
+
+## Exceptions
+```java
+try {
+  Integer.parseInt("12a");
+} catch (NumberFormatException e) {  // specific first
+  System.out.println(e.getMessage());
+} catch (IllegalStateException | NullPointerException e) {
+  throw new RuntimeException("wrapped", e);
+} finally {
+  System.out.println("always runs");
+}
+Path path = Files.createTempFile("x", ".txt");
+try (var br = Files.newBufferedReader(path)) {
+  br.readLine();  // auto-closed
+}
+class NotFound extends RuntimeException {
+  NotFound(long id) { super("No " + id); }
+}
+```
+- `throw` = throw one; `throws` = declare it. Keep the cause when wrapping. Never `return` inside `finally`.
+
+## Exception Hierarchy
+```text
+Throwable
+├─ Error   OutOfMemoryError, StackOverflowError
+└─ Exception             CHECKED: catch or declare
+   ├─ IOException, SQLException,
+   │  InterruptedException ...
+   └─ RuntimeException   UNCHECKED
+      NullPointerException, ArithmeticException,
+      IllegalArgumentException, IllegalStateException,
+      IndexOutOfBoundsException, ClassCastException,
+      ConcurrentModificationException
+```
+
+## Collections Overview
+```text
+List   ordered, duplicates  ArrayList, LinkedList
+Set    unique               HashSet, LinkedHashSet,
+                            TreeSet (sorted)
+Queue  FIFO / priority      ArrayDeque, PriorityQueue
+Map    key -> value         HashMap, LinkedHashMap,
+                            TreeMap, ConcurrentHashMap
+```
+- Immutable: `List.of`, `Set.of`, `Map.of` (no nulls). Java 21: `getFirst()`, `getLast()`, `reversed()`.
+
+## List
+```java
+var list = new ArrayList<>(List.of("b", "a"));
+list.add("c"); list.add(0, "z");
+list.get(0); list.set(0, "y");
+list.remove(0);  // by index
+list.remove("c");  // by object
+list.contains("a"); list.indexOf("a");
+list.sort(null); list.size(); list.isEmpty();
+list.removeIf(e -> e.startsWith("a"));
+var ints = new ArrayList<>(List.of(10, 20));
+ints.remove(Integer.valueOf(10)); // the VALUE 10
+```
+
+## Set
+```java
+var a = new HashSet<>(Set.of(1, 2, 3));
+var b = Set.of(2, 3, 4);
+a.add(3);  // false: duplicate
+a.addAll(b);  // union
+a.retainAll(b);  // intersection
+a.removeAll(b);  // difference
+var ts = new TreeSet<>(List.of(10, 5, 20));
+ts.first(); ts.last();  // 5, 20
+ts.floor(12); ts.ceiling(12); // 10, 20
+new LinkedHashSet<>(List.of(3, 1, 3)); // [3, 1]
+```
+
+## Map
+```java
+Map<String, Integer> m = new HashMap<>();
+m.put("a", 1); m.get("a");  // 1
+m.get("zz");  // null
+m.getOrDefault("zz", 0);  // 0
+m.containsKey("a"); m.putIfAbsent("b", 5);
+m.merge("w", 1, Integer::sum);  // counting
+Map<String, List<String>> g = new HashMap<>();
+g.computeIfAbsent("k", key -> new ArrayList<>()).add("v");
+for (var e : m.entrySet())
+  System.out.println(e.getKey() + "=" + e.getValue());
+var tm = new TreeMap<>(Map.of(10, "a", 20, "b", 30, "c"));
+tm.firstKey(); tm.floorKey(25); // 10, 20
+```
+- HashMap: 16 buckets, load factor 0.75, doubles on resize, crowded buckets (8+) become trees, one `null` key allowed.
+
+## Queue · Stack · PriorityQueue
+```java
+Queue<Integer> q = new ArrayDeque<>();
+q.offer(1); q.peek(); q.poll();  // add, look, remove
+Deque<Integer> stack = new ArrayDeque<>();
+stack.push(1); stack.peek(); stack.pop(); // LIFO
+var minHeap = new PriorityQueue<Integer>();
+var maxHeap = new PriorityQueue<Integer>(
+    Comparator.reverseOrder());
+minHeap.addAll(List.of(5, 1, 3));
+minHeap.poll();  // 1
+```
+- `offer/poll/peek` return false/null; `add/remove/element` throw. Use `ArrayDeque`, not legacy `Stack`.
+
+## Big-O of Collections
+```text
+           ArrayList LinkedList HashMap TreeMap
+get        O(1)      O(n)       O(1)    O(log n)
+add (end)  O(1)*     O(1)       O(1)    O(log n)
+insert mid O(n)      O(n)       -       -
+contains   O(n)      O(n)       O(1)    O(log n)
+* amortised · PriorityQueue offer/poll O(log n)
+```
+- Removing while looping: `iterator.remove()` or `removeIf`. A for-each plus `list.remove` throws `ConcurrentModificationException`.
+
+## Generics
+```java
+class Box<T> {
+  private final T value;
+  Box(T value) { this.value = value; }
+  T get() { return value; }
+}
+static <T extends Comparable<T>> T max(List<T> xs) {
+  return Collections.max(xs);
+}
+double sum(List<? extends Number> xs) { return 0; } // read
+void fill(List<? super Integer> xs) { xs.add(1); }  // write
+```
+- **PECS**: Producer `extends`, Consumer `super`. **Type erasure**: no `new T()`, no `List<int>`, no `instanceof List<String>`.
+
+## Lambdas & Method References
+```java
+Runnable r = () -> System.out.println("run");
+Comparator<String> byLen =
+    (s1, s2) -> Integer.compare(s1.length(), s2.length());
+Function<Integer, Integer> sq = v -> v * v;
+Function<String, Integer> parse = Integer::parseInt;
+Consumer<String> out = System.out::println;
+Function<String, String> up = String::toUpperCase;
+Supplier<List<String>> mk = ArrayList::new;
+```
+- Captured local variables must be **effectively final**. Method references: static, bound, unbound, constructor.
+
+## Functional Interfaces
+```text
+Supplier<T>       () -> T        get()
+Consumer<T>       T -> void      accept(t)
+Function<T,R>     T -> R         apply(t)
+Predicate<T>      T -> boolean   test(t)
+UnaryOperator<T>  T -> T
+BinaryOperator<T> (T,T) -> T
+BiFunction<T,U,R> (T,U) -> R
+Runnable () -> void · Callable<V> () -> V
+```
+```java
+Function<Integer, Integer> plus2 = v -> v + 2;
+Function<Integer, Integer> times3 = v -> v * 3;
+plus2.andThen(times3).apply(1);  // 9
+plus2.compose(times3).apply(1);  // 5
+Predicate<String> notBlank = Predicate.not(String::isBlank);
+```
+
+## Optional
+```java
+Optional<String> o = Optional.ofNullable(maybe);
+o.isPresent(); o.isEmpty();
+o.orElse("default");  // always evaluated
+o.orElseGet(() -> compute()); // lazy
+o.map(String::toUpperCase)
+ .filter(v -> v.length() > 2);
+o.ifPresentOrElse(System.out::println, () -> {});
+// o.orElseThrow() -> NoSuchElementException if empty
+```
+- Use as a **return type** for "maybe no result"; not for fields or parameters.
+
+## Streams
+```java
+List.of("apple", "bob", "kiwi").stream()
+    .filter(w -> w.length() > 3)
+    .map(String::toUpperCase)
+    .distinct().sorted()
+    .toList();  // [APPLE, KIWI]
+IntStream.range(0, 5);  // 0..4
+Stream.iterate(1, v -> v * 2).limit(5); // 1 2 4 8 16
+nested.stream().flatMap(List::stream).toList();
+nums.stream().reduce(0, Integer::sum);
+nums.stream().mapToInt(Integer::intValue).max();
+nums.stream().anyMatch(v -> v > 5);
+nums.stream().findFirst();  // Optional
+```
+- Lazy until a terminal operation; a stream can be consumed **once**. Parallel streams use the common ForkJoinPool.
+
+## Collectors
+```java
+emps.stream().map(Emp::name)
+    .collect(Collectors.joining(", "));
+emps.stream().collect(Collectors.groupingBy(
+    Emp::dept, Collectors.counting()));  // {HR=1, IT=2}
+emps.stream().collect(Collectors.groupingBy(
+    Emp::dept, Collectors.averagingDouble(Emp::salary)));
+emps.stream().collect(Collectors.partitioningBy(
+    e -> e.salary() > 65));
+emps.stream().collect(Collectors.toMap(
+    Emp::name, Emp::salary));  // duplicate key throws
+Arrays.stream(text.split(" ")).collect(  // word count
+    Collectors.groupingBy(Function.identity(), Collectors.counting()));
+```
+
+## Date & Time
+```java
+LocalDate d = LocalDate.of(2026, 10, 16);
+d.plusDays(30); d.getDayOfWeek();  // FRIDAY
+LocalDateTime dt = LocalDateTime.of(d, LocalTime.of(9, 30));
+ZonedDateTime z = dt.atZone(ZoneId.of("Asia/Kolkata"));
+Instant now = Instant.now();  // store this
+ChronoUnit.DAYS.between(d, LocalDate.of(2026, 12, 25)); // 70
+Duration.ofMinutes(90).toHours();  // 1
+Period.between(LocalDate.of(1990, 5, 1), d).getYears(); // 36
+var f = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+dt.format(f);  // "16-10-2026 09:30"
+```
+- `java.time` is immutable and thread-safe; legacy `Date` / `SimpleDateFormat` are not.
+
+## Files & I/O
+```java
+Path p = Path.of("notes.txt");
+Files.writeString(p, "a\nb\n");
+String all = Files.readString(p);
+List<String> lines = Files.readAllLines(p);
+try (Stream<String> s = Files.lines(p)) { // lazy: close
+  s.filter(v -> v.startsWith("a")).forEach(System.out::println);
+}
+Files.exists(p);
+Files.deleteIfExists(p);
+```
+- Byte streams (`InputStream`) vs character streams (`Reader`). Wrapping (`BufferedReader(new FileReader(..))`) = Decorator pattern.
+
+## Threads & Executors
+```java
+Thread t = new Thread(() -> System.out.println("hi"));
+t.start();  // run() would run on THIS thread
+t.join();  // wait for it
+ExecutorService pool = Executors.newFixedThreadPool(4);
+Future<Integer> fut = pool.submit(() -> 6 * 7);
+fut.get();  // 42 (blocks)
+pool.shutdown();
+```
+- States: NEW, RUNNABLE, BLOCKED, WAITING, TIMED_WAITING, TERMINATED. `Runnable` returns nothing, `Callable` returns a value. `sleep` keeps locks, `wait` releases them.
+
+## CompletableFuture
+```java
+var score = CompletableFuture.supplyAsync(() -> 42);
+String res = CompletableFuture.supplyAsync(() -> "ann")
+    .thenApply(String::toUpperCase)  // map
+    .thenCompose(u -> CompletableFuture.supplyAsync(() -> u + "!"))
+    .thenCombine(score, (u, sc) -> u + " " + sc)
+    .exceptionally(ex -> "fallback")
+    .orTimeout(2, TimeUnit.SECONDS)
+    .join();  // "ANN! 42"
+CompletableFuture.allOf(score).join();
+```
+
+## Synchronization & Locks
+```java
+class Counter {
+  private int count;
+  synchronized void inc() { count++; }  // locks this
+  private volatile boolean running = true; // visibility
+}
+var lock = new ReentrantLock();
+lock.lock();
+try { /* critical section */ } finally { lock.unlock(); }
+var hits = new AtomicInteger();
+hits.incrementAndGet();  // lock-free CAS
+```
+- `count++` is not atomic even when `volatile`. **Deadlock** = threads waiting on each other's locks: lock in a fixed order or `tryLock` with a timeout.
+
+## Concurrent Utilities
+```java
+var chm = new ConcurrentHashMap<String, Integer>();
+chm.merge("k", 1, Integer::sum);  // atomic per key
+var queue = new LinkedBlockingQueue<Integer>(10);
+queue.put(1); queue.take();  // producer-consumer
+var latch = new CountDownLatch(1);
+latch.countDown(); latch.await();  // wait for N events
+var permits = new Semaphore(2);  // max 2 at once
+permits.acquire(); permits.release();
+var listeners = new CopyOnWriteArrayList<String>();
+```
+
+## Virtual Threads (21+)
+```java
+try (var exec = Executors.newVirtualThreadPerTaskExecutor()) {
+  for (int i = 0; i < 10_000; i++)
+    exec.submit(() -> {
+      Thread.sleep(Duration.ofMillis(10));
+      return 1;
+    });
+}  // close() waits for all
+Thread.ofVirtual().start(() -> System.out.println("v"));
+```
+- Cheap JVM-scheduled threads for **blocking I/O**; millions are fine. Do not pool them; no speed-up for CPU work. `ScopedValue` (25) replaces heavy `ThreadLocal`s.
+
+## JVM & Memory
+```text
+.java -> javac -> .class bytecode -> JVM
+         (interpreter + JIT to native code)
+JDK = JRE + tools · JRE = JVM + libraries
+Heap       objects (Young: Eden+Survivors, Old)
+Stack      one frame per call, per thread
+Metaspace  class metadata (replaced PermGen)
+```
+- GC frees objects **unreachable from roots**. Collectors: Serial, Parallel, **G1** (default), ZGC (sub-ms pauses), Shenandoah.
+- `OutOfMemoryError` = heap exhausted (leaks: static maps, caches, listeners). `StackOverflowError` = deep recursion.
+
+## JVM Flags & Tools
+```bash
+java -Xms512m -Xmx2g -jar app.jar  # heap
+java -XX:+UseZGC -jar app.jar
+java -XX:+HeapDumpOnOutOfMemoryError -jar app.jar
+jps -l  # running JVMs
+jcmd <pid> Thread.print  # thread dump
+jcmd <pid> GC.heap_dump h.hprof
+jcmd <pid> JFR.start duration=60s filename=r.jfr
+jstat -gcutil <pid> 1000  # GC stats
+```
+
+## Reflection & Annotations
+```java
+Class<?> cl = Class.forName("java.util.ArrayList");
+Object o = cl.getDeclaredConstructor().newInstance();
+cl.getMethod("add", Object.class).invoke(o, "x");
+
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+@interface Audit { String value() default "info"; }
+```
+- Spring, Hibernate and JUnit = reflection + annotations + dynamic proxies.
+
+## Design Patterns
+```java
+final class Config {  // lazy singleton
+  private Config() {}
+  private static class Holder {
+    static final Config I = new Config();
+  }
+  static Config get() { return Holder.I; }
+}
+// Builder: Pizza.builder().size("L").cheese(true).build()
+```
+- Factory (`List.of`), Strategy (pass a `Comparator`), Observer (listeners), Decorator (`BufferedReader`), Adapter (`Arrays.asList`), Proxy (Spring AOP), Template method.
+- **SOLID**: single responsibility · open/closed · Liskov · interface segregation · dependency inversion.
+
+## Java Versions
+- **8**: lambdas, streams, `Optional`, `java.time`, default methods.
+- **11 LTS**: `var` (10), `HttpClient`, `isBlank/strip/repeat`, `Files.readString`.
+- **17 LTS**: switch expressions (14), text blocks (15), records (16), sealed classes.
+- **21 LTS**: virtual threads, pattern matching switch, record patterns, sequenced collections.
+- **25 LTS**: compact source files + `void main()`, module imports, scoped values, code before `super()`. Latest release: 27.
+
+## Tricky Outputs
+```java
+1 + 2 + "3" + 4 + 5  // "3345"
+'a' + 'b'  // 195
+0.1 + 0.2 == 0.3  // false
+Double.NaN == Double.NaN  // false
+10 / 3 * 3  // 9
+Math.abs(Integer.MIN_VALUE)  // still negative
+short sh = 1; sh += 1.7;  // 2
+String nul = null; nul + "x"  // "nullx"
+var li = new ArrayList<>(List.of(1, 2, 3));
+li.remove(1);  // removes INDEX 1 -> [1, 3]
+```
+
+## Interview One-Liners
+- **JDK vs JRE vs JVM**: tools + runtime + engine.
+- **== vs equals**: identity vs content.
+- **String immutable**: pool, security, thread safety, cached hash.
+- **final / finally / finalize**: no change · always runs · deprecated GC hook.
+- **ArrayList vs LinkedList**: array (fast get) vs nodes (fast ends); ArrayList almost always.
+- **HashMap / ConcurrentHashMap / Hashtable**: not thread-safe · thread-safe, fine-grained · legacy, fully locked.
+- **Checked vs unchecked**: must handle vs programming errors.
+- **map vs flatMap**: one-to-one vs flatten nested streams.
+- **synchronized vs volatile**: lock + visibility vs visibility only.
+- **Fail-fast vs fail-safe** iterators: throw `ConcurrentModificationException` vs iterate a snapshot.

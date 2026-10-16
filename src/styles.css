@@ -259,6 +259,43 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 .foot-link .hint { font: 500 .74rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--label); }
 .foot-link .title { font-weight: 600; color: var(--ink); }
 
+/* ---------- Cheat sheet posters: one sheet, sections as a masonry grid of numbered cards ---------- */
+.sheet-view.poster { grid-template-columns: minmax(0, 1fr); }
+.poster .doc { max-width: 1680px; padding: 28px 28px 72px; }
+.poster .doc h1 { margin-top: 22px; }
+.cards { columns: 330px; column-gap: 16px; margin-top: 28px; }
+.cards > .sec {
+  --c: #0a7a55;
+  break-inside: avoid; margin: 0 0 16px; padding: 12px 14px 6px; border: 2px solid var(--c); border-radius: 14px;
+  background: color-mix(in srgb, var(--c) 5%, #fff);
+}
+.cards > .sec:nth-child(8n+1) { --c: #2563eb; }
+.cards > .sec:nth-child(8n+2) { --c: #d97706; }
+.cards > .sec:nth-child(8n+3) { --c: #059669; }
+.cards > .sec:nth-child(8n+4) { --c: #db2777; }
+.cards > .sec:nth-child(8n+5) { --c: #7c3aed; }
+.cards > .sec:nth-child(8n+6) { --c: #0891b2; }
+.cards > .sec:nth-child(8n+7) { --c: #dc2626; }
+.cards > .sec:nth-child(8n+8) { --c: #65a30d; }
+.cards .sec-head { margin-bottom: 8px; }
+.cards .sec h2 {
+  display: flex; align-items: center; gap: 8px; width: fit-content; padding: 3px 12px 3px 4px; border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 16%, #fff); font-size: 1.02rem; letter-spacing: -0.01em;
+}
+.cards .num {
+  display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 999px;
+  background: var(--c); color: #fff; font-size: .8rem; font-weight: 700;
+}
+.cards .sec ul { margin: 0 0 8px; padding-left: 1.1em; font-size: .86rem; line-height: 1.5; }
+.cards .sec li { margin: 3px 0; padding-left: 2px; }
+.cards .callout { margin: 8px 0; padding: 8px 11px; border-radius: 9px; font-size: .84rem; line-height: 1.5; }
+.cards .code { margin: 8px 0; border-radius: 9px; border-color: color-mix(in srgb, var(--c) 30%, var(--line)); background: #fff; }
+.cards .code figcaption { display: none; }
+.cards .code pre { padding: 8px 10px; font-size: .74rem; line-height: 1.55; overflow-x: visible; }
+.cards .code pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cards .doc :not(pre) > code, .cards :not(pre) > code { font-size: .84em; }
+.poster .doc-foot { margin-top: 40px; }
+
 /* ---------- On this page ---------- */
 .toc {
   position: sticky; top: var(--header-h); height: calc(100dvh - var(--header-h)); overflow-y: auto;
@@ -322,6 +359,7 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
   .a { padding-left: 4px; }
   .foot-nav { grid-template-columns: 1fr; }
   .foot-link.next { text-align: left; }
+  .poster .doc { padding: 20px 14px 56px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }

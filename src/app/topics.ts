@@ -1,4 +1,4 @@
-export type Topic = { id: string; name: string; ready?: boolean };
+export type Topic = { id: string; name: string; ready?: boolean; poster?: boolean };   // poster: one sheet rendered as a card grid
 
 // Groups and order follow TOPICS.md. To add a topic: write public/notes/<id>.txt in the
 // notes format (see notes.ts), then set ready: true here.
@@ -43,12 +43,19 @@ export const GROUPS: { name: string; topics: Topic[] }[] = [
     { id: 'kubernetes', name: 'Kubernetes' },
     { id: 'cicd', name: 'CI/CD' },
     { id: 'aws', name: 'AWS' },
-    { id: 'kafka', name: 'Kafka' },
+    { id: 'kafka', name: 'Kafka', ready: true },
     { id: 'n8n', name: 'n8n', ready: true },
     { id: 'testing', name: 'Testing & JUnit', ready: true },
     { id: 'agile', name: 'Agile & SDLC', ready: true },
     { id: 'system-design', name: 'System Design', ready: true },
     { id: 'buzzwords', name: 'Engineering Buzzwords', ready: true },
+  ] },
+  { name: 'Cheat Sheets', topics: [
+    { id: 'cheat-java', name: 'Java Cheat Sheet', ready: true, poster: true },
+    { id: 'cheat-angular', name: 'Angular Cheat Sheet', ready: true, poster: true },
+    { id: 'cheat-typescript', name: 'TypeScript Cheat Sheet', ready: true, poster: true },
+    { id: 'cheat-sql', name: 'SQL Cheat Sheet', ready: true, poster: true },
+    { id: 'cheat-spring-boot', name: 'Spring Boot Cheat Sheet', ready: true, poster: true },
   ] },
 ];
 export const READY = GROUPS.flatMap(g => g.topics).filter(t => t.ready);

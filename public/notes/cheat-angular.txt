@@ -1,0 +1,644 @@
+# 01 | Angular Cheat Sheet | Everything on one page for Angular 22: CLI, components, templates, control flow, directives, DI, signals, RxJS, routing, forms, pipes, HTTP, change detection, testing | Angular on one page
+
+## CLI Commands
+```bash
+npm i -g @angular/cli
+ng new my-app  # --style=scss --ssr
+ng serve -o  # http://localhost:4200
+ng build  # production build -> dist/
+ng test  # Vitest (new projects)
+ng g c features/user-card  # component
+ng g s core/auth  # service
+ng g d shared/highlight  # directive
+ng g p shared/truncate  # pipe
+ng g guard core/auth  # functional guard
+ng g interceptor core/auth
+ng add @angular/material
+ng update @angular/core @angular/cli
+```
+
+## Project Structure
+```text
+src/
+  index.html      <app-root> host page
+  main.ts         bootstrapApplication(App, appConfig)
+  styles.css      global styles
+  app/
+    app.ts        root component (+ app.html, app.css)
+    app.config.ts providers
+    app.routes.ts routes
+angular.json  build config · tsconfig.json  TS + strictTemplates
+```
+- v20+ naming: `user-card.ts` with class `UserCard` (older: `user-card.component.ts`, `UserCardComponent`).
+
+## Bootstrap & Config
+```ts
+export const appConfig: ApplicationConfig = {  // app.config.ts
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideRouter(routes, withComponentInputBinding()),
+    provideHttpClient(withInterceptors([authInterceptor])),
+  ],
+};
+bootstrapApplication(App, appConfig);  // main.ts
+```
+- Standalone by default (v19+); **zoneless** by default (v21+). NgModules are legacy.
+
+## Component
+```ts
+@Component({
+  selector: 'app-user-card',
+  imports: [DatePipe],  // what the template uses
+  template: `
+    <h3 [class.vip]="vip()">{{ name() }}</h3>
+    <button (click)="selected.emit(name())">Select</button>`,
+  styles: `h3 { margin: 0 }`,  // or templateUrl / styleUrl
+  changeDetection: ChangeDetectionStrategy.OnPush, // default in v22
+})
+export class UserCard {
+  readonly name = input.required<string>();
+  readonly vip = input(false);
+  readonly selected = output<string>();
+}
+```
+- `:host { display: block }` styles the element. Encapsulation: `Emulated` (default), `ShadowDom`, `None`.
+
+## Data Binding
+```html
+<p>{{ user.name }} · {{ total() | currency:'INR' }}</p>  <!-- interpolation -->
+<img [src]="avatarUrl" [alt]="user.name">  <!-- property -->
+<td [attr.colspan]="span"></td>  <!-- attribute -->
+<div [class.active]="isActive" [style.width.px]="width"></div>
+<button (click)="save()">Save</button>  <!-- event -->
+<input (keyup.enter)="search(box.value)" #box>
+<input [(ngModel)]="query">  <!-- two-way (FormsModule) -->
+<app-rating [(value)]="stars" />  <!-- model() -->
+```
+- `[ ]` class → view · `( )` view → class · `[( )]` both. Expressions: no assignments, no `new`, keep them cheap.
+
+## Template Variables & @let
+```html
+<input #email type="email">
+<button (click)="invite(email.value)">Invite</button>
+@let fullName = user.first + ' ' + user.last;
+<h2>{{ fullName }}</h2>
+<p>{{ user.address?.city ?? 'n/a' }}</p>  <!-- ?. and ?? work in templates -->
+```
+
+## @if · @for · @switch
+```html
+@if (user(); as u) {
+  <p>Welcome {{ u.name }}</p>
+} @else if (loading()) {
+  <p>Loading…</p>
+} @else {
+  <button (click)="login()">Log in</button>
+}
+@for (item of items(); track item.id; let i = $index) {
+  <li>{{ i + 1 }}. {{ item.name }}</li>
+} @empty {
+  <li>No items</li>
+}
+@switch (status()) {
+  @case ('active') { <span>Active</span> }
+  @default { <span>Unknown</span> }
+}
+```
+- `track` is required. Also `$first $last $even $odd $count`. No imports needed.
+
+## @defer (lazy template blocks)
+```html
+@defer (on viewport; prefetch on idle) {
+  <app-heavy-chart [data]="data()" />
+} @placeholder (minimum 500ms) {
+  <div class="skeleton"></div>
+} @loading (after 100ms) {
+  <p>Loading chart…</p>
+} @error {
+  <p>Failed to load</p>
+}
+```
+- Triggers: `on idle` (default) · `viewport` · `interaction` · `hover` · `immediate` · `timer(2s)` · `when cond`.
+
+## Legacy Directives (pre-v17 code)
+```html
+<p *ngIf="user; else guest">Hi {{ user.name }}</p>
+<ng-template #guest><p>Hello guest</p></ng-template>
+<li *ngFor="let item of items; trackBy: trackById">{{ item.name }}</li>
+<div [ngSwitch]="role"><p *ngSwitchCase="'admin'">Admin</p></div>
+<div [ngClass]="{ active: isActive }" [ngStyle]="{ 'font-size.px': size }"></div>
+```
+- `*ngIf`/`*ngFor`/`*ngSwitch` deprecated since v20: `ng g @angular/core:control-flow`.
+
+## Attribute Directive
+```ts
+@Directive({
+  selector: '[appHighlight]',
+  host: {
+    '(mouseenter)': 'paint(color())',
+    '(mouseleave)': 'paint("")',
+  },
+})
+export class Highlight {
+  readonly color = input('yellow', { alias: 'appHighlight' });
+  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+  paint(c: string) { this.el.nativeElement.style.backgroundColor = c; }
+}
+// <p appHighlight="pink">Hover me</p>
+```
+
+## Structural Directive
+```ts
+@Directive({ selector: '[appUnless]' })
+export class Unless {
+  readonly appUnless = input.required<boolean>();
+  private readonly tpl = inject<TemplateRef<unknown>>(TemplateRef);
+  private readonly vcr = inject(ViewContainerRef);
+  constructor() {
+    effect(() => {
+      this.vcr.clear();
+      if (!this.appUnless()) this.vcr.createEmbeddedView(this.tpl);
+    });
+  }
+}
+// <p *appUnless="loggedIn()">Please log in</p>
+```
+
+## Content Projection
+```ts
+@Component({
+  selector: 'app-card',
+  template: `
+    <header><ng-content select="[card-title]" /></header>
+    <section><ng-content /></section>
+    <footer><ng-content select=".actions">No actions</ng-content></footer>`,
+})
+export class Card {}
+// <app-card><h2 card-title>Hi</h2><p>Body</p></app-card>
+```
+
+## ng-template · ng-container
+```html
+<ng-container>  <!-- groups nodes, adds no element -->
+  @for (x of list; track x) {
+    <ng-container *ngTemplateOutlet="row; context: { $implicit: x }" />
+  }
+</ng-container>
+<ng-template #row let-item><li>{{ item }}</li></ng-template>
+```
+- `ng-template` renders only when used. `NgTemplateOutlet` renders it with a context.
+
+## Inputs
+```ts
+@Component({ selector: 'app-product', template: `{{ product().name }}` })
+export class ProductItem {
+  readonly product = input.required<{ name: string }>();
+  readonly label = input('Buy');  // default
+  readonly disabled = input(false, { transform: booleanAttribute });
+  readonly discount = input(0, { transform: numberAttribute, alias: 'off' });
+}
+// Legacy: @Input() name!: string;  + ngOnChanges(changes)
+```
+
+## Outputs & model()
+```ts
+@Component({
+  selector: 'app-counter',
+  template: `<button (click)="qty.set(qty() + 1)">{{ qty() }}</button>`,
+})
+export class Counter {
+  readonly qty = model(1);  // two-way: [(qty)]
+  readonly changed = output<number>();  // (changed)="..."
+}
+// Legacy: @Output() changed = new EventEmitter<number>();
+```
+
+## Component Communication
+- **Parent → child**: `[input]`. **Child → parent**: `(output)`. **Both**: `model()` + `[(x)]`.
+- **Parent calls child**: `viewChild(Child)` or `#ref` in the template.
+- **Unrelated components**: a shared **service** holding signals or a `BehaviorSubject`.
+- **Through the router**: params, query params, `data`, resolvers.
+
+## View & Content Queries
+```ts
+@Component({
+  selector: 'app-tabs',
+  template: `<input #search><ng-content />`,
+})
+export class Tabs {
+  readonly search = viewChild.required<ElementRef<HTMLInputElement>>('search');
+  readonly tabs = contentChildren(Card);  // projected children
+  constructor() {
+    afterNextRender(() => this.search().nativeElement.focus());
+  }
+}
+@Component({ selector: 'app-card', template: '' }) class Card {}
+```
+- Legacy: `@ViewChild('search') el!: ElementRef;` ready in `ngAfterViewInit`.
+
+## Services & inject()
+```ts
+@Injectable({ providedIn: 'root' })  // app-wide singleton
+export class CartService {
+  private readonly http = inject(HttpClient);
+  private readonly items = signal<{ price: number }[]>([]);
+  readonly all = this.items.asReadonly();
+  readonly total = computed(() => this.items().reduce((s, i) => s + i.price, 0));
+  add(item: { price: number }) { this.items.update(l => [...l, item]); }
+}
+```
+- `inject()` works in injection contexts: field initialisers, constructors, factories, guards, interceptors.
+
+## Providers & Tokens
+```ts
+export const API_URL = new InjectionToken<string>('api.url');
+export abstract class Logger { abstract log(m: string): void }
+export class ConsoleLogger extends Logger { log(m: string) { console.log(m); } }
+export const providers: Provider[] = [
+  { provide: API_URL, useValue: '/api' },
+  { provide: Logger, useClass: ConsoleLogger },
+  { provide: 'alias', useExisting: Logger },
+  { provide: 'level', useFactory: () => (inject(API_URL) ? 'debug' : 'info') },
+  { provide: 'plugins', useValue: 'audit', multi: true },
+];
+```
+
+## Injector Hierarchy
+```text
+Root (providedIn: 'root', app.config providers)
+└─ Route injectors (Route.providers, lazy routes)
+   └─ Element injectors (@Component providers)
+lookup: element -> parents -> root -> NullInjectorError
+```
+```ts
+export class Panel {
+  readonly logger = inject(Logger, { optional: true }); // null if none
+  // also { self: true } · { skipSelf: true } · { host: true }
+}
+```
+- Component `providers` = a new instance per component. `viewProviders` hide it from projected content.
+
+## Signals
+```ts
+const count = signal(0);  // writable
+count.set(5);
+count.update(c => c + 1);
+const double = computed(() => count() * 2);  // derived, memoised
+const todos = signal<string[]>([]);
+todos.update(list => [...list, 'new']);  // new array, not push
+```
+- Read by calling: `count()`. Templates re-render when signals they read change. Signals compare with `===`.
+
+## effect · linkedSignal · untracked
+```ts
+@Component({ selector: 'app-theme', template: '' })
+export class Theme {
+  readonly theme = signal('light');
+  readonly options = signal(['S', 'M', 'L']);
+  readonly selected = linkedSignal(() => this.options()[0]); // resets
+  constructor() {
+    effect(onCleanup => {
+      const t = this.theme();  // tracked
+      const n = untracked(() => this.options().length);
+      const id = setTimeout(() => console.log(t, n), 100);
+      onCleanup(() => clearTimeout(id));
+    });
+  }
+}
+```
+- `effect` = side effects only (storage, logging). Never copy state with it: use `computed` / `linkedSignal`.
+
+## resource · httpResource
+```ts
+@Component({
+  selector: 'app-product-page',
+  template: `
+    @if (product.isLoading()) { <p>Loading…</p> }
+    @else if (product.hasValue()) { <h2>{{ product.value().name }}</h2> }`,
+})
+export class ProductPage {
+  readonly id = input.required<number>();
+  readonly product = httpResource<{ name: string }>(() => `/api/products/${this.id()}`);
+  readonly user = resource({
+    params: () => ({ id: this.id() }),
+    loader: ({ params, abortSignal }) =>
+      fetch(`/api/users/${params.id}`, { signal: abortSignal }).then(r => r.json()),
+  });
+}
+```
+- Refetches when signals change; `value()`, `isLoading()`, `error()`, `reload()`.
+
+## RxJS Interop
+```ts
+@Component({ selector: 'app-search', template: `{{ tick() }}` })
+export class Search {
+  readonly tick = toSignal(interval(1000), { initialValue: 0 });
+  readonly query = signal('');
+  readonly results = toSignal(toObservable(this.query).pipe(
+    debounceTime(300), distinctUntilChanged(),
+    switchMap(q => of(q ? [q] : []))));
+  constructor() {
+    interval(5000).pipe(takeUntilDestroyed()).subscribe();
+  }
+}
+```
+
+## Observables & Subjects
+```ts
+const events = new Subject<string>();  // no initial value
+const state = new BehaviorSubject(0);  // current value: state.value
+const history = new ReplaySubject<number>(2);// replays last 2
+state.next(1);
+state.subscribe(v => console.log(v));  // 1
+```
+- **Observable vs Promise**: lazy, many values, cancellable, operators vs eager, one value. HttpClient observables are cold.
+
+## RxJS Operators
+```ts
+of(1, 2, 3).pipe(map(x => x * 10), filter(x => x > 10))
+  .subscribe(console.log);  // 20, 30
+from([1, 2, 3]).pipe(scan((a, x) => a + x, 0)); // 1, 3, 6
+interval(1000).pipe(take(3));  // 0, 1, 2
+forkJoin({ u: of('ann'), o: of([1]) });  // all complete -> one value
+combineLatest([of('a'), of(1)]);  // latest of each
+merge(of(1), of(2)); concat(of(1), of(2));
+of('x').pipe(tap(v => console.log(v)), catchError(() => of('fallback')));
+```
+
+## Flattening Operators
+```text
+switchMap   cancel previous   search box, route -> GET
+mergeMap    all in parallel   independent requests
+concatMap   one at a time     ordered saves
+exhaustMap  ignore while busy login button spam
+shareReplay({ bufferSize: 1, refCount: true }) cache last value
+debounceTime · throttleTime · distinctUntilChanged
+```
+
+## Unsubscribing
+- `async` pipe, `toSignal`, `takeUntilDestroyed()`, `take(1)` or `unsubscribe()` in `ngOnDestroy`.
+- HTTP calls complete on their own; `interval`, `fromEvent`, Subjects and `valueChanges` do **not**.
+
+## Routes
+```ts
+export const routes: Routes = [
+  { path: '', component: Home, title: 'Home' },
+  { path: 'products/:id',
+    loadComponent: () => import('./product').then(m => m.Product),
+    resolve: { product: productResolver } },
+  { path: 'admin', canMatch: [authGuard],
+    loadChildren: () => import('./admin').then(m => m.ADMIN_ROUTES) },
+  { path: 'account', children: [
+    { path: '', redirectTo: 'profile', pathMatch: 'full' },
+  ] },
+  { path: '**', component: NotFound },  // wildcard last
+];
+```
+
+## Links & Navigation
+```html
+<a routerLink="/" routerLinkActive="active">Home</a>
+<a [routerLink]="['/products', id]" [queryParams]="{ tab: 'reviews' }">View</a>
+<router-outlet />
+```
+```ts
+@Component({ selector: 'app-product-detail', template: `{{ id() }}` })
+export class ProductDetail {
+  readonly id = input.required<string>();  // route param -> input
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  readonly snap = this.route.snapshot.paramMap.get('id');
+  next() { this.router.navigate(['/products', 2], { queryParams: { tab: 'specs' } }); }
+}
+```
+- Param → input needs `withComponentInputBinding()`.
+
+## Guards & Resolvers
+```ts
+export const authGuard: CanActivateFn = () => {
+  const router = inject(Router);
+  const loggedIn = !!localStorage.getItem('token');
+  return loggedIn ? true : new RedirectCommand(router.parseUrl('/login'));
+};
+export const productResolver: ResolveFn<{ id: number }> = route =>
+  inject(HttpClient).get<{ id: number }>(`/api/products/${route.paramMap.get('id')}`);
+```
+- `canActivate` · `canActivateChild` · `canDeactivate` · `canMatch` (lazy code not even loaded). Guards are UX; the server must authorise.
+
+## Template-Driven Forms
+```html
+<form #f="ngForm" (ngSubmit)="submit(f)">
+  <input name="email" [(ngModel)]="model.email" required email #email="ngModel">
+  @if (email.invalid && email.touched) { <small>Valid email required</small> }
+  <button [disabled]="f.invalid">Sign up</button>
+</form>
+```
+- Needs `FormsModule`. Good for small, simple forms.
+
+## Reactive Forms
+```ts
+@Component({
+  selector: 'app-signup',
+  imports: [ReactiveFormsModule],
+  template: `
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <input formControlName="email">
+      <input type="password" formControlName="password">
+      <button [disabled]="form.invalid">Save</button>
+    </form>`,
+})
+export class Signup {
+  private readonly fb = inject(FormBuilder).nonNullable;
+  readonly form = this.fb.group({
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(8)]],
+    phones: this.fb.array([this.fb.control('')]),
+  });
+  save() { console.log(this.form.getRawValue()); }  // typed
+}
+```
+
+## Form API & Validators
+```ts
+const name = new FormControl('', { nonNullable: true, validators: [Validators.required] });
+const group = new FormGroup({ name, city: new FormControl<string | null>(null) });
+group.setValue({ name: 'Ann', city: 'Pune' });  // all controls
+group.patchValue({ city: 'Delhi' });  // some
+group.reset();
+name.valueChanges.pipe(debounceTime(300)).subscribe();
+name.disable(); name.markAsTouched();
+// state: valid invalid pending touched dirty pristine errors
+// Validators: required email min max minLength maxLength pattern
+```
+
+## Custom Validator & CVA
+```ts
+export const matchPasswords: ValidatorFn = g =>
+  g.get('password')?.value === g.get('confirm')?.value ? null : { mismatch: true };
+
+@Component({
+  selector: 'app-stars',
+  template: `<button (click)="pick(5)">{{ value() }}</button>`,
+  providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => Stars), multi: true }],
+})
+export class Stars implements ControlValueAccessor {
+  readonly value = signal(0);
+  private onChange: (v: number) => void = () => {};
+  writeValue(v: number | null) { this.value.set(v ?? 0); }
+  registerOnChange(fn: (v: number) => void) { this.onChange = fn; }
+  registerOnTouched() {}
+  pick(v: number) { this.value.set(v); this.onChange(v); }
+}
+```
+
+## Signal Forms (v22)
+```ts
+@Component({
+  selector: 'app-login',
+  imports: [FormField],
+  template: `
+    <input type="email" [formField]="loginForm.email">
+    <input type="password" [formField]="loginForm.password">
+    <button [disabled]="loginForm().invalid()">Sign in</button>`,
+})
+export class Login {
+  readonly model = signal({ email: '', password: '' });
+  readonly loginForm = form(this.model, p => {
+    required(p.email); email(p.email); minLength(p.password, 8);
+  });
+}
+```
+
+## Built-in Pipes
+```html
+{{ today | date }}  <!-- Oct 16, 2026 -->
+{{ today | date:'dd/MM/yyyy HH:mm' }}  <!-- 16/10/2026 14:05 -->
+{{ 1234.5 | currency }}  <!-- $1,234.50 -->
+{{ 1234.5 | currency:'INR' }}  <!-- ₹1,234.50 -->
+{{ 3.14159 | number:'1.2-2' }}  <!-- 3.14 -->
+{{ 0.256 | percent:'1.0-1' }}  <!-- 25.6% -->
+{{ 'hello world' | titlecase }}  <!-- Hello World -->
+{{ 'abcdef' | slice:1:3 }}  <!-- bc -->
+{{ user | json }}  {{ data$ | async }}
+@for (e of settings | keyvalue; track e.key) { {{ e.key }} }
+```
+
+## Custom Pipe
+```ts
+@Pipe({ name: 'truncate' })  // pure by default
+export class TruncatePipe implements PipeTransform {
+  transform(value: string | null, max = 20, suffix = '…'): string {
+    if (!value) return '';
+    return value.length > max ? value.slice(0, max) + suffix : value;
+  }
+}
+// {{ post.body | truncate:50 }}
+```
+- **Pure**: reruns only when the input reference changes. **Impure** (`pure: false`): every change detection.
+
+## HttpClient
+```ts
+@Injectable({ providedIn: 'root' })
+export class ProductApi {
+  private readonly http = inject(HttpClient);
+  list(page = 1) {
+    const params = new HttpParams().set('page', page);
+    return this.http.get<{ id: number }[]>('/api/products', { params })
+      .pipe(retry(2), catchError(() => of([])));
+  }
+  create(p: { name: string }) { return this.http.post<{ id: number }>('/api/products', p); }
+  remove(id: number) { return this.http.delete<void>(`/api/products/${id}`); }
+}
+```
+- Observables are **cold**: nothing is sent until `subscribe`. `{ observe: 'response' }` gives status and headers.
+
+## Interceptors
+```ts
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const token = localStorage.getItem('token');
+  const authReq = token
+    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    : req;  // requests are immutable
+  const router = inject(Router);
+  return next(authReq).pipe(catchError((err: HttpErrorResponse) => {
+    if (err.status === 401) router.navigate(['/login']);
+    return throwError(() => err);
+  }));
+};
+```
+
+## Lifecycle Hooks (in order)
+```text
+constructor          DI only, inputs NOT set
+ngOnChanges          an input changed (before init too)
+ngOnInit             once: inputs ready, load data
+ngDoCheck            every CD run (custom checks)
+ngAfterContentInit   projected content ready
+ngAfterViewInit      own view + children ready
+ngOnDestroy          cleanup (or DestroyRef.onDestroy)
+afterNextRender / afterEveryRender   DOM work, browser
+```
+
+## Change Detection
+- **OnPush** (default in v22): check only on new input reference, own template event, signal it reads, `async` pipe emit, `markForCheck()`. **Eager** = old Default.
+- **Zoneless** (default v21+): no zone.js; CD scheduled by signals, events, `markForCheck`. Old apps: `provideZoneChangeDetection()`.
+- `markForCheck()` = mark dirty for later · `detectChanges()` = check now.
+- Mutating an object input is not seen: pass a **new reference** or use signals.
+
+## Performance
+- Lazy routes (`loadComponent`, `loadChildren`) and `@defer`.
+- `track` by id in `@for`; OnPush + signals; no heavy functions in templates (use `computed` or pure pipes).
+- `NgOptimizedImage`: `<img ngSrc="hero.jpg" width="800" height="400" priority>`.
+- Virtual scrolling (CDK) for long lists; bundle budgets in `angular.json`.
+
+## SSR & Hydration
+```bash
+ng new my-app --ssr  # or: ng add @angular/ssr
+```
+- `provideClientHydration(withEventReplay())` reuses server HTML. Incremental hydration: `@defer (hydrate on viewport)`. Browser-only code in `afterNextRender`.
+
+## Testing
+```ts
+describe('UserCard', () => {
+  it('emits on click', async () => {
+    const fixture = TestBed.createComponent(UserCard);
+    fixture.componentRef.setInput('name', 'Ann');
+    await fixture.whenStable();
+    let picked = '';
+    fixture.componentInstance.selected.subscribe(v => (picked = v));
+    fixture.nativeElement.querySelector('button').click();
+    expect(picked).toBe('Ann');
+  });
+});
+```
+- HTTP: `provideHttpClientTesting()` + `HttpTestingController.expectOne(url).flush(data)`. E2E: Playwright / Cypress.
+
+## Security
+- Interpolation is escaped; `[innerHTML]`, `[href]`, `[src]` are sanitised automatically.
+- `DomSanitizer.bypassSecurityTrust...` disables it: only for trusted content.
+- HttpClient handles XSRF tokens for same-origin requests. Prefer HttpOnly cookies over `localStorage` for tokens.
+
+## Versions
+- **AngularJS** (1.x, 2010, EOL 2021) → **Angular 2** (2016, TypeScript rewrite). **9**: Ivy. **14**: typed forms, `inject()`. **15**: standalone stable.
+- **16**: signals. **17**: `@if/@for/@defer`, esbuild + Vite. **18**: `@let`, zoneless (exp). **19**: standalone default, `linkedSignal`, `resource`.
+- **20**: `*ngIf` deprecated, zoneless stable. **21**: zoneless + Vitest default. **22** (Jun 2026): OnPush default, Signal Forms, `httpResource` public, TS 6.0.
+
+## Gotchas
+- Missing from `imports` → "is not a known element" / "No pipe found".
+- `@for` without a stable `track` id recreates DOM.
+- Mutating arrays in signals or OnPush inputs → no update; use new references.
+- Forgotten subscriptions leak; nested `subscribe` → use `switchMap`.
+- `inject()` outside an injection context → NG0203.
+- HTTP call without `subscribe` sends nothing.
+
+## Interview One-Liners
+- **Component vs directive**: directive with a template vs behaviour on an element.
+- **Constructor vs ngOnInit**: DI vs init logic with inputs.
+- **Pure vs impure pipe**: input reference change vs every CD.
+- **Template-driven vs reactive forms**: template + ngModel vs code-first, typed, testable.
+- **Subject vs BehaviorSubject**: no value vs current value replayed.
+- **switchMap vs mergeMap**: cancel previous vs run all.
+- **Signals vs RxJS**: sync state with auto-tracking vs async streams over time.
+- **AOT**: templates compiled at build time (default).
+- **providedIn: 'root'**: tree-shakable singleton.
+- **Lazy loading**: `loadComponent` / `loadChildren` split code by route.

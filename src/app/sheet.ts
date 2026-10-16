@@ -5,7 +5,7 @@ export type PageLink = { href: string; label: string; hint: string };
 
 @Component({
   selector: 'app-sheet',
-  host: { class: 'sheet-view', '(window:scroll)': 'spy()', '(window:resize)': 'spy()' },
+  host: { class: 'sheet-view', '[class.poster]': 'poster()', '(window:scroll)': 'spy()', '(window:resize)': 'spy()' },
   template: `
     <article class="doc">
       <div class="doc-bar">
@@ -21,6 +21,7 @@ export type PageLink = { href: string; label: string; hint: string };
         </button>
       </div>
 
+      @if (!poster()) {
       <div class="pager">
         @if (prev(); as p) {
           <a class="btn btn-green" [href]="p.href" [attr.aria-label]="'Previous: ' + p.label">
@@ -33,14 +34,16 @@ export type PageLink = { href: string; label: string; hint: string };
           </a>
         }
       </div>
+      }
 
       <h1>{{ sheet().title }}</h1>
       @if (sheet().sub) { <p class="lede">{{ sheet().sub }}</p> }
 
+      <div [class.cards]="poster()">
       @for (sec of sheet().sections; track $index; let i = $index) {
         <section class="sec" [id]="'sec-' + i" [attr.aria-labelledby]="'h-' + i">
           <div class="sec-head">
-            <h2 [id]="'h-' + i">{{ sec.title }}</h2>
+            <h2 [id]="'h-' + i">@if (poster()) { <span class="num">{{ i + 1 }}</span> }{{ sec.title }}</h2>
             @if (sec.isQa) {
               <button type="button" class="quiz" [attr.aria-pressed]="quiz()" (click)="quiz.set(!quiz())"
                       title="Hide answers so you can test yourself">
@@ -84,12 +87,14 @@ export type PageLink = { href: string; label: string; hint: string };
           }
         </section>
       }
+      </div>
 
       <footer class="doc-foot">
         <button type="button" class="btn btn-outline btn-lg" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
           {{ done() ? 'Completed' : 'Mark this sheet complete' }}
         </button>
+        @if (!poster()) {
         <nav class="foot-nav" aria-label="Sheet navigation">
           @if (prev(); as p) {
             <a class="foot-link" [href]="p.href"><span class="hint">{{ p.hint }}</span><span class="title">{{ p.label }}</span></a>
@@ -98,9 +103,11 @@ export type PageLink = { href: string; label: string; hint: string };
             <a class="foot-link next" [href]="n.href"><span class="hint">{{ n.hint }}</span><span class="title">{{ n.label }}</span></a>
           }
         </nav>
+        }
       </footer>
     </article>
 
+    @if (!poster()) {
     <aside class="toc" aria-label="On this page">
       <p class="label">On this page</p>
       <ul>
@@ -112,6 +119,7 @@ export type PageLink = { href: string; label: string; hint: string };
         }
       </ul>
     </aside>
+    }
   `,
 })
 export class SheetView {
@@ -122,6 +130,7 @@ export class SheetView {
   readonly prev = input<PageLink>();
   readonly next = input<PageLink>();
   readonly done = input(false);
+  readonly poster = input(false);                    // cheat sheets: sections become a grid of cards
   readonly toggleDone = output<void>();
 
   protected readonly quiz = signal(false);

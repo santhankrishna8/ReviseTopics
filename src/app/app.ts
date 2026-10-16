@@ -125,7 +125,7 @@ function byLevel(list: Sheet[]) {
         @if (sheet(); as s) {
           <app-sheet [topicName]="topicName()" [base]="'#/' + route().topic + '/' + s.n" [sheet]="s"
                      [section]="route().section" [prev]="prev()" [next]="next()"
-                     [done]="isDone(route().topic, s.n)" (toggleDone)="toggleDone()" />
+                     [done]="isDone(route().topic, s.n)" (toggleDone)="toggleDone()" [poster]="poster()" />
         } @else if (error()) {
           <div class="state" role="alert">
             <h1>Couldn't load {{ topicName() }}</h1>
@@ -158,6 +158,7 @@ export class App {
     return out;
   });
   protected readonly topicName = computed(() => READY.find(t => t.id === this.route().topic)!.name);
+  protected readonly poster = computed(() => !!READY.find(t => t.id === this.route().topic)!.poster);
   private readonly position = computed(() => {
     const list = this.sheets()[this.route().topic];
     if (!list?.length) return undefined;
