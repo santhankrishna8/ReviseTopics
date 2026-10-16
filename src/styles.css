@@ -95,6 +95,21 @@ a { color: inherit; }
 
 /* ---------- Layout ---------- */
 .layout { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+.layout > #sidebar { grid-area: 1 / 1; }
+.layout > .main { grid-area: 1 / 2; }
+
+/* Drag handle on the sidebar's right edge (shares the sidebar's grid cell, sticks like the sidebar) */
+.resizer {
+  grid-area: 1 / 1; justify-self: end; align-self: start; z-index: 5;
+  position: sticky; top: var(--header-h); height: calc(100dvh - var(--header-h));
+  width: 10px; margin-right: -9px; cursor: col-resize; touch-action: none; outline: none;
+}
+.resizer::after {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: transparent; transition: background .15s;
+}
+.resizer:hover::after, .resizer:focus-visible::after, .resizing .resizer::after { background: var(--green); }
+body.resizing { cursor: col-resize; user-select: none; }
 
 /* ---------- Sidebar ---------- */
 #sidebar {
@@ -280,6 +295,8 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
   .icon-btn { display: grid; }
   .overall { display: none; }
   .layout { grid-template-columns: minmax(0, 1fr); }
+  .layout > .main { grid-area: 1 / 1; }
+  .resizer { display: none; }
   #sidebar {
     position: fixed; inset: 0 auto 0 0; z-index: 40; width: min(320px, 86vw); height: 100dvh; padding-top: 16px;
     border-right: 1px solid var(--line); box-shadow: 8px 0 24px -12px rgb(24 24 27 / .25);

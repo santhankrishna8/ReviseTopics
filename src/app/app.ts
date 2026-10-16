@@ -116,6 +116,10 @@ function byLevel(list: Sheet[]) {
           </ul>
         }
       </nav>
+      <div class="resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="sidebar"
+           aria-label="Resize topic list (drag, arrow keys; double-click resets)"
+           [attr.aria-valuenow]="sidebarW()" [attr.aria-valuemin]="minSidebarW" [attr.aria-valuemax]="maxSidebarW"
+           (pointerdown)="startResize($event)" (keydown)="resizeKey($event)" (dblclick)="sidebarW.set(defaultSidebarW)"></div>
 
       <main class="main" id="main">
         @if (sheet(); as s) {
@@ -217,7 +221,18 @@ export class App {
   private readonly searchBox = viewChild.required<ElementRef<HTMLInputElement>>('searchBox');
   private readonly sidebar = viewChild.required<ElementRef<HTMLElement>>('sidebar');
 
+  // Resizable sidebar (desktop): width in px, remembered in localStorage.
+  protected readonly minSidebarW = 200;
+  protected readonly maxSidebarW = 560;
+  protected readonly defaultSidebarW = 288;
+  protected readonly sidebarW = signal(this.clampW(Number(store.get('sidebarW')) || this.defaultSidebarW));
+
   constructor() {
+    effect(() => {
+      const w = this.sidebarW();
+      document.documentElement.style.setProperty('--sidebar-w', `${w}px`);
+      store.set('sidebarW', String(w));
+    });
     effect(() => {
       const r = this.route();
       untracked(() => {
@@ -266,6 +281,34 @@ export class App {
     });
   }
   protected onDrawerToggle(e: Event) { if ((e as ToggleEvent).newState === 'open') this.revealActive(true); }
+
+  private clampW(w: number) { return Math.round(Math.min(this.maxSidebarW, Math.max(this.minSidebarW, w))); }
+  protected startResize(e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const handle = e.currentTarget as HTMLElement;
+    const startX = e.clientX, startW = this.sidebarW();
+    const move = (m: PointerEvent) => this.sidebarW.set(this.clampW(startW + m.clientX - startX));
+    const stop = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', stop);
+      handle.removeEventListener('pointercancel', stop);
+      document.body.classList.remove('resizing');
+    };
+    handle.setPointerCapture(e.pointerId);        // keep getting moves after the pointer leaves the thin handle
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
+    document.body.classList.add('resizing');
+  }
+  protected resizeKey(e: KeyboardEvent) {
+    const w = this.sidebarW(), step = e.shiftKey ? 48 : 16;
+    const next = e.key === 'ArrowLeft' ? w - step : e.key === 'ArrowRight' ? w + step
+      : e.key === 'Home' ? this.minSidebarW : e.key === 'End' ? this.maxSidebarW : null;
+    if (next === null) return;
+    e.preventDefault();
+    this.sidebarW.set(this.clampW(next));
+  }
 
   protected toggle(id: string) {
     this.ensure(id);
