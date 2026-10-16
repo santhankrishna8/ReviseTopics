@@ -1,0 +1,660 @@
+@ Beginner
+# 00 | n8n Basics: Start Here | What workflow automation is, n8n's history and licence, Cloud vs self-hosted, n8n vs Zapier, Make, Power Automate and code, installing and running it, the editor, your first workflow, what changed in n8n 2.0 | Start Here
+
+## What n8n Is | rose
+- **Workflow automation** connects apps and services so that work happens automatically: "when a form is submitted, add the lead to the CRM, post in Slack and send a welcome email".
+- **n8n** (pronounced "n-eight-n", short for **"nodemation"**: nodes + automation) is a **visual, node-based workflow automation tool**. You drag **nodes** onto a canvas and connect them; each node does one job (receive a webhook, call an API, transform data, ask an LLM).
+- **Low-code with real code when needed**: most steps are configured in forms, but a **Code node** runs JavaScript or Python, and **expressions** (`{{ $json.email }}`) are JavaScript.
+- Hundreds of **integration nodes** (Slack, Gmail, Google Sheets, Postgres, Stripe, GitHub, OpenAI...), a generic **HTTP Request** node for any REST API, **community nodes**, and **AI agent** nodes built on LangChain.
+- Typical uses: syncing data between SaaS tools, lead routing, alerting and incident workflows, ETL jobs, report generation, internal approval flows, chatbots and AI agents, glue between microservices and third parties.
+
+## History, Licence and Editions | blue
+- Founded by **Jan Oberhauser** in Berlin and released in **2019**. **n8n 1.0** arrived in 2023; **n8n 2.0** (December 2025) was a "hardening" release focused on security and reliability. These notes were checked against **n8n 2.43**.
+- **Licence: "fair-code"** under the **Sustainable Use License**: the source is public, and you may self-host and modify it **for your own internal business use** for free, but you may not sell it as a hosted service. Some features (SSO, environments, log streaming, advanced permissions) need an **Enterprise** licence.
+- **n8n Cloud**: hosted by n8n, billed per workflow **execution**. **Self-hosted**: run it yourself with npm or Docker (sheet 08), free under the licence terms.
+- A **workflow execution** counts as one run however many nodes or items it processes, which is different from Zapier's per-task or Make's per-operation pricing.
+
+## n8n vs Zapier vs Make vs Code | green
+```text
+Tool              Model                       Strengths                                   Trade-offs
+Zapier            SaaS only, linear "Zaps"    easiest, huge app catalogue                 per-task pricing, limited logic, no self-hosting
+Make (Integromat) SaaS, visual scenarios      rich visual data mapping, routers           per-operation pricing, no self-hosting
+Power Automate    Microsoft 365 / Azure       deep Microsoft integration, RPA             licensing complexity, Microsoft-centric
+n8n               Self-hosted or Cloud        code when needed, branching and loops,      you operate it when self-hosting;
+                                              AI agents, data stays in your network       fair-code licence limits reselling
+Custom code       Your own service            full control and testing                    you build retries, auth, UI and monitoring
+```
+- Pick n8n when you need **complex logic** (branches, loops, error workflows), **data privacy** (self-hosted inside your network), **AI agents** wired into internal systems, or predictable cost at high volume.
+- Durable, code-first orchestration of business-critical processes may fit **Temporal** or **Apache Airflow** (data pipelines) better.
+
+## Install and Run | amber
+```bash
+npx n8n                                    # try it locally (needs Node.js 24+): editor at http://localhost:5678
+docker volume create n8n_data
+docker run -it --rm --name n8n -p 5678:5678 -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n
+```
+- **Docker is the supported way to run it**: n8n 2.43 prints a deprecation warning when started outside a container ("future versions will require running n8n via the official Docker image"), so treat `npx n8n` as a quick local trial only.
+- The first visit asks you to create the **owner account**. Data (workflows, credentials, executions) goes to `~/.n8n` (SQLite by default); use PostgreSQL in production (sheet 08).
+- **Editor UI**: the **canvas** (nodes and connections), the **nodes panel** (search "+" to add triggers and actions), each node's **parameters panel** with **input on the left and output on the right**, the **Executions** tab (history of runs), **Credentials**, and workflow **Settings**.
+
+## Your First Workflow | violet
+```text
+[Schedule Trigger: every day 09:00] ─▶ [HTTP Request: GET https://api.example.com/orders?status=pending]
+        ─▶ [Filter: amount > 5000] ─▶ [Slack: post "High-value pending order {{ $json.id }}" to #sales]
+```
+- Add a **trigger**, then **action** nodes; click **Execute workflow** (or a single node's **Execute step**) to test with real data, and look at each node's output.
+- Save, then **Publish** it so the trigger runs on its own. **n8n 2.0 replaced the "Active" toggle with Publish/Unpublish**: edits stay as a **draft** until you publish again, so work in progress never changes the live workflow by accident.
+
+## What n8n 2.0 Changed | sky
+- **Task runners on by default**: Code node code runs in separate runner processes, isolated from the main n8n process.
+- **Environment variables blocked** in the Code node by default (`N8N_BLOCK_ENV_ACCESS_IN_NODE=true`).
+- **Python Code node**: the in-browser Pyodide version was removed; native Python needs task runners in **external mode** (the separate `n8nio/runners` image) and uses `_items` / `_item` with bracket access.
+- **Execute Command** and **Local File Trigger** nodes **disabled** by default; file access limited to a dedicated folder; OAuth callbacks require authentication.
+- **MySQL/MariaDB no longer supported as n8n's own database** (PostgreSQL or SQLite); the in-memory binary data mode removed.
+- **Start node removed** (use Manual Trigger); sub-workflows that wait now return the child's final output.
+- **Publish/Unpublish** instead of activate/deactivate; release channels renamed **stable** and **beta**.
+
+## Interview Q&A | sky | wide
+Q: What is n8n?
+A: An open, fair-code workflow automation platform where you build workflows visually from nodes (triggers, integrations, logic, code and AI nodes), self-hosted or in n8n Cloud.
+Q: How is n8n different from Zapier?
+A: n8n can be self-hosted, supports complex branching, loops, error workflows and custom JavaScript or Python, prices per execution rather than per task, and has built-in AI agent nodes; Zapier is SaaS-only and simpler but less flexible.
+Q: What does fair-code mean for n8n?
+A: The source code is available and free to self-host and modify for internal use under the Sustainable Use License, but you can't offer n8n itself as a commercial hosted service.
+Q: Where does n8n store its data?
+A: In a database: SQLite by default, PostgreSQL recommended in production. Workflows, encrypted credentials and execution history are stored there.
+Q: What changed in n8n 2.0?
+A: Security and reliability hardening: task runners by default, environment access blocked in Code nodes, risky nodes disabled by default, native Python only via external runners, MySQL dropped as n8n's database, and Publish/Unpublish with drafts instead of the active toggle.
+Q: When would you not use n8n?
+A: For core, high-throughput business logic that needs full testing and versioning as normal code, or for heavy data pipelines better served by tools like Airflow, Spark or Temporal.
+
+# 01 | Workflows, Nodes, Triggers & Connections | Workflow anatomy, trigger vs action vs core nodes, every kind of trigger, connections, branches and multiple inputs, sub-workflows, publishing, workflow settings | Core Concepts
+
+## Workflow Anatomy | rose
+- A **workflow** is a graph of **nodes** joined by **connections**. It starts at one or more **trigger nodes** and data flows left to right through the connected nodes.
+- A **node** is one step: it receives **input items**, does its job (call an API, transform data, decide a branch) and outputs items to the next node(s).
+- **Credentials** (API keys, OAuth tokens) are stored separately and referenced by nodes (sheet 05).
+- Each run is an **execution**, recorded with every node's input and output for inspection (sheet 02).
+- Workflows are stored as **JSON** (nodes, their parameters and positions, and connections), so they can be exported, imported, versioned in Git and shared.
+
+## Kinds of Nodes | blue
+- **Trigger nodes** start a workflow: they have no input. Every automatically running workflow needs one.
+- **Action (app) nodes** work with a specific service: Slack "send message", Google Sheets "append row", Postgres "execute query", Stripe "create customer".
+- **Core nodes** for logic and data: **If**, **Switch**, **Merge**, **Filter**, **Edit Fields (Set)**, **Code**, **HTTP Request**, **Wait**, **Loop Over Items**, **Aggregate**, **Split Out**, **Sort**, **Limit**, **Remove Duplicates**, **Execute Workflow**, **Respond to Webhook**, **No Operation**.
+- **AI cluster nodes**: a **root node** (AI Agent, Basic LLM Chain) with **sub-nodes** plugged in underneath (chat model, memory, tools, vector store) (sheet 07).
+- **Community nodes**: third-party npm packages installable on self-hosted instances; and you can build your own custom nodes in TypeScript.
+
+## Triggers | green
+- **Manual Trigger**: runs when you click **Execute workflow** in the editor; for testing and one-off jobs.
+- **Schedule Trigger**: runs on an interval or a **cron expression** (`0 9 * * 1-5` = 09:00 on weekdays), in the instance's time zone (`GENERIC_TIMEZONE`).
+- **Webhook**: runs when an HTTP request arrives at the workflow's URL; the basis for real-time integrations (sheet 06).
+- **App event triggers**: "new email in Gmail", "new row in Google Sheets", "new Stripe payment". They use **webhooks** registered with the service when it supports them, otherwise **polling** (checking for new data every few minutes).
+- **Form Trigger** (hosted forms), **Chat Trigger** (a chat UI for AI agents), **Email Trigger (IMAP)**, **RabbitMQ / Kafka / MQTT** triggers for message queues.
+- **Execute Workflow Trigger** ("When executed by another workflow"): makes the workflow a **sub-workflow** callable from others.
+- **Error Trigger**: starts an **error workflow** when another workflow fails (sheet 04).
+- **n8n Trigger**: reacts to n8n's own events (instance started, workflow published).
+
+## Connections, Branches and Sub-Workflows | amber
+```text
+                       ┌─ true ──▶ [Slack: notify sales]
+[Webhook] ─▶ [If: amount > 5000]
+                       └─ false ─▶ [Google Sheets: append row]
+
+[Postgres: customers] ──┐
+                        ├─▶ [Merge: combine by email] ─▶ [HubSpot: upsert contact]
+[HTTP: new signups] ────┘
+```
+- A node's output can connect to **several** nodes: each receives the same items (fan-out).
+- Nodes like **If** and **Switch** have **several outputs** (true/false, or one per rule); only the matching branch continues.
+- **Merge** has several **inputs** and waits for them to combine data streams (sheet 03).
+- **Sub-workflows**: the **Execute Workflow** node calls another workflow (which starts with an Execute Workflow Trigger), passes items in and gets items back. Use them to reuse logic, keep workflows small, and isolate failures. Since n8n 2.0, a sub-workflow that pauses (Wait, form, human approval) returns its **final output** to the parent.
+
+## Publishing and Settings | violet
+- **Save** stores a draft; **Publish** makes triggers live (webhooks start listening, schedules start firing). **Unpublish** stops them. Published workflows run in the background without the editor open.
+- **Workflow settings**: **time zone**, **error workflow** (which workflow handles failures), **timeout** (stop executions that run too long, up to the instance maximum), whether to **save execution data** for successful, failed and manual runs, and the **caller policy** (which workflows may call this one as a sub-workflow).
+- **Tags**, **projects** and **sharing** organise workflows and control who can edit them; **workflow history** keeps previous versions.
+
+## Interview Q&A | sky | wide
+Q: What are the main building blocks of n8n?
+A: Workflows made of nodes joined by connections, started by trigger nodes; credentials used by nodes; and executions that record each run's data.
+Q: What types of triggers does n8n support?
+A: Manual, Schedule (interval or cron), Webhook, app event triggers (via webhooks or polling), Form and Chat triggers, message queue triggers, the Execute Workflow Trigger for sub-workflows, and the Error Trigger for error workflows.
+Q: Polling vs webhook triggers?
+A: A webhook trigger is called by the source system the moment something happens; a polling trigger asks the source for new data on a schedule, which adds delay and API calls but works with services that don't send webhooks.
+Q: What is a sub-workflow and why use it?
+A: A workflow started by another workflow through the Execute Workflow node. It allows reuse of common logic, smaller and clearer workflows, and separate error handling.
+Q: What does publishing a workflow do in n8n 2.x?
+A: It makes the current version live so its triggers run in the background; later edits stay as drafts until published again.
+Q: How does branching work?
+A: Nodes such as If and Switch route each item to one of several outputs based on conditions; only the connected nodes on the matching output receive it.
+
+# 02 | Items, Expressions & Execution Data | The item data structure, how nodes process items, JSON and binary data, expressions and built-in variables, referencing other nodes, pinning data, inspecting and debugging executions | Data & Executions
+
+## Items: How Data Flows | rose
+```json item-structure.json
+[
+  { "json": { "orderId": 101, "customer": "ann@shop.io", "amount": 2500 } },
+  { "json": { "orderId": 102, "customer": "ravi@shop.io", "amount": 8000 },
+    "binary": { "invoice": { "fileName": "inv-102.pdf", "mimeType": "application/pdf", "data": "..." } } }
+]
+```
+- Data between nodes is an **array of items**. Each item has a **`json`** object (the fields) and optionally **`binary`** data (files: PDFs, images, CSVs, referenced by a key such as `invoice`).
+- Most nodes **run once per input item**: give a Slack node 3 items and it sends 3 messages. A node set to **"Execute Once"** (node settings) uses only the first item.
+- A node's output becomes the next node's input, so each node sees the **items produced by the previous node**, not the original trigger data, unless you reference an earlier node explicitly.
+- **Item linking (paired items)**: n8n tracks which input item produced each output item, which is how `$('Earlier Node').item` finds the matching earlier item.
+
+## Expressions | blue
+```text
+{{ $json.customer }}                                   field of the current item
+{{ $json.amount * 1.18 }}                              any JavaScript expression
+{{ $json.name.toUpperCase() }}                         JavaScript string methods
+{{ $('Webhook').item.json.body.email }}                the matching item of an earlier node, by name
+{{ $('Get Customer').first().json.id }}                the first item of an earlier node
+{{ $input.all().length }}                              all items coming into this node
+{{ $now.toFormat('yyyy-MM-dd') }}  {{ $today }}        dates (Luxon DateTime objects)
+{{ $execution.id }}  {{ $workflow.name }}              metadata about this run and workflow
+{{ $json.items.map(i => i.sku).join(', ') }}           arrays transformed inline
+```
+- An **expression** is JavaScript inside `{{ }}` in any parameter field (switch the field from "Fixed" to "Expression"). The editor previews the result for the current item.
+- **`$json`** is the current item's JSON; **`$('Node name')`** reaches any earlier node; **`$input`** is this node's input; **`$now`** and **`$today`** are **Luxon** dates; `$vars` holds instance variables.
+- **Drag and drop** fields from the input panel into a parameter to create the expression automatically.
+- Expressions are evaluated **per item**, so `{{ $json.email }}` in a Gmail node sends each email to its own item's address.
+
+## Inspecting Executions | green
+- In the editor, every node shows its **input and output** after a run, as a **table**, **JSON** or **schema** view, plus the item count on each connection.
+- **Executions list** (per workflow or instance-wide): status (success, error, running, waiting), start time, duration and mode (manual, trigger, webhook, retry). Open one to see the full data of every node in that run.
+- **Debug in editor**: load a failed execution's data back into the editor to reproduce and fix the problem with real data; **retry** a failed execution with the current or original workflow.
+- **Pin data**: freeze a node's output (from a real run or pasted JSON) so later test runs reuse it without calling the API or waiting for a webhook again. Pinned data is used only in manual test runs, never in production executions.
+- What gets stored is controlled by settings (save successful, failed, manual executions) and pruned after a retention period (sheet 08).
+
+## Interview Q&A | sky | wide
+Q: How is data passed between nodes in n8n?
+A: As an array of items, each with a json object and optional binary data; each node receives the previous node's output items and usually processes each item separately.
+Q: What is an expression in n8n?
+A: A JavaScript snippet in double curly braces in a node parameter, evaluated per item, with access to $json, other nodes via $('Node'), $input, $now and other built-ins.
+Q: How do you use data from a node that isn't directly connected?
+A: Reference it by name: {{ $('Node Name').item.json.field }} for the linked item, or .first() / .all() for its items.
+Q: What is pinned data?
+A: Fixed output saved on a node for testing, so manual runs can reuse it without calling the real service; it isn't used in production executions.
+Q: How do you debug a failed production execution?
+A: Open it from the Executions list to see each node's input, output and error, then use "Debug in editor" to load its data into the workflow, fix the problem and test with the same data.
+Q: Why might a node run more times than expected?
+A: Because nodes run once per input item; if the previous node outputs 50 items, an email node sends 50 emails. Use "Execute Once", aggregation or Limit when you want a single run.
+
+@ Intermediate
+# 03 | Data Transformation | Edit Fields, Filter, Sort, Limit, Remove Duplicates, Split Out and Aggregate, Merge modes, Loop Over Items, the Code node in JavaScript and Python, mapping lists of items | Transforming Data
+
+## Built-in Transformation Nodes | rose
+- **Edit Fields (Set)**: add, rename, change or remove fields; "keep only set fields" to shape a clean payload for the next API.
+- **Filter**: keep only items matching conditions (`amount > 5000 AND status = paid`); the rest are dropped (with an option to output them on a second branch).
+- **Sort**, **Limit** (first N items), **Remove Duplicates** (by all fields or chosen ones, also across executions), **Rename Keys**, **Date & Time** (format, add or subtract time, convert time zones).
+- **Split Out**: turn one item holding a list (`order.lines` with 3 lines) into **one item per list element** (3 items).
+- **Aggregate**: the opposite: combine many items into **one item** with a list (all emails into one array) or with individual fields aggregated.
+- **Summarize**: group and aggregate like SQL `GROUP BY` (count, sum, average, min, max by customer).
+- **Compare Datasets**: compare two inputs and output items only in A, only in B, in both and different.
+- Prefer these nodes over code when they fit: they are visible to non-developers and need no maintenance.
+
+## Merging Data Streams | blue
+```text
+[Postgres: customers]  ──input 1──┐
+                                  ├─▶ [Merge: Combine, by matching fields  customers.email = signups.email]
+[HTTP: new signups]    ──input 2──┘          → one item per match, fields from both inputs
+```
+- **Merge** waits for data on its inputs and combines them. Modes:
+- **Append**: output all items of input 1, then all items of input 2.
+- **Combine by matching fields**: join items whose key fields match, like a SQL join (keep matches only, or also non-matches from one or both sides).
+- **Combine by position**: pair the first item of each input, then the second, and so on.
+- **Combine by all possible combinations**: every item of input 1 with every item of input 2 (a cross join).
+- **SQL Query**: write a SQL query over the inputs (`SELECT * FROM input1 LEFT JOIN input2 ON ...`).
+- **Choose Branch**: wait for both inputs, then output one of them (used to synchronise branches).
+
+## Loops and Batches | green
+- Most nodes already **iterate automatically** over their input items, so explicit loops are rarely needed.
+- **Loop Over Items** (formerly Split in Batches) processes items in **batches** of N, running the loop body once per batch, until all are done; use it to respect API rate limits ("10 records at a time, Wait 1 second"), or for nodes that only process the first item.
+- **Pagination** for APIs is usually handled by the HTTP Request node's pagination options (sheet 05) rather than a hand-built loop.
+
+## The Code Node | amber
+```js code-node-all-items.js
+// Mode: "Run Once for All Items" (the default): $input.all() returns every incoming item
+const items = $input.all();
+const total = items.reduce((sum, item) => sum + item.json.amount, 0);
+
+return [
+  { json: { orders: items.length, total, average: total / items.length } },   // must return an array of items
+];
+```
+```js code-node-each-item.js
+// Mode: "Run Once for Each Item": $input.item is the current item, return one item
+const order = $input.item.json;
+
+return {
+  json: {
+    ...order,
+    amountWithTax: Math.round(order.amount * 1.18 * 100) / 100,
+    priority: order.amount > 5000 ? 'high' : 'normal',
+  },
+};
+```
+```python code-node.py
+# Native Python (task runner, external mode), "Run Once for All Items": items are in _items
+total = sum(item["json"]["amount"] for item in _items)
+return [{"json": {"orders": len(_items), "total": total}}]
+```
+- **Two modes**: **Run Once for All Items** (default; sees every item, good for aggregations and reshaping) and **Run Once for Each Item** (simpler per-item logic).
+- **Return format**: items as `{ json: {...} }` objects: an **array** in all-items mode, a **single item** in per-item mode.
+- JavaScript has the same built-ins as expressions (`$input`, `$('Node')`, `$json` in per-item mode, `$now`, `$execution`). It runs in a **task runner** and can't access the file system or make HTTP calls directly (use the HTTP Request and file nodes).
+- **Sandbox rules** (seen on n8n 2.43): `$env.X` throws "access to env vars denied", and `require('crypto')` throws "Module 'crypto' is disallowed" unless the instance allows it with `NODE_FUNCTION_ALLOW_BUILTIN=crypto` (external npm packages: `NODE_FUNCTION_ALLOW_EXTERNAL`).
+- The two JavaScript snippets above, run in sequence on three orders (2500, 8000, 4000), produce `amountWithTax` 2950 / 9440 / 4720 with priorities normal / high / normal, then one item `{ orders: 3, total: 14500, average: 4833.33 }`.
+- **Python** (native, n8n 2.x): only `_items` (all-items mode) or `_item` (per-item mode), with **bracket access** (`item["json"]["field"]`); third-party modules must be installed in the runner image and allowlisted.
+- Use the Code node for logic the built-in nodes can't express cleanly (complex calculations, data reshaping, custom validation), and keep it small and commented.
+
+## Interview Q&A | sky | wide
+Q: How do you transform data in n8n?
+A: With built-in nodes (Edit Fields, Filter, Sort, Split Out, Aggregate, Summarize, Merge, Date & Time) and, when needed, the Code node in JavaScript or Python, plus expressions inside any parameter.
+Q: What are the Merge node's modes?
+A: Append, Combine by matching fields (a join), Combine by position, Combine by all possible combinations, SQL Query and Choose Branch.
+Q: What's the difference between Split Out and Aggregate?
+A: Split Out turns a list inside one item into separate items; Aggregate combines many items into one item containing a list or aggregated fields.
+Q: What are the Code node's two modes?
+A: Run Once for All Items, which receives every item via $input.all() and returns an array of items; and Run Once for Each Item, which receives $input.item and returns one item.
+Q: What must a Code node return?
+A: Items in n8n's format: objects with a json key (and optional binary), an array of them in all-items mode or a single one in per-item mode.
+Q: When would you use Loop Over Items?
+A: To process items in batches, typically with a Wait node to respect an API's rate limit, or with nodes that only handle one item per run.
+
+# 04 | Error Handling & Branching | If and Switch, retry on fail, continue on error and error outputs, Stop and Error, error workflows with the Error Trigger, timeouts, designing idempotent workflows | Errors & Branching
+
+## Conditional Branching | rose
+- **If**: one or more conditions (combined with AND / OR) on fields (string, number, date, boolean, array, object comparisons: equals, contains, greater than, is empty, matches regex...). Items go to the **true** or **false** output.
+- **Switch**: routes each item to one of **many outputs**: either by **rules** (output 0 if `country = IN`, output 1 if `US`, a fallback output otherwise) or by an **expression** that returns the output index.
+- **Filter** drops non-matching items instead of branching (sheet 03).
+- Keep branches readable: name nodes descriptively ("Is VIP customer?"), and use sticky notes on the canvas to document intent.
+
+## Node-Level Error Settings | blue
+```text
+Node settings
+  Retry On Fail          on
+    Max Tries            3            (default 3; n8n clamps it between 2 and 5)
+    Wait Between Tries   2000 ms      (default 1000 ms; capped at 5000 ms)
+  On Error               Stop Workflow                      (default: the execution fails)
+                         Continue                           (pass the error on as a normal item)
+                         Continue (using error output)      (adds an "error" output branch)
+  Always Output Data     emit an empty item even when there are no results
+  Timeout / Execute Once / Notes
+```
+- **Retry On Fail** re-runs a node after transient errors (timeouts, `429`, `503`) before giving up. Good for flaky APIs; pointless for permanent errors such as `400 Bad Request` or invalid credentials.
+- **On Error → Continue (using error output)**: the node gets a second, **error** output, so failed items can go to a different branch (log them, notify, queue for retry) while successful items continue normally.
+- **Stop and Error** node: deliberately fail the execution with a custom message when a business rule is violated ("Customer has no email").
+
+## Error Workflows | green
+```text
+Main workflow  (Settings → Error Workflow = "Alert on failure")
+   [Webhook] ─▶ [HTTP Request: ERP] ─✖ fails after 3 tries
+
+Error workflow "Alert on failure"
+   [Error Trigger] ─▶ [Slack: "Workflow {{ $json.workflow.name }} failed at node
+                       {{ $json.execution.lastNodeExecuted }}: {{ $json.execution.error.message }}
+                       {{ $json.execution.url }}"]
+```
+- An **error workflow** starts with an **Error Trigger** node and runs **automatically when a workflow that names it in its settings fails** (on production executions). The trigger receives the failed workflow's name and id, the execution id and URL, the last node executed and the error message.
+- One shared error workflow per team typically posts to Slack, Teams or PagerDuty, or opens a ticket.
+- Combine levels: **retries** for transient faults, **error outputs** for expected per-item failures, **Stop and Error** for business rules, and an **error workflow** as the safety net for everything else.
+
+## Reliable Workflow Design | amber
+- **Idempotency**: triggers may fire twice (webhook retries, re-run executions), so make writes safe to repeat: use **upserts** keyed by an external id, check "already processed" in a database or with **Remove Duplicates** across executions, pass idempotency keys to APIs.
+- **Timeouts**: set a workflow timeout and HTTP request timeouts so stuck calls don't hang executions.
+- **Partial failures**: process items independently (error output) so one bad record doesn't block a batch of 1,000.
+- **Rate limits**: batch with Loop Over Items and Wait, honour `Retry-After`.
+- **Observability**: keep failed executions saved, name nodes clearly, and alert through the error workflow; with Enterprise, stream logs to a SIEM.
+
+## Interview Q&A | sky | wide
+Q: How do you handle errors in n8n?
+A: Per node with Retry On Fail and the On Error setting (stop, continue, or continue with an error output), deliberately with the Stop and Error node, and globally with an error workflow that starts with an Error Trigger and is set in the workflow settings.
+Q: What is an error workflow?
+A: A separate workflow beginning with the Error Trigger node; when a workflow that names it fails, it runs with details of the failure, typically to send alerts.
+Q: If vs Switch?
+A: If splits items into true and false outputs by conditions; Switch routes items to one of many outputs by rules or by an expression returning the output index.
+Q: When is Retry On Fail useful, and when not?
+A: For transient errors such as timeouts, rate limiting or temporary 5xx responses; not for permanent errors like validation failures or bad credentials, which will fail every time.
+Q: How do you prevent duplicate processing?
+A: Make writes idempotent: upsert by an external id, remember processed ids (Remove Duplicates across executions or a database table) and pass idempotency keys to APIs that support them.
+
+# 05 | REST APIs & Credentials | The HTTP Request node, methods, query, headers and bodies, authentication options, pagination, batching and timeouts, importing cURL, managing API keys and OAuth 2.0 credentials securely | APIs & Credentials
+
+## The HTTP Request Node | rose
+```text
+HTTP Request
+  Method            POST
+  URL               https://api.example.com/v1/orders
+  Authentication    Generic Credential Type → Header Auth  (Authorization: Bearer ...)
+  Send Query        status = pending
+  Send Headers      Accept: application/json, Idempotency-Key: {{ $json.orderId }}
+  Send Body         JSON: { "sku": "{{ $json.sku }}", "qty": {{ $json.qty }} }
+  Options           Pagination, Batching (items per batch + interval), Timeout,
+                    Response format, Include full response (status + headers), Never error, Proxy
+```
+- Calls **any HTTP API** when no dedicated node exists (or the node lacks an operation): GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS.
+- **Body types**: JSON, form-urlencoded, multipart form-data (file uploads from binary data), raw, or a binary file.
+- **Import cURL**: paste a `curl` command from API docs and the node fills in method, URL, headers and body.
+- **Pagination**: let the node follow pages automatically: "response contains next URL" (`{{ $response.body.next }}`) or "update a parameter in each request" (`page = {{ $pageCount + 1 }}`), with a stop condition. All pages' results come out as items.
+- **Batching** and **Wait** nodes respect rate limits; **"Never Error"** returns 4xx/5xx responses as data so you can branch on `statusCode`.
+- The same node is available as an **HTTP Request Tool** for AI agents (sheet 07).
+
+## Credentials | blue
+- **Credentials** are stored **encrypted** in n8n's database with the instance's **`N8N_ENCRYPTION_KEY`**, shown only as names in the editor, and selected by nodes. They are never exported with a workflow's JSON.
+- **Predefined credential types**: dedicated nodes come with credential types for their service (Slack OAuth2, Google OAuth2, Stripe API key...), which the HTTP Request node can also reuse ("Predefined Credential Type") so you call extra endpoints with the same authentication.
+- **Generic credential types** for HTTP Request: **Header Auth** (API key or bearer token in a header), **Query Auth** (key in the query string), **Basic Auth**, **Digest Auth**, **Custom Auth** (JSON of headers, query and body values), **OAuth1**, **OAuth2**.
+- **Sharing**: credentials belong to a user or project and can be shared without revealing the secret; with external secrets (Enterprise) they come from **Vault**, AWS Secrets Manager or Azure Key Vault.
+- **Never hard-code secrets** in Code nodes, expressions or HTTP parameters: they would appear in workflow JSON and execution logs.
+
+## OAuth 2.0 in n8n | green
+```text
+Authorization Code flow (acting for a user: Google, Microsoft, Salesforce...)
+ 1. Register an app with the provider; set its redirect URL to  https://<n8n-host>/rest/oauth2-credential/callback
+ 2. In n8n create an OAuth2 credential: client ID, client secret, auth URL, token URL, scopes
+ 3. Click "Connect": you log in at the provider and consent; n8n receives the code and exchanges it for tokens
+ 4. n8n stores the access and refresh tokens encrypted and refreshes the access token automatically
+
+Client Credentials flow (machine-to-machine, no user): client ID + secret + token URL → access token
+```
+- Self-hosted instances must have the right **public base URL** (`WEBHOOK_URL` / `N8N_HOST`, `N8N_PROTOCOL`) so the redirect URL matches what's registered with the provider.
+- Request the **minimum scopes** needed; since n8n 2.0, the OAuth callback endpoint requires an authenticated n8n session.
+
+## Interview Q&A | sky | wide
+Q: How do you call an API that has no dedicated n8n node?
+A: With the HTTP Request node: set the method and URL, choose authentication (a predefined or generic credential), add query, headers and body (or import a cURL command), and configure pagination, batching and timeouts.
+Q: How are credentials stored in n8n?
+A: Encrypted in the n8n database with the instance's N8N_ENCRYPTION_KEY; workflows reference them by name, and they aren't included when workflows are exported.
+Q: How do you set up OAuth 2.0 in n8n?
+A: Register an app with the provider using n8n's OAuth callback URL, create an OAuth2 credential with the client id, secret, endpoints and scopes, and connect; n8n stores and refreshes the tokens.
+Q: How do you handle paginated APIs?
+A: With the HTTP Request node's pagination option, following a next URL or incrementing a page or cursor parameter until a stop condition, returning all pages as items.
+Q: How do you respect API rate limits?
+A: Batch requests (HTTP Request batching or Loop Over Items) with Wait nodes, enable retries with back-off for 429 responses, and honour Retry-After.
+Q: Why must the encryption key be backed up?
+A: Without the same N8N_ENCRYPTION_KEY, n8n can't decrypt stored credentials after a restore or when adding workers, so every credential would have to be re-entered.
+
+@ Advanced
+# 06 | Webhooks & Bidirectional Integrations | The Webhook node, test vs production URLs, response modes, Respond to Webhook, authenticating and verifying webhook signatures, async request-reply, calling back source systems, the Wait node | Webhooks
+
+## The Webhook Node | rose
+- A **Webhook** trigger gives the workflow its own HTTP endpoint. Settings: **HTTP method** (or several), **path** (including parameters such as `orders/:id`), **authentication**, **response mode** and **response code**.
+- **Test URL** (`https://<host>/webhook-test/<path>`): works only while you click "Listen for test event" in the editor; the request appears in the editor so you can build the workflow with real data.
+- **Production URL** (`https://<host>/webhook/<path>`): live once the workflow is **published**; executions appear in the Executions list.
+- The incoming request is available as `$json.headers`, `$json.params`, `$json.query` and `$json.body` (files arrive as binary data).
+- **Authentication options**: Basic Auth, Header Auth (a shared secret header), **JWT**, or none (then verify a signature yourself).
+
+## Response Modes | blue
+```text
+Respond: Immediately                     → 200 right away; the workflow continues in the background
+Respond: When Last Node Finishes         → returns the last node's output (or a chosen field / binary file)
+Respond: Using "Respond to Webhook" Node → full control: status code, headers, JSON, text, binary, redirect,
+                                           placed anywhere in the workflow (for example after validation)
+Respond: Streaming                       → streams output as it is produced (AI agent replies)
+```
+```text
+[Webhook POST /orders] ─▶ [If: body valid?] ─ true ─▶ [Respond to Webhook: 202 {"status":"accepted","id":...}] ─▶ [Postgres: insert] ─▶ [ERP: create order]
+                                            └ false ─▶ [Respond to Webhook: 400 {"error":"sku is required"}]
+```
+- Respond **immediately** (or with 202 after validation) for long workflows, so the caller doesn't time out and retry. Return the result synchronously only when the work is quick (a lookup API built in n8n).
+
+## Securing Webhooks: Signature Verification | green
+```js verify-signature.js
+// Code node right after a Webhook node with the "Raw Body" option on. Verifies an HMAC-SHA256
+// signature in the style of Stripe, GitHub or Shopify webhooks.
+const crypto = require('crypto');                               // self-hosted: NODE_FUNCTION_ALLOW_BUILTIN=crypto
+
+const secret = $vars.WEBHOOK_SECRET;                            // an n8n Variable or external secret, never hard-coded
+const body = await this.helpers.getBinaryDataBuffer(0, 'data'); // the raw request body, byte for byte
+const received = String($input.first().json.headers['x-signature'] ?? '');
+const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
+const valid = received.length === expected.length &&
+  crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected));   // constant-time comparison
+if (!valid) throw new Error('Invalid webhook signature');
+
+return [{ json: JSON.parse(body.toString('utf8')) }];
+```
+```text
+Webhook (POST /webhook/payments, Raw Body on, respond via Respond to Webhook)
+  → Verify Signature (this Code node, On Error: continue using error output)
+       ├─ success → Respond to Webhook 202 {"status":"accepted","paymentId": ...}
+       └─ error   → Respond to Webhook 401 {"error": ...}
+
+Real run on n8n 2.43.5:
+  correct signature          HTTP/1.1 202 Accepted       {"status":"accepted","paymentId":"pay_77"}
+  body changed, same sig     HTTP/1.1 401 Unauthorized   {"error":"Invalid webhook signature [line 12]"}
+```
+- `this.helpers.getBinaryDataBuffer(itemIndex, 'data')` reads the raw body correctly whatever the binary storage mode (filesystem by default in 2.x); `$vars` (instance Variables) and external secrets (`$secrets`) need a paid plan.
+- **Verify the sender**: providers sign each request with a shared secret (HMAC). Compute the HMAC over the **raw body** and compare in **constant time**; also check a timestamp header to reject replays.
+- Also: use HTTPS, an unguessable path, IP allowlists where the provider publishes them, and rate limiting in front of n8n.
+- Treat payloads as untrusted input: validate types and required fields before writing anywhere.
+
+## Bidirectional Integrations | amber
+- **Bidirectional** means both systems call each other: the source system sends a webhook to n8n, and n8n calls back into the source (or another system) through its API.
+- **Async request-reply**: n8n acknowledges immediately (`202 Accepted` with a job id), processes in the background, then **calls the caller's callback URL** with the result, or the caller polls a status endpoint backed by n8n.
+- **Two-way sync** (CRM ↔ helpdesk): avoid **infinite loops** (an update in A triggers B, which triggers A again) by tagging changes made by the integration (a "last updated by" field or a sync marker) and ignoring them, and by comparing values before writing.
+- **Wait node**: pause an execution until a time, an interval or an **incoming webhook call** (each paused execution gets a unique `$execution.resumeUrl`). Used for approvals ("send a Slack message with approve/reject links, wait for the click"), callbacks from long-running jobs and human-in-the-loop flows.
+- Long-running waits survive restarts: n8n stores the paused execution in the database and resumes it later.
+
+## Interview Q&A | sky | wide
+Q: Test URL vs production URL of a Webhook node?
+A: The test URL works only while listening in the editor and shows the data there for building; the production URL is live once the workflow is published and records normal executions.
+Q: What response modes does the Webhook node offer?
+A: Respond immediately, respond when the last node finishes with its output, or respond from a Respond to Webhook node placed anywhere, with full control over status, headers and body.
+Q: How do you secure an n8n webhook?
+A: Use HTTPS and authentication (header, basic or JWT) or verify the provider's HMAC signature over the raw body in constant time with a timestamp check; validate the payload and rate-limit the endpoint.
+Q: How do you handle a webhook whose processing takes minutes?
+A: Respond immediately with 202 and an id, process asynchronously, and notify the caller through a callback URL or a status endpoint.
+Q: How do you implement an approval step?
+A: Send an approval request (Slack, email or a form) containing the Wait node's resume URL or using a "send and wait for response" operation, and continue the workflow when the approver responds.
+Q: How do you avoid loops in a two-way sync?
+A: Mark changes made by the integration and ignore events caused by them, compare values before updating, and make updates idempotent.
+
+# 07 | AI Agents in n8n | LangChain-based cluster nodes, the AI Agent node with chat models, memory and tools, chains, RAG with vector stores and embeddings, Chat Trigger, MCP client and server, guardrails and human approval | AI Agents
+
+## Cluster Nodes: Root and Sub-Nodes | rose
+```text
+[Chat Trigger] ─▶ [AI Agent] ─▶ [Slack: post answer]
+                     │ sub-nodes plugged in below
+                     ├─ Chat Model:  OpenAI / Anthropic / Google Gemini / Ollama / Azure OpenAI / Bedrock / Groq...
+                     ├─ Memory:      Simple Memory (window) / Postgres Chat Memory / Redis Chat Memory
+                     ├─ Tools:       HTTP Request Tool, Call n8n Workflow Tool, Code Tool, Vector Store Tool,
+                     │               MCP Client Tool, Calculator, Think, Wikipedia, app tools (Gmail, Sheets...)
+                     └─ Output Parser: Structured Output Parser (JSON schema)
+```
+- n8n's AI features are built on **LangChain (JavaScript)**. They use **cluster nodes**: a **root node** that does the work (AI Agent, a chain, a vector store) with **sub-nodes** attached beneath it that supply the model, memory, tools, embeddings or parsers.
+- **Chat model** sub-nodes connect to providers (OpenAI, Anthropic, Google Gemini and Vertex, Azure OpenAI, AWS Bedrock, Mistral, Groq, DeepSeek, xAI, OpenRouter) or local models through **Ollama**. A **Model Selector** node can pick a model dynamically.
+- **Memory** keeps conversation history between messages, keyed by a **session id**: **Simple Memory** (in-process window of the last N messages, for testing), **Postgres**, **Redis** or **MongoDB Chat Memory** (persistent, for production).
+
+## The AI Agent Node | blue
+- The **AI Agent** node runs a **tool-calling agent loop**: it sends the user's message, the system prompt and the available tool descriptions to the model; when the model asks to call a tool, n8n executes it and feeds the result back; it repeats until the model gives a final answer (or a maximum number of iterations).
+- **Tools** turn n8n into the agent's hands: **HTTP Request Tool** (any API), **Call n8n Workflow Tool** (any workflow becomes a tool, with typed inputs: "look up order", "create refund"), **Code Tool**, **Vector Store Question Answer Tool** (search your documents), **MCP Client Tool**, and many app nodes usable directly as tools. Each tool's **name and description** tell the model when to use it.
+- **System message**: role, rules and output format ("You are the support assistant for ShopCo. Only answer about orders. Use the get_order tool..."). Parameters such as **max iterations** and **return intermediate steps** help control cost and debugging.
+- **Structured output**: attach a **Structured Output Parser** with a JSON schema so downstream nodes get reliable fields.
+- **Chains** for simpler, non-agentic steps: **Basic LLM Chain** (prompt in, text out), **Question and Answer Chain** (RAG over a retriever), **Summarization Chain**, **Information Extractor** (pull fields from text into a schema), **Text Classifier** (route by category), **Sentiment Analysis**.
+
+## RAG and Vector Memory | green
+```text
+Ingestion workflow:
+[Google Drive Trigger: new file] ─▶ [Vector Store: Insert Documents (PGVector / Pinecone / Qdrant / Supabase)]
+                                        ├─ Embeddings: OpenAI text-embedding-3-small (or Ollama, Gemini, Cohere)
+                                        └─ Document Loader: Default Data Loader ─ Text Splitter: Recursive Character
+
+Query workflow:
+[Chat Trigger] ─▶ [AI Agent] ── Tool: Vector Store Question Answer Tool ── Vector Store (same index) ── Embeddings
+                       ├─ Chat Model
+                       └─ Memory: Postgres Chat Memory (session = user id)
+```
+- **Ingestion**: load documents (files, URLs, database rows) → split into chunks with a **text splitter** → embed with an **embeddings** sub-node → upsert into a **vector store** (PGVector, Pinecone, Qdrant, Supabase, Chroma, Weaviate, Milvus, Redis, MongoDB Atlas, or an in-memory store for testing).
+- **Retrieval**: the agent uses a vector store tool (or a Q&A chain with a vector store retriever) to fetch the most similar chunks and answer grounded in them. **Rerankers** (Cohere) and **multi-query retrievers** improve results (Embeddings & RAG topic).
+- Two kinds of "memory": **chat memory** (the conversation) and **vector memory** (long-term knowledge or past interactions stored as embeddings and retrieved by similarity).
+
+## Chat Trigger, MCP, Guardrails and Human-in-the-Loop | amber
+- **Chat Trigger** gives an agent a chat interface: an n8n-hosted chat page, an embeddable widget, or a webhook for your own front end; it supplies the session id for memory and can stream the response.
+- **MCP**: the **MCP Server Trigger** exposes n8n tools (including whole workflows) as a **Model Context Protocol server** that clients such as Claude Desktop, IDEs or other agents can call. The **MCP Client Tool** lets an n8n agent use tools from external MCP servers.
+- **Guardrails** node: checks inputs and outputs (jailbreak and prompt-injection attempts, personal data, secret keys, URLs, off-topic content) before they reach the model or the user.
+- **Human-in-the-loop**: route risky actions (refunds, emails to customers, deleting data) through an approval step, using "send and wait for response" operations (Slack, email, Teams) or a Wait node, before the tool executes.
+- Watch **cost and latency** (tokens per run, iterations), log prompts and tool calls in executions, and test with representative inputs before publishing.
+
+## Interview Q&A | sky | wide
+Q: How do you build an AI agent in n8n?
+A: Add an AI Agent root node after a trigger (often the Chat Trigger), attach a chat model, a memory sub-node and tools (HTTP Request Tool, workflow tools, vector store tools), write a system prompt, and optionally a structured output parser.
+Q: What are cluster nodes?
+A: AI nodes made of a root node, such as AI Agent or a chain, plus sub-nodes that plug in the chat model, memory, tools, embeddings, retrievers and output parsers.
+Q: How does the AI Agent decide to call a tool?
+A: The tool names and descriptions are sent to the model, which requests a tool call when it needs one; n8n runs the tool and returns the result to the model, looping until it produces a final answer.
+Q: How do you implement RAG in n8n?
+A: An ingestion workflow loads, splits, embeds and inserts documents into a vector store; at query time the agent uses a vector store question-answer tool or a Q&A chain to retrieve relevant chunks and answer from them.
+Q: Chat memory vs vector memory?
+A: Chat memory stores the recent conversation for a session (window, Postgres, Redis); vector memory stores knowledge as embeddings and retrieves it by similarity, for long-term or document knowledge.
+Q: How does n8n support MCP?
+A: The MCP Server Trigger publishes n8n tools and workflows to MCP clients, and the MCP Client Tool lets n8n agents call tools on external MCP servers.
+Q: How do you keep an n8n agent safe?
+A: Least-privilege tools and credentials, guardrails on inputs and outputs, human approval for risky actions, iteration and token limits, and logging of tool calls.
+
+# 08 | Self-Hosting n8n with Docker | Docker and Docker Compose with PostgreSQL, essential environment variables, task runners, queue mode with Redis and workers, scaling, execution data retention and pruning, binary data, backups, upgrades and security | Self-Hosting
+
+## Docker Compose with PostgreSQL | rose
+```yaml docker-compose.yml
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: n8n
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.43.5          # pin a version; upgrade deliberately
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}     # encrypts credentials: back it up!
+      N8N_HOST: n8n.example.com
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: https://n8n.example.com/        # public URL used in webhook and OAuth callback URLs
+      GENERIC_TIMEZONE: Asia/Kolkata               # time zone for Schedule triggers
+      EXECUTIONS_DATA_MAX_AGE: 168                 # keep execution history for 7 days
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+
+volumes:
+  db_data:
+  n8n_data:
+```
+- **PostgreSQL** for production (SQLite is fine for a single small instance; MySQL/MariaDB are no longer supported as n8n's own database since 2.0).
+- Put a **reverse proxy** (Caddy, Traefik, NGINX) in front for **HTTPS**; n8n listens on **port 5678**.
+- Keep secrets in a `.env` file or a secrets manager, not in the compose file. **`N8N_ENCRYPTION_KEY`** must stay the same forever and be identical on every n8n process (main, workers, webhook processors), or stored credentials can't be decrypted.
+
+## Task Runners and Queue Mode | blue
+- **Task runners** (on by default since 2.0) execute Code node code in separate processes. **Internal mode** (the default, `N8N_RUNNERS_MODE=internal`) starts them as child processes of n8n; **external mode** runs them in a separate container (the **`n8nio/runners`** image, sidecar to n8n) for stronger isolation, and is required for **native Python**.
+- n8n 2.43 warns at start-up that **internal mode is deprecated** and will be removed, and that the task timeout default (`N8N_RUNNERS_TASK_TIMEOUT`, 300 s) will drop to 60 s: plan for external runners in production.
+- **Queue mode** scales execution horizontally:
+```text
+                    ┌─────────────── Redis (Bull queue) ───────────────┐
+ webhooks/UI ─▶ n8n main ──enqueue execution id──▶ ─▶ n8n worker ×N (EXECUTIONS_MODE=queue, command: worker)
+       (optional n8n webhook processors ×M behind a load balancer)   all share PostgreSQL and N8N_ENCRYPTION_KEY
+```
+- Set **`EXECUTIONS_MODE=queue`** and the Redis connection (`QUEUE_BULL_REDIS_HOST`); run extra containers with the command **`worker`** (they pull executions from the queue) and optionally **`webhook`** processors to receive webhook traffic. Add workers as load grows; the main instance serves the editor and schedules triggers.
+- **`EXECUTIONS_TIMEOUT`** (default -1, no limit) and **`EXECUTIONS_TIMEOUT_MAX`** (default 3600 s) bound runaway executions.
+
+## Execution Data Retention | green
+```text
+Variable                                 Default   Meaning
+EXECUTIONS_DATA_PRUNE                    true      delete old execution data on a rolling basis
+EXECUTIONS_DATA_MAX_AGE                  336       hours to keep executions (336 h = 14 days)
+EXECUTIONS_DATA_PRUNE_MAX_COUNT          10000     maximum executions kept (0 = no limit)
+EXECUTIONS_DATA_HARD_DELETE_BUFFER       1         hours before soft-deleted executions are removed for good
+EXECUTIONS_DATA_SAVE_ON_SUCCESS          all       save data of successful executions (all | none)
+EXECUTIONS_DATA_SAVE_ON_ERROR            all       save data of failed executions (all | none)
+EXECUTIONS_DATA_SAVE_ON_PROGRESS         false     save after every node (enables resume, costs writes)
+EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS   true      save editor test runs
+```
+- Execution data (every node's input and output) is what makes debugging easy, but it **grows the database fast**, especially with large payloads or binary files.
+- Typical production setting: keep **failed executions** longer, **don't store successful ones** for high-volume workflows (`EXECUTIONS_DATA_SAVE_ON_SUCCESS=none` or per-workflow settings), and prune after a few days. Execution data may contain **personal data**, so retention is also a privacy and compliance decision.
+- **Binary data** (files) should not live in the database: `N8N_DEFAULT_BINARY_DATA_MODE` is `filesystem` or `s3` (the in-memory mode was removed in 2.0); S3 is required for queue mode with several workers to share files.
+
+## Operations and Security | amber
+- **Backups**: the PostgreSQL database (workflows, credentials, executions) and the encryption key. Workflows and credentials can also be exported with the CLI (`n8n export:workflow --all`, `n8n export:credentials --all`) or synced to **Git** with source control (Enterprise environments).
+- **CLI for automation and CI** (n8n 2.x): `n8n import:workflow --input=wf.json`, `n8n publish:workflow --id=<id>` / `unpublish:workflow` (replacing `update:workflow --active`), `n8n execute --id=<id>` (`--file` is deprecated), `n8n list:workflow --active=true`. CLI changes to published workflows take effect when n8n restarts.
+- **Upgrades**: pin the image version, read the release notes (especially breaking changes such as 2.0's), back up first, and run database migrations on start-up with a single main instance.
+- **Security**: HTTPS only, strong owner password and **2FA** or SSO, keep the editor off the public internet where possible (VPN or IP allowlist) while exposing only `/webhook/` paths, keep risky nodes disabled (`NODES_EXCLUDE`), task runners in external mode, restricted file access, regular updates for security fixes.
+- **Monitoring**: the `/healthz` endpoint for liveness, Prometheus metrics (`N8N_METRICS=true`), log level and output settings, and alerting on failed executions via error workflows.
+
+## Interview Q&A | sky | wide
+Q: How would you self-host n8n for production?
+A: Docker or Kubernetes with a pinned n8n image, PostgreSQL as the database, a fixed N8N_ENCRYPTION_KEY, the public WEBHOOK_URL, HTTPS through a reverse proxy, persistent volumes, backups, and queue mode with Redis and workers when load grows.
+Q: What is queue mode?
+A: A scaling mode where the main instance puts executions on a Redis queue and separate worker processes run them, all sharing the same PostgreSQL database and encryption key; webhook processors can also be scaled separately.
+Q: Why is N8N_ENCRYPTION_KEY so important?
+A: It encrypts all stored credentials; if it's lost or differs between processes, credentials can't be decrypted and must be re-created.
+Q: How do you control execution data retention?
+A: With EXECUTIONS_DATA_PRUNE, EXECUTIONS_DATA_MAX_AGE (default 336 hours) and EXECUTIONS_DATA_PRUNE_MAX_COUNT (default 10,000), plus settings to save or skip successful, failed and manual executions globally or per workflow.
+Q: What are task runners?
+A: Separate processes that execute Code node code isolated from the main n8n process; on by default since 2.0, with an external mode in a separate n8nio/runners container that is required for native Python.
+Q: Where should binary data be stored?
+A: On the filesystem or in S3-compatible storage rather than in memory or the database; S3 is needed when several queue-mode workers must share files.
+
+@ Review
+# 09 | Rapid-Fire & Scenario Questions | One-liners, real-world scenarios, design trade-offs, big Q&A | Rapid-fire
+
+## One-Line Cheat Sheet | rose
+- **n8n** = fair-code, node-based workflow automation; self-hosted or Cloud; billed per execution on Cloud.
+- **Workflow** = trigger + nodes + connections; data = **array of items** (`json` + `binary`); nodes run **per item**.
+- **Triggers**: manual, schedule (cron), webhook, app events (webhook or polling), form, chat, execute-workflow, error.
+- **Expressions** `{{ }}`: `$json`, `$('Node').item.json`, `$input`, `$now` (Luxon), `$execution`, `$workflow`.
+- **Transform**: Edit Fields, Filter, If, Switch, Merge (append, combine by field / position / all combinations, SQL, choose branch), Split Out, Aggregate, Summarize, Loop Over Items, Code (all items vs each item).
+- **Errors**: Retry On Fail, On Error (stop, continue, error output), Stop and Error, Error Trigger + error workflow.
+- **APIs**: HTTP Request (auth, pagination, batching, import cURL); credentials encrypted with `N8N_ENCRYPTION_KEY`; OAuth2 callback `/rest/oauth2-credential/callback`.
+- **Webhooks**: test vs production URL; respond immediately, when last node finishes, or via Respond to Webhook; verify HMAC signatures.
+- **AI**: AI Agent + chat model + memory + tools; vector stores + embeddings for RAG; Chat Trigger; MCP Server Trigger and MCP Client Tool; Guardrails.
+- **Self-hosting**: Docker + PostgreSQL, queue mode with Redis workers, task runners, retention (`EXECUTIONS_DATA_MAX_AGE` default 336 h).
+- **n8n 2.0**: task runners default, env access blocked in Code, Python via external runners, risky nodes disabled, Publish/Unpublish drafts.
+
+## Scenario Questions | blue
+- **"Sync new Stripe payments into the CRM and notify sales for big deals."** Stripe trigger (webhook) → Edit Fields to map fields → HubSpot upsert by email (idempotent) → If amount > threshold → Slack; error workflow for alerts.
+- **"Every morning, email a report of yesterday's orders."** Schedule Trigger → Postgres query → Summarize → HTML template in Edit Fields or Code → Gmail; timezone set in the workflow.
+- **"A partner sends 10,000 records but their API allows 5 requests per second."** Loop Over Items with batches of 5 + Wait 1 second, Retry On Fail with back-off for 429s, error output for bad records.
+- **"An AI assistant that answers from our policy documents and can create support tickets."** Ingestion workflow into PGVector; Chat Trigger → AI Agent with a vector store tool and a "create ticket" workflow tool, Postgres chat memory, guardrails, human approval for escalations.
+- **"Executions are filling the database."** Lower `EXECUTIONS_DATA_MAX_AGE`, stop saving successful executions for high-volume workflows, move binary data to S3, vacuum PostgreSQL.
+
+## How to Answer Well | green
+- Describe workflows as **trigger → steps → error handling → idempotency**, naming concrete nodes.
+- Mention **operational concerns**: credentials and secrets, retries and rate limits, retention, monitoring, versioning (export to Git).
+- Tie to experience: "I built an n8n workflow that took Razorpay webhooks, verified the HMAC signature, upserted the payment into Postgres and posted failures to Slack through an error workflow; it replaced a cron script that missed payments."
+
+## Big Interview Q&A | sky | wide
+Q: What is a node in n8n?
+A: One step in a workflow, such as a trigger, an app action, a logic node or an AI node, which takes input items, does its work and outputs items.
+Q: What is the structure of data in n8n?
+A: An array of items, each with a json object of fields and optional binary data for files.
+Q: How do you reference data from an earlier node?
+A: With expressions such as {{ $('Node Name').item.json.field }} for the paired item, or .first() and .all() for its items.
+Q: How do you run a workflow on a schedule?
+A: With the Schedule Trigger using an interval or a cron expression, in the time zone set for the instance or workflow, and publish the workflow.
+Q: How do you handle failures globally?
+A: Set an error workflow in the workflow settings; it starts with an Error Trigger and receives the failed execution's details to alert or recover.
+Q: How do you call a REST API with OAuth 2.0?
+A: Create an OAuth2 credential (client id, secret, endpoints, scopes, n8n's callback URL), connect it, and use it in the HTTP Request node or the service's node; n8n refreshes tokens automatically.
+Q: How do you reuse logic across workflows?
+A: Put it in a sub-workflow that starts with the Execute Workflow Trigger and call it with the Execute Workflow node (or as a tool for AI agents).
+Q: What's the difference between the Code node modes?
+A: Run Once for All Items processes the whole item list in one go and returns an array; Run Once for Each Item runs per item and returns one item.
+Q: How do you scale n8n?
+A: Queue mode with Redis and multiple workers sharing PostgreSQL, separate webhook processors behind a load balancer, S3 for binary data, and pruning of execution data.
+Q: Why might a webhook work in testing but not in production?
+A: The test URL only works while listening in the editor; production needs the /webhook/ URL and the workflow must be published, with WEBHOOK_URL set to the public address when behind a proxy.
+Q: How is n8n licensed?
+A: Fair-code under the Sustainable Use License: free to self-host and modify for internal use, but not to resell as a hosted service; some features require an Enterprise licence.

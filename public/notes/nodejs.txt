@@ -1,0 +1,744 @@
+@ Beginner
+# 00 | Node.js Basics: Start Here | History, installing Node and npm, version managers, the REPL, running files, npm init and scripts, a first HTTP server, what Node is used for, Node vs Deno and Bun, Node vs Java and Python backends | Start Here
+
+## History | rose
+- **Node.js** was created by **Ryan Dahl** and presented in **2009** (JSConf EU). His idea: run JavaScript on the server with Google's **V8** engine and an **event loop with non-blocking I/O**, so one process can handle many connections without a thread per request (sheet 01).
+- **npm** (the package manager, by Isaac Schlueter) arrived in **2010** and grew into the world's largest package registry.
+- Governance: Joyent sponsored the project at first; a community fork, **io.js** (2014), merged back in 2015 under the **Node.js Foundation**, which in 2019 joined the JS Foundation to form the **OpenJS Foundation**.
+- In 2018 Ryan Dahl gave the talk "10 Things I Regret About Node.js" and started **Deno**. **Bun** (by Jarred Sumner) reached 1.0 in 2023.
+- **Release lines**: even-numbered majors become **LTS (Long-Term Support)**; use an Active or Maintenance LTS version in production. This machine runs **Node 24**.
+- **Node.js is not a language or a framework**: it is a **runtime** that executes JavaScript outside the browser. Express, NestJS and Fastify are frameworks that run on it.
+
+## Install Node and npm | blue
+```bash
+node -v                  # v24.x: the Node.js version
+npm -v                   # npm comes bundled with Node
+npx cowsay hi            # npx runs a package's command without installing it globally
+nvm install 24           # with a version manager (nvm, nvm-windows, fnm, Volta): install a major version...
+nvm use 24               # ...and switch to it
+```
+- Install from **nodejs.org** (choose the **LTS** build) or, better for developers, through a **version manager** so each project can use the Node version it needs. A `.nvmrc` file (or the `engines` field in `package.json`) records that version.
+- **npm** installs packages; **npx** runs a package's binary (local or downloaded on the fly). Alternatives: **pnpm** and **Yarn**.
+
+## REPL and Running Files | green
+```bash
+node                              # REPL: > 2 + 3  →  5   (.help, .exit, _ is the last result)
+node app.js                       # run a file
+node --watch app.js               # restart automatically when files change
+node --env-file=.env app.js       # load environment variables from a .env file
+node -e "console.log(process.version)"    # evaluate one line
+node --inspect app.js             # attach Chrome DevTools or VS Code for debugging
+```
+- **REPL** = Read-Eval-Print Loop: an interactive prompt for trying JavaScript and Node APIs.
+- `node app.js` runs the file as **CommonJS** or **ES module** depending on the extension (`.cjs` / `.mjs`), the `"type"` field in `package.json`, or the syntax it detects (sheet 02).
+- `--watch` and `--env-file` remove the need for tools such as nodemon and dotenv in many projects.
+
+## npm init, package.json and Scripts | amber
+```bash
+mkdir hello-node && cd hello-node
+npm init -y                       # creates package.json with default values
+npm install express               # adds a dependency (and package-lock.json, node_modules/)
+npm install --save-dev vitest     # a development-only dependency
+npm run dev                       # runs the "dev" script
+npm start                         # shortcut for the "start" script
+```
+```json package.json
+{
+  "name": "hello-node",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.4"
+  }
+}
+```
+- **`package.json`** describes the project: name, version, module type, **scripts**, and dependency ranges. **`package-lock.json`** pins the exact installed versions; **`node_modules/`** holds the packages and is never committed (sheet 07).
+- `"type": "module"` makes `.js` files ES modules, so `import` / `export` work.
+
+## Your First HTTP Server | violet
+```js server.js
+import { createServer } from 'node:http';
+
+const server = createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ message: 'Hello from Node', path: req.url }));
+});
+
+server.listen(3000, () => console.log('Listening on http://localhost:3000'));
+// GET http://localhost:3000/orders  →  {"message":"Hello from Node","path":"/orders"}
+```
+- `node:http` is a **core module** (built in, no install). The callback runs for **every request**; `req` is the incoming request (a readable stream) and `res` the response (a writable stream).
+- Stop it with **Ctrl+C**. Real APIs usually use **Express** or another framework for routing and middleware (sheet 06).
+
+## What Node.js Is Used For | rose
+- **REST and GraphQL APIs**, microservices and **BFFs** (backend-for-frontend).
+- **Real-time apps**: chat, live dashboards, multiplayer games (WebSockets, Socket.IO).
+- **Streaming**: file uploads and downloads, video, proxies.
+- **Tooling**: most front-end tools run on Node (Vite, webpack, ESLint, Prettier, TypeScript's `tsc`, the Angular CLI, Next.js).
+- **CLIs, scripts and automation**; **serverless functions** (AWS Lambda, Vercel); desktop apps (Electron).
+- Not a good fit for **CPU-heavy work on the main thread** (video encoding, big computations), which blocks every request unless moved to worker threads or another service (sheet 01).
+
+## Node vs Deno vs Bun, and vs Java or Python | sky
+- **Deno** (Ryan Dahl, Rust + V8): **secure by default** (scripts need permissions such as `--allow-net`), TypeScript built in, web-standard APIs, a built-in formatter, linter and test runner; Deno 2 is largely compatible with Node and npm packages.
+- **Bun** (Zig + JavaScriptCore): very fast start-up, and an all-in-one toolkit (runtime, package manager, bundler, test runner) with a Node-compatible API.
+- **Node.js**: the most mature and widely deployed, with the largest ecosystem; the safe default for production.
+- **Node vs Java (Spring Boot)**: event loop with one JavaScript thread vs a thread (or virtual thread) per request; dynamic JavaScript or TypeScript vs strongly typed Java; quick start-up and the same language as the front end vs a mature enterprise ecosystem and strong CPU performance.
+- **Node vs Python (FastAPI, Django)**: both are productive; Node excels at I/O concurrency and real-time work and shares code with the front end, Python at data science, ML and scripting.
+
+## Interview Q&A | sky | wide
+Q: What is Node.js?
+A: An open-source, cross-platform JavaScript runtime built on V8 and libuv that runs JavaScript outside the browser, using an event-driven, non-blocking I/O model.
+Q: Is Node.js a language, a framework or a library?
+A: None of them: it is a runtime environment. The language is JavaScript (or TypeScript), and frameworks such as Express run on top of it.
+Q: Who created Node.js and when?
+A: Ryan Dahl, in 2009.
+Q: npm vs npx?
+A: npm installs and manages packages and runs scripts; npx executes a package's command, from the project or downloaded temporarily, without a global install.
+Q: What is package.json?
+A: The project manifest: name, version, scripts, module type and the dependency ranges the project needs.
+Q: What is the REPL?
+A: The interactive Read-Eval-Print Loop you get by running `node` with no file, used to try out code quickly.
+Q: What does LTS mean, and which version should you use?
+A: Long-Term Support: an even-numbered release line that receives fixes for an extended period. Use an Active or Maintenance LTS version in production.
+Q: Why is Node.js fast for I/O despite being single-threaded?
+A: It never waits on I/O: operations are started asynchronously and their callbacks run on the event loop when results arrive, so one thread can serve thousands of concurrent connections.
+Q: When should you not use Node.js?
+A: For CPU-intensive work on the main thread, such as heavy computation or image processing, unless it is moved to worker threads or separate services.
+Q: Node.js vs Deno vs Bun?
+A: Node is the mature standard with the biggest ecosystem. Deno adds secure-by-default permissions, built-in TypeScript and tooling. Bun focuses on speed and bundles a package manager, bundler and test runner.
+
+
+# 01 | Node.js Runtime & Architecture | V8, libuv, single thread, non-blocking I/O, event loop phases, thread pool | Runtime
+
+## What Node.js Is | rose
+- **Node.js** is a **JavaScript runtime** built on **Chrome's V8 engine** and **libuv**, for running JavaScript outside the browser: servers, CLIs, build tools, scripts.
+- **V8** compiles and runs JavaScript (JIT) and manages the heap; **libuv** (C library) provides the **event loop**, **asynchronous I/O** and a **thread pool**; **bindings** connect JavaScript APIs to C/C++ code.
+- **Single-threaded event loop + non-blocking I/O**: one main thread runs your JavaScript; I/O is started asynchronously and its callbacks are queued when results are ready. One process can serve **thousands of concurrent connections** without a thread per request.
+- Great for **I/O-bound** workloads (APIs, real-time apps, streaming, proxies); poor fit for **CPU-heavy** work on the main thread (it blocks everyone), which belongs in **worker threads**, child processes or other services.
+- Releases: even-numbered majors become **LTS** (Long-Term Support); use an active LTS line in production.
+
+## Blocking vs Non-Blocking | blue
+- **Blocking** calls (`fs.readFileSync`, heavy loops, `crypto.pbkdf2Sync`, large `JSON.parse`) stop the event loop: **no other request is handled** until they finish.
+- **Non-blocking** calls (`fs.readFile`, `fs.promises`, network sockets) return immediately; the callback or promise resolves later.
+- Sync APIs are fine at **startup** (reading config) and in CLI scripts, never in request handlers.
+```js
+import { readFile } from 'node:fs/promises';
+import http from 'node:http';
+
+http.createServer(async (req, res) => {
+  // const data = readFileSync('big.json');           // BAD: blocks every other request
+  const data = await readFile('big.json', 'utf8');    // GOOD: the loop keeps serving others
+  res.end(data);
+}).listen(3000);
+```
+
+## The Event Loop Phases | green
+- libuv runs the loop in **phases**, each with a FIFO queue of callbacks:
+- 1) **timers** (`setTimeout`, `setInterval` whose time has elapsed), 2) **pending callbacks** (some deferred system errors), 3) idle/prepare (internal), 4) **poll** (retrieve new I/O events and run their callbacks; waits here when nothing else is scheduled), 5) **check** (`setImmediate`), 6) **close callbacks** (`socket.on('close')`).
+- **Between every callback** Node drains the **`process.nextTick` queue first**, then the **promise microtask queue**.
+- Inside an I/O callback, **`setImmediate` always runs before `setTimeout(fn, 0)`**; from the main module their order is not guaranteed.
+- Recursive `process.nextTick` can **starve I/O**; prefer `setImmediate` to yield.
+```js
+import fs from 'node:fs';
+fs.readFile(import.meta.filename, () => {
+  setTimeout(() => console.log('timeout'), 0);
+  setImmediate(() => console.log('immediate'));
+  process.nextTick(() => console.log('nextTick'));
+  Promise.resolve().then(() => console.log('promise'));
+});
+// nextTick, promise, immediate, timeout
+```
+
+## The libuv Thread Pool | amber
+- Some operations cannot be done asynchronously by the OS, so libuv runs them on a **thread pool** (**4 threads by default**, configurable with **`UV_THREADPOOL_SIZE`**): **file system** operations, **`dns.lookup`**, CPU-heavy **crypto** (`pbkdf2`, `scrypt`, `randomBytes`), and **zlib** compression.
+- **Network I/O does not use the pool**: it uses the OS's async mechanisms (**epoll** on Linux, **kqueue** on macOS, **IOCP** on Windows).
+- With many concurrent file or crypto tasks, the pool can become a bottleneck (requests queue behind 4 threads).
+- For your own CPU-heavy JavaScript, use **`worker_threads`** (separate V8 isolates in the same process, communicating via messages or `SharedArrayBuffer`); scale across cores with **`cluster`** or multiple processes behind a load balancer (PM2, Kubernetes).
+
+## Interview Q&A | sky | wide
+Q: What is Node.js?
+A: A JavaScript runtime built on V8 and libuv that runs JavaScript on the server with an event-driven, non-blocking I/O model.
+Q: How does single-threaded Node handle many requests?
+A: Your JavaScript runs on one thread, but I/O is delegated to the OS or the libuv thread pool; the event loop runs callbacks when results arrive, so the thread is never idle waiting for I/O.
+Q: What are the event loop phases?
+A: Timers, pending callbacks, idle/prepare, poll, check (setImmediate) and close callbacks, with process.nextTick and promise microtasks drained between callbacks.
+Q: process.nextTick vs setImmediate vs setTimeout(0)?
+A: nextTick runs before any other queued work after the current operation; setImmediate runs in the check phase after I/O polling; setTimeout(0) runs in the next timers phase once at least 1 ms has passed.
+Q: What uses the libuv thread pool?
+A: File system operations, dns.lookup, crypto functions such as pbkdf2 and scrypt, and zlib. It has 4 threads by default (UV_THREADPOOL_SIZE).
+Q: When is Node a bad choice?
+A: CPU-bound work on the main thread (image processing, heavy computation) unless offloaded to worker threads or other services.
+Q: How do you use all CPU cores?
+A: Run several processes (cluster module, PM2, containers) behind a load balancer, and worker_threads for CPU-heavy tasks inside a process.
+
+# 02 | Globals & Module Systems | process, __dirname, __filename, import.meta, CommonJS vs ES Modules, interop | Modules
+
+## Global Objects | rose
+- **`globalThis`** (portable global object; `global` is Node's legacy alias). There is no `window` or `document`.
+- **`process`**: `process.env` (environment variables, always strings), **`process.argv`** (CLI arguments), `process.cwd()`, `process.pid`, `process.platform`, `process.memoryUsage()`, **`process.exit(code)`** / `process.exitCode`, events (`exit`, `uncaughtException`, `unhandledRejection`, `SIGINT`, `SIGTERM`).
+- **`Buffer`**, **`console`**, timers (`setTimeout`, `setImmediate`, `setInterval`), `queueMicrotask`, `structuredClone`, and Web APIs: **`fetch`**, `URL`, `AbortController`, `TextEncoder`, Web Streams, `crypto.randomUUID()`.
+- **`__dirname` and `__filename`** exist **only in CommonJS** modules (they are module-wrapper parameters). In ES modules use **`import.meta.dirname`** and **`import.meta.filename`** (Node 20.11+), or `fileURLToPath(import.meta.url)`.
+```js
+// ESM
+import path from 'node:path';
+const configPath = path.join(import.meta.dirname, 'config.json');
+
+const port = Number(process.env.PORT ?? 3000);
+process.on('SIGTERM', () => server.close(() => process.exit(0)));   // graceful shutdown
+```
+
+## CommonJS | blue
+- **`require()`** loads modules **synchronously**; **`module.exports`** (or `exports.name = ...`) defines what a module exposes.
+- Each file is wrapped in a function: `(function (exports, require, module, __filename, __dirname) { ... })`, which is why those names exist.
+- Modules are **cached** after the first `require` (`require.cache`): the same instance is returned everywhere (singletons).
+- **Exports are a copy of values at require time** (an object reference, so later mutation of that object is visible, but reassigning a variable is not).
+- Circular `require` returns a **partially filled** exports object.
+- Default for `.js` files unless `package.json` has `"type": "module"`; `.cjs` files are always CommonJS.
+```js
+// math.cjs
+function add(a, b) { return a + b; }
+module.exports = { add };
+
+// app.cjs
+const { add } = require('./math.cjs');
+const fs = require('node:fs');
+```
+
+## ES Modules | green
+- **`import` / `export`**: the JavaScript standard. Enabled by **`"type": "module"`** in `package.json` or the **`.mjs`** extension.
+- **Static** structure (analysed before running: enables tree shaking), **asynchronous loading**, **live bindings** (importers see updated values), **strict mode** by default, **top-level `await`**.
+- **Relative imports need file extensions** (`./utils.js`); `node:` prefix for built-ins (`node:fs`); JSON via `import data from './x.json' with { type: 'json' }`.
+- **Dynamic `import()`** returns a promise (works in both systems) for conditional or lazy loading.
+```js
+// utils.js
+export const VERSION = '1.0.0';
+export default function slugify(s) { return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-'); }
+
+// app.js
+import slugify, { VERSION } from './utils.js';
+import { readFile } from 'node:fs/promises';
+const config = JSON.parse(await readFile(new URL('./config.json', import.meta.url), 'utf8'));   // top-level await
+const { heavy } = await import('./heavy.js');
+```
+
+## CommonJS vs ESM Interop | amber
+- **ESM can import CommonJS**: `import pkg from 'cjs-pkg'` gives `module.exports` as the default export (named exports when Node can detect them statically).
+- **CommonJS loading ESM**: historically only through `await import()`; **`require()` of synchronous ES modules (no top-level await) is enabled by default in current Node lines** (22.12+, 20.19+).
+- Packages publish both via the **`exports`** field with `import` / `require` conditions (dual packages; watch for the "dual package hazard" of two instances).
+- **TypeScript in Node**: modern Node can **run `.ts` files by stripping types** (enabled by default from Node 23.6 and 22.18), for erasable syntax only; otherwise compile with `tsc` or run with `tsx`.
+```json
+{
+  "name": "@acme/utils",
+  "type": "module",
+  "exports": {
+    ".": { "import": "./dist/index.js", "require": "./dist/index.cjs" }
+  },
+  "engines": { "node": ">=20" }
+}
+```
+
+## Interview Q&A | sky | wide
+Q: CommonJS vs ES Modules?
+A: CommonJS uses synchronous require and module.exports, evaluated at runtime with cached copies of exports; ESM uses static import/export, loads asynchronously, supports top-level await, live bindings and tree shaking, and is the JavaScript standard.
+Q: Why are `__dirname` and `__filename` undefined in ESM?
+A: They are parameters of the CommonJS module wrapper. In ESM use import.meta.dirname and import.meta.filename (or derive them from import.meta.url).
+Q: How do you enable ESM in Node?
+A: Set "type": "module" in package.json or use the .mjs extension.
+Q: What is the require cache?
+A: After the first require, a module's exports are stored in require.cache, so later requires return the same instance without re-executing the file.
+Q: What is `process.env` and how do you load a .env file?
+A: An object of environment variables as strings. Load files with `node --env-file=.env app.js` (Node 20.6+) or the dotenv package; never commit secrets.
+Q: Can CommonJS require an ES module?
+A: Current Node versions allow require() of synchronous ES modules (no top-level await); otherwise use dynamic import().
+
+# 03 | Core Modules: fs, path, os, http | File system APIs, paths, OS info, a raw HTTP server, URL | Core Modules
+
+## fs (File System) | rose
+- Three API styles: **callback** (`fs.readFile(path, cb)`), **promise** (**`fs/promises`**, use with async/await), and **sync** (`readFileSync`, blocking).
+- Common: `readFile`, `writeFile`, `appendFile`, `mkdir({ recursive: true })`, `readdir({ withFileTypes: true })`, `stat`, `rm({ recursive, force })`, `rename`, `copyFile`, `access`, `watch`.
+- **Large files**: use **streams** (`createReadStream`, `createWriteStream`) instead of reading everything into memory.
+- Always pass an **encoding** (`'utf8'`) to get strings; otherwise you get a Buffer.
+```js
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import path from 'node:path';
+
+await mkdir('reports', { recursive: true });
+const orders = JSON.parse(await readFile('orders.json', 'utf8'));
+await writeFile(path.join('reports', 'summary.txt'), `Total orders: ${orders.length}\n`);
+
+for (const entry of await readdir('.', { withFileTypes: true })) {
+  if (entry.isFile() && entry.name.endsWith('.log')) console.log(entry.name);
+}
+```
+
+## path | blue
+- Builds and parses file paths **portably** (`/` on POSIX, `\` on Windows).
+- **`path.join(...)`** joins segments and normalises; **`path.resolve(...)`** returns an **absolute** path (resolving from the current working directory); `path.basename`, `path.dirname`, **`path.extname`**, `path.parse`, `path.relative`, `path.sep`.
+- **Security**: when building paths from user input, `resolve` and check the result stays inside the allowed directory (prevents **path traversal** with `../`).
+```js
+path.join('/var/app', 'uploads', '../logs', 'app.log');   // '/var/app/logs/app.log'
+path.resolve('uploads', 'a.png');                         // absolute, from process.cwd()
+path.extname('report.final.pdf');                         // '.pdf'
+
+const root = path.resolve('uploads');
+const target = path.resolve(root, userSuppliedName);
+if (!target.startsWith(root + path.sep)) throw new Error('Invalid path');
+```
+
+## os | green
+- System information: **`os.cpus().length`** (or `os.availableParallelism()`) to size worker pools, `os.totalmem()`, `os.freemem()`, `os.platform()`, `os.arch()`, `os.homedir()`, `os.tmpdir()`, `os.hostname()`, **`os.EOL`** (line ending).
+
+## http and URL | amber
+- **`http.createServer((req, res) => ...)`**: `req` is a **Readable stream** (method, url, headers); `res` is a **Writable stream** (`statusCode`, `setHeader`, `writeHead`, `write`, `end`).
+- The body must be **collected from the stream**; routing, parsing JSON and error handling are manual (which is what Express adds).
+- **`new URL(req.url, 'http://localhost')`** parses the path and **`searchParams`**.
+- `https` for TLS; `http2`; client requests with the global **`fetch`** (Node 18+) or `http.request`.
+```js
+import http from 'node:http';
+
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (req.method === 'GET' && url.pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true }));
+  }
+  if (req.method === 'POST' && url.pathname === '/echo') {
+    let body = '';
+    for await (const chunk of req) body += chunk;            // req is a readable stream
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(body);
+  }
+  res.writeHead(404).end('Not found');
+});
+server.listen(3000, () => console.log('listening on 3000'));
+```
+
+## Other Useful Core Modules | violet
+- **`events`** (EventEmitter), **`stream`**, **`buffer`**, **`crypto`** (hashing, `randomUUID`, `scrypt` for passwords), **`zlib`** (gzip, brotli), **`child_process`** (`spawn`, `exec`, `execFile`, `fork`), **`worker_threads`**, **`cluster`**, `util` (`promisify`, `inspect`, `parseArgs`), `readline`, `net` (TCP), `dns`, `assert`, **`node:test`** (built-in test runner).
+- Built-in CLI features: **`node --watch`** (restart on change), **`node --test`**, **`--env-file`**, `--inspect` (Chrome DevTools debugging).
+
+## Interview Q&A | sky | wide
+Q: fs callback vs promise vs sync APIs?
+A: Callback and promise APIs are non-blocking and suitable for servers; sync APIs block the event loop and belong only in startup code or scripts. fs/promises with async/await is the modern default.
+Q: path.join vs path.resolve?
+A: join concatenates and normalises segments; resolve produces an absolute path, processing segments right to left and falling back to the current working directory.
+Q: How do you read a large file efficiently?
+A: Stream it with fs.createReadStream and process chunks (or pipe it), instead of reading it all into memory with readFile.
+Q: How do you create an HTTP server without frameworks?
+A: http.createServer with a request handler: inspect req.method and req.url, read the body from the request stream, set status and headers, and end the response.
+Q: How do you prevent path traversal?
+A: Resolve the user-supplied path against a base directory and verify the result stays inside it; never pass raw input to fs functions.
+Q: spawn vs exec?
+A: spawn streams a child process's output and suits long-running or large output; exec buffers the whole output and runs through a shell (risky with user input).
+
+@ Intermediate
+
+# 04 | Events & EventEmitter | on, once, emit, off, error event, listener limits, async patterns | Events
+
+## The EventEmitter Pattern | rose
+- **`EventEmitter`** (from `node:events`) implements the **observer pattern**: objects **emit named events** and **listeners** react. Streams, HTTP servers, sockets and `process` are all EventEmitters.
+- **`on(event, fn)`** / `addListener`, **`once(event, fn)`** (auto-removed after first call), **`emit(event, ...args)`**, **`off(event, fn)`** / `removeListener`, `removeAllListeners`, `listenerCount`, `prependListener`.
+- **Listeners run synchronously**, in **registration order**, when `emit` is called; `emit` returns `true` if there were listeners.
+- Use **regular functions** if a listener needs `this` to be the emitter; arrow functions keep the outer `this`.
+```js
+import { EventEmitter } from 'node:events';
+
+class OrderService extends EventEmitter {
+  place(order) {
+    // ...save order
+    this.emit('order:placed', order);
+    return order;
+  }
+}
+const orders = new OrderService();
+orders.on('order:placed', (o) => sendEmail(o.customerEmail));
+orders.on('order:placed', (o) => metrics.increment('orders'));
+orders.once('order:placed', () => console.log('first order today!'));
+orders.place({ id: 1, customerEmail: 'a@x.com' });
+```
+
+## The 'error' Event | blue
+- If an EventEmitter emits **`'error'` and no `'error'` listener is registered, Node throws** the error, which crashes the process if uncaught.
+- **Always attach an `error` listener** to streams, sockets, servers and your own emitters.
+- `captureRejections: true` routes rejected promises from async listeners to the `error` event.
+```js
+const stream = fs.createReadStream('missing.txt');
+stream.on('error', (err) => console.error('Read failed:', err.message));   // without this: crash
+```
+
+## Listener Limits and Leaks | green
+- By default, adding **more than 10 listeners** for one event prints **`MaxListenersExceededWarning`**: usually a **leak** (adding a listener per request and never removing it).
+- Fix the leak (remove listeners, use `once`); only raise the limit with **`setMaxListeners(n)`** when many listeners are intended.
+- Long-lived emitters (process, a shared service) keep listeners and their closures alive.
+
+## Async Helpers | amber
+- **`events.once(emitter, 'name')`** returns a **promise** that resolves with the event arguments (and rejects on `error`).
+- **`events.on(emitter, 'name')`** returns an **async iterator** of events (`for await`).
+- Pass an **`AbortSignal`** to cancel waiting.
+- Emit does not wait for async listeners; if work must complete in order, use promises or a queue.
+```js
+import { once, on } from 'node:events';
+const server = http.createServer(handler).listen(3000);
+await once(server, 'listening');
+console.log('ready');
+
+for await (const [msg] of on(socket, 'message', { signal: AbortSignal.timeout(60_000) })) {
+  handle(msg);
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What is EventEmitter?
+A: Node's implementation of the observer pattern: objects emit named events and registered listeners are called synchronously in order. Many core objects (streams, servers, process) extend it.
+Q: Are event listeners called synchronously or asynchronously?
+A: Synchronously, in registration order, during the emit() call.
+Q: What happens when an 'error' event has no listener?
+A: The emitter throws the error, which crashes the process if nothing catches it.
+Q: What does MaxListenersExceededWarning mean?
+A: More than 10 listeners were added for one event, which usually indicates a memory leak from adding listeners repeatedly.
+Q: on vs once?
+A: on keeps the listener until removed; once removes it automatically after the first call.
+Q: How do you wait for an event with async/await?
+A: events.once(emitter, 'eventName') returns a promise of the event arguments.
+
+# 05 | Buffers & Streams | Buffer, encodings, stream types, piping, pipeline, backpressure, Transform streams | Streams
+
+## Buffer | rose
+- A **`Buffer`** is a **fixed-length sequence of bytes** (a subclass of `Uint8Array`) for binary data: files, network packets, images, crypto.
+- Create with **`Buffer.from(string | array)`**, **`Buffer.alloc(size)`** (zero-filled, safe), `Buffer.allocUnsafe(size)` (faster, may contain old memory: overwrite it fully).
+- **Encodings**: `'utf8'` (default), `'base64'`, `'base64url'`, `'hex'`, `'latin1'`. Convert with `buf.toString(encoding)`.
+- Buffer length is **bytes, not characters**: `Buffer.byteLength('₹')` is 3.
+- `Buffer.concat`, `buf.subarray` (shares memory), `buf.equals`, `crypto.timingSafeEqual` for comparing secrets.
+```js
+const buf = Buffer.from('Hello ₹', 'utf8');
+buf.length;                       // 9 bytes
+buf.toString('base64');           // 'SGVsbG8g4oK5'
+Buffer.from('SGVsbG8g4oK5', 'base64').toString();   // 'Hello ₹'
+const token = crypto.randomBytes(32).toString('base64url');
+```
+
+## Why Streams | blue
+- Streams process data **piece by piece (chunks)** instead of loading everything into memory: **constant memory**, **faster time to first byte**, and they compose.
+- Four types: **Readable** (source: `fs.createReadStream`, HTTP request on the server, `process.stdin`), **Writable** (destination: `fs.createWriteStream`, HTTP response, `process.stdout`), **Duplex** (both, independent: TCP sockets), **Transform** (duplex that modifies data: zlib gzip, crypto cipher, CSV parser).
+- Readable modes: **flowing** (`'data'` events or piping) and **paused** (`read()`); async iteration (`for await (const chunk of readable)`) is the simplest way to consume.
+- **Object mode** streams carry JavaScript objects instead of bytes.
+- `highWaterMark` sets how much data is buffered internally before backpressure applies.
+
+## Piping and pipeline | green
+- **`readable.pipe(writable)`** connects streams and handles backpressure, but **does not forward errors or clean up** the other streams on failure.
+- **`pipeline(...streams)`** from **`node:stream/promises`** wires streams, **propagates errors**, **destroys all streams** on failure, and returns a promise: use it in new code.
+```js
+import { createReadStream, createWriteStream } from 'node:fs';
+import { createGzip } from 'node:zlib';
+import { pipeline } from 'node:stream/promises';
+
+await pipeline(
+  createReadStream('access.log'),
+  createGzip(),
+  createWriteStream('access.log.gz'),
+);   // constant memory even for a 20 GB file
+
+// Stream a file as an HTTP response
+http.createServer(async (req, res) => {
+  res.setHeader('Content-Type', 'video/mp4');
+  try { await pipeline(createReadStream('intro.mp4'), res); }
+  catch (err) { console.error('stream failed', err); }
+}).listen(3000);
+```
+
+## Backpressure | amber
+- **Backpressure** happens when the **producer is faster than the consumer** (fast disk read, slow network). Without handling it, data piles up in memory.
+- **`writable.write(chunk)` returns `false`** when the internal buffer is above `highWaterMark`: **stop writing and wait for the `'drain'` event**.
+- `pipe` and `pipeline` handle this automatically, which is a main reason to use them.
+```js
+import { once } from 'node:events';
+async function writeMany(writable, rows) {
+  for (const row of rows) {
+    if (!writable.write(row + '\n')) await once(writable, 'drain');   // respect backpressure
+  }
+  writable.end();
+}
+```
+
+## Custom Transform Streams | violet
+- Implement **`transform(chunk, encoding, callback)`** and call `callback(null, output)` (or `this.push`); optional `flush(callback)` at the end.
+- Async generators can also act as transforms inside `pipeline`.
+```js
+import { Transform } from 'node:stream';
+
+const upperCase = new Transform({
+  transform(chunk, _enc, callback) { callback(null, chunk.toString().toUpperCase()); },
+});
+
+await pipeline(
+  process.stdin,
+  async function* (source) {                 // generator transform: filter lines
+    for await (const chunk of source) {
+      for (const line of chunk.toString().split('\n')) if (line.includes('ERROR')) yield line + '\n';
+    }
+  },
+  upperCase,
+  process.stdout,
+);
+```
+
+## Interview Q&A | sky | wide
+Q: What is a Buffer?
+A: A fixed-size chunk of raw bytes (a Uint8Array subclass) used to handle binary data such as files, network packets and encodings.
+Q: What are the four stream types?
+A: Readable (source), Writable (destination), Duplex (independent read and write, like sockets) and Transform (a duplex that modifies data, like gzip).
+Q: Why use streams instead of readFile?
+A: Streams process data chunk by chunk with constant memory and start producing output immediately, so they handle files larger than memory and reduce latency.
+Q: What is backpressure?
+A: When a writable cannot keep up with a readable; write() returns false and the producer should pause until 'drain'. pipe and pipeline handle it automatically.
+Q: pipe vs pipeline?
+A: pipe connects streams but does not propagate errors or clean up; pipeline propagates errors, destroys all streams on failure and offers a promise API.
+Q: Buffer.alloc vs Buffer.allocUnsafe?
+A: alloc zero-fills the memory (safe); allocUnsafe skips initialisation for speed and may expose old memory unless fully overwritten.
+
+# 06 | Express.js | Routing, middleware, request-response cycle, error handling, Express 5, structure and security | Express
+
+## Express Basics | rose
+- **Express** is a minimal web framework on top of Node's `http`: **routing**, **middleware**, request/response helpers.
+- **`app.get/post/put/patch/delete(path, ...handlers)`**; route params **`req.params`**, query string **`req.query`**, body **`req.body`** (needs a body parser), headers `req.get()`.
+- Responses: **`res.status(201).json(obj)`**, `res.send`, `res.sendFile`, `res.redirect`, `res.set`, `res.cookie`; send **exactly one** response per request.
+- **`express.Router()`** groups routes into modules mounted at a prefix.
+```js
+import express from 'express';
+const app = express();
+app.use(express.json());                                    // parse JSON bodies
+
+const products = express.Router();
+products.get('/', async (req, res) => {
+  const { page = '1' } = req.query;
+  res.json(await Product.list(Number(page)));
+});
+products.get('/:id', async (req, res) => {
+  const product = await Product.find(req.params.id);
+  if (!product) return res.status(404).json({ error: 'Not found' });
+  res.json(product);
+});
+products.post('/', async (req, res) => {
+  const created = await Product.create(req.body);           // validate first in real code
+  res.status(201).location(`/api/products/${created.id}`).json(created);
+});
+
+app.use('/api/products', products);
+app.listen(3000);
+```
+
+## Middleware and the Request-Response Cycle | blue
+- **Middleware** is a function **`(req, res, next)`** that runs in **the order it is registered**. It can read or modify `req`/`res`, **end the cycle** by sending a response, or call **`next()`** to pass control on.
+- Forgetting both `next()` and a response leaves the request **hanging**.
+- Levels: **application** (`app.use`), **router** (`router.use`), **route-specific** (`app.get('/x', auth, handler)`), **built-in** (`express.json()`, `express.urlencoded()`, `express.static()`), **third-party** (`cors`, `helmet`, `morgan`, `cookie-parser`, `express-rate-limit`).
+- The cycle: request → middleware chain → route handler → response (or → error middleware).
+```js
+function requestTimer(req, res, next) {
+  const start = process.hrtime.bigint();
+  res.on('finish', () => console.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${(process.hrtime.bigint() - start) / 1_000_000n}ms`));
+  next();
+}
+
+function requireAuth(req, res, next) {
+  const token = req.get('authorization')?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Unauthenticated' });
+  try { req.user = verifyJwt(token); next(); }
+  catch { res.status(401).json({ error: 'Invalid token' }); }
+}
+
+app.use(requestTimer);
+app.use('/api/account', requireAuth, accountRouter);
+```
+
+## Error-Handling Middleware | green
+- An error handler has **four parameters `(err, req, res, next)`**; Express recognises it by the arity. Register it **after all routes**.
+- Trigger it with **`next(err)`** or by throwing in a synchronous handler.
+- **Express 5**: a handler that **returns a rejected promise (async function that throws) is forwarded to the error handler automatically**. In Express 4 you had to wrap async handlers or call `next(err)` yourself.
+- Return a consistent error shape, map known errors to status codes, log details server-side, **never leak stack traces** in production.
+- Add a **404 handler** (a normal middleware after the routes) before the error handler.
+```js
+class HttpError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
+app.get('/api/orders/:id', async (req, res) => {
+  const order = await Order.find(req.params.id);       // a rejection reaches the error handler (Express 5)
+  if (!order) throw new HttpError(404, 'Order not found');
+  res.json(order);
+});
+
+app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
+
+app.use((err, req, res, next) => {
+  const status = err.status ?? 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({ error: status >= 500 ? 'Internal server error' : err.message });
+});
+```
+
+## Express 5 Changes | amber
+- **Async error handling** built in (rejected promises go to `next(err)`).
+- **Route path syntax** (path-to-regexp v8): wildcards must be named (`/files/*path`), optional segments use braces (`/users{/:id}`), regex characters in strings are no longer supported.
+- Removed legacy APIs (`app.del`, `req.param()`, `res.send(status)`), `req.query` is a read-only getter, `req.body` is `undefined` without a body parser, requires **Node 18+**.
+- Migration from 4 is mostly mechanical; most middleware works unchanged.
+
+## Structure and Security | violet
+- Layered structure: **routes** (HTTP) → **controllers** → **services** (business logic) → **repositories** (database); validation middleware at the edge (Zod, Joi, express-validator).
+- Security essentials: **`helmet`** (security headers), **CORS** configured to known origins, **rate limiting**, input validation, parameterised queries, `express.json({ limit: '1mb' })`, cookies with `httpOnly`, `secure`, `sameSite`, no secrets in code, `app.disable('x-powered-by')` (helmet does it).
+- **Graceful shutdown** on `SIGTERM`: stop accepting connections (`server.close`), finish in-flight requests, close DB pools.
+- Alternatives: **Fastify** (faster, schema-based), NestJS (Angular-like structure with DI), Koa, Hono.
+
+## Interview Q&A | sky | wide
+Q: What is middleware in Express?
+A: A function (req, res, next) in the request pipeline that can modify the request or response, end the cycle, or pass control with next(); middleware runs in registration order.
+Q: How does Express recognise error-handling middleware?
+A: By its four parameters (err, req, res, next); it is registered after routes and invoked when next(err) is called or a handler throws.
+Q: How are async errors handled in Express 5 vs 4?
+A: Express 5 forwards rejected promises from handlers to the error middleware automatically; Express 4 required try/catch with next(err) or a wrapper.
+Q: req.params vs req.query vs req.body?
+A: params are route path variables (/users/:id), query is the parsed query string (?page=2), body is the parsed request body (requires express.json or similar).
+Q: Why does my request hang?
+A: A middleware neither sent a response nor called next(), or an async error was swallowed.
+Q: What does app.use do?
+A: Mounts middleware (or a router) for all methods on a path prefix, executed in order of registration.
+Q: How do you structure a large Express API?
+A: Routers per resource, thin controllers, a service layer for business logic, a data-access layer, validation and auth middleware, centralised error handling and configuration from environment variables.
+
+# 07 | Package Management | package.json, lock files, semantic versioning, npm commands, dependency types, workspaces | npm
+
+## package.json | rose
+- The project manifest: **`name`**, **`version`**, **`type`** (`"module"` for ESM), **`main`** / **`exports`** (entry points), **`scripts`**, **`dependencies`**, **`devDependencies`**, `peerDependencies`, `optionalDependencies`, **`engines`** (required Node version), `bin` (CLI commands), `files` (what gets published), `private: true` (prevent publishing), `overrides` (force a transitive version).
+- **`dependencies`**: needed at runtime; **`devDependencies`**: build and test tools only (excluded with `npm ci --omit=dev`); **`peerDependencies`**: the host must provide them (React for a React component library, Angular for an Angular library).
+```json
+{
+  "name": "orders-api",
+  "version": "1.4.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/server.js",
+    "test": "node --test",
+    "lint": "eslint .",
+    "start": "node src/server.js"
+  },
+  "dependencies": { "express": "^5.1.0", "zod": "^3.23.8" },
+  "devDependencies": { "eslint": "^9.0.0" }
+}
+```
+
+## Semantic Versioning | blue
+- **MAJOR.MINOR.PATCH**: **major** = breaking changes, **minor** = backward-compatible features, **patch** = backward-compatible fixes. Pre-releases: `2.0.0-beta.1`.
+- **`^1.4.2`** (caret, npm default): allows **minor and patch** updates: `>=1.4.2 <2.0.0`.
+- **`~1.4.2`** (tilde): allows **patch** updates only: `>=1.4.2 <1.5.0`.
+- **`1.4.2`** exact; `*` or `latest` any; ranges `>=1.2 <2`.
+- **Caret with 0.x is stricter**: `^0.4.2` means `>=0.4.2 <0.5.0` (minor bumps in 0.x are treated as breaking).
+- Ranges allow updates, which is why lock files exist.
+
+## Lock Files and Installs | green
+- **`package-lock.json`** records the **exact resolved version, source and integrity hash** of every package in the tree, so every machine and CI run installs **the same thing**. **Commit it** for applications.
+- **`npm install`** installs from `package.json` and may **update the lock file** within allowed ranges; `npm install pkg@version` adds or updates one dependency.
+- **`npm ci`** (CI and Docker): installs **exactly** what the lock file says, **fails if it disagrees** with package.json, deletes `node_modules` first, never writes the lock file. Faster and reproducible.
+- **`npm update`** moves packages to the newest versions allowed by the ranges; **`npm outdated`** shows what is behind.
+- Other managers: **pnpm** (content-addressed store, strict `node_modules`, fast), **Yarn**; use one per repo (one lock file).
+
+## Useful Commands and Practices | amber
+- **`npm run <script>`** (`npm start`, `npm test` shortcuts); `pre`/`post` scripts; `npm run` lists scripts.
+- **`npx <pkg>`** runs a package binary without a global install.
+- **`npm audit`** / `npm audit fix` checks known vulnerabilities; review **supply-chain risk** (pin and review new dependencies, avoid unmaintained packages, watch `postinstall` scripts).
+- **`npm ls <pkg>`** shows why a package is installed; **`overrides`** force a patched transitive version.
+- **Workspaces** (`"workspaces": ["packages/*"]`) manage monorepos with shared installs.
+- **`npm version patch|minor|major`** bumps and tags; `npm publish` (with 2FA, provenance).
+- Do not commit `node_modules`; do commit the lock file.
+
+## Interview Q&A | sky | wide
+Q: Caret vs tilde?
+A: ^1.2.3 allows minor and patch updates below 2.0.0; ~1.2.3 allows only patch updates below 1.3.0. For 0.x versions, caret allows only patch updates within the same minor.
+Q: Why commit package-lock.json?
+A: It pins the exact dependency tree with integrity hashes so every developer, CI run and deployment installs identical versions.
+Q: npm install vs npm ci?
+A: npm install resolves from package.json and can update the lock file; npm ci installs exactly from the lock file, fails on mismatch, removes node_modules first, and is meant for CI and production builds.
+Q: dependencies vs devDependencies vs peerDependencies?
+A: dependencies are needed at runtime; devDependencies only for development and builds; peerDependencies must be provided by the consuming project, typically for plugins and component libraries.
+Q: What is semantic versioning?
+A: MAJOR.MINOR.PATCH, where major signals breaking changes, minor adds compatible features, and patch fixes bugs compatibly.
+Q: What is npx?
+A: A tool to run a package's executable (locally installed or downloaded temporarily) without installing it globally.
+
+@ Review
+
+# 08 | Rapid-Fire & Tricky Questions | Output puzzles, production practices, one-liners, big Q&A | Rapid-fire
+
+## Output Puzzles | rose
+```js
+console.log('1');
+setTimeout(() => console.log('2'), 0);
+setImmediate(() => console.log('3'));
+process.nextTick(() => console.log('4'));
+Promise.resolve().then(() => console.log('5'));
+console.log('6');
+// 1, 6, 4, 5, then 2 and 3 (their order can vary from the main module)
+
+import { EventEmitter } from 'node:events';
+const e = new EventEmitter();
+e.on('x', () => console.log('A'));
+console.log('before');
+e.emit('x');
+console.log('after');
+// before, A, after  (listeners run synchronously)
+```
+
+## Production Practices | blue
+- **Never block the event loop**: no sync I/O in handlers, offload CPU work to worker threads, stream large payloads, paginate.
+- **Handle errors**: every promise awaited or caught; `process.on('unhandledRejection')` and `'uncaughtException'` only to **log and exit** (the process state is unknown), then let a supervisor restart it.
+- **Configuration** from environment variables, validated at startup; secrets from a secret manager.
+- **Graceful shutdown** on `SIGTERM`; health and readiness endpoints for orchestrators.
+- **Observability**: structured JSON logs (pino), metrics, tracing (OpenTelemetry); measure event loop lag.
+- **Scale** with multiple processes (containers, cluster, PM2) behind a load balancer; keep processes **stateless** (sessions in Redis, files in object storage).
+
+## One-Line Cheat Sheet | green
+- **V8 + libuv**; one JavaScript thread, non-blocking I/O, event loop.
+- **Phases**: timers → pending → poll → check → close; **nextTick, then promises** between callbacks.
+- **Thread pool (4)**: fs, dns.lookup, crypto, zlib; network uses the OS.
+- **CommonJS** require/module.exports (sync, cached) vs **ESM** import/export (static, async, live bindings); `import.meta.dirname`.
+- **fs/promises**, **path.join vs resolve**, **http.createServer** with streams.
+- **EventEmitter**: sync listeners, always handle **'error'**, beware listener leaks.
+- **Streams**: readable, writable, duplex, transform; **pipeline**; **backpressure** via write() → false and 'drain'.
+- **Express**: middleware order, `next()`, **4-arg error handler**, Express 5 async errors.
+- **SemVer**: `^` minor+patch, `~` patch; **commit the lock file**; **npm ci** in CI.
+
+## How to Answer Well | teal
+- **Definition → example → when you use it → trade-off**; then stop.
+- For runtime questions, **draw the pieces**: V8, libuv, event loop, thread pool, OS.
+- Always mention **error handling, security and the event loop** for server code.
+- Tie to experience: "Our CSV export blocked the API for seconds; switching to a cursor plus a stream pipeline kept memory flat and the API responsive."
+
+## Big Interview Q&A | sky | wide
+Q: Is Node.js single-threaded?
+A: JavaScript execution is single-threaded per process, but Node uses the OS and a libuv thread pool for I/O, and offers worker_threads and multiple processes for parallel work.
+Q: How would you handle a CPU-intensive task in an API?
+A: Move it off the main thread: a worker_threads pool, a child process, or a background job queue (BullMQ with Redis), returning a job id and notifying or polling for completion.
+Q: How do you handle uncaught exceptions?
+A: Catch errors where they happen; use process-level handlers only to log and exit gracefully, and rely on a process manager or orchestrator to restart the service.
+Q: What is the difference between process.nextTick and a promise microtask?
+A: Both run before the event loop continues, but the nextTick queue is drained before the promise microtask queue.
+Q: How do you secure a Node.js API?
+A: Validate input, use parameterised queries, helmet headers, strict CORS, rate limiting, authentication with short-lived tokens or secure cookies, keep dependencies patched (npm audit), and never expose stack traces or secrets.
+Q: How would you debug a memory leak in Node?
+A: Monitor heap usage, take heap snapshots (`--inspect` with Chrome DevTools or `v8.writeHeapSnapshot()`), compare them under load, and look for growing caches, listeners, closures or global arrays.
+Q: Why use streams for HTTP responses?
+A: To start sending data immediately and keep memory constant for large files or exports, with backpressure handled by the stream pipeline.
+Q: Express vs raw http module?
+A: The http module provides the server and streams; Express adds routing, middleware composition, body parsing and response helpers, reducing boilerplate.
+Q: What is the purpose of package-lock.json?
+A: Reproducible installs: it records the exact versions and integrity hashes of the full dependency tree.
+Q: How do you run TypeScript in Node?
+A: Compile with tsc (or a bundler) for production, use tsx during development, or rely on Node's built-in type stripping for erasable TypeScript syntax in recent versions.

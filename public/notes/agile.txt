@@ -1,0 +1,724 @@
+@ Beginner
+# 00 | Agile & SDLC Basics: Start Here | Why software needs a process, a short history from Waterfall to Agile and DevOps, the people on a software team, the iron triangle, core vocabulary, how these topics come up in interviews | Start Here
+
+## Why Software Teams Need a Process | rose
+- Building software involves many people, changing requirements, deadlines and risk. A **process model** (methodology) answers: who decides **what** to build, **in what order**, **how** the work is planned, tracked and checked, and **when** it is released.
+- The **SDLC (Software Development Life Cycle)** is the set of stages every piece of software goes through: requirements, design, implementation, testing, deployment, maintenance (sheet 01).
+- **SDLC models** arrange those stages differently: **Waterfall** does each stage once, in sequence; **Agile** repeats all of them in short cycles (sheet 02).
+- **Agile** is a **mindset** defined by the Agile Manifesto (sheet 03). **Scrum**, **Kanban** and **XP** are concrete **frameworks** for practising it (sheets 04 to 08). **Jira** is a **tool** for tracking the work (sheets 09 and 10).
+
+## A Short History | blue
+- **1970**: **Winston Royce**'s paper "Managing the Development of Large Software Systems" describes a sequential model (requirements → design → code → test → operations). Ironically, Royce called the purely sequential version risky and recommended iterating; the name "waterfall" was attached later.
+- **1980s**: the **V-Model** pairs each development stage with a testing stage; **Barry Boehm**'s **Spiral model** (1986) organises development around repeated risk analysis.
+- **1986**: Hirotaka **Takeuchi** and Ikujiro **Nonaka**'s Harvard Business Review article "The New New Product Development Game" compares good product teams to a **rugby scrum**.
+- **1990s**: lightweight methods appear: **Scrum** (Jeff **Sutherland** and Ken **Schwaber**, presented at OOPSLA **1995**), **Extreme Programming (XP)** (Kent **Beck**, late 1990s), DSDM, Crystal, Feature-Driven Development.
+- **February 2001**: 17 practitioners meet at Snowbird, Utah, and write the **Manifesto for Agile Software Development**.
+- **2000s and 2010s**: **Lean software development** (Mary and Tom Poppendieck, 2003), **Kanban for software** (David J. Anderson, 2010), the first official **Scrum Guide** (2010; the current edition is **November 2020**), scaled frameworks (SAFe, LeSS), and **DevOps** (around 2009), which extends agility into operations and continuous delivery.
+
+## The People on a Software Team | green
+- **Product Owner / Product Manager**: decides what to build and in what order, representing customers and the business.
+- **Scrum Master / Agile coach / Delivery manager**: helps the team work effectively and removes impediments.
+- **Developers**: everyone who builds the product: back-end, front-end and mobile engineers, testers (QA engineers, SDETs), designers, data and DevOps engineers. Scrum calls them all "Developers".
+- **Tech lead / architect**: guides technical decisions and design quality.
+- **Stakeholders**: customers, users, sales, support, management: anyone affected by or interested in the product.
+- **Project manager**: in traditional (Waterfall) projects, plans and controls scope, schedule and budget. Scrum has **no project manager role**; those duties are shared by the Product Owner, the Scrum Master and the self-managing team.
+
+## The Iron Triangle | amber
+```text
+            Scope
+             /\
+            /  \
+           /    \
+          /Quality\
+         /________\
+      Time        Cost
+```
+- The **iron triangle** (project management triangle): **scope**, **time** and **cost** are linked; changing one forces a change in another, and squeezing all three hurts **quality**.
+- **Waterfall** usually fixes **scope** and estimates time and cost (which then slip). **Agile** fixes **time and cost** (fixed-length sprints, a stable team) and lets **scope** flex: the most valuable items are built first, so whatever is delivered when time runs out is the most valuable part.
+
+## Core Vocabulary | violet
+- **Iteration / Sprint**: a fixed time-box (usually 1 to 4 weeks) in which the team builds a usable piece of the product.
+- **Increment**: the usable, tested product produced in an iteration, adding to everything built before.
+- **Backlog**: an ordered list of work. The **Product Backlog** holds everything that might be built; the **Sprint Backlog** holds what the team has chosen for this sprint.
+- **Epic → User story → Task / Sub-task**: big feature → a small piece of user value ("As a shopper, I want to save my cart...") → technical steps to build it (sheet 05).
+- **Acceptance criteria**: conditions a story must meet to be accepted. **Definition of Done (DoD)**: the quality checklist every item must meet.
+- **Story points**: a relative estimate of effort; **velocity**: points completed per sprint; **burndown chart**: remaining work over time (sheet 07).
+- **Impediment / blocker**: anything stopping progress. **Stand-up**: the Daily Scrum. **Retro**: the Sprint Retrospective.
+- **MVP (Minimum Viable Product)**: the smallest product that lets you learn from real users.
+- **WIP (Work In Progress) limit**: a cap on how many items can be in one stage at once (Kanban, sheet 08).
+
+## Interview Q&A | sky | wide
+Q: What is the SDLC?
+A: The Software Development Life Cycle: the stages software goes through, from requirements and design to implementation, testing, deployment and maintenance.
+Q: What is the difference between Agile and Scrum?
+A: Agile is a set of values and principles (the Agile Manifesto). Scrum is one specific framework that implements them, with defined roles, events and artifacts.
+Q: Where did Scrum get its name?
+A: From rugby: Takeuchi and Nonaka's 1986 article compared product teams that move forward together to a rugby scrum.
+Q: What is the iron triangle and how does Agile treat it?
+A: Scope, time and cost constrain each other, with quality at stake. Agile fixes time (sprints) and cost (a stable team) and adjusts scope by priority.
+Q: Is there a project manager in Scrum?
+A: Not as a role. Planning and tracking are shared: the Product Owner manages scope and priorities, the Developers plan and manage their own work, and the Scrum Master improves the process.
+Q: What is an MVP?
+A: A Minimum Viable Product: the smallest version that delivers value to real users so the team can test assumptions and learn before investing more.
+
+# 01 | SDLC Phases | Requirements analysis, functional vs non-functional requirements, the SRS, feasibility, design (HLD and LLD), implementation, testing, deployment, maintenance types, the outputs of each phase | SDLC Phases
+
+## 1. Requirements Analysis | rose
+- **Goal**: understand **what** the system must do and the constraints it must respect, before investing in building it.
+- **Activities**: stakeholder interviews and workshops, studying current processes, user research, analysing competitors, prototypes, and a **feasibility study** (technical, economic, legal, operational, schedule: "can we, and should we, build this?").
+- **Functional requirements**: what the system does ("a customer can pay by UPI", "an admin can refund an order").
+- **Non-functional requirements (NFRs)**: how well it does it: **performance** ("search responds in under 300 ms at the 95th percentile"), **scalability**, **availability** ("99.9% uptime"), **security**, **usability**, **accessibility**, maintainability, compliance (GDPR, PCI DSS).
+- **Output**: an **SRS (Software Requirements Specification)** in traditional projects, or a **Product Backlog** of epics and user stories with acceptance criteria in Agile ones.
+- Prioritisation techniques: **MoSCoW** (**M**ust have, **S**hould have, **C**ould have, **W**on't have this time), value vs effort, Kano model.
+- Requirement defects are the most expensive to fix later, because everything built on them is wrong.
+
+## 2. Design | blue
+- **Goal**: decide **how** the system will meet the requirements.
+- **High-Level Design (HLD)**: the architecture: components and services, how they communicate, data stores, infrastructure, third-party integrations, scalability and security approach (System Design topic).
+- **Low-Level Design (LLD)**: the inside of each component: classes, interfaces, methods, database schema, API contracts, algorithms, design patterns.
+- **Outputs**: architecture diagrams, an **SDD (Software Design Document)**, API specifications (OpenAPI), database schemas, **ADRs** (Architecture Decision Records), UI wireframes and prototypes.
+- Design reviews catch problems while they are still cheap to change.
+
+## 3. Implementation | green
+- **Goal**: write the code according to the design, plus the unit tests.
+- Practices: coding standards, version control with Git and feature branches, **code reviews** through pull requests, **continuous integration** (every push builds and runs the tests), static analysis, pair programming.
+- **Output**: source code, unit tests, build artifacts (JARs, container images), developer documentation.
+
+## 4. Testing | amber
+- **Goal**: find defects and confirm the software meets the requirements (verification and validation).
+- Levels: **unit**, **integration**, **system**, **acceptance (UAT)**; types: functional, regression, performance, security, usability (Testing topic).
+- **Outputs**: a **test plan** (scope, approach, environments, schedule, entry and exit criteria), test cases, defect reports, a test summary report, sign-off.
+- In Agile, testing happens **inside every sprint**, alongside development, not in a separate phase at the end.
+
+## 5. Deployment | violet
+- **Goal**: release the software to users.
+- Steps: build and package, deploy to staging, run **smoke tests**, release to production, monitor.
+- Strategies: **big bang** (everything at once), **rolling** (servers updated gradually), **blue-green** (switch traffic between two identical environments), **canary** (release to a small percentage of users first), **feature flags** (deploy code switched off, enable it later).
+- **CI/CD** automates the path from commit to production (CI/CD topic). Outputs: release notes, deployment runbooks, rollback plans.
+
+## 6. Maintenance | rose
+- **Goal**: keep the software working and useful after release: usually the **longest and most expensive** phase of a system's life.
+- **Corrective**: fixing bugs found in production.
+- **Adaptive**: adapting to a changing environment (new OS or browser versions, a new payment regulation, a cloud migration).
+- **Perfective**: improving performance or adding enhancements users request.
+- **Preventive**: refactoring, upgrading dependencies and paying down technical debt to prevent future problems.
+- Also: monitoring and alerting, incident response, support tickets, and eventually **retirement** (decommissioning) of the system.
+
+## Interview Q&A | sky | wide
+Q: What are the phases of the SDLC?
+A: Requirements analysis, design, implementation (coding), testing, deployment and maintenance. Some versions add planning at the start and retirement at the end.
+Q: Functional vs non-functional requirements?
+A: Functional requirements describe what the system does (features and behaviour); non-functional requirements describe qualities such as performance, security, availability, scalability and usability.
+Q: What is an SRS?
+A: A Software Requirements Specification: a document describing the functional and non-functional requirements, constraints and interfaces, used as the agreed basis for design and testing in traditional projects.
+Q: HLD vs LLD?
+A: High-level design describes the overall architecture: components, interactions, data stores and infrastructure. Low-level design details each component: classes, methods, schemas and algorithms.
+Q: What are the types of software maintenance?
+A: Corrective (fix bugs), adaptive (adapt to environment changes), perfective (improve or enhance) and preventive (refactor to avoid future problems).
+Q: What is a feasibility study?
+A: An early analysis of whether a project is technically possible, economically worthwhile, legally allowed, operationally practical and achievable on schedule.
+Q: Why are requirement defects so costly?
+A: Design, code and tests are built on them, so fixing a misunderstood requirement late means reworking everything that depends on it.
+
+# 02 | SDLC Models: Waterfall vs Agile | Waterfall, V-Model, iterative and incremental, Spiral, Agile, a side-by-side comparison, when Waterfall still fits, hybrid approaches | Waterfall vs Agile
+
+## Waterfall | rose
+```text
+Requirements ─▶ Design ─▶ Implementation ─▶ Testing ─▶ Deployment ─▶ Maintenance
+   (signed off)   (signed off)                (at the end)  (one big release)
+```
+- Each phase is completed and **signed off** before the next begins; going back is costly. Heavy upfront documentation (SRS, design documents) and **one release at the end**.
+- **Strengths**: simple to understand and manage, clear milestones and documentation, predictable when requirements are **stable and well understood**, suits fixed-price contracts and regulated environments that demand formal sign-offs.
+- **Weaknesses**: users see working software only at the end, so misunderstandings surface late; changes are expensive; testing is squeezed when earlier phases overrun; high risk of building the wrong thing.
+
+## V-Model, Iterative, Spiral | blue
+```text
+Requirements ───────────────────────── Acceptance testing
+    System design ─────────────── System testing
+        Architecture design ───── Integration testing
+            Module design ──── Unit testing
+                      Coding
+```
+- **V-Model (Verification and Validation model)**: Waterfall where **each development phase has a matching test phase**, planned at the same time (requirements ↔ acceptance tests, module design ↔ unit tests). Common in safety-critical domains (automotive, medical, avionics).
+- **Iterative and incremental**: build the system in repeated cycles (**iterations**), each adding a usable slice (**increment**) and refining earlier work based on feedback. The basis of all Agile methods.
+- **Spiral model** (Barry Boehm, 1986): each loop goes through objectives → **risk analysis** and prototyping → development and testing → planning the next loop. Suits large, high-risk projects.
+- **RAD (Rapid Application Development)** and **prototyping**: build quick prototypes with users to discover requirements.
+
+## Agile | green
+```text
+┌─ Plan ─▶ Design ─▶ Build ─▶ Test ─▶ Review ─┐   repeated every 1 to 4 weeks,
+└──────────────── feedback ◀──────────────────┘   each cycle ends with a working increment
+```
+- All SDLC activities happen **within every short iteration**, producing working software frequently, so users give **feedback early** and priorities can change between iterations.
+- Small, cross-functional, self-managing teams; customer collaboration; working software as the main measure of progress (sheet 03).
+- **Strengths**: early and continuous value, adapts to change, risks discovered early, high transparency, quality built in (testing every sprint).
+- **Weaknesses**: needs an engaged Product Owner and stakeholders; long-term cost and date are harder to fix upfront; can produce too little documentation or architecture if done badly; harder with large distributed teams without scaling practices.
+
+## Waterfall vs Agile | amber
+```text
+Aspect             Waterfall                              Agile
+Approach           Sequential, one pass                   Iterative and incremental
+Requirements       Fixed and signed off upfront           Evolving, re-prioritised every sprint
+Delivery           One release at the end                 Working software every 1 to 4 weeks
+Customer           Involved at start and end              Collaborates throughout
+Change             Expensive, formal change control       Expected and welcomed
+Testing            A separate phase after coding          Continuous, inside every sprint
+Documentation      Comprehensive, upfront                 Just enough, as needed
+Team               Specialised roles, hand-offs           Cross-functional, self-managing
+Progress measure   Phase completion, documents            Working software
+Risk               Discovered late                        Discovered early
+Fixed / variable   Scope fixed; time and cost estimated   Time and cost fixed; scope flexes
+Best for           Stable, well-known, regulated work     Uncertain, changing, innovative products
+```
+
+## When to Choose Which | violet
+- **Waterfall (or V-Model)** fits when requirements are **clear and unlikely to change**, the technology is well known, regulations require formal phase sign-offs, or a fixed-scope contract demands it: for example a payroll migration with fixed rules, embedded or medical device software.
+- **Agile** fits when requirements are **uncertain or evolving**, early feedback matters, the market moves fast or the product is new: most web, mobile and SaaS products.
+- **Hybrid** ("Water-Scrum-Fall") is common in large organisations: upfront planning and budgeting, Agile sprints for development, then a formal release and approval phase.
+- **DevOps** extends Agile past development: automated CI/CD, infrastructure as code, monitoring and shared ownership between development and operations, so increments reach users quickly and safely.
+
+## Interview Q&A | sky | wide
+Q: What is the Waterfall model?
+A: A sequential SDLC model in which each phase (requirements, design, implementation, testing, deployment, maintenance) is completed and signed off before the next starts, with one release at the end.
+Q: What are the differences between Waterfall and Agile?
+A: Waterfall is sequential with fixed requirements, late testing and one release; Agile is iterative with evolving requirements, continuous testing, frequent working releases and ongoing customer collaboration.
+Q: When would you still choose Waterfall?
+A: For stable, well-understood requirements, fixed-scope contracts, or regulated or safety-critical work that needs formal documentation and phase approvals.
+Q: What is the V-Model?
+A: An extension of Waterfall where each development phase has a corresponding test phase, so test planning starts early: requirements map to acceptance tests, design to system and integration tests, modules to unit tests.
+Q: What is the Spiral model?
+A: Boehm's risk-driven model in which the project loops through planning, risk analysis with prototypes, engineering and evaluation, suited to large, high-risk projects.
+Q: What does "iterative and incremental" mean?
+A: Iterative means repeating cycles that refine the product; incremental means each cycle adds a usable piece. Agile does both.
+Q: What is the biggest risk in Waterfall?
+A: Discovering late, when users first see the software or when testing starts, that requirements were misunderstood, when changes are most expensive.
+
+# 03 | The Agile Manifesto | Its history and authors, the four values and what they really mean, the twelve principles word for word with their meaning, common misconceptions, Agile vs Scrum | Agile Manifesto
+
+## History | rose
+- On **11 to 13 February 2001**, 17 software practitioners met at the Snowbird ski resort in Utah. They represented the "lightweight" methods of the 1990s (Scrum, XP, DSDM, Crystal, FDD, Adaptive Software Development, Pragmatic Programming) and agreed on what those methods shared.
+- The authors: Kent Beck, Mike Beedle, Arie van Bennekum, Alistair Cockburn, Ward Cunningham, Martin Fowler, James Grenning, Jim Highsmith, Andrew Hunt, Ron Jeffries, Jon Kern, Brian Marick, Robert C. Martin, Steve Mellor, Ken Schwaber, Jeff Sutherland and Dave Thomas.
+- The result, the **Manifesto for Agile Software Development**, is four values and twelve principles. It doesn't prescribe any process; it describes a mindset.
+
+## The Four Values | blue
+> "We are uncovering better ways of developing software by doing it and helping others do it. Through this work we have come to value:"
+- **Individuals and interactions over processes and tools**: people talking and collaborating solve problems better than rigid procedures; tools should serve the team.
+- **Working software over comprehensive documentation**: progress is shown by software that runs; documentation is written when it adds value, not as a goal in itself.
+- **Customer collaboration over contract negotiation**: work with customers continuously to discover what they need, rather than fighting over a fixed specification.
+- **Responding to change over following a plan**: plans are useful, but when learning shows a better direction, change course.
+> "That is, while there is value in the items on the right, we value the items on the left more."
+- The closing line matters: Agile does **not** reject processes, documentation, contracts or plans; it **prefers** the left side when the two conflict.
+
+## The Twelve Principles (1 to 6) | green
+- **1.** "Our highest priority is to satisfy the customer through early and continuous delivery of valuable software." → Ship value early and often.
+- **2.** "Welcome changing requirements, even late in development. Agile processes harness change for the customer's competitive advantage." → Change is an opportunity, not a failure.
+- **3.** "Deliver working software frequently, from a couple of weeks to a couple of months, with a preference to the shorter timescale." → Short iterations.
+- **4.** "Business people and developers must work together daily throughout the project." → No hand-offs through documents only.
+- **5.** "Build projects around motivated individuals. Give them the environment and support they need, and trust them to get the job done." → Trust, autonomy, no micromanagement.
+- **6.** "The most efficient and effective method of conveying information to and within a development team is face-to-face conversation." → Talk directly (today often video calls) rather than through long email chains.
+
+## The Twelve Principles (7 to 12) | amber
+- **7.** "Working software is the primary measure of progress." → Not documents, not hours spent, not "90% done".
+- **8.** "Agile processes promote sustainable development. The sponsors, developers, and users should be able to maintain a constant pace indefinitely." → No permanent overtime; burnout destroys quality.
+- **9.** "Continuous attention to technical excellence and good design enhances agility." → Clean code, tests and refactoring keep the team fast.
+- **10.** "Simplicity--the art of maximizing the amount of work not done--is essential." → Build only what is needed (YAGNI).
+- **11.** "The best architectures, requirements, and designs emerge from self-organizing teams." → The people doing the work shape it.
+- **12.** "At regular intervals, the team reflects on how to become more effective, then tunes and adjusts its behavior accordingly." → Retrospectives and continuous improvement.
+
+## Common Misconceptions | violet
+- **"Agile means no documentation."** No: it means **just enough** documentation that delivers value (API docs, ADRs, runbooks), not documentation for its own sake.
+- **"Agile means no planning."** No: planning happens **continuously** (product goal, release forecasts, sprint planning, daily re-planning), at the right level of detail.
+- **"Agile means no deadlines or commitments."** Teams commit to sprint goals and forecast releases from measured velocity.
+- **"Agile = Scrum."** Scrum is one framework; Kanban, XP, Lean and others are Agile too.
+- **"Doing the ceremonies makes us Agile."** Stand-ups and sprints without delivering working software, reacting to feedback and improving are "cargo-cult Agile".
+- **"Agile is faster."** It delivers **value earlier** and reduces the risk of building the wrong thing; it doesn't make the same amount of work take less time.
+
+## Interview Q&A | sky | wide
+Q: What are the four values of the Agile Manifesto?
+A: Individuals and interactions over processes and tools; working software over comprehensive documentation; customer collaboration over contract negotiation; responding to change over following a plan.
+Q: Does Agile mean there is no documentation?
+A: No. The manifesto values working software more than comprehensive documentation, but explicitly says there is value in the right-hand items. Agile teams write the documentation that is useful.
+Q: Name a few Agile principles.
+A: Early and continuous delivery of valuable software; welcoming changing requirements; delivering frequently; business and developers working together daily; working software as the primary measure of progress; sustainable pace; technical excellence; simplicity; self-organising teams; regular reflection and adjustment.
+Q: When and by whom was the Agile Manifesto written?
+A: In February 2001 at Snowbird, Utah, by 17 practitioners including Kent Beck, Martin Fowler, Ken Schwaber, Jeff Sutherland and Robert C. Martin.
+Q: What does "simplicity, the art of maximizing the amount of work not done" mean?
+A: Avoid building features, abstractions and processes that aren't needed now; the cheapest and most reliable code is the code you never write.
+Q: What does sustainable pace mean?
+A: The team works at a pace it can keep indefinitely, without regular overtime, because exhausted teams make more mistakes and slow down over time.
+
+@ Intermediate
+# 04 | Scrum Framework & Roles | Empiricism and lean thinking, the three pillars, the five values, the Scrum Team, Product Owner, Scrum Master and Developers, Scrum Master vs project manager, what changed in the 2020 Scrum Guide | Scrum & Roles
+
+## What Scrum Is | rose
+- **Scrum** is a lightweight **framework** for developing complex products in short, fixed-length iterations called **Sprints**. It is defined by the **Scrum Guide** by Ken Schwaber and Jeff Sutherland (current edition: **November 2020**).
+- Scrum is deliberately incomplete: it defines **roles (accountabilities), events and artifacts**, and teams add their own practices (user stories, story points, TDD) inside it.
+- It is founded on **empiricism** ("knowledge comes from experience and making decisions based on what is observed") and **lean thinking** (reduce waste, focus on the essentials).
+- **Three pillars** of empiricism: **Transparency** (the work and progress are visible to everyone), **Inspection** (frequently check the artifacts and progress), **Adaptation** (adjust as soon as something is off).
+- **Five Scrum values**: **Commitment, Focus, Openness, Respect, Courage**.
+
+## The Scrum Team | blue
+- One **Scrum Team** = **one Product Owner + one Scrum Master + Developers**, with **no sub-teams or hierarchies**.
+- **Cross-functional**: together the members have all the skills needed to create value each Sprint (development, testing, design, operations).
+- **Self-managing**: the team decides internally who does what, when and how.
+- **Typically 10 or fewer people**: small enough to stay nimble, large enough to complete significant work. Larger groups split into several Scrum Teams sharing the same Product Goal, Product Backlog and Product Owner.
+- The whole team is **accountable for creating a valuable, useful Increment every Sprint**.
+
+## Product Owner | green
+- **Accountable for maximising the value of the product** resulting from the team's work.
+- Owns the **Product Backlog**: develops and communicates the **Product Goal**, creates and clearly expresses backlog items, **orders** them, and keeps the backlog transparent and understood.
+- **One person, not a committee**, though they represent many stakeholders. Their decisions are visible in the content and ordering of the backlog; people who want changes convince the Product Owner.
+- Works with stakeholders and customers, accepts or rejects work against acceptance criteria, decides release content, and is the only one who can **cancel a Sprint** (if its Sprint Goal becomes obsolete).
+
+## Scrum Master | amber
+- **Accountable for establishing Scrum** as defined in the Scrum Guide and for the **Scrum Team's effectiveness**. The 2020 guide calls Scrum Masters "true leaders who serve the Scrum Team and the larger organization" (earlier editions said "servant leader").
+- **Serves the Developers**: coaching self-management and cross-functionality, helping them create high-value Increments that meet the Definition of Done, **causing the removal of impediments**, ensuring events happen and stay positive, productive and within their timebox.
+- **Serves the Product Owner**: techniques for defining the Product Goal and managing the backlog, empirical planning.
+- **Serves the organisation**: leading and coaching Scrum adoption, removing barriers between stakeholders and teams.
+- **Scrum Master vs project manager**: a project manager directs, assigns tasks and owns scope, schedule and budget; a Scrum Master doesn't assign work or manage people: they coach, facilitate and remove obstacles while the team manages itself.
+
+## Developers | violet
+- Everyone in the Scrum Team **committed to creating any aspect of a usable Increment each Sprint**: programmers, testers, designers, analysts, DevOps engineers. There are no separate "tester" or "analyst" roles in Scrum.
+- Accountable for: **creating a plan for the Sprint** (the Sprint Backlog), **instilling quality by adhering to the Definition of Done**, **adapting their plan each day** towards the Sprint Goal, and **holding each other accountable as professionals**.
+- **What changed in the 2020 Scrum Guide**: "Development Team" became **Developers** (one team, no team within a team); a **Product Goal** was added; each artifact got a **commitment** (Product Goal, Sprint Goal, Definition of Done); "self-organizing" became **self-managing**; the Daily Scrum's three questions were removed; the guide became shorter and less prescriptive.
+
+## Interview Q&A | sky | wide
+Q: What are the roles in Scrum?
+A: The Product Owner (maximises product value, owns the Product Backlog), the Scrum Master (establishes Scrum and the team's effectiveness, removes impediments, coaches) and the Developers (create the Increment each Sprint). Together they form one Scrum Team.
+Q: What are the three pillars of Scrum?
+A: Transparency, inspection and adaptation, the pillars of empiricism.
+Q: What are the Scrum values?
+A: Commitment, focus, openness, respect and courage.
+Q: Scrum Master vs project manager?
+A: A project manager plans, assigns and controls work and owns scope, time and budget. A Scrum Master is a coach and facilitator who helps a self-managing team and the organisation use Scrum effectively; they don't assign tasks.
+Q: Who prioritises the Product Backlog?
+A: The Product Owner, who is accountable for ordering it to maximise value, after listening to stakeholders and the team.
+Q: How big should a Scrum Team be?
+A: Typically 10 or fewer people. Larger efforts use several Scrum Teams working on the same product with one Product Owner and Product Backlog.
+Q: Who can cancel a Sprint?
+A: Only the Product Owner, when the Sprint Goal becomes obsolete.
+Q: What does self-managing mean?
+A: The team decides internally who does what, when and how, instead of being assigned tasks by a manager.
+
+# 05 | Scrum Artifacts, User Stories, DoD & DoR | Product Backlog and Product Goal, Sprint Backlog and Sprint Goal, Increment and Definition of Done, Definition of Ready, epics, user stories, INVEST, acceptance criteria, spikes | Artifacts & Stories
+
+## The Three Artifacts and Their Commitments | rose
+```text
+Artifact          Commitment               Owned / managed by
+Product Backlog   Product Goal             Product Owner
+Sprint Backlog    Sprint Goal              Developers
+Increment         Definition of Done       Scrum Team (Developers create it)
+```
+- **Product Backlog**: an emergent, **ordered** list of everything needed to improve the product; the single source of work for the Scrum Team. Items at the top are small and clear; items lower down are larger and vaguer.
+- **Product Goal**: the long-term objective the backlog works towards ("Customers can buy and pay for groceries entirely on mobile"). The team fulfils or abandons one before taking on the next.
+- **Sprint Backlog**: the **Sprint Goal** (why), the **Product Backlog items selected** for the Sprint (what) and an **actionable plan** for delivering them (how). It belongs to the Developers and is updated throughout the Sprint.
+- **Increment**: a concrete stepping stone towards the Product Goal: **usable**, thoroughly verified and **additive** to all earlier Increments. Work becomes part of an Increment only when it meets the **Definition of Done**. Several Increments may be created in one Sprint, and they can be released at any time.
+
+## Definition of Done vs Definition of Ready | blue
+- **Definition of Done (DoD)**: the formal **quality standard** that every Increment must meet, shared by the whole team; the commitment of the Increment. Work that doesn't meet it goes back to the Product Backlog. Example:
+```text
+Definition of Done (example)
+☐ Code reviewed and merged to main
+☐ Unit and integration tests written and passing in CI; branch coverage on new code ≥ 80%
+☐ No new critical static-analysis issues (SonarQube gate passed)
+☐ Acceptance criteria verified by QA or the Product Owner
+☐ API docs and release notes updated
+☐ Deployed to staging; feature flag configured
+```
+- **Definition of Ready (DoR)**: a team agreement on when a backlog item is clear enough to be pulled into a Sprint. It is **not part of the Scrum Guide** (which only says items that can be Done within one Sprint are "ready for selection"), but widely used. Example: written as a user story, **INVEST**, acceptance criteria agreed, estimated, dependencies identified, designs available.
+- **DoD vs acceptance criteria**: acceptance criteria are **specific to one story** ("a coupon applies only above ₹500"); the DoD applies to **every** item ("tests pass, reviewed, documented"). A story is done when it meets **both**.
+- **Risk of DoR**: used rigidly it becomes a gate that recreates Waterfall hand-offs; keep it light.
+
+## User Stories | green
+- A **user story** describes a small piece of value from the user's perspective, usually in the **Connextra template**: **"As a** <type of user>, **I want** <goal>, **so that** <benefit>."
+```text
+Story: As a returning shopper, I want to save my cart, so that I can finish my purchase on another device.
+
+Acceptance criteria (Given / When / Then):
+  Given I am logged in and have 3 items in my cart
+  When I log in on my phone
+  Then I see the same 3 items with the same quantities
+
+  Given my saved cart contains an item that is now out of stock
+  When I open the cart
+  Then the item is marked "Out of stock" and excluded from the total
+```
+- **The three Cs** (Ron Jeffries): **Card** (the short written story), **Conversation** (the details are discussed with the Product Owner and team), **Confirmation** (the acceptance criteria that confirm it's done).
+- **INVEST** (Bill Wake): a good story is **I**ndependent, **N**egotiable, **V**aluable, **E**stimable, **S**mall (fits in a sprint), **T**estable.
+- **Hierarchy**: **Epic** (a large body of work: "Checkout redesign") → **stories** (each deliverable in one sprint) → **tasks / sub-tasks** (technical steps: "create cart table", "add API endpoint"). Some teams add **themes** or **initiatives** above epics.
+- **Splitting large stories**: by workflow step, business rule, data variation, user role, or happy path first and edge cases later; split **vertically** (a thin slice through UI, API and database) rather than by technical layer.
+- **Spike**: a time-boxed research task to reduce uncertainty (try a payment SDK for two days) before estimating the real story.
+- **Bugs** go into the backlog too and are ordered against features by the Product Owner; **technical debt** items need clear value statements so they get prioritised.
+
+## Backlog Refinement | amber
+- **Refinement** (grooming) is the ongoing activity of breaking down, clarifying, ordering and estimating Product Backlog items so the top of the backlog is ready for upcoming Sprints.
+- It is **not a formal Scrum event**; many teams hold a regular session (older editions of the Scrum Guide suggested it usually takes no more than about 10% of the team's capacity).
+- The Product Owner brings priorities and context; Developers ask questions, split stories, identify risks and estimate. Good refinement makes Sprint Planning short.
+
+## Interview Q&A | sky | wide
+Q: What are the Scrum artifacts?
+A: The Product Backlog, the Sprint Backlog and the Increment, with their commitments: the Product Goal, the Sprint Goal and the Definition of Done.
+Q: Definition of Done vs acceptance criteria?
+A: The Definition of Done is a quality checklist that applies to every item; acceptance criteria are conditions specific to one story. An item is done only when it meets both.
+Q: Definition of Done vs Definition of Ready?
+A: The DoD defines when work is finished and can be part of an Increment; the DoR (a common practice, not in the Scrum Guide) defines when a backlog item is clear enough to start.
+Q: What makes a good user story?
+A: The INVEST criteria: independent, negotiable, valuable, estimable, small and testable, written from the user's perspective with clear acceptance criteria.
+Q: What is the difference between an epic, a story and a task?
+A: An epic is a large feature spanning several sprints; a story is a small piece of user value that fits in one sprint; tasks are the technical steps to build a story.
+Q: What is a spike?
+A: A time-boxed investigation that reduces uncertainty (a technical or design question) so that a related story can be estimated and planned.
+Q: Who owns the Sprint Backlog?
+A: The Developers. They create the plan for the Sprint and update it daily.
+Q: What is the Sprint Goal?
+A: The single objective for the Sprint, created in Sprint Planning. It gives the team focus and flexibility in the exact work needed to achieve it.
+
+# 06 | Scrum Events | The Sprint, Sprint Planning, Daily Scrum, Sprint Review, Sprint Retrospective, timeboxes, what happens when things go wrong mid-sprint | Scrum Events
+
+## The Sprint | rose
+- The **Sprint** is the container for all other events: a **fixed-length time-box of one month or less** (two weeks is the most common choice), and a new Sprint starts **immediately** after the previous one ends.
+- During the Sprint: **no changes that endanger the Sprint Goal**, **quality does not decrease**, the Product Backlog is refined as needed, and **scope may be clarified and renegotiated with the Product Owner** as more is learned.
+- Short Sprints mean more frequent feedback and less risk; at least once a month, progress towards the Product Goal is inspected and adapted.
+- A Sprint can be **cancelled only by the Product Owner**, if its Sprint Goal becomes obsolete (for example the business pivots). This is rare.
+```text
+Event                  Timebox (for a one-month Sprint; usually shorter for shorter Sprints)
+Sprint                 1 month or less
+Sprint Planning        max 8 hours        (≈ 4 hours for a 2-week Sprint)
+Daily Scrum            15 minutes, every working day
+Sprint Review          max 4 hours        (≈ 2 hours for a 2-week Sprint)
+Sprint Retrospective   max 3 hours        (≈ 1.5 hours for a 2-week Sprint)
+```
+
+## Sprint Planning | blue
+- Starts the Sprint; the **whole Scrum Team** attends (and may invite others for advice). It answers three topics:
+- **Why is this Sprint valuable?** The Product Owner proposes how the product could increase its value; the team defines the **Sprint Goal**.
+- **What can be Done this Sprint?** The Developers select items from the Product Backlog, using their past performance (velocity), upcoming capacity (holidays) and the Definition of Done.
+- **How will the chosen work get done?** The Developers plan the work, often by breaking items into tasks of a day or less.
+- Output: the **Sprint Backlog** (Sprint Goal + selected items + plan).
+
+## Daily Scrum | green
+- A **15-minute** event **for the Developers**, at the same time and place every working day, to **inspect progress towards the Sprint Goal** and **adapt the Sprint Backlog**, producing a plan for the next day.
+- The Developers choose the format. The classic three questions (what did I do yesterday, what will I do today, any impediments?) were **removed from the 2020 guide** as too prescriptive; many teams instead **walk the board** from right to left, focusing on finishing work.
+- It is **not a status report** to a manager. Detailed problem-solving happens **after** the stand-up with the people who need to be involved.
+- The Product Owner and Scrum Master take part as Developers only if they are working on Sprint Backlog items; the Scrum Master makes sure it happens and stays within 15 minutes.
+
+## Sprint Review | amber
+- Near the end of the Sprint (the second-to-last event), the Scrum Team presents the results of the work to **key stakeholders** and progress towards the **Product Goal** is discussed.
+- It is a **working session**, not just a demo: attendees review what was accomplished and what changed in the environment, and **collaborate on what to do next**, often adjusting the Product Backlog.
+- Only work that meets the Definition of Done is shown as done.
+
+## Sprint Retrospective | violet
+- **Concludes the Sprint.** The Scrum Team inspects how the last Sprint went regarding **individuals, interactions, processes, tools and the Definition of Done**, and identifies the most helpful improvements.
+- The most impactful improvements are addressed as soon as possible and may even be added to the next Sprint Backlog.
+- Popular formats: **Start / Stop / Continue**, **What went well / What didn't / Actions**, **Mad / Sad / Glad**, **4Ls** (Liked, Learned, Lacked, Longed for), **Sailboat**. Keep it a safe space (blame the process, not people) and end with **owned, concrete actions**.
+- **Review vs Retrospective**: the Review inspects the **product** with stakeholders; the Retrospective inspects the **process** within the team.
+
+## Interview Q&A | sky | wide
+Q: What are the Scrum events?
+A: The Sprint (the container), Sprint Planning, the Daily Scrum, the Sprint Review and the Sprint Retrospective.
+Q: How long is a Sprint, and can its length change?
+A: One month or less, usually one or two weeks, kept consistent. Changing length occasionally is possible, but frequent changes destroy the rhythm and the usefulness of velocity.
+Q: What happens in Sprint Planning?
+A: The team agrees why the Sprint is valuable (the Sprint Goal), what can be done (selected backlog items, based on capacity and velocity) and how (a plan, often tasks), forming the Sprint Backlog.
+Q: What is the purpose of the Daily Scrum?
+A: For the Developers to inspect progress towards the Sprint Goal and adapt their plan for the next 24 hours, in 15 minutes. It isn't a status meeting for managers.
+Q: Sprint Review vs Sprint Retrospective?
+A: The Review inspects the product Increment with stakeholders and adapts the backlog; the Retrospective inspects how the team worked and agrees improvements.
+Q: What if the Product Owner wants to add urgent work mid-sprint?
+A: Discuss its impact on the Sprint Goal. If it's truly urgent, the team can negotiate swapping out work of similar size; if it makes the Sprint Goal obsolete, the Product Owner may cancel the Sprint. Otherwise it goes to the top of the backlog for the next Sprint.
+Q: What if the team doesn't finish all items in a Sprint?
+A: Unfinished items aren't shown as done; they return to the Product Backlog, where the Product Owner re-orders them. The Retrospective examines why (over-commitment, interruptions, unclear stories).
+Q: Is backlog refinement a Scrum event?
+A: No. It is an ongoing activity, though many teams schedule a regular refinement session.
+
+# 07 | Estimation, Velocity & Burndown | Why estimate, story points vs hours, the Fibonacci scale, Planning Poker, T-shirt sizing, velocity and capacity, burndown and burnup charts, forecasting, misuse of metrics | Estimation & Velocity
+
+## Story Points | rose
+- **Story points** are a **relative** estimate of the effort needed to complete a story, combining **complexity, amount of work and uncertainty**. They are not hours.
+- Relative estimation is easier and more consistent than absolute: people judge "this is about twice as big as that" far better than "this will take 13 hours".
+- Pick a **reference story** everyone knows ("the password-reset screen was a 3") and size others against it.
+- Common scale: the **modified Fibonacci** sequence **1, 2, 3, 5, 8, 13, 20, 40, 100** (sometimes 0 and ½). The gaps grow because uncertainty grows with size; anything above 13 is usually too big for one sprint and should be split.
+- **Story points vs hours**: points stay stable when people get faster (velocity rises instead), avoid arguing about individual speed, and include uncertainty; hours are still useful for tasks inside a sprint.
+- Other techniques: **T-shirt sizing** (XS, S, M, L, XL) for early, rough backlog sizing; **ideal days**; **affinity estimation** (silently sorting many stories by size on a wall).
+
+## Planning Poker | blue
+```text
+1. The Product Owner reads a story and answers questions.
+2. Each Developer privately picks a card: 1, 2, 3, 5, 8, 13, 20, 40, 100, ?, ☕
+3. Everyone reveals at the same time.              e.g. 3, 5, 5, 13
+4. The highest and lowest explain their reasoning.   "13: we must migrate the old carts too"
+5. Re-vote until the estimates converge.           e.g. 8, 8, 8, 5 → 8
+```
+- Invented by **James Grenning** (2002) and popularised by **Mike Cohn** (*Agile Estimating and Planning*, 2005).
+- **Simultaneous reveal** avoids **anchoring** (everyone copying the senior developer's number). The discussion between the high and low estimators often uncovers hidden work or a simpler approach, which is the real value.
+- Only the people doing the work estimate; the Product Owner clarifies but doesn't vote.
+
+## Velocity and Capacity | green
+- **Velocity** = story points of items **completed (meeting the Definition of Done)** in a Sprint. Partly finished items count zero.
+- Use the **average of the last 3 to 5 Sprints** for planning: if recent velocities are 28, 32 and 30, plan about 30 points for the next Sprint.
+- Adjust for **capacity**: holidays, leave, on-call duty, new members ("two of six developers are off for half the sprint → plan about 25 points").
+- **Release forecasting**: 300 points of remaining scope ÷ about 30 points per Sprint ≈ 10 Sprints, given as a **range** (best and worst velocity) rather than a single date.
+- **Velocity is a planning tool for one team**, not a performance metric. Comparing teams' velocities is meaningless (each team's points are calibrated differently), and pushing teams to "increase velocity" just inflates estimates.
+
+## Burndown and Burnup Charts | amber
+```text
+Sprint burndown (points remaining)          Release burnup (points)
+40 |*.                                       300 |              ---- scope ------
+   |  *  .                                       |  ---- scope -/
+30 |    *   .   ideal line (.)                   |           ...*
+   |     *** .                               200 |        ...*  completed (*)
+20 |        *  .                                 |    ...*
+   |         **  .                           100 | ..*
+10 |           *   .                             |*
+   |            **   .                         0 +-------------------------
+ 0 +-------------------                            S1  S2  S3  S4  S5  S6
+   D1  D3  D5  D7  D9
+```
+- A **burndown chart** shows the **work remaining** (points or tasks) against time, with an **ideal line** from the total down to zero. Above the line: behind; flat lines: nothing finishing (often too much work in progress, or blocked items).
+- A **burnup chart** shows **work completed** rising towards a **scope line**. Its advantage: **scope changes are visible** (the scope line moves up), while a burndown hides them inside "remaining work".
+- Jira provides both (sprint burndown, release burnup), plus **velocity charts** and **cumulative flow diagrams** (sheet 08).
+
+## Interview Q&A | sky | wide
+Q: What are story points?
+A: A relative measure of the effort to complete a backlog item, combining complexity, amount of work and uncertainty, estimated by the team against reference stories.
+Q: Why use Fibonacci numbers for estimates?
+A: The growing gaps reflect growing uncertainty in larger items and stop pointless debates such as 11 versus 12; big numbers signal that a story should be split.
+Q: How does Planning Poker work?
+A: Each estimator picks a card privately, all reveal together, the highest and lowest explain their reasoning, and the team re-votes until it converges. It avoids anchoring and surfaces hidden work.
+Q: What is velocity and how is it used?
+A: The story points completed per Sprint. A team uses its recent average to decide how much to take into the next Sprint and to forecast releases. It isn't for comparing teams or measuring productivity.
+Q: Story points vs hours?
+A: Points are relative and include uncertainty, stay valid as the team speeds up, and avoid debates about individual speed; hours are absolute and useful only for short-term task planning.
+Q: Burndown vs burnup chart?
+A: A burndown shows remaining work falling towards zero; a burnup shows completed work rising towards a scope line, which makes scope changes visible.
+Q: What do you do if velocity suddenly drops?
+A: Investigate in the Retrospective rather than pressuring the team: unplanned work, technical debt, unclear stories, team changes, environment problems or too much work in progress are common causes.
+Q: Should a partially completed story count towards velocity?
+A: No. Only items meeting the Definition of Done count; the unfinished story goes back to the backlog and is re-estimated if needed.
+
+# 08 | Kanban, XP, Lean & Scaling | Kanban principles, boards and WIP limits, flow metrics, Scrum vs Kanban, Scrumban, Extreme Programming practices, Lean wastes, SAFe and LeSS, DevOps | Kanban & XP
+
+## Kanban | rose
+```text
+ Backlog      | Ready (5)   | In Progress (3) | Code Review (2) | QA (2)  | Done
+ ─────────────┼─────────────┼─────────────────┼─────────────────┼─────────┼──────
+ SHOP-51      | SHOP-44     | SHOP-40 (Ann)   | SHOP-37         | SHOP-35 | SHOP-31
+ SHOP-52      | SHOP-45     | SHOP-41 (Ravi)  |                 |         | SHOP-33
+ SHOP-53      |             | SHOP-42 (Meera) |                 |         |
+                               ↑ WIP limit 3 reached: finish or help others before starting more
+```
+- **Kanban** ("signboard" in Japanese) comes from **Toyota's production system**; **David J. Anderson** adapted it for knowledge work (*Kanban*, 2010). It is a **flow-based** method: no sprints, no prescribed roles; work is **pulled** continuously.
+- Practices: **visualise the workflow** on a board; **limit work in progress (WIP)** per column; **manage flow**; **make policies explicit** (what "Done" means for each column); **implement feedback loops**; **improve collaboratively and evolve experimentally**.
+- **WIP limits** are the heart of Kanban: when a column is full, people **finish or help unblock** existing work instead of starting more. "Stop starting, start finishing." Less multitasking means items finish faster.
+- **Flow metrics**: **lead time** (from request to delivery), **cycle time** (from starting work to done), **throughput** (items finished per week), **WIP**. **Little's Law**: average cycle time = average WIP ÷ average throughput, so lowering WIP lowers cycle time.
+- **Cumulative Flow Diagram (CFD)**: stacked bands of items per status over time; a widening band reveals a bottleneck.
+
+## Scrum vs Kanban | blue
+```text
+Aspect          Scrum                                  Kanban
+Cadence         Fixed-length Sprints                   Continuous flow
+Roles           Product Owner, Scrum Master, Devs      None prescribed
+Planning        Sprint Planning per Sprint             Just-in-time, when capacity frees up
+Change          Avoid changes that endanger the        Any time, by re-ordering the queue
+                Sprint Goal
+WIP control     Indirect: Sprint scope                 Explicit WIP limits per column
+Key metrics     Velocity, burndown                     Cycle time, lead time, throughput, CFD
+Board           Reset every Sprint                     Persistent
+Best for        Product development with goals         Support, operations, maintenance,
+                and regular releases                   unpredictable incoming work
+```
+- **Scrumban** combines both: Scrum's events and roles with Kanban's WIP limits and flow metrics, common for teams moving from Scrum to Kanban or mixing feature and support work.
+
+## Extreme Programming (XP) | green
+- Created by **Kent Beck** in the late 1990s (*Extreme Programming Explained*, 1999). It takes good engineering practices to the "extreme". Values: communication, simplicity, feedback, courage, respect.
+- **Practices**: **Test-Driven Development**, **pair programming**, **continuous integration**, **refactoring**, **small releases**, **simple design** (YAGNI), **collective code ownership**, **coding standards**, **sustainable pace** (40-hour weeks), an **on-site customer**, the **planning game**, system metaphor.
+- Many XP practices (TDD, CI, refactoring, pairing) are now standard in Scrum teams: Scrum provides the management framework, XP the engineering discipline.
+
+## Lean, Scaling and DevOps | amber
+- **Lean software development** (Mary and Tom Poppendieck, 2003, from Toyota's Lean manufacturing): eliminate waste, build quality in, create knowledge, defer commitment, deliver fast, respect people, optimise the whole.
+- **The seven wastes of software**: partially done work, extra processes, extra features, task switching, waiting, motion (hand-offs), defects.
+- **Scaling Agile** across many teams: **SAFe** (Scaled Agile Framework: release trains, PI planning every 8 to 12 weeks), **LeSS** (Large-Scale Scrum: one Product Owner and backlog for several teams), **Nexus** (Scrum.org, 3 to 9 Scrum Teams), **Scrum@Scale**, and the "Spotify model" of squads, tribes, chapters and guilds (a description of one company's culture, not a framework).
+- **DevOps** brings development and operations together: automated CI/CD pipelines, infrastructure as code, monitoring, shared on-call. Agile makes **development** iterative; DevOps makes **delivery and operations** continuous, so each increment can actually reach users quickly.
+
+## Interview Q&A | sky | wide
+Q: What is Kanban?
+A: A flow-based method that visualises work on a board, limits work in progress per stage and continuously pulls new work as capacity frees up, measuring and improving flow with cycle time, throughput and cumulative flow diagrams.
+Q: Scrum vs Kanban?
+A: Scrum uses fixed-length Sprints with defined roles, events and a Sprint Goal; Kanban has continuous flow with no prescribed roles, controls work through WIP limits and measures cycle time. Scrum suits planned product development; Kanban suits support and unpredictable work.
+Q: What is a WIP limit and why does it help?
+A: A maximum number of items allowed in a workflow stage. It stops people starting too much at once, exposes bottlenecks and, by Little's Law, shortens cycle time.
+Q: Lead time vs cycle time?
+A: Lead time runs from when a request is made to when it is delivered; cycle time runs from when work actually starts to when it is done.
+Q: What are the main XP practices?
+A: TDD, pair programming, continuous integration, refactoring, small releases, simple design, collective code ownership, coding standards and a sustainable pace.
+Q: What is SAFe?
+A: The Scaled Agile Framework for coordinating many Agile teams through Agile Release Trains and regular Program Increment (PI) planning.
+Q: How does DevOps relate to Agile?
+A: Agile makes development iterative and responsive; DevOps extends the same ideas into building, deploying and operating software through automation, CI/CD and shared ownership.
+
+@ Advanced
+# 09 | Jira: Work Types, Workflows & Boards | What Jira is, the hierarchy of epics, stories, tasks, bugs and sub-tasks, fields, workflows and statuses, Scrum vs Kanban boards, sprints and reports, team-managed vs company-managed, Git integration, recent renames | Jira
+
+## What Jira Is | rose
+- **Jira** is **Atlassian**'s work-tracking tool for software teams, first released in **2002**. The name comes from "Gojira", the Japanese name for Godzilla, a nod to the older bug tracker Bugzilla. (Atlassian writes "Jira" since 2017; "JIRA" in capitals is the old style.)
+- Used to plan sprints, manage backlogs, track bugs and tasks, run Kanban boards, report progress and link work to code. Editions: **Jira Cloud** and the self-hosted **Data Center** (Server licences ended in February 2024). Related products: Confluence (documentation), Jira Service Management (IT support desks).
+- **Recent renames in Jira Cloud** (2025): "issues" became **work items**, "issue types" became **work types**, and "projects" became **spaces**. Most interviewers and older documentation still say "issues" and "projects", and JQL keeps its field names (`project`, `issuetype`).
+
+## Work Types and Hierarchy | blue
+```text
+Epic        SHOP-100  Checkout redesign                       (spans several sprints)
+├─ Story    SHOP-101  As a shopper I want to save my cart...  (fits in one sprint)
+│  ├─ Sub-task SHOP-104  Create saved_carts table
+│  └─ Sub-task SHOP-105  Add GET /carts/{id} endpoint
+├─ Task     SHOP-102  Upgrade the payment SDK                 (technical work without direct user value)
+└─ Bug      SHOP-103  Coupon applied twice on refresh          (a defect)
+```
+- **Epic**: a large body of work, broken into stories. **Story**: a user-facing requirement. **Task**: technical or other work that isn't a user story. **Bug**: a defect to fix. **Sub-task**: a piece of a story, task or bug.
+- Every item has a **key** (`SHOP-101` = space key + number), a summary, description, **status**, **assignee**, **reporter**, **priority** (Highest to Lowest), **labels**, **components**, **fix version** (release), **sprint**, **story points**, **due date**, comments, attachments, **links** ("blocks", "is blocked by", "duplicates", "relates to") and a history log.
+- In Jira Cloud, the **Parent** field links stories to their epic (it replaced the older "Epic Link" field). Plans above epic level (initiatives) need a premium plan.
+
+## Workflows and Statuses | green
+```text
+ To Do ──▶ In Progress ──▶ Code Review ──▶ QA ──▶ Done
+   ▲            │               │           │
+   └────────────┴── Reopen ◀────┴───────────┘   (rejected in review or QA)
+```
+- A **workflow** defines the **statuses** an item moves through and the allowed **transitions** between them. Every status belongs to one of three **categories**: **To Do** (grey), **In Progress** (blue) and **Done** (green), which reports and boards use.
+- The default software workflow is **To Do → In Progress → Done**; teams commonly add **Code Review** and **QA** (or "In Test"), plus "Blocked" or "Ready for Release".
+- Company-managed workflows can add **conditions** (only the assignee may move to QA), **validators** (a fix version is required before Done), and **post functions** (set the resolution, notify someone).
+- **Resolution** (Fixed, Won't Do, Duplicate, Cannot Reproduce) records **why** an item is closed; reports and the JQL `resolution` field depend on it being set.
+- **Automation rules** reduce manual updates: when a pull request is merged → move the item to QA; when all sub-tasks are done → close the parent.
+
+## Boards, Sprints and Reports | amber
+- A **board** shows items as cards in columns, each column mapped to one or more statuses. A board's content comes from a saved **JQL filter**.
+- **Scrum board**: a **backlog** view for planning, then **sprints** (create, start with a goal and dates, complete; unfinished items move to the backlog or the next sprint). Reports: **sprint burndown**, **sprint report**, **velocity chart**, **release burndown**, epic report.
+- **Kanban board**: a continuous flow with **WIP limits** per column (shown red when exceeded) and no sprints. Reports: **cumulative flow diagram** and **control chart** (cycle time).
+- **Team-managed vs company-managed** spaces (formerly "next-gen" vs "classic" projects): team-managed ones are configured by the team itself (simple, independent); company-managed ones share schemes for workflows, fields and permissions set by administrators (consistent across many teams).
+- **Git integration** (GitHub, GitLab, Bitbucket): include the key in branch names, commits and PR titles (`feature/SHOP-101-save-cart`, `SHOP-101 add saved cart table`), and the item's development panel shows branches, commits, PRs, builds and deployments. **Smart commits** can act on items from a commit message: `SHOP-101 #comment cache added #time 2h #done` (the last command runs the workflow transition named "Done").
+
+## Interview Q&A | sky | wide
+Q: What is Jira used for?
+A: Tracking work in software teams: backlogs, sprints, bugs and tasks, boards, workflows, reports such as burndown and velocity charts, and links to code and deployments.
+Q: What are the standard issue (work) types in Jira?
+A: Epic, Story, Task, Bug and Sub-task, forming a hierarchy of epic → story/task/bug → sub-task.
+Q: Epic vs story vs task vs sub-task?
+A: An epic is a large feature spanning sprints; a story is user-facing value deliverable in a sprint; a task is non-user-facing work; a sub-task is a piece of any of them.
+Q: What is a Jira workflow?
+A: The set of statuses (such as To Do, In Progress, Code Review, QA, Done) and allowed transitions an item moves through, optionally with conditions, validators and post functions.
+Q: Scrum board vs Kanban board?
+A: A Scrum board plans and runs time-boxed sprints from a backlog with burndown and velocity reports; a Kanban board shows continuous flow with WIP limits and cumulative flow and control charts.
+Q: How do you link code to Jira items?
+A: Put the item key in branch names, commit messages and PR titles; the Git integration then shows them on the item, and smart commits can comment, log time or transition it.
+Q: What is the difference between status and resolution?
+A: Status is where the item is in the workflow (In Progress, Done); resolution records why it was closed (Fixed, Won't Do, Duplicate).
+
+# 10 | JQL: Jira Query Language | Syntax, fields, operators, keywords, functions, practical queries for developers, testers and leads, history searches, ordering, filters and dashboards | JQL
+
+## JQL Syntax | rose
+- **JQL (Jira Query Language)** searches items with SQL-like conditions: **`field operator value`**, combined with **`AND`**, **`OR`**, **`NOT`** and parentheses, then optionally **`ORDER BY`**.
+```text
+project = SHOP AND issuetype = Bug AND status != Done ORDER BY priority DESC, created ASC
+```
+- **Fields**: `project`, `issuetype` (or `type`), `status`, `statusCategory`, `assignee`, `reporter`, `priority`, `labels`, `component`, `fixVersion`, `sprint`, `parent`, `resolution`, `created`, `updated`, `resolved`, `duedate`, `summary`, `description`, `text` (searches all text fields), plus custom fields by name in quotes.
+- **Operators**: `=`, `!=`, `>`, `>=`, `<`, `<=`, `IN`, `NOT IN`, `~` (contains text), `!~`, `IS EMPTY`, `IS NOT EMPTY`, and history operators **`WAS`**, **`WAS IN`**, **`WAS NOT`**, **`CHANGED`**.
+- Values with spaces need quotes (`status = "In Progress"`); `EMPTY` (or `NULL`) means no value.
+- The basic search UI builds simple queries with drop-downs; the **advanced** search editor accepts full JQL with autocompletion.
+
+## Functions and Relative Dates | blue
+- **User functions**: `currentUser()`, `membersOf("backend-team")`.
+- **Sprint functions**: `openSprints()`, `closedSprints()`, `futureSprints()`.
+- **Version functions**: `releasedVersions(SHOP)`, `unreleasedVersions(SHOP)`, `latestReleasedVersion(SHOP)` (the project key as argument).
+- **Date functions**: `now()`, `startOfDay()`, `startOfWeek()`, `startOfMonth()`, `endOfWeek()`... with offsets such as `startOfWeek(-1w)`.
+- **Relative dates**: `created >= -7d` (last 7 days), `updated <= -2w`, units `m`, `h`, `d`, `w`.
+- `ORDER BY` accepts several fields: `ORDER BY priority DESC, updated DESC`.
+
+## Practical Queries | green
+- **My open work in the current sprint**: `assignee = currentUser() AND sprint IN openSprints() AND statusCategory != Done`
+- **High-priority unresolved bugs, newest first**: `issuetype = Bug AND priority IN (Highest, High) AND resolution = Unresolved ORDER BY created DESC`
+- **Stuck items** (in progress, not updated for a week): `status = "In Progress" AND updated <= -7d`
+- **Everything in an epic**: `parent = SHOP-100`
+- **Unassigned stories waiting for refinement**: `project = SHOP AND issuetype = Story AND assignee IS EMPTY AND status = "To Do"`
+- **Text search** across summary, description and comments: `project = SHOP AND text ~ "payment timeout"`
+- **Recent bugs in some components**: `issuetype = Bug AND created >= -30d AND component IN (Checkout, Payments)`
+- **Work finished this week** (history): `status CHANGED TO Done DURING (startOfWeek(), now())`
+- **Bugs that were ever reopened**: `issuetype = Bug AND status WAS Reopened`
+- **Planned for upcoming releases**: `project = SHOP AND fixVersion IN unreleasedVersions(SHOP) ORDER BY rank`
+- **Shipped in the latest release**: `fixVersion = latestReleasedVersion(SHOP)`
+
+## Filters and Dashboards | amber
+- Save a query as a **filter** to reuse it, share it with the team, **subscribe** to it by email, or use it as the source of a **board**.
+- **Dashboards** combine **gadgets** driven by filters: filter results, pie charts (bugs by priority), created vs resolved, sprint burndown, two-dimensional statistics.
+- **Bulk change** applies edits (assign, transition, add a label) to all items a query returns.
+- Typical uses: a QA filter for "ready for test", a lead's filter for blocked or stale items, a release checklist filter, a triage filter for new bugs without priority.
+
+## Interview Q&A | sky | wide
+Q: What is JQL?
+A: Jira Query Language: a SQL-like syntax for searching Jira items with field, operator and value conditions combined with AND, OR and NOT, plus ORDER BY.
+Q: Write a JQL query for my unresolved bugs in the current sprint.
+A: `assignee = currentUser() AND issuetype = Bug AND sprint IN openSprints() AND resolution = Unresolved`.
+Q: How do you find items not updated in a week?
+A: `updated <= -7d`, usually combined with `statusCategory != Done` or a specific status.
+Q: What do the WAS and CHANGED operators do?
+A: They search history: `status WAS "In Progress"` finds items that were ever in that status; `status CHANGED TO Done DURING (startOfWeek(), now())` finds items moved to Done this week.
+Q: How do you search for text?
+A: With the contains operator: `summary ~ "login"`, or `text ~ "login"` to search all text fields.
+Q: What are filters used for?
+A: Saving and sharing queries, email subscriptions, dashboard gadgets and as the source query of boards.
+
+@ Review
+# 11 | Rapid-Fire & Scenario Questions | One-liners, scenario questions interviewers love, how to answer with examples, big Q&A | Rapid-fire
+
+## One-Line Cheat Sheet | rose
+- **SDLC**: requirements → design → implementation → testing → deployment → maintenance.
+- **Waterfall**: sequential, fixed scope, late testing, one release. **Agile**: iterative, flexible scope, continuous testing, frequent releases.
+- **Manifesto**: individuals and interactions, working software, customer collaboration, responding to change (over processes and tools, documentation, contract negotiation, following a plan).
+- **Scrum**: 3 accountabilities (PO, SM, Developers), 5 events (Sprint, Planning, Daily, Review, Retro), 3 artifacts + commitments (Product Backlog + Product Goal, Sprint Backlog + Sprint Goal, Increment + DoD), 3 pillars (transparency, inspection, adaptation), 5 values (commitment, focus, openness, respect, courage).
+- **Timeboxes** for a one-month Sprint: Planning 8h, Daily 15 min, Review 4h, Retro 3h.
+- **Estimation**: story points (relative, Fibonacci), Planning Poker, velocity (average of recent Sprints), burndown (remaining) vs burnup (completed + scope).
+- **Kanban**: visualise, limit WIP, manage flow; cycle time, lead time, throughput, CFD.
+- **Jira**: Epic → Story/Task/Bug → Sub-task; workflow To Do → In Progress → Code Review → QA → Done; Scrum vs Kanban boards; JQL `field operator value`.
+
+## Scenario Questions | blue
+- **"The Product Owner keeps adding work mid-sprint."** Make the impact visible (what must come out to fit it in), protect the Sprint Goal, agree on an expedite policy for true emergencies, and raise it in the Retrospective.
+- **"The team missed the Sprint Goal again."** Inspect causes in the Retrospective: over-commitment versus measured velocity, unplanned work, stories too large, dependencies, blockers raised too late. Take smaller, better-refined stories and plan to recent velocity.
+- **"A stakeholder wants a fixed date and fixed scope."** Explain the trade-off, forecast from velocity as a range, deliver the highest-value items first, and agree on which scope can flex.
+- **"Developers say a story is too big to estimate."** Split it vertically, or schedule a time-boxed spike to remove the uncertainty first.
+- **"Stand-ups take 40 minutes."** Keep them to the Sprint Goal and the board, move detailed discussions to after the stand-up with only the people needed.
+- **"QA finds bugs at the end of every sprint."** Test earlier: acceptance criteria before development, testers pairing with developers, automated tests in the Definition of Done, no "QA phase" at the end.
+- **"There is no time for technical debt."** Make it visible in the backlog with its cost explained in business terms, reserve a share of each Sprint's capacity, and include refactoring in the Definition of Done.
+
+## How to Answer Well | green
+- Answer with **definition → how your team did it → a concrete example → the result**.
+- Use the **STAR** structure for behavioural questions: **S**ituation, **T**ask, **A**ction, **R**esult.
+- Example: "In our two-week sprints we ran planning, daily stand-ups and reviews with the business. When QA kept finding bugs late, we added automated API tests and code review to our Definition of Done; escaped defects dropped by about half over three sprints."
+- Know your own team's numbers: sprint length, team size, typical velocity, tools (Jira, Confluence, GitHub), and your role in each ceremony.
+
+## Big Interview Q&A | sky | wide
+Q: Explain Scrum in one minute.
+A: A framework for complex products where a small, cross-functional, self-managing team works in Sprints of a month or less. The Product Owner orders the Product Backlog; in Sprint Planning the team picks a Sprint Goal and items; it syncs in a 15-minute Daily Scrum; it shows the usable Increment in the Sprint Review and improves its process in the Retrospective, all based on transparency, inspection and adaptation.
+Q: What is the role of the Product Owner?
+A: Maximising product value by owning and ordering the Product Backlog, defining the Product Goal and working with stakeholders.
+Q: What is a Definition of Done?
+A: A shared quality checklist that every Increment must satisfy (reviewed, tested, documented, deployable) before work counts as done.
+Q: What is velocity?
+A: The amount of work, usually in story points, a team completes per Sprint, used for planning and forecasting, not for comparing teams.
+Q: What is a burndown chart?
+A: A chart of remaining work over time in a Sprint or release, compared with an ideal line, showing whether the team is on track.
+Q: What is backlog grooming?
+A: Refinement: the ongoing activity of clarifying, splitting, ordering and estimating backlog items so they are ready for upcoming Sprints.
+Q: What do you do in a Sprint Retrospective?
+A: Reflect on how the Sprint went (people, process, tools, Definition of Done), choose a few concrete improvements and assign owners.
+Q: Waterfall vs Agile in one sentence?
+A: Waterfall completes each phase once in sequence with fixed requirements; Agile delivers working software in short iterations, adapting to feedback and change.
+Q: What is the difference between Scrum and Kanban?
+A: Scrum uses fixed Sprints, roles and events; Kanban uses continuous flow with WIP limits and no prescribed roles.
+Q: How do you handle changing requirements?
+A: Welcome them through the backlog: the Product Owner re-orders it, the current Sprint Goal is protected, and the change is planned into the next Sprint.
+Q: What is an impediment and who removes it?
+A: Anything blocking the team's progress, such as a missing environment or a dependency on another team. The Scrum Master is accountable for causing its removal, though anyone can help.
+Q: What is a user story and what is INVEST?
+A: A short description of value from the user's perspective (As a..., I want..., so that...); INVEST says good stories are independent, negotiable, valuable, estimable, small and testable.
+Q: How do you write a JQL query for open bugs assigned to you?
+A: `issuetype = Bug AND assignee = currentUser() AND resolution = Unresolved ORDER BY priority DESC`.
+Q: What is the difference between an epic and a story in Jira?
+A: An epic groups several related stories into a larger feature across Sprints; a story is a single user-facing requirement completed within a Sprint.

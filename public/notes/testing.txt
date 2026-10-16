@@ -1,0 +1,1688 @@
+@ Beginner
+# 00 | Testing Basics: Start Here | What testing is and why, error vs defect vs failure, verification vs validation, QA vs QC, testing types and levels, black-box techniques, test cases, TDD and BDD, FIRST principles, history of JUnit and the xUnit family | Start Here
+
+## What Testing Is and Why | rose
+- **Software testing** checks that software behaves as expected and finds defects before users do. It produces evidence ("these 400 checks pass"), not proof: as Edsger Dijkstra put it, testing can show the **presence** of bugs, never their absence.
+- **Why test**: bugs get **far more expensive the later they are found** (a typo fixed in the editor costs seconds; the same bug in production costs incidents, data fixes and trust); tests let you **refactor safely**; they **document** how code is meant to behave; and automated tests are what make **CI/CD** possible.
+- **Error → defect → failure**: a person makes an **error** (a mistake in thinking), which puts a **defect** (bug, fault) into the code, which may cause a **failure** (wrong behaviour at runtime) when that code runs with certain inputs.
+- **Verification vs validation**: verification asks "are we building the product **right**?" (does it meet the specification: reviews, unit tests); validation asks "are we building the **right product**?" (does it meet the user's real need: acceptance tests, demos).
+- **QA vs QC vs testing**: **Quality Assurance** improves the **process** to prevent defects (standards, reviews, CI); **Quality Control** checks the **product** to find defects; **testing** is the main QC activity.
+
+## Kinds of Testing | blue
+- **Manual vs automated**: a person following steps and judging results vs code that runs checks and reports pass or fail. Automate what is repeated (regression); keep manual effort for exploratory and usability testing.
+- **Black-box**: tests from the outside, based on the specification, without looking at the code. **White-box**: tests designed from the code's internal structure (branches, paths, coverage). **Grey-box**: some knowledge of internals (for example the database schema) guides black-box tests.
+- **Functional** (does it do the right thing?) vs **non-functional** (how well: **performance**, load and stress, **security**, **usability**, **accessibility**, compatibility, reliability).
+- **Levels**: **unit** (one class or function in isolation), **integration** (components together: service + database, two services), **system** (the whole application end to end), **acceptance** (UAT: users or the business confirm it meets requirements).
+- **Smoke** testing: a quick check that a new build basically works (app starts, login works) before deeper testing. **Sanity** testing: a narrow check that a specific fix works. **Regression** testing: re-running existing tests so new changes don't break old features. **Exploratory** testing: a skilled tester investigates freely, designing tests on the fly.
+- **Alpha / beta**: internal testing by the team vs a release to a limited group of real users.
+
+## Designing Test Cases | green
+- A **test case** has an id, preconditions, inputs or steps, the **expected result**, and (when run) the actual result. A **test suite** is a group of test cases; a **test fixture** is the fixed state a test needs (objects, data, files).
+- **Equivalence partitioning**: split inputs into groups the program should treat the same way and test one value from each group. **Boundary value analysis**: bugs cluster at the edges, so test values on and just beyond each boundary.
+```text
+Rule: an applicant's age must be between 18 and 60 inclusive.
+
+Partitions:   below 18 (invalid)   |   18..60 (valid)   |   above 60 (invalid)
+One per partition:      10                   35                    70
+Boundaries:          17 (invalid)   18 (valid)   60 (valid)   61 (invalid)
+→ 7 focused tests instead of hundreds of random ages
+```
+- Also test **edge cases**: empty strings and collections, `null`, zero and negative numbers, very large values, duplicates, special characters, time zones and leap days, concurrent access.
+- **Positive tests** check valid input produces the right result; **negative tests** check invalid input is rejected cleanly.
+
+## TDD, BDD and Good Unit Tests | amber
+- **TDD (Test-Driven Development)**, popularised by **Kent Beck**: write a failing test first (**red**), write the simplest code that makes it pass (**green**), then clean up the code while the tests stay green (**refactor**). Benefits: testable design, tests always exist, small steps.
+- **BDD (Behaviour-Driven Development)** describes behaviour in business language, usually **Given / When / Then** ("Given a cart worth ₹600, When I apply SAVE50, Then I pay ₹550"). Tools such as **Cucumber** run these scenarios (written in **Gherkin**) as automated tests.
+- **AAA (Arrange, Act, Assert)**: set up inputs, call the code under test, check the outcome. Given/When/Then is the same idea in BDD words.
+- **FIRST** principles for unit tests: **F**ast (milliseconds, so you run them constantly), **I**ndependent (no test depends on another's leftovers or order), **R**epeatable (same result on any machine, any time: no real clock, network or random data), **S**elf-validating (pass or fail automatically, no reading logs), **T**imely (written with or before the code).
+- One behaviour per test, a **descriptive name** (`rejectsOrderWhenStockIsZero`), no logic (loops, ifs) inside tests, and test **behaviour through public methods**, not private implementation details.
+
+## JUnit and the xUnit Family | violet
+- **Kent Beck** wrote **SUnit** for Smalltalk in the 1990s. In **1997**, Beck and **Erich Gamma** created **JUnit** for Java, which made automated unit testing mainstream and inspired the **xUnit** family: NUnit (.NET), PHPUnit, CppUnit, Python's `unittest`.
+- **JUnit 4** (2006) introduced annotations such as `@Test`. **JUnit 5** (2017, started as the crowdfunded "JUnit Lambda" project) was a modular rewrite: **Platform + Jupiter + Vintage** (sheet 01). **JUnit 6** (2025) keeps that architecture with a Java 17 baseline and one version number for all modules; the current release used in these notes is **6.1**.
+- **Mockito** (sheet 05) creates mock objects; **AssertJ** provides fluent assertions; **Spring Boot's `spring-boot-starter-test`** bundles JUnit, Mockito and AssertJ.
+- Other ecosystems: **pytest** and `unittest` (Python), **Jest** and **Vitest** (JavaScript and TypeScript; Vitest is the default for new Angular projects), **Playwright**, **Cypress** and **Selenium** for browser end-to-end tests.
+
+## Interview Q&A | sky | wide
+Q: What is software testing and why is it important?
+A: Checking that software behaves as expected and finding defects before users do. It reduces the cost of bugs, makes refactoring safe, documents behaviour and enables continuous delivery.
+Q: What is the difference between an error, a defect and a failure?
+A: An error is a human mistake; it introduces a defect (bug) into the code; the defect causes a failure when that code runs and behaves incorrectly.
+Q: Verification vs validation?
+A: Verification checks the product against its specification ("built right"); validation checks it meets the user's actual needs ("right product").
+Q: What are the levels of testing?
+A: Unit, integration, system and acceptance testing, from the smallest piece of code to the whole product judged by its users.
+Q: Black-box vs white-box testing?
+A: Black-box testing is based on requirements without looking at the code; white-box testing is designed from the code's structure, such as covering every branch.
+Q: Smoke vs sanity vs regression testing?
+A: Smoke checks a new build's critical paths broadly and quickly; sanity checks a specific change or fix narrowly; regression re-runs existing tests to make sure nothing that used to work is broken.
+Q: What are equivalence partitioning and boundary value analysis?
+A: Black-box techniques: group inputs that should behave the same and test one value per group; then test values exactly on and just outside each boundary, where off-by-one bugs hide.
+Q: What is TDD?
+A: Test-Driven Development: write a failing test, make it pass with the simplest code, then refactor, in short red-green-refactor cycles.
+Q: TDD vs BDD?
+A: TDD is a developer practice driven by unit tests; BDD describes behaviour in business language (Given/When/Then) shared by developers, testers and business people, and often automates those scenarios.
+Q: What makes a good unit test?
+A: The FIRST properties (fast, independent, repeatable, self-validating, timely), one clear behaviour per test, a descriptive name, the AAA structure and testing through the public API.
+Q: Who created JUnit?
+A: Kent Beck and Erich Gamma, in 1997, based on Beck's earlier SUnit framework for Smalltalk.
+
+# 01 | JUnit Architecture & First Tests | JUnit Platform, Jupiter and Vintage, test engines and launchers, Maven and Gradle setup, writing and running the first test class, the per-method instance lifecycle, JUnit 4 vs 5, what JUnit 6 changed | JUnit Architecture
+
+## JUnit 5 Architecture: Platform, Jupiter, Vintage | rose
+- **JUnit 5 = JUnit Platform + JUnit Jupiter + JUnit Vintage.** JUnit 6 keeps the same three parts.
+- **JUnit Platform**: the foundation for **launching** test frameworks on the JVM. It defines the **`TestEngine` API** (how a framework discovers and runs tests) and the **Launcher API** used by IDEs (IntelliJ, Eclipse, VS Code) and build tools (Maven Surefire, Gradle) to discover, filter and execute tests and report results. It also ships the `ConsoleLauncher` and the `@Suite` support.
+- **JUnit Jupiter**: the **programming model** you write tests with (annotations such as `@Test`, assertions, assumptions, the **extension model**) plus the **Jupiter test engine** that runs those tests on the Platform.
+- **JUnit Vintage**: a test engine that runs old **JUnit 3 and 4** tests on the Platform, so a codebase can migrate gradually. **Deprecated in JUnit 6.**
+- Because engines are pluggable, other frameworks run on the same Platform: Cucumber, Spock, Kotest, jqwik, ArchUnit.
+```text
+  IDE / Maven Surefire / Gradle / ConsoleLauncher
+                    │  (Launcher API)
+             JUnit Platform
+       ┌───────────┼──────────────┐
+  Jupiter engine  Vintage engine  Third-party engines
+  (JUnit 5/6       (JUnit 3/4     (Cucumber, Spock,
+   tests)           tests)         jqwik...)
+```
+
+## Setting Up | blue
+```xml pom.xml
+<dependencyManagement>
+  <dependencies>
+    <dependency>                                   <!-- the BOM keeps all JUnit modules on one version -->
+      <groupId>org.junit</groupId>
+      <artifactId>junit-bom</artifactId>
+      <version>6.1.3</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
+</dependencyManagement>
+
+<dependencies>
+  <dependency>                                     <!-- API + params + engine in one artifact -->
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <scope>test</scope>
+  </dependency>
+</dependencies>
+
+<build>
+  <plugins>
+    <plugin>                                       <!-- runs the tests in the "test" phase -->
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-surefire-plugin</artifactId>
+      <version>3.6.0</version>
+    </plugin>
+  </plugins>
+</build>
+```
+- **Scope `test`**: the dependency is available only to `src/test/java`, never packaged with the application.
+- **Maven Surefire** runs unit tests in the `test` phase and, by default, picks up classes named `Test*`, `*Test`, `*Tests` and `*TestCase`. **Failsafe** runs integration tests (`*IT`) in the `integration-test` and `verify` phases (sheet 07).
+- **Gradle**: `testImplementation(platform("org.junit:junit-bom:6.1.3"))`, `testImplementation("org.junit.jupiter:junit-jupiter")`, `testRuntimeOnly("org.junit.platform:junit-platform-launcher")`, and `tasks.test { useJUnitPlatform() }`.
+- **Spring Boot**: `spring-boot-starter-test` already includes JUnit Jupiter, Mockito, AssertJ, Hamcrest, JSONassert and JsonPath.
+- Layout: production code in `src/main/java`, tests in **`src/test/java`** with the **same package**, so tests can reach package-private members.
+
+## Your First Test Class | green
+```java PriceCalculator.java
+public class PriceCalculator {
+
+    /** Price x quantity, 10% off for 10+ items, then SAVE50 takes 50 off orders of 500 or more. */
+    public double finalPrice(double unitPrice, int quantity, String coupon) {
+        if (unitPrice < 0 || quantity <= 0) {
+            throw new IllegalArgumentException("price must be >= 0 and quantity > 0");
+        }
+        double total = unitPrice * quantity;
+        if (quantity >= 10) total *= 0.90;
+        if ("SAVE50".equals(coupon) && total >= 500) total -= 50;
+        return Math.round(total * 100) / 100.0;
+    }
+}
+```
+```java PriceCalculatorTest.java
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class PriceCalculatorTest {                     // package-private is fine in JUnit 5+
+
+    private PriceCalculator calculator;
+
+    @BeforeEach
+    void setUp() {
+        calculator = new PriceCalculator();     // a fresh object for every test
+    }
+
+    @Test
+    void chargesFullPriceForSmallOrders() {
+        // Arrange
+        double unitPrice = 100.0;
+        // Act
+        double total = calculator.finalPrice(unitPrice, 2, null);
+        // Assert
+        assertEquals(200.0, total);
+    }
+
+    @Test
+    void givesTenPercentOffFromTenItems() {
+        assertEquals(900.0, calculator.finalPrice(100.0, 10, null));
+    }
+
+    @Test
+    void appliesCouponOnlyAtOrAboveFiveHundred() {
+        assertEquals(550.0, calculator.finalPrice(200.0, 3, "SAVE50"));
+        assertEquals(400.0, calculator.finalPrice(200.0, 2, "SAVE50"));
+    }
+
+    @Test
+    void rejectsNegativePrice() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> calculator.finalPrice(-1, 1, null));
+        assertTrue(ex.getMessage().contains("price"));
+    }
+}
+```
+- A test is a **method annotated with `@Test`** that returns `void`. Classes and methods can be **package-private**; JUnit 4 required `public`.
+- Use the **static imports** from `org.junit.jupiter.api.Assertions`. Argument order is **`assertEquals(expected, actual)`**: swapping them produces misleading failure messages.
+- Run tests: `mvn test`, one class `mvn test -Dtest=PriceCalculatorTest`, one method `mvn test -Dtest=PriceCalculatorTest#rejectsNegativePrice`, or the green arrow in the IDE. Reports land in `target/surefire-reports/`.
+```text
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS
+```
+- **Failure vs error** in reports: a **failure** is an assertion that didn't hold; an **error** is an unexpected exception thrown by the test.
+
+## Test Instance Lifecycle | amber
+- By default JUnit creates a **new instance of the test class for every test method** (`Lifecycle.PER_METHOD`). Instance fields therefore start fresh in each test, which keeps tests **independent**.
+- That is why `@BeforeAll` and `@AfterAll` methods must be **`static`**: they run before any instance exists. `@TestInstance(Lifecycle.PER_CLASS)` switches to one shared instance, allowing non-static `@BeforeAll` (sheet 02).
+- **Test order**: JUnit runs methods in a deterministic but **intentionally non-obvious** order. Never rely on order; if you truly need it (rarely, for integration flows), use `@TestMethodOrder`.
+
+## JUnit 4 vs JUnit 5 | violet
+- `@Before` / `@After` → **`@BeforeEach`** / **`@AfterEach`**; `@BeforeClass` / `@AfterClass` → **`@BeforeAll`** / **`@AfterAll`**.
+- `@Ignore` → **`@Disabled`**; `@Category` → **`@Tag`**.
+- `@RunWith(...)` and `@Rule` → the single **extension model**: **`@ExtendWith(...)`** (e.g. `MockitoExtension`, `SpringExtension`), and several extensions can be combined.
+- `@Test(expected = X.class)` → **`assertThrows(X.class, ...)`**, which also returns the exception for further checks; `@Test(timeout = ...)` → `@Timeout` or `assertTimeout`.
+- Package `org.junit` → **`org.junit.jupiter.api`**; the optional failure message moved from the **first** argument to the **last** (and can be a lazy `Supplier<String>`).
+- New in 5: `@DisplayName`, `@Nested`, `@ParameterizedTest`, `@RepeatedTest`, `@TestFactory` (dynamic tests), `assertAll`, lambdas everywhere, no `public` requirement, Java 8+.
+- **JUnit 6 (2025)** changes, from the official release notes: minimum **Java 17**; Platform, Jupiter and Vintage share **one version number**; the **Vintage engine is deprecated**; `@CsvSource` now uses the FastCSV parser (stricter about extra characters after a closing quote); Kotlin `suspend` test methods; **JSpecify** nullability annotations on all APIs; parameterized display names quote text arguments; many long-deprecated APIs removed.
+
+## Interview Q&A | sky | wide
+Q: What is the architecture of JUnit 5?
+A: Three parts: the JUnit Platform (launcher and TestEngine API used by IDEs and build tools), JUnit Jupiter (the annotations, assertions and extension model, plus its engine) and JUnit Vintage (an engine for running JUnit 3 and 4 tests).
+Q: What is a TestEngine?
+A: The Platform's plug-in interface: an engine discovers tests written in its programming model and executes them. Jupiter, Vintage, Cucumber and Spock each provide one.
+Q: How does Maven run JUnit tests?
+A: The Surefire plugin runs in the test phase, uses the JUnit Platform launcher to discover classes such as *Test, runs them and writes reports to target/surefire-reports; a failing test fails the build.
+Q: Why must @BeforeAll methods be static?
+A: JUnit creates a new test-class instance per test method, so a method that runs once before all tests can't depend on an instance, unless the class uses @TestInstance(PER_CLASS).
+Q: What are the main differences between JUnit 4 and JUnit 5?
+A: Modular architecture, new lifecycle annotation names, @ExtendWith replacing runners and rules, assertThrows instead of expected, nested, parameterized and dynamic tests, no public requirement, and the message as the last assertion argument.
+Q: What changed in JUnit 6?
+A: Java 17 baseline, one shared version for all modules, the Vintage engine deprecated, a new CSV parser for @CsvSource, Kotlin suspend support, JSpecify nullability annotations and removal of deprecated APIs. The Platform/Jupiter/Vintage architecture stays.
+Q: What is the difference between a test failure and a test error?
+A: A failure means an assertion was false; an error means the test threw an unexpected exception before reaching a verdict.
+Q: Where do tests live in a Maven project?
+A: In src/test/java, in the same package as the code under test, with test-scoped dependencies that are never shipped in the application.
+
+# 02 | Annotations & Lifecycle | @Test, @BeforeEach, @AfterEach, @BeforeAll, @AfterAll, @Disabled, @DisplayName, @Nested, @Tag, @Timeout, @RepeatedTest, @TestInstance, @TempDir, conditional execution, ordering, extensions | Annotations
+
+## The Lifecycle Annotations | rose
+```java LifecycleTest.java
+import org.junit.jupiter.api.*;
+
+class LifecycleTest {
+
+    @BeforeAll
+    static void startOnce() { System.out.println("@BeforeAll   (once, before all tests: start a server, load data)"); }
+
+    @BeforeEach
+    void before() { System.out.println("  @BeforeEach (before every test: fresh objects)"); }
+
+    @Test
+    void first() { System.out.println("    test 1"); }
+
+    @Test
+    void second() { System.out.println("    test 2"); }
+
+    @AfterEach
+    void after() { System.out.println("  @AfterEach  (after every test, even a failing one: clean up)"); }
+
+    @AfterAll
+    static void stopOnce() { System.out.println("@AfterAll    (once, after all tests: stop the server)"); }
+}
+```
+```text
+@BeforeAll   (once, before all tests: start a server, load data)
+  @BeforeEach (before every test: fresh objects)
+    test 2
+  @AfterEach  (after every test, even a failing one: clean up)
+  @BeforeEach (before every test: fresh objects)
+    test 1
+  @AfterEach  (after every test, even a failing one: clean up)
+@AfterAll    (once, after all tests: stop the server)
+```
+- This is real output from JUnit 6.1: **test 2 ran before test 1**. JUnit's default method order is deterministic but intentionally not the order you wrote them in, which is exactly why tests must not depend on each other.
+- **`@Test`**: marks a test method.
+- **`@BeforeEach` / `@AfterEach`**: run before / after **each** test method. Use them for fresh fixtures and cleanup (`@AfterEach` runs even when the test fails).
+- **`@BeforeAll` / `@AfterAll`**: run **once** per class, before the first and after the last test; they must be **static** unless the class uses `@TestInstance(Lifecycle.PER_CLASS)`. Use them for expensive shared setup (a database container, a server).
+- **`@Disabled("reason")`**: skips a test or a whole class; it is reported as skipped. Always give the reason and a ticket number.
+- Inheritance: lifecycle methods in a superclass run too (superclass `@BeforeEach` before the subclass's).
+
+## Naming, Grouping and Tagging | blue
+```java CartTest.java
+import org.junit.jupiter.api.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@DisplayName("Shopping cart")
+class CartTest {
+
+    List<String> cart;
+
+    @BeforeEach
+    void newCart() { cart = new ArrayList<>(); }
+
+    @Nested
+    @DisplayName("when empty")
+    class WhenEmpty {
+        @Test
+        @DisplayName("has size 0")
+        void isEmpty() { assertTrue(cart.isEmpty()); }
+    }
+
+    @Nested
+    @DisplayName("after adding an item")
+    class AfterAdding {
+        @BeforeEach
+        void addItem() { cart.add("keyboard"); }          // runs after the outer @BeforeEach
+
+        @Test
+        @DisplayName("contains it")
+        void containsItem() { assertEquals(List.of("keyboard"), cart); }
+
+        @Test
+        @Tag("slow")
+        @DisplayName("can be cleared")
+        void canBeCleared() {
+            cart.clear();
+            assertTrue(cart.isEmpty());
+        }
+    }
+}
+```
+- **`@DisplayName`**: a readable name (spaces, punctuation, emoji) shown in IDEs and reports.
+- **`@Nested`**: an inner (non-static) class that groups related tests and **inherits the outer setup**, giving a readable tree: "Shopping cart → after adding an item → contains it". Great for "given this state" scenarios.
+- **`@Tag("slow")`**: labels tests so you can include or exclude groups: `mvn test -Dgroups=slow` or `-DexcludedGroups=slow` (Surefire), `useJUnitPlatform { excludeTags("slow") }` (Gradle). Typical tags: `slow`, `integration`, `smoke`.
+
+## More Useful Annotations | green
+```java MoreAnnotationsTest.java
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.condition.*;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class MoreAnnotationsTest {
+
+    static final AtomicInteger calls = new AtomicInteger();
+
+    @RepeatedTest(3)                                     // runs 3 times: useful for randomness or concurrency
+    void repeated(RepetitionInfo info) {
+        calls.incrementAndGet();
+        assertTrue(info.getCurrentRepetition() <= info.getTotalRepetitions());
+    }
+
+    @Test
+    @Timeout(2)                                          // fails if it takes longer than 2 seconds
+    void fastEnough() throws InterruptedException {
+        Thread.sleep(Duration.ofMillis(10));
+    }
+
+    @Test
+    void writesFile(@TempDir Path dir) throws Exception { // a fresh temporary folder, deleted afterwards
+        Path file = dir.resolve("report.txt");
+        Files.writeString(file, "ok");
+        assertEquals("ok", Files.readString(file));
+    }
+
+    @Test
+    @EnabledOnOs(OS.WINDOWS)                             // also: @EnabledOnJre, @EnabledIfEnvironmentVariable,
+    void onlyOnWindows() {                               //       @EnabledIfSystemProperty, and @Disabled... variants
+        assertTrue(System.getProperty("os.name").startsWith("Windows"));
+    }
+
+    @Test
+    void onlyWhenRunningInCi() {
+        Assumptions.assumeTrue("true".equals(System.getenv("CI")), "not running in CI");
+        // reaching here means we are in CI; otherwise the test is reported as skipped, not failed
+    }
+}
+```
+- **`@RepeatedTest(n)`**: repeats a test; inject `RepetitionInfo` to read the current repetition.
+- **`@Timeout(seconds)`**: fails a test (or every test in a class) that runs too long.
+- **`@TempDir`**: injects a temporary directory that JUnit creates and deletes for you.
+- **Conditional execution**: `@EnabledOnOs`, `@DisabledOnOs`, `@EnabledOnJre`, `@EnabledForJreRange`, `@EnabledIfEnvironmentVariable`, `@EnabledIfSystemProperty`, `@EnabledIf("methodName")`.
+- **Assumptions** (`assumeTrue`, `assumingThat`): if the assumption is false the test is **aborted and reported as skipped**, unlike an assertion, which **fails** it.
+- JUnit can **inject parameters** into test and lifecycle methods: `TestInfo`, `RepetitionInfo`, `TestReporter`, `@TempDir Path`, and anything an extension provides (for example a Spring bean).
+
+## @TestInstance, Ordering and Extensions | amber
+```java OrderedFlowTest.java
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;            // explicit: a class named Order in your own package would win over a * import
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)          // one instance for all tests in this class
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+class OrderedFlowTest {
+
+    private String orderStatus;                          // shared state: only acceptable for a deliberate flow
+
+    @BeforeAll
+    void init() { orderStatus = "NEW"; }                 // no "static" needed with PER_CLASS
+
+    @Test @Order(1)
+    void pay() { orderStatus = "PAID"; assertEquals("PAID", orderStatus); }
+
+    @Test @Order(2)
+    void ship() { assertEquals("PAID", orderStatus); orderStatus = "SHIPPED"; }
+}
+```
+- **`@TestInstance(PER_CLASS)`**: one instance per class; `@BeforeAll` / `@AfterAll` may be non-static (handy in Kotlin and for expensive per-class setup). Tests then **share fields**, so reset state yourself.
+- **`@TestMethodOrder`** with `MethodOrderer.OrderAnnotation` + **`@Order(n)`**, `MethodName`, `DisplayName` or `Random`. Unit tests should not need it.
+- **Extensions** plug behaviour into the lifecycle: **`@ExtendWith(MockitoExtension.class)`** (creates `@Mock` fields, sheet 05), `@ExtendWith(SpringExtension.class)` (built into `@SpringBootTest`). You can write your own by implementing callbacks such as `BeforeEachCallback` or `ParameterResolver`.
+- **Composed annotations**: annotations can be combined into your own, for example `@Tag("integration") @SpringBootTest` → `@IntegrationTest`.
+
+## Interview Q&A | sky | wide
+Q: @BeforeEach vs @BeforeAll?
+A: @BeforeEach runs before every test method to give each test a fresh fixture; @BeforeAll runs once before all tests in the class for expensive shared setup and must be static by default.
+Q: Does @AfterEach run when a test fails?
+A: Yes. It runs after every test regardless of the outcome, which is why cleanup belongs there.
+Q: What is @Nested used for?
+A: Grouping related tests in inner classes that share and extend the outer setup, producing readable, hierarchical scenarios such as "when the cart is empty".
+Q: How do you run only some tests, for example skip slow ones?
+A: Tag them with @Tag("slow") and filter with the build tool: Surefire's groups and excludedGroups, or Gradle's includeTags and excludeTags.
+Q: Assertion vs assumption?
+A: A false assertion fails the test; a false assumption aborts it and reports it as skipped, used when a test only makes sense in certain environments.
+Q: How do you test code that writes files?
+A: Use @TempDir to get a temporary directory that JUnit creates before the test and deletes afterwards, so tests stay isolated and repeatable.
+Q: What does @TestInstance(Lifecycle.PER_CLASS) change?
+A: One test-class instance is shared by all its tests, so @BeforeAll and @AfterAll can be instance methods, but fields are no longer reset between tests.
+Q: Should unit tests depend on execution order?
+A: No. Each test must set up its own state. Ordering with @TestMethodOrder is a last resort for deliberate multi-step integration flows.
+Q: What is the JUnit 5 extension model?
+A: A single plug-in mechanism, applied with @ExtendWith, through which libraries hook into the test lifecycle and inject parameters. It replaced JUnit 4's runners and rules.
+
+# 03 | Assertions | assertEquals and friends, delta comparison, assertThrows, assertAll, timeouts, failure messages, assumptions, AssertJ fluent assertions | Assertions
+
+## Core Assertions | rose
+```java AssertionsDemoTest.java
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class AssertionsDemoTest {
+
+    @Test
+    void coreAssertions() {
+        assertEquals(4, 2 + 2);                                    // expected first, then actual
+        assertEquals(0.3, 0.1 + 0.2, 1e-9);                        // doubles: compare within a delta
+        assertNotEquals("PAID", "NEW");
+        assertTrue(List.of(1, 2).contains(2));
+        assertFalse("Pune".isBlank());
+        assertNull(System.getenv("SURELY_NOT_SET_42"));
+        assertNotNull(List.of());
+
+        String a = new String("x");
+        String b = new String("x");
+        assertEquals(a, b);                                         // equals(): same content
+        assertNotSame(a, b);                                        // ==: different objects
+
+        assertArrayEquals(new int[] {1, 2, 3}, new int[] {1, 2, 3}); // element by element
+        assertIterableEquals(List.of("a", "b"), List.of("a", "b"));
+        Object o = "text";
+        String s = assertInstanceOf(String.class, o);               // checks the type and returns the cast value
+        assertEquals(4, s.length(), "length of the instance");      // optional message, always the last argument
+    }
+}
+```
+- **`assertEquals(expected, actual)`** uses `equals()`; for `double`/`float` pass a **delta**, because `0.1 + 0.2` is `0.30000000000000004`. For money, use `BigDecimal` in the code and `compareTo` or AssertJ's `isEqualByComparingTo`.
+- `assertSame` / `assertNotSame` compare **references** (`==`), `assertEquals` compares **values** (`equals()`).
+- `assertArrayEquals` compares arrays element by element (`assertEquals` on arrays compares references). `assertIterableEquals` does the same for collections in order.
+- **Messages** go **last**: `assertEquals(200.0, total, "total for 2 items")`. Use a **`Supplier<String>`** (`() -> "..." + expensive()`) when building the message is costly; it is evaluated only on failure.
+- `fail("reason")` fails immediately, for code paths that must never be reached.
+
+## Exceptions | blue
+```java ExceptionAssertionsTest.java
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class ExceptionAssertionsTest {
+
+    @Test
+    void parsingRejectsLetters() {
+        NumberFormatException ex = assertThrows(NumberFormatException.class,
+                () -> Integer.parseInt("12a"));
+        assertEquals("For input string: \"12a\"", ex.getMessage());
+    }
+
+    @Test
+    void assertThrowsAcceptsSubclasses() {
+        assertThrows(IllegalArgumentException.class, () -> Integer.parseInt("x"));   // NumberFormatException is a subclass: passes
+        assertThrowsExactly(NumberFormatException.class, () -> Integer.parseInt("x")); // exact type only
+    }
+
+    @Test
+    void validInputDoesNotThrow() {
+        int value = assertDoesNotThrow(() -> Integer.parseInt("42"));
+        assertEquals(42, value);
+    }
+}
+```
+- **`assertThrows(Type.class, executable)`** passes if the lambda throws that type **or a subclass**, fails if it throws nothing or something else, and **returns the exception** so you can check its message or fields.
+- **`assertThrowsExactly`** requires the exact type. **`assertDoesNotThrow`** documents that valid input is accepted and returns the lambda's result.
+- Put **only the call that should throw** inside the lambda; setup inside it could throw the same exception for the wrong reason.
+
+## Grouped Assertions and Timeouts | green
+```java GroupedAssertionsTest.java
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class GroupedAssertionsTest {
+
+    record Address(String city, String pin, String country) {}
+
+    @Test
+    void allFieldsAreCheckedEvenIfOneFails() {
+        Address address = new Address("Chennai", "600001", "IN");
+        assertAll("address",
+                () -> assertEquals("Chennai", address.city()),
+                () -> assertEquals("600001", address.pin()),
+                () -> assertEquals("IN", address.country()));
+    }
+
+    @Test
+    void finishesQuickly() {
+        String result = assertTimeout(Duration.ofSeconds(1), () -> "done");   // waits for the code, then checks the time
+        assertEquals("done", result);
+    }
+}
+```
+- **`assertAll`** runs **every** assertion in the group and reports **all failures together**. Without it, the first failing `assertEquals` stops the test and hides the rest. If two assertions fail, the report lists both:
+```text
+org.opentest4j.MultipleFailuresError:
+address (2 failures)
+	org.opentest4j.AssertionFailedError: expected: <Chennai> but was: <Pune>
+	org.opentest4j.AssertionFailedError: expected: <600001> but was: <411001>
+```
+- **`assertTimeout(duration, executable)`** runs the code to completion and then fails if it took too long. **`assertTimeoutPreemptively`** aborts the code when time runs out (it runs in another thread, which can break `ThreadLocal`-based code such as transactions).
+
+## AssertJ: Fluent Assertions | amber
+```java AssertJDemoTest.java
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.*;
+
+class AssertJDemoTest {
+
+    record Product(String name, double price) {}
+
+    @Test
+    void readableAssertions() {
+        List<Product> cart = List.of(new Product("Keyboard", 1500), new Product("Mouse", 500));
+
+        assertThat(cart).hasSize(2)
+                        .extracting(Product::name)
+                        .containsExactly("Keyboard", "Mouse");
+        assertThat(cart).allMatch(p -> p.price() > 0);
+        assertThat("SAVE50").startsWith("SAVE").hasSize(6);
+        assertThat(0.1 + 0.2).isCloseTo(0.3, within(1e-9));
+
+        assertThatThrownBy(() -> Integer.parseInt("12a"))
+                .isInstanceOf(NumberFormatException.class)
+                .hasMessageContaining("12a");
+    }
+}
+```
+- **AssertJ** (`org.assertj:assertj-core`, included in Spring Boot's test starter) reads left to right: `assertThat(actual).isEqualTo(expected)`, with IDE autocompletion of everything that applies to the type: strings, collections, maps, optionals, exceptions, dates.
+- Its failure messages are very descriptive (for collections it shows the missing and unexpected elements), and `SoftAssertions` gives `assertAll`-style grouping.
+- **Hamcrest** (`assertThat(x, is(equalTo(y)))`) is the older matcher library, still seen in JUnit 4 code and Spring's MockMvc.
+
+## Interview Q&A | sky | wide
+Q: Why is the order of arguments in assertEquals important?
+A: The first is the expected value and the second the actual one; the failure message reads "expected: <a> but was: <b>", so swapping them misleads whoever debugs the failure.
+Q: How do you compare doubles in a test?
+A: With a tolerance: assertEquals(expected, actual, delta), or AssertJ's isCloseTo; exact equality fails because of floating-point rounding.
+Q: assertEquals vs assertSame?
+A: assertEquals checks logical equality with equals(); assertSame checks that both references point to the same object.
+Q: How do you test that a method throws an exception?
+A: `assertThrows(Expected.class, () -> code())`, which returns the exception so you can also assert on its message. In JUnit 4 it was @Test(expected = ...).
+Q: What is assertAll for?
+A: Grouping related assertions so all of them run and every failure is reported together, instead of stopping at the first one.
+Q: assertTimeout vs assertTimeoutPreemptively?
+A: assertTimeout lets the code finish and then fails if it was too slow; assertTimeoutPreemptively stops the code as soon as the time limit passes, running it on a separate thread.
+Q: Why do many teams prefer AssertJ?
+A: Fluent, discoverable assertions with rich support for collections, exceptions and objects, and clearer failure messages.
+Q: What happens when an assumption fails?
+A: The test is aborted and reported as skipped rather than failed.
+
+@ Intermediate
+# 04 | Parameterized Tests | @ParameterizedTest, @ValueSource, null and empty sources, @EnumSource, @CsvSource, @CsvFileSource, @MethodSource, display names, argument conversion, dynamic tests | Parameterized Tests
+
+## Why Parameterize | rose
+- Many tests differ only in their **inputs and expected output**. Instead of copy-pasting five `@Test` methods, write **one test method** and feed it **rows of data**.
+- **`@ParameterizedTest`** replaces `@Test` and needs at least one **source** annotation. Each row runs as a **separate test** with its own pass or fail line in the report.
+- Comes from the `junit-jupiter-params` module, already included in the `junit-jupiter` artifact.
+- Ideal for **equivalence classes and boundary values** (sheet 00): one row per partition and per boundary.
+
+## @ValueSource, Null/Empty and @EnumSource | blue
+```java CouponCodeTest.java
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.time.DayOfWeek;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class CouponCodeTest {
+
+    static boolean isValidCoupon(String code) {
+        return code != null && code.matches("[A-Z]{4}\\d{2}");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"SAVE50", "DEAL10", "FEST25"})        // one test run per value
+    void acceptsWellFormedCodes(String code) {
+        assertTrue(isValidCoupon(code));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource                                         // runs with null and with ""
+    @ValueSource(strings = {"  ", "save50", "SAVE5", "SAVE500"})
+    void rejectsBadCodes(String code) {
+        assertFalse(isValidCoupon(code));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = DayOfWeek.class, names = {"SATURDAY", "SUNDAY"})
+    void weekendDays(DayOfWeek day) {
+        assertTrue(day.getValue() >= 6);
+    }
+}
+```
+- **`@ValueSource`**: one argument per run; supports `strings`, `ints`, `longs`, `doubles`, `chars`, `booleans`, `classes` and more.
+- **`@NullSource`**, **`@EmptySource`** (empty string, collection or array) and **`@NullAndEmptySource`** cover the classic missing-input cases; combine them with `@ValueSource`.
+- **`@EnumSource`**: every enum constant, or a subset via `names` (with `mode = EXCLUDE` to skip some).
+
+## @CsvSource and @CsvFileSource | green
+```java PriceCalculatorParamTest.java
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class PriceCalculatorParamTest {
+
+    private final PriceCalculator calculator = new PriceCalculator();
+
+    @ParameterizedTest(name = "{0} x {1} with coupon {2} = {3}")
+    @CsvSource(nullValues = "NONE", textBlock = """
+            # unitPrice, quantity, coupon, expected
+            100.0,  1,  NONE,    100.0
+            100.0,  9,  NONE,    900.0
+            100.0, 10,  NONE,    900.0
+            200.0,  3,  SAVE50,  550.0
+            200.0,  2,  SAVE50,  400.0
+            """)
+    void computesFinalPrice(double unitPrice, int quantity, String coupon, double expected) {
+        assertEquals(expected, calculator.finalPrice(unitPrice, quantity, coupon), 0.001);
+    }
+}
+```
+```text
+computesFinalPrice(double, int, String, double) ✔
+├─ "100.0" x "1" with coupon null = "100.0" ✔
+├─ "100.0" x "9" with coupon null = "900.0" ✔
+├─ "100.0" x "10" with coupon null = "900.0" ✔
+├─ "200.0" x "3" with coupon "SAVE50" = "550.0" ✔
+└─ "200.0" x "2" with coupon "SAVE50" = "400.0" ✔
+```
+- That is real JUnit 6.1 console output. **JUnit 6 quotes text-based arguments** in display names, and CSV values are text before conversion, so even numbers appear in quotes; `null` is shown unquoted.
+- **`@CsvSource`**: each row is a comma-separated line mapped to the method parameters **in order**, with automatic **type conversion** (strings to `int`, `double`, enums, `LocalDate`, ...). A `textBlock` keeps big tables readable, and lines starting with `#` are comments.
+- Empty values: `''` is an empty string; an empty column is `null`; `nullValues = "NONE"` turns a marker into `null`. Quote values that contain commas: `'Pune, MH'`.
+- **`name`** sets the display name per row: `{0}`, `{1}` are arguments, `{index}` the row number, `{arguments}` all of them.
+- **`@CsvFileSource(resources = "/prices.csv", numLinesToSkip = 1)`** reads the rows from a CSV file on the test classpath (`src/test/resources`), useful for large data sets shared with testers.
+- JUnit 6 parses CSV with **FastCSV** and is stricter: characters after a closing quote are now an error.
+
+## @MethodSource and Custom Sources | amber
+```java ShippingParamTest.java
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.List;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+
+class ShippingParamTest {
+
+    record Item(String name, double weightKg) {}
+
+    static double shippingCost(List<Item> items) {
+        double weight = items.stream().mapToDouble(Item::weightKg).sum();
+        return weight == 0 ? 0 : weight <= 5 ? 49 : 49 + Math.ceil(weight - 5) * 10;
+    }
+
+    static Stream<Arguments> carts() {                      // static, returns rows of arguments
+        return Stream.of(
+                arguments(List.of(), 0.0),
+                arguments(List.of(new Item("book", 0.5)), 49.0),
+                arguments(List.of(new Item("monitor", 4.5), new Item("stand", 2.2)), 69.0));
+    }
+
+    @ParameterizedTest
+    @MethodSource("carts")                                  // the factory method's name
+    void chargesByWeight(List<Item> cart, double expected) {
+        assertEquals(expected, shippingCost(cart));
+    }
+}
+```
+- **`@MethodSource("factory")`** takes rows from a **static** method that returns a `Stream`, `List` or array of `Arguments` (or of single values). Use it for **complex objects** that can't be written as CSV text. Without a name, it looks for a method with the same name as the test.
+- The factory can live in another class: `@MethodSource("com.shop.TestData#carts")`.
+- **`@ArgumentsSource(MyProvider.class)`** plugs in a reusable custom provider; `@FieldSource` (JUnit 5.11+) reads rows from a field.
+- **Dynamic tests**: a `@TestFactory` method returns a `Stream<DynamicTest>` built at runtime (for example one test per file in a folder). Unlike parameterized tests, no lifecycle callbacks run around each dynamic test.
+
+## Interview Q&A | sky | wide
+Q: What is a parameterized test?
+A: One test method run several times with different inputs and expected outputs, each run reported separately. In JUnit it's @ParameterizedTest plus a source such as @ValueSource or @CsvSource.
+Q: @ValueSource vs @CsvSource vs @MethodSource?
+A: @ValueSource supplies one simple value per run; @CsvSource supplies several columns per row from inline text; @MethodSource supplies rows built in Java code, which allows complex objects.
+Q: How do you pass null or empty values?
+A: @NullSource, @EmptySource or @NullAndEmptySource; in @CsvSource an empty column is null, '' is an empty string, and nullValues defines a null marker.
+Q: How do parameterized tests relate to boundary value analysis?
+A: They make it cheap to test every partition and boundary: one row per value such as 17, 18, 60 and 61.
+Q: Where does a @CsvFileSource file live?
+A: On the test classpath, usually src/test/resources, referenced as resources = "/file.csv".
+Q: Parameterized tests vs dynamic tests?
+A: Parameterized tests have a fixed structure with data from sources and full lifecycle support; dynamic tests are generated at runtime by a @TestFactory and don't run @BeforeEach/@AfterEach per dynamic test.
+
+# 05 | Mockito Fundamentals | Why mock, the five kinds of test doubles, @Mock, @InjectMocks, MockitoExtension, when().thenReturn(), thenThrow, thenAnswer, void methods, argument matchers, strict stubs, BDDMockito | Mockito Basics
+
+## Why Mock? Test Doubles | rose
+- A unit test should test **one class in isolation**. Real collaborators (database, payment API, email server, clock) make tests **slow, flaky, expensive or impossible** (you can't charge a real card in every test run). A **test double** stands in for them.
+- The five kinds (from Gerard Meszaros's *xUnit Test Patterns*):
+- **Dummy**: passed around but never used (fills a parameter list).
+- **Stub**: returns **canned answers** to calls ("charge() returns pay_1"). Used to drive the code under test down a path.
+- **Spy**: a real object (or stub) that also **records** how it was called.
+- **Mock**: pre-programmed with expectations and used to **verify interactions** ("send() was called once with this address").
+- **Fake**: a working but simplified implementation (an in-memory repository, an H2 database).
+- **Mockito** (Java's most used mocking library, version 5) creates stubs, mocks and spies at runtime. "Mock" in Mockito covers both stubbing and verifying.
+- Mock **roles**, not values: mock interfaces for collaborators you own (repositories, gateways); use real objects for value types (records, `String`, `List`).
+
+## The Code Under Test | blue
+```java Shop.java
+import java.util.Optional;
+
+record Order(Long id, String customerEmail, double amount, String status, String paymentId) {}
+
+interface OrderRepository {
+    Order save(Order order);
+    Optional<Order> findById(long id);
+}
+
+interface PaymentGateway {
+    String charge(String customerEmail, double amount);     // returns a payment id
+}
+
+interface EmailSender {
+    void send(String to, String body);
+}
+
+class PaymentFailedException extends RuntimeException {
+    PaymentFailedException(String message) { super(message); }
+}
+```
+```java OrderService.java
+public class OrderService {
+
+    private final OrderRepository repository;
+    private final PaymentGateway payments;
+    private final EmailSender email;
+
+    public OrderService(OrderRepository repository, PaymentGateway payments, EmailSender email) {
+        this.repository = repository;
+        this.payments = payments;
+        this.email = email;
+    }
+
+    public Order placeOrder(String customerEmail, double amount) {
+        if (amount <= 0) throw new IllegalArgumentException("amount must be positive");
+        String paymentId = payments.charge(customerEmail, amount);          // may throw PaymentFailedException
+        Order saved = repository.save(new Order(null, customerEmail, amount, "PAID", paymentId));
+        email.send(customerEmail, "Order " + saved.id() + " confirmed");
+        return saved;
+    }
+
+    public String statusOf(long orderId) {
+        return repository.findById(orderId).map(Order::status).orElse("UNKNOWN");
+    }
+}
+```
+- Dependencies arrive through the **constructor** (dependency injection), so a test can pass mocks in. Code that creates its own collaborators with `new` inside methods is hard to test.
+
+## Creating Mocks and Stubbing | green
+```java OrderServiceTest.java
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)                 // creates the @Mock fields and injects them before each test
+class OrderServiceTest {
+
+    @Mock OrderRepository repository;
+    @Mock PaymentGateway payments;
+    @Mock EmailSender email;
+
+    @InjectMocks OrderService service;               // built through its constructor with the mocks above
+
+    @Test
+    void placesAPaidOrderAndSendsConfirmation() {
+        when(payments.charge("ann@shop.io", 500.0)).thenReturn("pay_1");
+        when(repository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);     // return what was saved, with a generated id
+            return new Order(42L, o.customerEmail(), o.amount(), o.status(), o.paymentId());
+        });
+
+        Order order = service.placeOrder("ann@shop.io", 500.0);
+
+        assertEquals(42L, order.id());
+        assertEquals("pay_1", order.paymentId());
+        verify(email).send("ann@shop.io", "Order 42 confirmed");
+    }
+
+    @Test
+    void doesNotSaveOrEmailWhenPaymentFails() {
+        when(payments.charge(anyString(), anyDouble())).thenThrow(new PaymentFailedException("card declined"));
+
+        assertThrows(PaymentFailedException.class, () -> service.placeOrder("ann@shop.io", 500.0));
+
+        verifyNoInteractions(repository, email);
+    }
+
+    @Test
+    void reportsUnknownStatusForMissingOrder() {
+        when(repository.findById(7L)).thenReturn(Optional.empty());
+        assertEquals("UNKNOWN", service.statusOf(7L));
+    }
+
+    @Test
+    void unstubbedMethodsReturnDefaults() {
+        PaymentGateway gateway = mock(PaymentGateway.class);  // without annotations
+        assertNull(gateway.charge("x", 1));                     // String → null
+        assertEquals(Optional.empty(), repository.findById(1)); // Optional → empty, collections → empty, numbers → 0
+    }
+}
+```
+- **`@ExtendWith(MockitoExtension.class)`** + **`@Mock`** creates a mock per field before each test; **`@InjectMocks`** creates the class under test and injects the mocks (constructor first, then setters, then fields). Without the extension, call `mock(Type.class)` yourself.
+- **Stubbing**: `when(mock.method(args)).thenReturn(value)` (several values: `thenReturn(a, b)` for consecutive calls), `.thenThrow(exception)`, `.thenAnswer(invocation -> ...)` to compute the answer from the arguments, `.thenCallRealMethod()`.
+- **Unstubbed calls** return defaults: `null` for objects, `0`, `false`, **empty** `Optional`, collections and streams.
+- **Void methods** can't go inside `when(...)`; use the `do...` family: `doThrow(new RuntimeException("smtp down")).when(email).send(anyString(), anyString());`, also `doNothing()`, `doAnswer(...)`.
+
+## Argument Matchers and Strict Stubs | amber
+- Matchers make stubs and verifications flexible: `any()`, `any(Order.class)`, `anyString()`, `anyInt()`, `anyDouble()`, `eq(value)`, `isNull()`, `startsWith("ann")`, and **`argThat(o -> o.amount() > 100)`** for custom conditions.
+- **Rule**: if **one** argument uses a matcher, **all** arguments must. `charge(anyString(), 500.0)` throws `InvalidUseOfMatchersException`; write `charge(anyString(), eq(500.0))`.
+- **Strict stubs**: `MockitoExtension` fails a test with **`UnnecessaryStubbingException`** if a stubbing is never used, and reports a potential stubbing problem when a stubbed method is called with different arguments. This keeps tests honest and readable. Use `lenient().when(...)` only for genuinely shared setup.
+- **BDDMockito** reads as Given/When/Then: `given(payments.charge(any(), anyDouble())).willReturn("pay_1");` ... `then(email).should().send("ann@shop.io", "Order 42 confirmed");`.
+
+## Interview Q&A | sky | wide
+Q: Why do we mock dependencies in unit tests?
+A: To test one class in isolation, quickly and deterministically, without real databases, networks or external services, and to simulate cases that are hard to produce for real, such as a payment failure.
+Q: Mock vs stub vs spy vs fake?
+A: A stub returns canned answers; a mock is also used to verify interactions; a spy wraps a real object and records or partly overrides calls; a fake is a lightweight working implementation such as an in-memory repository.
+Q: @Mock vs @InjectMocks?
+A: @Mock creates a mock object for a dependency; @InjectMocks creates the real class under test and injects the @Mock objects into it.
+Q: How do you stub a void method to throw?
+A: `doThrow(new X()).when(mock).voidMethod(args)`, because a void call can't be passed to when().
+Q: What does a mock return for a method you didn't stub?
+A: A default: null for objects, 0 or false for primitives, and empty Optionals, collections and streams.
+Q: Why do I get InvalidUseOfMatchersException?
+A: You mixed raw values with matchers in one call. Use matchers for every argument, wrapping literals in eq().
+Q: What is UnnecessaryStubbingException?
+A: Mockito's strict-stubs check: a when(...) in the test was never used by the code under test, which usually means a wrong or leftover stubbing.
+Q: What should you not mock?
+A: Value objects and data classes, types you don't own (wrap third-party APIs behind your own interface and mock that), and the class under test itself.
+
+# 06 | Mockito Verification & ArgumentCaptor | verify, times, never, atLeast, verifyNoMoreInteractions, InOrder, ArgumentCaptor and @Captor, spies, static mocking, Mockito 5 and the Java agent, pitfalls | Verify & Captor
+
+## Verifying Interactions | rose
+```java OrderServiceVerifyTest.java
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class OrderServiceVerifyTest {
+
+    @Mock OrderRepository repository;
+    @Mock PaymentGateway payments;
+    @Mock EmailSender email;
+    @InjectMocks OrderService service;
+
+    @Captor ArgumentCaptor<Order> orderCaptor;
+
+    @Test
+    void savesThePaidOrderWithThePaymentId() {
+        when(payments.charge(anyString(), anyDouble())).thenReturn("pay_9");
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.placeOrder("ravi@shop.io", 750.0);
+
+        verify(repository).save(orderCaptor.capture());              // capture the argument that was passed
+        Order saved = orderCaptor.getValue();
+        assertAll(
+                () -> assertNull(saved.id()),                        // the id is assigned by the database
+                () -> assertEquals("PAID", saved.status()),
+                () -> assertEquals("pay_9", saved.paymentId()),
+                () -> assertEquals(750.0, saved.amount()));
+    }
+
+    @Test
+    void chargesBeforeSavingAndEmailsOnce() {
+        when(payments.charge(anyString(), anyDouble())).thenReturn("pay_1");
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.placeOrder("ann@shop.io", 100.0);
+
+        InOrder inOrder = inOrder(payments, repository, email);      // order across several mocks
+        inOrder.verify(payments).charge("ann@shop.io", 100.0);
+        inOrder.verify(repository).save(any());
+        inOrder.verify(email).send(eq("ann@shop.io"), startsWith("Order"));
+
+        verify(email, times(1)).send(anyString(), anyString());      // same as verify(email)
+        verify(payments, never()).charge(eq("bob@shop.io"), anyDouble());
+        verifyNoMoreInteractions(payments);                          // nothing unexpected on this mock
+    }
+
+    @Test
+    void rejectsZeroAmountWithoutCallingAnything() {
+        assertThrows(IllegalArgumentException.class, () -> service.placeOrder("ann@shop.io", 0));
+        verifyNoInteractions(payments, repository, email);
+    }
+}
+```
+- **`verify(mock).method(args)`** checks the call happened **exactly once** with those arguments. Modes: `times(n)`, `never()`, `atLeastOnce()`, `atLeast(n)`, `atMost(n)`, `only()`.
+- **`verifyNoInteractions(mocks...)`**: the mocks were never touched. **`verifyNoMoreInteractions(mock)`**: every call was verified (use sparingly: it makes tests brittle).
+- **`InOrder`** checks the **sequence** of calls, across one or several mocks.
+- **What to verify**: calls that **matter to the outcome and have side effects** (payment charged, email sent, event published). Don't verify calls whose results you already assert on, such as a stubbed query: that's testing implementation details.
+
+## ArgumentCaptor | blue
+- An **`ArgumentCaptor`** grabs the actual object passed to a mock so you can assert on its fields, typically for objects **built inside** the method under test (the `Order` created inside `placeOrder`).
+- Create it with **`@Captor`** (needs the extension) or `ArgumentCaptor.forClass(Order.class)`. Use `capture()` **inside `verify`**, then `getValue()` (last value) or `getAllValues()` (every call).
+- Prefer a matcher when a simple condition is enough (`verify(repo).save(argThat(o -> o.amount() == 750.0))`); use a captor when you need several assertions on the argument.
+- Don't use `capture()` inside `when(...)`: stubbing with a captor makes the test hard to read; capture in the verification.
+
+## Spies, Static Methods and Final Classes | green
+```java SpyAndStaticTest.java
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class SpyAndStaticTest {
+
+    static final class Ids {                                   // a final class with a static method
+        static String next() { return java.util.UUID.randomUUID().toString(); }
+    }
+
+    @Test
+    void spyCallsRealMethodsUnlessStubbed() {
+        List<String> list = spy(new ArrayList<String>());
+        list.add("a");                                         // the real add() runs
+        doReturn(100).when(list).size();                       // stub one method (use doReturn for spies)
+
+        assertEquals("a", list.get(0));
+        assertEquals(100, list.size());
+        verify(list).add("a");
+    }
+
+    @Test
+    void staticMethodCanBeMockedInsideAScope() {
+        try (MockedStatic<Ids> ids = mockStatic(Ids.class)) {
+            ids.when(Ids::next).thenReturn("fixed-id");
+            assertEquals("fixed-id", Ids.next());
+        }                                                      // outside the try block the real method is back
+        assertNotEquals("fixed-id", Ids.next());
+    }
+}
+```
+- A **spy** wraps a real object: unstubbed methods run for real. Stub spies with **`doReturn(x).when(spy).method()`**; `when(spy.method())` would call the real method during stubbing.
+- **Partial mocks are a smell**: a class that needs one is often doing too much.
+- **Mockito 5** uses the **inline mock maker** by default, so it can mock **final classes and methods** and, through `mockStatic`, **static methods** (always inside try-with-resources so the change is scoped to one thread and undone).
+- Better design than static mocking: inject the dependency. For time, inject a **`java.time.Clock`** and use `Clock.fixed(...)` in tests instead of mocking `LocalDate.now()`.
+- **On Java 21+**, Mockito attaches its inline agent at runtime and the JVM prints a warning that dynamically loading agents will be disallowed in a future release. The fix is to load Mockito as a **`-javaagent`** in the test runner:
+```xml pom.xml
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-dependency-plugin</artifactId>
+  <executions>
+    <execution><goals><goal>properties</goal></goals></execution>   <!-- exposes ${org.mockito:mockito-core:jar} -->
+  </executions>
+</plugin>
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-surefire-plugin</artifactId>
+  <version>3.6.0</version>
+  <configuration>
+    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
+  </configuration>
+</plugin>
+```
+- `@{argLine}` keeps any agent another plugin added (JaCoCo, sheet 08). Spring Boot's Maven and Gradle plugins configure the Mockito agent for you.
+
+## Mocking Pitfalls | amber
+- **Over-mocking**: when a test mocks everything and verifies every call, it tests the implementation, breaks on every refactor and proves little. Assert on **results and state** first; verify only important side effects.
+- **Mocking what you don't own** (an HTTP client, a cloud SDK): their behaviour is complex and your stub may not match reality. Wrap them behind your own small interface, mock that in unit tests, and cover the real integration with integration or contract tests (sheets 07 and 09).
+- **Mocking value objects or the class under test**: use real instances.
+- **Leaky stubs**: stubbing with `any()` everywhere can hide wrong arguments; match the real values when they matter.
+- **Static and global state**: prefer dependency injection to `mockStatic`.
+- A test that needs many mocks is telling you the class has too many responsibilities.
+
+## Interview Q&A | sky | wide
+Q: How do you verify a method was called twice, or never?
+A: `verify(mock, times(2)).method(args)` and `verify(mock, never()).method(args)`; atLeastOnce(), atMost(n) and only() are also available.
+Q: What is ArgumentCaptor used for?
+A: To capture the actual argument passed to a mock during verification, so you can assert on an object that was created inside the method under test.
+Q: How do you verify the order of calls?
+A: Create an InOrder for the mocks involved and verify the calls through it in the expected sequence.
+Q: Spy vs mock?
+A: A mock is a full stand-in whose methods do nothing unless stubbed; a spy wraps a real object, runs real methods unless stubbed, and records calls.
+Q: Why use doReturn().when(spy) instead of when(spy.method())?
+A: when(spy.method()) actually invokes the real method while stubbing, which may have side effects or throw; doReturn stubs without calling it.
+Q: Can Mockito mock final classes and static methods?
+A: Yes. Since Mockito 5 the inline mock maker is the default, so final classes and methods can be mocked, and static methods can be mocked within a MockedStatic try-with-resources scope.
+Q: What is verifyNoMoreInteractions and why use it carefully?
+A: It fails if the mock received any call you haven't verified. It catches unexpected calls but makes tests brittle against harmless implementation changes.
+Q: What are signs of over-mocking?
+A: Tests that verify every internal call, break on refactoring without behaviour changes, mock value objects, or need many mocks for one class.
+
+# 07 | The Test Pyramid & Testing Strategy | Unit, integration and end-to-end tests, the pyramid and its anti-patterns, integration tests with Testcontainers, Surefire vs Failsafe, E2E tools, regression automation in CI, flaky tests, test data | Test Pyramid
+
+## The Test Pyramid | rose
+```text
+                 ▲  fewer, slower, costlier, more realistic
+          /\
+         /E2E\         ~5-10%   whole system through the UI or public API (Playwright, Selenium, REST Assured)
+        /------\
+       /  Integ  \     ~20%     real DB, message broker, HTTP between components (Testcontainers, WireMock)
+      /------------\
+     /     Unit     \  ~70%     one class or function, collaborators mocked; milliseconds each
+    /________________\
+                 ▼  more, faster, cheaper, pinpoint failures
+```
+- Popularised by **Mike Cohn** (*Succeeding with Agile*, 2009): build **many fast unit tests**, a **smaller layer of integration tests** and **a few end-to-end tests**. The percentages are a rule of thumb, not a law.
+- Why this shape: lower tests are **faster** (thousands per minute), **cheaper** to write and maintain, **deterministic**, and a failure points at the exact class. Higher tests are slow and flaky but prove the parts work **together**.
+- **Anti-pattern: the ice-cream cone**: mostly manual and UI tests with few unit tests, giving slow feedback and fragile suites.
+- **Testing trophy** (Kent C. Dodds, for front ends): static analysis at the base, then unit, with **integration tests as the biggest layer**, then a few E2E. It shifts weight towards tests that resemble how users use the software.
+
+## Unit vs Integration vs End-to-End | blue
+- **Unit tests**: one class or function; dependencies mocked or faked; no network, database or file system; run on every save and every build.
+- **Integration tests**: check that your code works with **real infrastructure** or other components: SQL queries against a real database engine, message serialisation through a real broker, Spring wiring, HTTP clients against a stubbed server (**WireMock**). Slower, so they run on every pull request.
+- **End-to-end (E2E) tests**: the **deployed system** driven like a user: browser tests with **Playwright**, **Cypress** or **Selenium WebDriver**, or API-level flows with **REST Assured** or **Postman/Newman**. Cover only the critical user journeys (sign up, checkout, payment).
+- **Contract tests** (sheet 09) sit between integration and E2E for service-to-service APIs: each side tested separately against a shared contract.
+- **Component tests**: one service started in isolation with its own real database but stubbed neighbours.
+
+## Integration Tests with Testcontainers | green
+```java OrderRepositoryIT.java
+import org.junit.jupiter.api.Test;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import java.sql.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@Testcontainers                                          // starts and stops @Container fields
+class OrderRepositoryIT {
+
+    @Container
+    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18-alpine");   // shared by all tests
+
+    @Test
+    void storesAndReadsAnOrder() throws SQLException {
+        try (Connection c = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+             Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE orders (id SERIAL PRIMARY KEY, amount NUMERIC NOT NULL)");
+            st.execute("INSERT INTO orders (amount) VALUES (500)");
+            ResultSet rs = st.executeQuery("SELECT amount FROM orders");
+            assertTrue(rs.next());
+            assertEquals(500, rs.getInt(1));
+        }
+    }
+}
+```
+- **Testcontainers** starts **real throwaway Docker containers** (PostgreSQL, MySQL, Kafka, Redis, LocalStack...) from a test and removes them afterwards. You test against the **same engine as production** instead of an in-memory substitute like H2, whose SQL dialect differs.
+- Requires a running Docker (or compatible) environment. Testcontainers 2 uses artifacts such as `org.testcontainers:testcontainers-postgresql` and `testcontainers-junit-jupiter`.
+- In **Spring Boot**, `@ServiceConnection` on the container wires its URL and credentials into the application automatically.
+- **WireMock** does the same for HTTP dependencies: a local server that returns stubbed responses, so you can test timeouts, 500 errors and retries.
+
+## Surefire vs Failsafe | amber
+```xml pom.xml
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-failsafe-plugin</artifactId>
+  <version>3.6.0</version>
+  <executions>
+    <execution>
+      <goals>
+        <goal>integration-test</goal>   <!-- runs *IT, ITCase and IT* classes -->
+        <goal>verify</goal>             <!-- fails the build afterwards if any of them failed -->
+      </goals>
+    </execution>
+  </executions>
+</plugin>
+```
+- **Surefire** runs **unit tests** (`*Test`) in the `test` phase; a failure stops the build immediately.
+- **Failsafe** runs **integration tests** (`*IT`) in `integration-test`, after `package`, and only fails the build in `verify`, so the **`post-integration-test`** cleanup (stopping servers, containers) still runs.
+- `mvn test` = unit tests only; **`mvn verify`** = unit + integration tests (the usual CI command); `mvn verify -DskipITs` skips Failsafe; `-DskipTests` skips both.
+
+## Regression Automation in CI and Flaky Tests | violet
+- **Regression testing** re-checks existing behaviour after every change. Automating it means the **whole suite runs in CI on every pull request** and blocks merging when it fails.
+- A typical pipeline: **pre-commit** (format, lint, fast unit tests) → **pull request** (build, all unit + integration tests, coverage and static-analysis gates, contract tests) → **after merge** (E2E suite against a staging environment, performance checks) → **after deploy** (**smoke tests** in production).
+- Add a **regression test for every fixed bug** first (it fails before the fix and passes after), so the bug can never silently return.
+- **Flaky tests** pass and fail without code changes. Common causes: real time and dates, random data, shared state between tests, test order, async code with fixed `sleep`s, real network calls, timezone or locale differences. Fix the root cause (inject a `Clock`, await conditions with **Awaitility**, isolate data); quarantine flaky tests temporarily, and avoid hiding them with automatic retries.
+- **Speed matters**: run tests in parallel, keep unit tests in memory, reuse containers, split slow suites into stages.
+- **Test data**: builders and "object mothers" (`anOrder().withAmount(500).build()`), factories per test, unique ids so parallel tests don't collide, and cleanup in `@AfterEach` or transactions rolled back after each test.
+
+## Interview Q&A | sky | wide
+Q: What is the test pyramid?
+A: A strategy with many fast unit tests at the base, fewer integration tests in the middle and a few slow end-to-end tests at the top, balancing speed, cost and confidence.
+Q: Unit vs integration vs E2E tests?
+A: Unit tests check one class in isolation with mocks; integration tests check components working with real infrastructure such as a database; E2E tests drive the whole deployed system as a user would.
+Q: What is the ice-cream cone anti-pattern?
+A: An inverted pyramid: mostly manual and UI tests and few unit tests, which makes feedback slow, expensive and flaky.
+Q: Why use Testcontainers instead of H2 for integration tests?
+A: Testcontainers runs the real database engine in Docker, so SQL, types and constraints behave exactly as in production; H2 only emulates other dialects and can hide bugs.
+Q: Surefire vs Failsafe?
+A: Surefire runs unit tests in the test phase; Failsafe runs integration tests (*IT) in integration-test and fails the build in verify, so cleanup in post-integration-test still happens.
+Q: What is regression testing and how do you automate it?
+A: Re-running existing tests after changes to catch breakages. Automate it by running the full suite in CI on every pull request and adding a regression test for every bug fixed.
+Q: How do you deal with flaky tests?
+A: Find and fix the root cause (time, randomness, shared state, async waits, external calls), quarantine the test meanwhile and track it; don't just add retries.
+Q: Where do E2E tests fit in a pipeline?
+A: After merge, against a deployed staging environment, covering only critical user journeys, plus smoke tests right after each production deployment.
+
+@ Advanced
+# 08 | Code Coverage with JaCoCo | What coverage measures, line vs branch vs instruction coverage, cyclomatic complexity, JaCoCo setup, reading the report, enforcing thresholds, why 100% is not the goal, mutation testing | Coverage
+
+## What Coverage Measures | rose
+- **Code coverage** is the percentage of code **executed** while the tests run. It shows **what is not tested**; it does not prove that what *is* executed is tested well (a test with no assertions still "covers" code).
+- **Line (statement) coverage**: which source lines ran.
+- **Branch (decision) coverage**: which outcomes of each decision ran: both the true and false side of every `if`, ternary `?:`, `&&`, `||`, and every `case` of a `switch`. **Stronger than line coverage.**
+- **Instruction coverage** (JaCoCo's most precise counter): which bytecode instructions ran. **Method** and **class** coverage: whether each method or class ran at all.
+- **Cyclomatic complexity**: the number of independent paths through a method (decisions + 1). It is the **minimum number of test cases** needed to cover every branch of a method, and a warning sign when it is high (say above 10).
+
+## Line vs Branch: a Real Example | blue
+```java ShippingLabel.java
+public class ShippingLabel {
+    public String label(double total, boolean express) {
+        String speed = express ? "EXPRESS" : "STANDARD";
+        return total >= 1000 ? speed + "/FREE" : speed + "/PAID";
+    }
+}
+```
+```java ShippingLabelTest.java
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class ShippingLabelTest {
+    @Test
+    void expressOrderOverThousandShipsFree() {
+        assertEquals("EXPRESS/FREE", new ShippingLabel().label(1500, true));
+    }
+}
+```
+```text
+JaCoCo report for ShippingLabel (real output, one test):
+  Lines         3 of 3 covered   → 100%
+  Branches      2 of 4 covered   →  50%   (express=false and total<1000 never ran)
+  Instructions 16 of 19 covered  →  84%
+  Complexity    2 of 4 covered   (cyclomatic complexity of label() = 3)
+
+[WARNING] Rule violated for bundle coverage-demo: branches covered ratio is 0.50, but expected minimum is 0.70
+[INFO] BUILD FAILURE
+```
+- One test gives **100% line coverage but only 50% branch coverage**: the `STANDARD` and `/PAID` outcomes were never executed. Adding `label(200, false)` covers the other two branches and the build passes.
+- That is why teams gate on **branch coverage** (or both), not lines alone.
+
+## Setting Up JaCoCo | green
+```xml pom.xml
+<plugin>
+  <groupId>org.jacoco</groupId>
+  <artifactId>jacoco-maven-plugin</artifactId>
+  <version>0.8.15</version>
+  <executions>
+    <execution>
+      <id>prepare-agent</id>
+      <goals><goal>prepare-agent</goal></goals>          <!-- adds the JaCoCo agent to Surefire's argLine -->
+    </execution>
+    <execution>
+      <id>report</id>
+      <phase>verify</phase>
+      <goals><goal>report</goal></goals>                 <!-- target/site/jacoco/index.html (+ .xml and .csv) -->
+    </execution>
+    <execution>
+      <id>check</id>
+      <goals><goal>check</goal></goals>                  <!-- fails the build below the thresholds -->
+      <configuration>
+        <rules>
+          <rule>
+            <element>BUNDLE</element>
+            <limits>
+              <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.80</minimum></limit>
+              <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.70</minimum></limit>
+            </limits>
+          </rule>
+        </rules>
+      </configuration>
+    </execution>
+  </executions>
+</plugin>
+```
+- **JaCoCo** (Java Code Coverage) instruments classes on the fly with a **Java agent** while tests run, writes `target/jacoco.exec`, and the `report` goal turns it into **HTML, XML and CSV** reports.
+- Run `mvn verify` and open `target/site/jacoco/index.html`. Lines are coloured **green** (covered), **red** (not covered) and **yellow** (partly covered: some branches missed); hovering a diamond shows "1 of 2 branches missed".
+- If Surefire has its own `argLine`, include **`@{argLine}`** in it, or the JaCoCo agent is dropped and coverage shows 0%.
+- Exclude generated code (DTOs from code generators, Lombok output, the `main` class) with `<excludes>`; use `report-aggregate` for multi-module projects.
+- **SonarQube** reads the JaCoCo XML report and applies its own gate, typically **80% coverage on new code** (sheet 10).
+
+## Using Coverage Well | amber
+- **High coverage is necessary but not sufficient.** It shows untested code; it can't show weak assertions. 100% coverage with no assertions catches nothing.
+- **Chasing 100%** leads to tests of getters and generated code and brittle tests. Common targets: **70 to 80% overall** and **higher on new code** and on critical logic (payments, pricing, security).
+- **Measure new code**: a gate on the coverage of each change keeps quality rising without forcing a big catch-up on legacy code.
+- Look at **what** is uncovered: an untested error path in payment code matters more than a missed `toString`.
+- **Mutation testing** (**PIT / Pitest** for Java) measures test **quality**: it makes small changes to the code (`>=` into `>`, `+` into `-`, removes a call) and checks whether a test fails. A **surviving mutant** reveals a missing or weak assertion. Slower, so run it on core modules or nightly.
+
+## Interview Q&A | sky | wide
+Q: What is code coverage?
+A: The percentage of code executed by the tests: lines, branches, instructions or methods. It reveals untested code but doesn't measure how good the assertions are.
+Q: Line coverage vs branch coverage?
+A: Line coverage counts executed lines; branch coverage counts executed outcomes of each decision. A single line with a condition can be 100% line-covered while half its branches never run, so branch coverage is stronger.
+Q: How does JaCoCo work?
+A: A Java agent instruments the bytecode while tests run and records which instructions and branches execute in jacoco.exec; the report goal produces HTML, XML and CSV reports and the check goal enforces thresholds.
+Q: Is 100% coverage a good goal?
+A: Usually not. It costs a lot, leads to low-value tests and still doesn't prove correctness. Aim for strong coverage of important logic and a gate on new code.
+Q: What is cyclomatic complexity and how does it relate to testing?
+A: The number of independent paths through code (decisions + 1); it is the minimum number of tests needed for full branch coverage, and high values signal code that should be simplified.
+Q: What is mutation testing?
+A: A tool such as PIT makes small changes (mutants) to the code and reruns the tests; if no test fails, the mutant survived, showing a gap in the assertions. It measures test effectiveness rather than execution.
+Q: Why might JaCoCo report 0% coverage?
+A: Usually because Surefire's argLine overrides the one JaCoCo set; reference @{argLine} in it. Other causes: the report runs before the tests, or tests run in a forked JVM without the agent.
+
+# 09 | Contract Testing with Pact | Why integration testing between services is hard, consumer-driven contracts, the Pact workflow, a consumer test, the pact file, provider verification, provider states, the Pact Broker and can-i-deploy, alternatives | Contract Testing
+
+## The Problem Contract Tests Solve | rose
+- In microservices, a **consumer** (a front end, or a service calling another) depends on a **provider's API**. If the provider renames a field or changes a status code, the consumer breaks, often only discovered in production.
+- **End-to-end tests** across all services catch this but are slow, flaky and need every service deployed together. **Mocks** in unit tests are fast but can **drift** from the real API: both sides' tests pass while the integration fails.
+- **Contract testing** checks each side **separately** against a shared, versioned **contract**: the consumer proves "this is what I send and what I need back"; the provider proves "I really do respond like that".
+- **Consumer-driven contracts (CDC)**: the consumer's tests **generate** the contract, so the provider knows exactly which fields and behaviours are actually used (and which it may change freely).
+
+## The Pact Workflow | blue
+```text
+1. Consumer test (checkout-ui)        runs against a Pact MOCK provider, records the interactions
+        │                              → writes the pact file  target/pacts/checkout-ui-product-service.json
+2. Publish                            pact file → Pact Broker (or PactFlow), tagged with the consumer's git version
+        │
+3. Provider verification              product-service's CI fetches the pacts, REPLAYS each request against the
+   (product-service)                   real running provider and compares the responses with the contract
+        │
+4. can-i-deploy                       before any deployment, ask the Broker whether this version is verified
+                                       against the versions of its partners already in that environment
+```
+- **Pact** supports many languages (Pact JVM, Pact JS, pact-python, Go, .NET, Rust...); a consumer in TypeScript can have a provider in Java.
+- **Provider states** ("product 42 exists") let the provider set up the data each interaction needs before it is replayed.
+- Matchers (`stringType`, `integerType`, `decimalType`, regex) make contracts check **types and shapes**, not exact values, so tests aren't tied to test data.
+
+## A Consumer Test | green
+```java ProductClient.java
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
+public class ProductClient {
+
+    public record Product(long id, String name, double price) {}
+
+    private final HttpClient http = HttpClient.newHttpClient();
+    private final ObjectMapper json = new ObjectMapper();
+    private final String baseUrl;
+
+    public ProductClient(String baseUrl) { this.baseUrl = baseUrl; }
+
+    public Product getProduct(long id) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/products/" + id))
+                .header("Accept", "application/json")
+                .GET()
+                .build();
+        HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+        return json.readValue(response.body(), Product.class);
+    }
+}
+```
+```java ProductClientPactTest.java
+import au.com.dius.pact.consumer.MockServer;
+import au.com.dius.pact.consumer.dsl.PactDslJsonBody;
+import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
+import au.com.dius.pact.consumer.junit5.PactConsumerTestExt;
+import au.com.dius.pact.consumer.junit5.PactTestFor;
+import au.com.dius.pact.core.model.V4Pact;
+import au.com.dius.pact.core.model.annotations.Pact;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@ExtendWith(PactConsumerTestExt.class)
+@PactTestFor(providerName = "product-service")
+class ProductClientPactTest {
+
+    @Pact(consumer = "checkout-ui")
+    V4Pact productExists(PactDslWithProvider builder) {
+        return builder
+                .given("product 42 exists")                              // provider state
+                .uponReceiving("a request for product 42")
+                    .path("/products/42")
+                    .method("GET")
+                .willRespondWith()
+                    .status(200)
+                    .headers(Map.of("Content-Type", "application/json"))
+                    .body(new PactDslJsonBody()
+                            .integerType("id", 42)                     // any integer, 42 in this example
+                            .stringType("name", "Keyboard")
+                            .decimalType("price", 1500.0))
+                .toPact(V4Pact.class);
+    }
+
+    @Test
+    @PactTestFor(pactMethod = "productExists")
+    void fetchesAProduct(MockServer mockServer) throws Exception {   // Pact starts a mock provider
+        ProductClient.Product product = new ProductClient(mockServer.getUrl()).getProduct(42);
+        assertEquals("Keyboard", product.name());
+        assertEquals(1500.0, product.price());
+    }
+}
+```
+- The test runs the **real client code** against Pact's mock server. Pact fails the test if the client sends a request the contract doesn't describe, or doesn't make an expected one.
+- On success it writes **`target/pacts/checkout-ui-product-service.json`**, the contract (abridged):
+```json checkout-ui-product-service.json
+{
+  "consumer": { "name": "checkout-ui" },
+  "provider": { "name": "product-service" },
+  "interactions": [
+    {
+      "description": "a request for product 42",
+      "providerStates": [ { "name": "product 42 exists" } ],
+      "request": { "method": "GET", "path": "/products/42" },
+      "response": {
+        "status": 200,
+        "body": { "content": { "id": 42, "name": "Keyboard", "price": 1500.0 } },
+        "matchingRules": { "body": { "$.id": { "combine": "AND", "matchers": [ { "match": "integer" } ] } } }
+      },
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": { "pactSpecification": { "version": "4.0" } }
+}
+```
+
+## Provider Verification | amber
+```java ProductServicePactTest.java
+import au.com.dius.pact.provider.junit5.HttpTestTarget;
+import au.com.dius.pact.provider.junit5.PactVerificationContext;
+import au.com.dius.pact.provider.junit5.PactVerificationInvocationContextProvider;
+import au.com.dius.pact.provider.junitsupport.Provider;
+import au.com.dius.pact.provider.junitsupport.State;
+import au.com.dius.pact.provider.junitsupport.loader.PactFolder;
+import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+
+@Provider("product-service")
+@PactFolder("target/pacts")                  // in real projects: @PactBroker(url = "https://broker.example.com")
+class ProductServicePactTest {
+
+    static HttpServer server;                // stands in for the real provider application
+
+    @BeforeAll
+    static void startProvider() throws Exception {
+        server = HttpServer.create(new InetSocketAddress(8085), 0);
+        server.createContext("/products/42", exchange -> {
+            byte[] body = "{\"id\":42,\"name\":\"Keyboard\",\"price\":1500.0,\"stock\":7}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+    }
+
+    @AfterAll
+    static void stopProvider() { server.stop(0); }
+
+    @BeforeEach
+    void target(PactVerificationContext context) {
+        context.setTarget(new HttpTestTarget("localhost", 8085));
+    }
+
+    @State("product 42 exists")
+    void product42Exists() {
+        // insert product 42 into the provider's test database
+    }
+
+    @TestTemplate
+    @ExtendWith(PactVerificationInvocationContextProvider.class)
+    void verifyPact(PactVerificationContext context) {
+        context.verifyInteraction();          // replays the request, compares the real response with the contract
+    }
+}
+```
+```text
+Verifying a pact between checkout-ui and product-service      (real output, Pact JVM 4.7.5)
+  Given product 42 exists
+  a request for product 42
+    returns a response which
+      has status code 200 (OK)
+      has a matching body (OK)
+
+After changing the provider to return "name": 42 instead of "Keyboard":
+      has a matching body (FAILED)
+1) Verifying a pact between checkout-ui and product-service - a request for product 42 has a matching body
+    1.1) body: $.name Expected 42 (Integer) to be the same type as 'Keyboard' (String)
+```
+- The provider runs its **real application** (here a tiny HTTP server for the demo; in Spring Boot, `@SpringBootTest(webEnvironment = RANDOM_PORT)`), sets up each **provider state**, and Pact replays every interaction of every consumer.
+- The extra `stock` field doesn't break the contract: Pact follows the **robustness principle** (consumers must ignore unknown fields). Removing `name` or returning it as a number would fail verification, and the provider team sees **which consumer** needs it.
+- **Pact Broker / PactFlow** stores contracts and verification results; **`can-i-deploy`** (`pact-broker can-i-deploy --pacticipant checkout-ui --version <git-sha> --to-environment production`) is the deployment gate.
+- **Alternatives**: **Spring Cloud Contract** (provider-driven, Groovy/YAML contracts that generate tests and WireMock stubs, JVM-centric); **OpenAPI schema validation** (checks a response against the spec, but not which fields consumers really use).
+
+## Interview Q&A | sky | wide
+Q: What is contract testing?
+A: Testing the interaction between a consumer and a provider separately against a shared contract, so API compatibility is checked without deploying both services together.
+Q: What does consumer-driven mean in Pact?
+A: The consumer's tests define and generate the contract with the requests it makes and the response fields it needs; the provider must verify that contract.
+Q: Explain the Pact workflow.
+A: The consumer test runs against a Pact mock server and writes a pact file; it is published to a Pact Broker; the provider's build replays each interaction against the real provider and publishes the result; can-i-deploy checks compatibility before releasing.
+Q: What is a provider state?
+A: A named precondition ("product 42 exists") that the provider sets up before an interaction is replayed, so the response can be produced.
+Q: Contract tests vs end-to-end tests?
+A: Contract tests are fast, run independently in each team's pipeline and pinpoint the broken expectation; E2E tests need everything deployed, are slow and flaky, but test real user flows.
+Q: Contract testing vs schema validation?
+A: Schema validation checks responses match an OpenAPI spec; contract testing captures what consumers actually use, so the provider knows which changes are safe.
+Q: Why doesn't an extra response field fail a Pact verification?
+A: Pact expects consumers to ignore fields they don't use (the robustness principle); only missing or type-changed fields that the contract requires fail.
+
+# 10 | Static Analysis & Code Quality | Static vs dynamic analysis, SonarQube quality gates, SpotBugs, Checkstyle and PMD, ESLint, Prettier, linting vs formatting, pre-commit hooks, quality in CI | Static Analysis
+
+## Static Analysis | rose
+- **Static analysis** inspects source or compiled code **without running it** to find bugs, vulnerabilities, code smells and style problems. **Dynamic analysis** (tests, profilers) observes the code while it runs. They complement each other.
+- What it catches: null dereferences, resource leaks, wrong `equals`, ignored return values, SQL injection patterns, hard-coded secrets, dead code, duplicated code, overly complex methods, style inconsistencies.
+- Where it runs: in the **IDE** as you type (SonarQube for IDE, ESLint), in **pre-commit hooks**, and as a **CI gate** on every pull request.
+
+## SonarQube | blue
+- **SonarQube** (SonarSource) is a platform that aggregates static analysis for 30+ languages and tracks quality over time. Product names since 2024: **SonarQube Server** (self-hosted; free **Community Build**), **SonarQube Cloud** (formerly SonarCloud) and **SonarQube for IDE** (formerly SonarLint).
+- It reports issues by **software quality**: **Security** (vulnerabilities), **Reliability** (bugs) and **Maintainability** (code smells), each with a severity, plus **Security Hotspots** (security-sensitive code a human must review), **coverage** (imported from JaCoCo, Jest...), **duplications** and **technical debt** (estimated fix time). The older "Standard Experience" shows the same issues as Bugs, Vulnerabilities and Code Smells.
+- A **quality gate** is the pass/fail verdict for a change. The default **"Sonar way"** gate applies to **new code**: **no new issues**, **all new security hotspots reviewed**, **coverage on new code ≥ 80%**, **duplication on new code ≤ 3%**. Coverage and duplication conditions are ignored until a change has at least 20 new lines.
+- Focusing on **new code** ("clean as you code") stops quality getting worse without forcing a rewrite of legacy code.
+- Run it from Maven with `mvn verify sonar:sonar` (with a token and the server URL) or the CI integration; the pull request shows the gate result and inline issues.
+
+## SpotBugs, Checkstyle and PMD | green
+```java Buggy.java
+public class Buggy {
+    public boolean sameCode(String a, String b) {
+        return a == b;                              // compares references, not text
+    }
+    public String normalise(String s) {
+        s.trim();                                   // result thrown away: Strings are immutable
+        return s;
+    }
+}
+```
+```text
+mvn compile spotbugs:check     (real output, spotbugs-maven-plugin 4.10.5.0)
+[INFO] Total bugs: 2
+[ERROR] High: Comparison of String parameter using == or != in Buggy.sameCode(String, String) [Buggy] At Buggy.java:[line 3] ES_COMPARING_PARAMETER_STRING_WITH_EQ
+[ERROR] High: Return value of String.trim() ignored in Buggy.normalise(String) [Buggy] At Buggy.java:[line 6] RV_RETURN_VALUE_IGNORED
+```
+- **SpotBugs** (the successor of FindBugs) analyses **compiled bytecode** for bug patterns: null dereferences, `==` on strings, ignored return values, broken `equals`/`hashCode`, unclosed streams, threading mistakes. The **FindSecBugs** plugin adds security patterns. Run with `spotbugs-maven-plugin` (`mvn spotbugs:check` fails the build; `spotbugs:gui` opens a viewer).
+- **Checkstyle** enforces **coding conventions and style** on source code (naming, Javadoc, imports, line length, braces), with ready rule sets such as the Google and Sun styles.
+- **PMD** finds **code smells and suspicious constructs** in source (unused variables, empty catch blocks, overly complex methods, copy-paste detection with CPD).
+- **Error Prone** (Google) is a compiler plug-in that turns common mistakes into compile errors.
+
+## ESLint and Prettier | amber
+```js eslint.config.js
+import js from '@eslint/js';
+import { defineConfig } from 'eslint/config';
+
+export default defineConfig([
+  {
+    files: ['**/*.js'],
+    plugins: { js },
+    extends: ['js/recommended'],                 // the core recommended rules
+    rules: { eqeqeq: 'error' },                  // plus: always use === and !==
+  },
+]);
+```
+```js cart.js
+export function total(items) {
+  let sum = 0
+  const unused = 1;
+  for (const item of items) { if (item.price == '10') sum += item.price }
+  return sum
+}
+```
+```text
+$ npx eslint cart.js          (real output, ESLint 10)
+  3:9   error  'unused' is assigned a value but never used  no-unused-vars
+  4:46  error  Expected '===' and instead saw '=='          eqeqeq
+
+✖ 2 problems (2 errors, 0 warnings)
+
+$ npx prettier --check cart.js          (Prettier 3.9)
+Checking formatting...
+[warn] cart.js
+[warn] Code style issues found in the above file. Run Prettier with --write to fix.
+```
+```js cart.js
+// after npx prettier --write cart.js: layout fixed, logic untouched (== and the unused variable remain: that's ESLint's job)
+export function total(items) {
+  let sum = 0;
+  const unused = 1;
+  for (const item of items) {
+    if (item.price == "10") sum += item.price;
+  }
+  return sum;
+}
+```
+- **ESLint** is the standard **linter** for JavaScript and TypeScript: it finds **problems** (unused variables, `==` instead of `===`, unreachable code, misuse of React hooks) via configurable rules and plugins (**typescript-eslint**, React, Angular ESLint). ESLint 9 introduced the **flat config** `eslint.config.js`; ESLint 10 removed the old `.eslintrc` format. `npx eslint . --fix` auto-fixes many rules.
+- **Prettier** is an opinionated **formatter**: it reprints code in one consistent style (quotes, semicolons, indentation, line width) with very few options, ending style debates in reviews. `npx prettier --write .` formats, `--check` verifies in CI.
+- **Linting vs formatting**: linters catch **likely bugs and bad patterns**; formatters only change **layout**. Use both, and turn off ESLint's stylistic rules (`eslint-config-prettier`) so they don't fight.
+- **Pre-commit hooks**: **Husky** runs Git hooks from `package.json`, and **lint-staged** runs ESLint and Prettier only on the files being committed, so problems never reach the repository. CI repeats the checks because hooks can be skipped.
+
+## Interview Q&A | sky | wide
+Q: What is static code analysis?
+A: Analysing code without executing it to find bugs, vulnerabilities, code smells and style violations, in the IDE, in hooks and as a CI gate.
+Q: What is a SonarQube quality gate?
+A: A set of pass/fail conditions on metrics for a change. The default Sonar way gate on new code requires no new issues, all new security hotspots reviewed, at least 80% coverage and at most 3% duplication.
+Q: What is a security hotspot?
+A: Security-sensitive code (such as cryptography, regex on user input or cookie settings) that isn't necessarily a vulnerability but must be reviewed by a person.
+Q: SpotBugs vs Checkstyle vs PMD?
+A: SpotBugs finds bug patterns in bytecode; Checkstyle enforces coding style and conventions in source; PMD finds code smells and suspicious constructs in source, plus copy-paste detection.
+Q: ESLint vs Prettier?
+A: ESLint is a linter that finds problematic code patterns and can fix some; Prettier is a formatter that only rewrites layout consistently. Teams use both, with eslint-config-prettier to avoid conflicting rules.
+Q: What is technical debt?
+A: The future cost of shortcuts and poor-quality code: extra time needed for changes until it is cleaned up. SonarQube estimates it as the time to fix all maintainability issues.
+Q: Why run linters in pre-commit hooks and in CI?
+A: Hooks give instant feedback before code is shared; CI is the enforcement point, because hooks can be skipped or not installed.
+
+# 11 | Code Reviews & PR Etiquette | Why review, what to look for, a review checklist, the author's job, the reviewer's job, constructive feedback, comment conventions, handling disagreement, review metrics | Code Reviews
+
+## Why Code Reviews | rose
+- A **code review** is another engineer reading a change before it is merged, usually as a **pull request (PR)** on GitHub, GitLab or Bitbucket (GitLab calls it a merge request).
+- Goals: catch **defects and security problems** early, keep the codebase **readable and consistent**, **share knowledge** (more than one person understands every area), mentor, and agree on design.
+- Reviews complement automation: **CI handles formatting, linting, tests and coverage**, so humans focus on what tools can't judge: correctness of logic, design, naming, edge cases and risk.
+
+## What to Look For | blue
+- **Correctness**: does it do what the ticket asks? Off-by-one errors, null handling, error paths, concurrency, transactions, idempotency.
+- **Edge cases**: empty and huge inputs, invalid data, time zones, retries and timeouts, partial failures.
+- **Tests**: are there tests for the new behaviour and the bug being fixed? Do they assert something meaningful? Do they cover edge cases?
+- **Readability and maintainability**: clear names, small focused functions, no duplication, no dead code, comments that explain **why** rather than what, consistent with the codebase's patterns.
+- **Design**: right place for the logic, appropriate abstractions (not over-engineered), sensible API and data model changes, backward compatibility.
+- **Performance**: N+1 queries, missing indexes, unbounded queries or loops, needless network calls, memory growth.
+- **Security**: input validation, injection (SQL, command, XSS), authorisation checks on every endpoint, secrets in code or logs, sensitive data exposure, dependency risks.
+- **Operability**: logging, metrics, feature flags, migration safety, configuration, documentation updates.
+
+## The Author's Job | green
+- Keep PRs **small and focused** (a few hundred lines at most): small PRs get faster and better reviews, and are easier to revert. Split refactoring from behaviour changes.
+- Write a **clear description**: what changed and **why**, how it was tested, screenshots for UI changes, risks and rollout notes, and a link to the ticket.
+- **Review your own diff first**, make sure **CI is green**, and remove debug code before asking for review.
+- Respond to every comment: fix it, or explain your reasoning; resolve threads only when addressed. Don't take feedback personally: the review is about the code.
+
+## The Reviewer's Job and Etiquette | amber
+- **Review promptly** (within a working day is a common team agreement); a waiting PR blocks a teammate.
+- **Be kind and specific**: comment on the **code, not the person** ("this loop runs a query per item" rather than "you wrote a slow loop"). Explain **why** and suggest an alternative.
+- **Ask questions** instead of issuing orders when unsure: "What happens if the payment call times out here?"
+- **Label the weight** of each comment so the author knows what blocks merging, for example with Conventional Comments: **`issue:`** / blocking, **`suggestion:`**, **`question:`**, **`nit:`** (minor, non-blocking), **`praise:`**.
+- **Praise good work** too; reviews are also for learning and morale.
+- Don't block on personal taste that the style guide or formatter doesn't require; automate style rules instead of arguing them in PRs.
+- Approve when the change makes the code **better than before**, not when it's perfect. Disagreements that go back and forth more than twice are better settled in a quick call, then recorded in the PR.
+
+## Interview Q&A | sky | wide
+Q: What do you look for when reviewing code?
+A: Correctness and edge cases, tests, readability and maintainability, design fit, performance problems such as N+1 queries, security issues such as missing authorisation or injection, and operability (logging, migrations, flags).
+Q: How do you give constructive feedback in a code review?
+A: Comment on the code rather than the person, explain the reason, suggest an alternative, ask questions when unsure, mark minor points as nits and acknowledge what's good.
+Q: What makes a good pull request?
+A: A small, focused change with a clear description of what and why, how it was tested, green CI, and a self-review done before requesting reviewers.
+Q: What should be automated instead of reviewed by humans?
+A: Formatting, lint rules, tests, coverage thresholds, dependency and security scanning, so reviewers can focus on logic and design.
+Q: How do you handle a disagreement in a review?
+A: Discuss the trade-offs with evidence (docs, benchmarks, team conventions), defer to agreed standards, take it to a quick conversation if comments go back and forth, and record the decision in the PR.
+Q: How big should a pull request be?
+A: Small enough to review carefully in one sitting, typically a few hundred lines; split large features into incremental PRs, possibly behind feature flags.
+
+@ Review
+# 12 | Rapid-Fire & Tricky Questions | Gotchas, a cheat sheet, how to answer testing questions, big Q&A | Rapid-fire
+
+## Gotchas That Catch People | rose
+- `assertEquals(actual, expected)` with the arguments swapped gives backwards failure messages.
+- Doubles need a delta: `assertEquals(0.3, 0.1 + 0.2)` fails.
+- `@BeforeAll` must be static (unless `@TestInstance(PER_CLASS)`), because each test gets a **new instance**.
+- Tests that depend on run order or shared static state are flaky; JUnit's default order is deliberately not source order.
+- A false **assumption** skips a test; a false **assertion** fails it.
+- `assertThrows` also passes for **subclasses** of the expected exception; use `assertThrowsExactly` for an exact type.
+- Mixing raw values and matchers in one call: `InvalidUseOfMatchersException`; wrap literals in `eq()`.
+- Stubbing a void method needs `doThrow(...).when(mock).method()`; stubbing a spy needs `doReturn`.
+- Unused stubbings fail tests under `MockitoExtension` (strict stubs).
+- 100% line coverage can still mean 50% branch coverage.
+- JaCoCo shows 0% when Surefire's `argLine` drops `@{argLine}`.
+- Surefire runs `*Test`; Failsafe runs `*IT`; `mvn test` doesn't run integration tests.
+- A domain class named like a JUnit annotation (`Order`) shadows a wildcard import (`org.junit.jupiter.api.*`).
+
+## One-Line Cheat Sheet | blue
+- **Pyramid**: many unit, some integration, few E2E. **FIRST**: fast, independent, repeatable, self-validating, timely. **AAA**: arrange, act, assert.
+- **JUnit 5/6** = Platform (launcher, engines) + Jupiter (API and engine) + Vintage (JUnit 3/4, deprecated in 6).
+- **Lifecycle**: `@BeforeAll` → (`@BeforeEach` → `@Test` → `@AfterEach`)* → `@AfterAll`.
+- **Parameterized**: `@ValueSource`, `@CsvSource`, `@CsvFileSource`, `@MethodSource`, `@EnumSource`, `@NullAndEmptySource`.
+- **Mockito**: `@Mock`, `@InjectMocks`, `when().thenReturn()`, `doThrow().when()`, `verify(mock, times(n))`, `ArgumentCaptor`, `InOrder`, `spy`, `mockStatic`.
+- **Coverage**: line < branch in strength; JaCoCo prepare-agent → report → check.
+- **Contracts**: Pact consumer test → pact file → broker → provider verification → can-i-deploy.
+- **Quality**: SonarQube gate on new code (no new issues, hotspots reviewed, ≥ 80% coverage, ≤ 3% duplication); SpotBugs (bytecode bugs), Checkstyle (style), PMD (smells), ESLint (JS lint), Prettier (format).
+
+## How to Answer Well | green
+- For "how would you test X?": name the **levels** (unit tests for the logic with mocked collaborators, integration tests with a real database through Testcontainers, a contract test for the API, one E2E happy path), then the **edge cases** you'd cover.
+- Mention **what you would not test** (framework code, getters) and why.
+- Tie to experience: "We had flaky checkout tests caused by real dates; injecting a fixed Clock made them deterministic, and adding a 70% branch-coverage gate on new code stopped untested payment logic from merging."
+
+## Big Interview Q&A | sky | wide
+Q: Unit test vs integration test?
+A: A unit test checks one class in isolation with mocked collaborators and runs in milliseconds; an integration test checks several components or real infrastructure working together and is slower.
+Q: What is the difference between @Mock and @MockitoBean?
+A: @Mock creates a plain Mockito mock in a unit test with MockitoExtension. @MockitoBean (Spring Framework 6.2+) replaces a bean inside the Spring application context for Spring tests; it supersedes Spring Boot's @MockBean, deprecated in Boot 3.4 and removed in Boot 4.
+Q: How do you test private methods?
+A: Normally you don't test them directly: test them through the public methods that use them. If a private method needs its own tests, it probably belongs in its own class.
+Q: How do you test code that depends on the current time?
+A: Inject a java.time.Clock and pass Clock.fixed(...) in tests, instead of calling LocalDateTime.now() directly or mocking static methods.
+Q: How do you test an exception message?
+A: Capture the exception from assertThrows and assert on getMessage(), or use AssertJ's assertThatThrownBy(...).hasMessageContaining(...).
+Q: What is TDD and what are its benefits?
+A: Writing a failing test first, making it pass, then refactoring. It produces testable designs, guarantees tests exist, and keeps steps small.
+Q: How do you make tests fast?
+A: Keep most tests as pure unit tests, avoid sleeping, reuse expensive containers across tests, run tests in parallel and push slow suites to later pipeline stages.
+Q: What is a flaky test and how do you fix it?
+A: A test that passes or fails without code changes, usually due to time, randomness, shared state, ordering or async timing. Fix the cause (fixed clock, isolated data, Awaitility instead of sleep) rather than adding retries.
+Q: What is code coverage and what is a good target?
+A: The share of code executed by tests. Around 70 to 80% overall, with higher branch coverage on critical logic and a gate on new code, is common; 100% is rarely worth it.
+Q: What is mutation testing?
+A: Introducing small code changes and checking that tests fail; surviving mutants reveal weak tests. PIT is the Java tool.
+Q: What is contract testing and when would you use it?
+A: Verifying a consumer and provider separately against a shared contract (Pact). Use it between microservices or a front end and its APIs to catch breaking changes without full end-to-end environments.
+Q: What tools do you use for code quality?
+A: SonarQube with a quality gate in CI, SpotBugs, Checkstyle or PMD for Java, ESLint and Prettier for JavaScript and TypeScript, pre-commit hooks with Husky and lint-staged, plus code reviews.
+Q: What is regression testing?
+A: Re-running existing tests after changes to make sure previously working behaviour still works, automated in CI on every pull request.
+Q: What is the difference between smoke and sanity testing?
+A: Smoke tests broadly check that a new build's critical functions work at all; sanity tests narrowly check that a specific fix or change works.
+Q: What are the JUnit 5 assertions you use most?
+A: assertEquals, assertTrue/assertFalse, assertNull, assertThrows, assertAll, assertIterableEquals and assertTimeout, often alongside AssertJ's assertThat.
+Q: How do you write a good bug report?
+A: A clear title, environment and version, exact steps to reproduce, expected versus actual result, severity and priority, and evidence such as logs and screenshots.
+Q: What is the difference between severity and priority?
+A: Severity is the technical impact of a defect (a crash is critical); priority is how soon the business wants it fixed. A typo in the company name on the home page is low severity but high priority.

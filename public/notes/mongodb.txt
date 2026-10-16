@@ -1,0 +1,991 @@
+@ Beginner
+
+# 00 | MongoDB Basics: Start Here | History and versions, NoSQL families, SQL-to-MongoDB vocabulary, installing and connecting, first commands in mongosh, the Node.js driver, MongoDB vs PostgreSQL, Cassandra, Redis, DynamoDB and Firestore | Start Here
+
+## History | rose
+- MongoDB was built by **10gen**, founded in **2007** by **Dwight Merriman, Eliot Horowitz and Kevin Ryan** (formerly of DoubleClick). They first set out to build a cloud application platform, then open-sourced its database on its own in **2009**. The name comes from "hu**mongo**us".
+- 10gen renamed itself **MongoDB, Inc.** in 2013 and went public in 2017 (NASDAQ: MDB). **Atlas**, the managed cloud service, launched in 2016.
+- **Licence**: the server was AGPL v3 until October 2018. Versions released after that use the **Server Side Public License (SSPL)**; the official drivers are Apache 2.0.
+- **Storage engine**: **WiredTiger** (acquired 2014) has been the default since **3.2** (2015). The original MMAPv1 engine was removed in 4.2.
+- **Milestones**: **3.6** (2017) change streams and retryable writes; **4.0** (2018) multi-document ACID transactions on replica sets; **4.2** (2019) distributed transactions across shards, wildcard indexes, `$merge`, updatable shard key values; **4.4** (2020) refinable shard keys and `$unionWith`; **5.0** (2021) time series collections, live resharding, the Stable API, and `w: "majority"` as the implicit default write concern; **6.0** (2022) change stream pre- and post-images, and the balancer distributing by data size (6.0.3); **7.0** (2023) Queryable Encryption GA; **8.0** (2024) large performance gains, `moveCollection` / `unshardCollection` and config shards; **9.0** (September 2026).
+- **9.0 highlights**: server-side JavaScript (`$where`, `$function`, `$accumulator`) is no longer deprecated and now runs on a WebAssembly engine; a new `constraint` schema validation level; a per-operation memory limit for queries; Queryable Encryption prefix, suffix and substring queries reach GA.
+- **mongosh** replaced the legacy `mongo` shell (deprecated in 5.0, no longer shipped from 6.0).
+- These notes were verified on **MongoDB 9.0.4** (Community Server), **mongosh 2.13.0** and the **Node.js driver 7.7.0**.
+
+## NoSQL Families and Where MongoDB Fits | blue
+- **NoSQL** ("not only SQL") covers non-relational databases built for flexible schemas, horizontal scaling or special data shapes:
+- **Document**: JSON-like documents with nested fields and arrays (MongoDB, Couchbase, Firestore).
+- **Key-value**: a value looked up by key, extremely fast (Redis, DynamoDB, Memcached).
+- **Wide-column**: rows with dynamic columns, partitioned for huge write volumes (Cassandra, HBase, ScyllaDB).
+- **Graph**: nodes and relationships, built for traversals (Neo4j, Amazon Neptune).
+- **MongoDB** is a **general-purpose document database**. It stores **BSON documents** in **collections**, with flexible schemas, rich queries, secondary indexes, an aggregation framework, ACID transactions, and **replication** and **sharding** built in.
+
+## SQL to MongoDB Vocabulary | green
+```text
+SQL                        MongoDB
+database                   database
+table                      collection
+row                        document (BSON)
+column                     field
+primary key                _id (always present, unique, indexed)
+index                      index
+JOIN                       embedding, or $lookup in an aggregation
+GROUP BY / aggregate       aggregation pipeline ($group)
+foreign key                reference (a stored _id; not enforced by the server)
+transaction                multi-document transaction (4.0+)
+```
+
+## Install and Connect | amber
+```bash
+docker run -d --name mongo -p 27017:27017 mongo:9.0                  # quickest local server (official image)
+mongod --dbpath ./data --port 27017                                  # or the Community Server binary
+mongosh "mongodb://localhost:27017"                                  # connect with the MongoDB Shell
+mongosh "mongodb+srv://cluster0.example.mongodb.net/shop" --username ann   # Atlas: SRV connection string
+```
+- **Ways to run it**: **Atlas** (managed, with a free tier, on AWS, Azure or Google Cloud), **Community Server** (free, self-managed), **Enterprise Advanced** (commercial: LDAP, auditing, encryption at rest), or Docker.
+- **Tools**: **mongosh** (the JavaScript shell), **Compass** (the GUI), and the database tools `mongodump`, `mongorestore`, `mongoimport` and `mongoexport`.
+- **Connection string**: `mongodb://host1:27017,host2:27017/shop?replicaSet=rs0`; the `mongodb+srv://` form looks the hosts up through DNS SRV records. The default port is **27017**.
+
+## First Commands in mongosh | violet
+```js
+show dbs
+use shop                                       // switches database; it is created on the first write
+db.products.insertOne({ sku: "PEN-1", name: "Gel Pen", price: 1.5, tags: ["office", "school"], stock: 120 })
+// { acknowledged: true, insertedId: ObjectId('6ad050b70d7a63988753196e') }
+db.products.findOne({ sku: "PEN-1" }, { _id: 0 })
+// { sku: 'PEN-1', name: 'Gel Pen', price: 1.5, tags: [ 'office', 'school' ], stock: 120 }
+show collections
+db.products.countDocuments()
+```
+- **Databases and collections are created implicitly** on the first insert; there is no `CREATE TABLE`.
+- `db` is the current database, and `db.products` the collection. mongosh is a full JavaScript (Node.js) environment, so variables, loops and functions work.
+
+## From Application Code: the Node.js Driver | rose
+```js app.mjs
+import { MongoClient } from "mongodb";
+
+const client = new MongoClient("mongodb://localhost:27017");     // one client per application: it holds the connection pool
+await client.connect();
+const products = client.db("shop").collection("products");
+
+await products.insertOne({ sku: "MUG-1", name: "Coffee Mug", price: 8, tags: ["kitchen"], stock: 25 });
+const cheap = await products.find({ price: { $lt: 10 } }).sort({ price: 1 }).toArray();
+console.log(cheap.map(p => p.name));                               // [ 'Gel Pen', 'Coffee Mug' ]
+await client.close();
+```
+- Official drivers exist for Java, Python (PyMongo), Node.js, C#, Go, Rust and more. The method names match mongosh. **Spring Data MongoDB** (`MongoRepository`, `MongoTemplate`) and **Mongoose** (Node.js ODM) add mapping on top.
+- Create **one `MongoClient` per application** and reuse it. It is thread-safe and manages the connection pool and server monitoring.
+
+## MongoDB vs Other Databases | blue
+- **vs PostgreSQL / MySQL**: relational databases enforce a schema and foreign keys, and use SQL with joins. MongoDB stores aggregates as documents with a flexible schema and scales out by sharding. PostgreSQL's JSONB narrows the gap; MongoDB's transactions narrow it from the other side.
+- **vs Cassandra**: Cassandra (wide-column, leaderless) is built for massive write throughput with tunable consistency and query-driven table design. MongoDB has richer ad-hoc queries, secondary indexes and aggregation.
+- **vs Redis**: an in-memory key-value store and data-structure server (caching, sessions, rate limits, queues). Often used next to MongoDB rather than instead of it.
+- **vs DynamoDB**: a fully managed AWS key-value/document store, accessed by partition and sort key and designed around known access patterns. MongoDB offers more flexible queries and runs anywhere.
+- **vs Firestore**: a serverless document database with real-time listeners and security rules for client apps (see the Firestore topic). MongoDB is the server-side, general-purpose choice with aggregation and sharding under your control.
+
+## Interview Q&A | sky | wide
+Q: What is MongoDB?
+A: A general-purpose, open-source (SSPL) document database that stores BSON documents in collections, with a flexible schema, rich queries, secondary indexes, aggregation, ACID transactions, and built-in replication and sharding.
+Q: What does NoSQL mean, and what are its main families?
+A: "Not only SQL": non-relational databases. The main families are document (MongoDB), key-value (Redis, DynamoDB), wide-column (Cassandra) and graph (Neo4j).
+Q: Map SQL terms to MongoDB.
+A: Database to database, table to collection, row to document, column to field, primary key to _id, JOIN to embedding or $lookup, GROUP BY to $group.
+Q: How do you create a database or collection?
+A: You do not have to: `use shop` switches to it, and the database and collection are created on the first insert. db.createCollection() exists for options such as validation, capped size or time series.
+Q: What is mongosh?
+A: The MongoDB Shell: a JavaScript and Node.js REPL for querying and administering MongoDB. It replaced the legacy mongo shell.
+Q: What is MongoDB Atlas?
+A: MongoDB's fully managed cloud database service on AWS, Azure and Google Cloud, with automated backups, scaling, monitoring, and Search and Vector Search.
+Q: Why should an application create only one MongoClient?
+A: The client owns the connection pool and the server-monitoring threads. Creating one per request wastes connections and slows everything down; one shared client is thread-safe.
+Q: Which storage engine does MongoDB use?
+A: WiredTiger, the default since 3.2. It provides document-level concurrency, compression and checkpoints plus a journal for durability.
+
+# 01 | The Document Model: JSON, BSON & Collections | Documents and collections, BSON and its types, _id and ObjectId, document limits, flexible schema and schema validation | Document Model
+
+## Documents and Collections | rose
+- A **document** is an ordered set of field-value pairs, like a JSON object. Values can be scalars, **embedded documents** or **arrays**, nested to any reasonable depth.
+- A **collection** groups documents, much like a table, but **documents in one collection need not share the same fields** (flexible schema). A **database** holds collections.
+- Model data the way the application uses it: an order document can embed its line items and shipping address, so one read returns the whole aggregate.
+```js
+{
+  _id: ObjectId("6ad050b70d7a639887531973"),
+  orderNo: "N-1001",
+  customer: { id: "c42", name: "Ann Lee" },                  // embedded document
+  items: [ { sku: "PEN-1", qty: 2, price: 1.5 },              // array of embedded documents
+           { sku: "NB-1",  qty: 1, price: 4.25 } ],
+  status: "PAID",
+  placedAt: ISODate("2026-09-01T10:15:00Z")
+}
+```
+
+## BSON and Data Types | blue
+- MongoDB stores and transmits documents as **BSON (Binary JSON)**: a binary encoding that is fast to traverse (each value carries its length) and has **more types than JSON**.
+- Types beyond JSON: **int (32-bit)**, **long (64-bit)**, **double**, **decimal (Decimal128)**, **date** (milliseconds since the epoch, UTC), **ObjectId**, binary data, timestamp, regex, plus MinKey and MaxKey.
+- In mongosh and the Node.js driver, whole numbers that fit are stored as **int** and fractional ones as **double**: `42` has type `int`, `1.5` has type `double`.
+- **Money**: doubles are binary floating point (`0.1 + 0.2` is `0.30000000000000004`). Use **Decimal128** (`NumberDecimal("19.99")`), where `0.1 + 0.2` is exactly `0.3`, or store integer minor units (paise, cents).
+- **Extended JSON** (`{"$oid": ...}`, `{"$date": ...}`, `{"$numberDecimal": ...}`) represents BSON types in text for exports and APIs.
+```js
+db.types.insertOne({ i: 42, l: NumberLong("42"), d: 1.5, dec: NumberDecimal("19.99"), dt: new Date(), n: null, arr: [1, 2], obj: { a: 1 } })
+db.types.aggregate([{ $project: { _id: 0, i: { $type: "$i" }, l: { $type: "$l" }, d: { $type: "$d" }, dec: { $type: "$dec" }, dt: { $type: "$dt" } } }])
+// [ { i: 'int', l: 'long', d: 'double', dec: 'decimal', dt: 'date' } ]
+```
+
+## _id and ObjectId | green
+- Every document has an **`_id`**: unique within the collection, automatically **indexed**, and **immutable**. If you omit it, the driver generates an **ObjectId**.
+- `_id` can be any type except an array: a natural key (`"PEN-1"`), a UUID, or an ObjectId.
+- **ObjectId**: 12 bytes (24 hex characters) = a **4-byte timestamp** (seconds) + a **5-byte random value** unique to the machine and process + a **3-byte counter**. It is generated by the client without coordination, roughly increasing in time, and `ObjectId().getTimestamp()` returns its creation time.
+- Inserting a duplicate `_id` fails with **E11000 duplicate key error** (code **11000**).
+
+## Limits | amber
+- **Maximum document size: 16 MiB** (16,777,216 bytes). A bigger insert fails with "object to insert too large". Store large files with **GridFS** (chunks of 255 KiB) or in object storage.
+- **Nesting depth**: 100 levels. Field names must not contain the null character, and `_id` is reserved.
+- The 16 MiB limit is the main reason **unbounded arrays** (all comments ever written for a product) are an anti-pattern (sheet 05).
+
+## Flexible Schema and Schema Validation | violet
+- "Schemaless" really means **flexible schema**: the database does not force one shape, so fields can be added without migrations. The application, the ODM, or **schema validation** keeps data consistent.
+- **`$jsonSchema` validation** checks inserts and updates on the server:
+```js
+db.createCollection("customers", {
+  validator: { $jsonSchema: {
+    bsonType: "object",
+    required: ["email", "name"],
+    properties: {
+      email: { bsonType: "string", pattern: "^.+@.+$" },
+      name:  { bsonType: "string" },
+      tier:  { enum: ["FREE", "PRO"] }
+    }
+  } },
+  validationLevel: "strict",           // strict | moderate | constraint (9.0)
+  validationAction: "error"            // error | warn
+})
+db.customers.insertOne({ name: "Ann" })    // MongoServerError: Document failed validation (code 121)
+```
+- **`validationLevel`**: **`strict`** (default) validates every insert and update. **`moderate`** skips updates to existing documents that were already invalid. Add rules to an existing collection with `collMod`.
+- **`validationAction`**: **`error`** rejects the write; **`warn`** allows it and logs the violation.
+- **9.0 `constraint`**: guarantees that **every existing document** also satisfies the validator. Switch from `strict` after running `collMod` with `prepareConstraintValidationLevel: true`; the switch fails, naming the first offending `_id`, if any document violates the rules. `warn` is not allowed with it.
+
+## Interview Q&A | sky | wide
+Q: JSON vs BSON?
+A: JSON is a text format. BSON is MongoDB's binary encoding of JSON-like documents: faster to scan because values carry lengths, and richer in types (int, long, double, Decimal128, date, ObjectId, binary).
+Q: What is an ObjectId made of?
+A: 12 bytes: a 4-byte timestamp in seconds, a 5-byte random value unique per machine and process, and a 3-byte incrementing counter. Clients generate it without coordination, and it sorts roughly by creation time.
+Q: What is the maximum document size?
+A: 16 MiB. Larger binary content goes to GridFS or object storage, and growing arrays should be split out (bucket or reference patterns).
+Q: Is MongoDB schemaless?
+A: It has a flexible schema: documents in a collection can differ. You can still enforce structure with $jsonSchema validation (strict or moderate level, error or warn action), and in 9.0 with the constraint level that also covers existing documents.
+Q: How should you store money?
+A: As Decimal128 (NumberDecimal) or as integer minor units, never as double, because binary floating point cannot represent values such as 0.1 exactly.
+Q: Can you change a document's _id?
+A: No. _id is immutable; you insert a new document with the new _id and delete the old one.
+
+# 02 | CRUD Operations | insertOne and insertMany, find with projection, sort and limit, updateOne, updateMany, replaceOne and upsert, deleteOne and deleteMany, results, findOneAndUpdate, bulkWrite, counting | CRUD
+
+## Create: insertOne and insertMany | rose
+```js
+db.products.insertMany([
+  { sku: "NB-1",  name: "Notebook A5",  price: 4.25, tags: ["office"], stock: 40, brand: { name: "Classmate", country: "IN" } },
+  { sku: "MUG-1", name: "Coffee Mug",   price: 8,    tags: ["kitchen"], stock: 0 },
+  { sku: "BAG-1", name: "Laptop Bag",   price: 35,   tags: ["office", "travel"], stock: 5, brand: { name: "Wildcraft", country: "IN" } },
+  { sku: "PEN-2", name: "Fountain Pen", price: 22,   tags: ["office", "gift"], stock: 12 }
+])
+// { acknowledged: true, insertedIds: { '0': ObjectId('...'), '1': ObjectId('...'), '2': ..., '3': ... } }
+```
+- **`insertOne(doc)`** returns `{ acknowledged, insertedId }`; **`insertMany(docs)`** returns `insertedIds` keyed by array position.
+- **Ordered (default)**: stops at the first error; earlier documents stay inserted, later ones are skipped. **`{ ordered: false }`** attempts every document and reports all the errors: inserting `[{_id:"a"}, {_id:"a"}, {_id:"b"}]` unordered inserts 2 and reports one duplicate-key error.
+- A single-document write is **atomic**, including all its embedded fields and arrays.
+
+## Read: find, Projection, Sort, Skip and Limit | blue
+```js
+db.products.find({ price: { $lt: 30 } }, { _id: 0, name: 1, price: 1 }).sort({ price: -1 }).limit(2)
+// [ { name: 'Fountain Pen', price: 22 }, { name: 'Coffee Mug', price: 8 } ]
+db.products.findOne({ sku: "BAG-1" }, { tags: 0, brand: 0, _id: 0 })    // exclusion projection
+// { sku: 'BAG-1', name: 'Laptop Bag', price: 35, stock: 15 }
+db.products.find({}, { _id: 0, sku: 1 }).sort({ sku: 1 }).skip(2).limit(2)  // page 2 with page size 2
+```
+- **`find(filter, projection)`** returns a **cursor** that fetches results lazily in batches; **`findOne`** returns the first match or `null`.
+- **Projection**: `1` includes fields, `0` excludes them. You cannot mix the two except for `_id` ("Cannot do exclusion on field price in inclusion projection").
+- **`sort`** (`1` ascending, `-1` descending), **`skip`**, **`limit`**. Without `sort`, the order is not guaranteed. Large `skip` values are slow because skipped documents are still walked; prefer range-based paging on an indexed field (`{ _id: { $gt: lastId } }`).
+
+## Update: updateOne, updateMany, replaceOne, Upsert | green
+```js
+db.products.updateOne({ sku: "MUG-1" }, { $set: { stock: 25 } })
+// { acknowledged: true, insertedId: null, matchedCount: 1, modifiedCount: 1, upsertedCount: 0 }
+db.products.updateOne({ sku: "MUG-1" }, { $set: { stock: 25 } })           // same value again
+// { ..., matchedCount: 1, modifiedCount: 0, ... }                          // matched but nothing changed
+db.products.updateMany({ tags: "office" }, { $inc: { stock: 10 } })
+// { ..., matchedCount: 4, modifiedCount: 4, ... }
+db.products.updateOne({ sku: "INK-1" }, { $set: { name: "Ink Bottle", price: 3 }, $setOnInsert: { stock: 0 } }, { upsert: true })
+// { acknowledged: true, insertedId: ObjectId('...'), matchedCount: 0, modifiedCount: 0, upsertedCount: 1 }
+db.products.replaceOne({ sku: "INK-1" }, { sku: "INK-1", name: "Blue Ink", price: 3.5 })   // whole document replaced, _id kept
+```
+- **`updateOne(filter, update)`** changes the **first** match; **`updateMany`** changes all matches. The second argument must use **update operators** (`$set`, `$inc`...): a plain document fails with "Update document requires atomic operators" (sheet 04).
+- **`replaceOne`** replaces the whole document except `_id`.
+- **Upsert** (`{ upsert: true }`) inserts when nothing matches, building the new document from the filter's equality fields plus the update. **`$setOnInsert`** sets fields only on that insert.
+- **`matchedCount` vs `modifiedCount`**: a match that sets a field to the value it already has is not counted as modified.
+
+## Delete, findOneAndUpdate, bulkWrite and Counting | amber
+```js
+db.products.deleteOne({ sku: "INK-1" })                   // { acknowledged: true, deletedCount: 1 }
+db.products.deleteMany({ price: { $gt: 1000 } })          // { acknowledged: true, deletedCount: 0 }
+db.products.findOneAndUpdate({ sku: "NB-1" }, { $inc: { stock: -1 } },
+  { returnDocument: "after", projection: { _id: 0, sku: 1, stock: 1 } })      // { sku: 'NB-1', stock: 49 }
+db.products.bulkWrite([
+  { insertOne: { document: { sku: "CLIP-1", name: "Paper Clips", price: 0.5 } } },
+  { updateOne: { filter: { sku: "PEN-1" }, update: { $set: { price: 1.75 } } } },
+  { deleteOne: { filter: { sku: "CLIP-1" } } }
+])  // { acknowledged: true, insertedCount: 1, matchedCount: 1, modifiedCount: 1, deletedCount: 1, upsertedCount: 0, ... }
+db.products.countDocuments({ tags: "office" })            // exact count for a filter
+db.products.estimatedDocumentCount()                     // fast count of the whole collection from metadata
+```
+- **`deleteOne` / `deleteMany`** remove the first or all matches; `deleteMany({})` empties the collection but keeps its indexes (`drop()` removes everything).
+- **`findOneAndUpdate` / `findOneAndReplace` / `findOneAndDelete`** atomically modify one document and return it (`returnDocument: "before"` or `"after"`). Use them for counters, job claiming and "reserve stock and show the result".
+- **`bulkWrite`** sends many mixed operations in one round trip (ordered by default).
+- **`countDocuments(filter)`** runs an aggregation and is exact; **`estimatedDocumentCount()`** reads collection metadata and takes no filter. The old `count()` is deprecated in the drivers.
+
+## Interview Q&A | sky | wide
+Q: insertMany ordered vs unordered?
+A: Ordered (the default) stops at the first failing document, keeping the earlier inserts. Unordered tries every document and reports all errors at the end, which is faster for bulk loads.
+Q: updateOne vs replaceOne?
+A: updateOne applies update operators to chosen fields; replaceOne swaps the entire document (except _id) for a new one.
+Q: What is an upsert?
+A: An update with { upsert: true } that inserts a new document when no document matches, built from the filter's equality fields and the update; $setOnInsert sets fields only in that case.
+Q: Why can modifiedCount be 0 when matchedCount is 1?
+A: The matched document already had the values the update would set, so MongoDB did not modify it.
+Q: countDocuments vs estimatedDocumentCount?
+A: countDocuments takes a filter and counts exactly through an aggregation. estimatedDocumentCount takes no filter and returns the collection's metadata count quickly.
+Q: Why is skip-based pagination slow for deep pages?
+A: The server still walks every skipped document or index key. Keyset (range) pagination on an indexed field, such as _id greater than the last seen value, stays fast.
+Q: Are writes atomic in MongoDB?
+A: Every write to a single document is atomic, including its embedded documents and arrays. Writes across several documents need a multi-document transaction (sheet 10).
+
+# 03 | Query Selectors | Comparison, logical, element, regex and array operators, dot notation, null semantics, $expr, $where, projection | Query Selectors
+
+## Comparison Operators | rose
+```js
+db.products.find({ price: 8 })                            // implicit $eq       -> Coffee Mug
+db.products.find({ price: { $gt: 5, $lte: 30 } })         // range             -> Coffee Mug, Fountain Pen
+db.products.find({ sku: { $in: ["PEN-1", "MUG-1"] } })    // any of            -> Coffee Mug, Gel Pen
+db.products.find({ tags: { $nin: ["office"] } })          // none of           -> Coffee Mug
+db.products.find({ stock: { $ne: 25 } })                  // not equal (also matches documents missing the field)
+```
+- **`$eq`, `$ne`, `$gt`, `$gte`, `$lt`, `$lte`, `$in`, `$nin`**. `{ field: value }` is shorthand for `$eq`.
+- Comparisons are **type-aware**: `{ price: { $gt: 5 } }` matches numbers (int, long, double and decimal compare by value), not strings.
+- **`$ne` and `$nin` also match documents where the field is missing**, and they use indexes poorly.
+
+## Logical Operators | blue
+```js
+db.products.find({ price: { $lt: 30 }, tags: "office" })                            // implicit AND
+db.products.find({ $and: [{ price: { $gt: 1 } }, { price: { $lt: 5 } }] })          // explicit $and
+db.products.find({ $or: [{ price: { $lt: 2 } }, { stock: { $gte: 40 } }] })
+db.products.find({ price: { $not: { $gt: 5 } } })        // not > 5 (also matches missing price)
+db.products.find({ $nor: [{ price: { $lt: 5 } }, { tags: "kitchen" }] })             // neither condition
+```
+- Several conditions in one filter document are an **implicit AND**. Use **explicit `$and`** when two conditions use the same operator on the same field, or to combine several `$or` groups.
+- **`$or`** can use a different index for each clause (each clause needs an index, or the query scans the collection).
+- **`$not`** wraps an operator expression for one field; **`$nor`** matches documents that fail every condition.
+
+## Element and Regex Operators, Dot Notation | green
+```js
+db.products.find({ brand: { $exists: true } })                     // field present
+db.products.find({ price: { $type: "double" } })                   // BSON type (also "int", "string", "array"...)
+db.products.find({ "brand.country": "IN" })                        // dot notation into embedded documents (quotes needed)
+db.products.find({ name: { $regex: "^Note" } })                    // anchored prefix: can use an index
+db.products.find({ name: { $regex: "pen", $options: "i" } })       // case-insensitive -> Fountain Pen, Gel Pen
+db.products.find({ name: /pen$/i })                                // regex literal works too
+```
+- **`$exists`** tests presence, **`$type`** tests the BSON type.
+- **Dot notation** (`"brand.country"`, `"items.sku"`) reaches into embedded documents and arrays of documents.
+- **`$regex`** uses PCRE syntax. Only a **case-sensitive prefix** (`^abc`) can use index bounds efficiently; `/19$/` or `i` regexes scan every index key (verified: 2,001 keys examined for 20 results). For real text search use a text index or MongoDB Search (sheet 08).
+
+## Array Queries | amber
+```js
+db.products.find({ tags: "gift" })                         // array CONTAINS the value         -> Fountain Pen
+db.products.find({ tags: ["office", "gift"] })             // EXACT array, order matters       -> Fountain Pen
+db.products.find({ tags: ["gift", "office"] })             // different order: no match
+db.products.find({ tags: { $all: ["gift", "office"] } })   // contains all, any order         -> Fountain Pen
+db.products.find({ tags: { $size: 2 } })                   // exactly 2 elements
+
+db.scores.insertMany([{ _id: 1, results: [82, 85, 88] }, { _id: 2, results: [75, 88, 89] }, { _id: 3, results: [70, 95] }])
+db.scores.find({ results: { $gt: 80, $lt: 85 } })                // [1, 2, 3]: some element > 80 AND some element < 85
+db.scores.find({ results: { $elemMatch: { $gt: 80, $lt: 85 } } }) // [1]: ONE element satisfies both
+```
+- A scalar condition on an array field matches if **any element** matches.
+- Several conditions on an array field may be satisfied by **different elements**. **`$elemMatch`** requires **one element** to satisfy all of them; the same applies to arrays of embedded documents (`{ items: { $elemMatch: { sku: "PEN-1", qty: { $gte: 2 } } } }`).
+
+## null, $expr and $where | violet
+```js
+db.nulls.insertMany([{ _id: 1, x: null }, { _id: 2 }, { _id: 3, x: 5 }])
+db.nulls.find({ x: null })                  // [1, 2]: null value OR missing field
+db.nulls.find({ x: { $type: "null" } })     // [1]: only an explicit null
+db.products.find({ $expr: { $lt: ["$stock", 20] } })     // compare a field with an expression (or with another field)
+db.products.find({ $where: "this.price > 20" })          // JavaScript predicate: slow, no index
+```
+- **`{ x: null }` matches both null and missing**; use `$type: "null"` or `$exists` to tell them apart.
+- **`$expr`** lets the filter use aggregation expressions, for example comparing two fields of the same document.
+- **`$where`** runs JavaScript per document. It cannot use indexes and works in `find` but not in aggregation-based helpers such as `countDocuments` ("$where is not allowed in this context"). In **9.0** it is no longer deprecated and runs on a WebAssembly engine that evaluates local dates in UTC; prefer `$expr` anyway.
+
+## Interview Q&A | sky | wide
+Q: How do you query a field inside an embedded document?
+A: With dot notation in quotes, such as { "brand.country": "IN" }. Matching { brand: { country: "IN" } } instead requires the embedded document to be exactly equal, with the same fields in the same order.
+Q: $elemMatch vs plain conditions on an array?
+A: Plain conditions can each be met by different elements; $elemMatch requires a single element to satisfy all of them.
+Q: What does { x: null } match?
+A: Documents where x is null and documents where x does not exist. Use { x: { $type: "null" } } for explicit nulls only.
+Q: When can a regex query use an index?
+A: When it is a case-sensitive prefix match anchored with ^. Other patterns, and case-insensitive ones, examine every key in the index or every document.
+Q: $in vs $or?
+A: $in tests one field against a list of values and is simpler and faster. $or combines different conditions, possibly on different fields, each of which can use its own index.
+Q: How do you compare two fields of the same document?
+A: With $expr, for example { $expr: { $gt: ["$spent", "$budget"] } }.
+
+@ Intermediate
+
+# 04 | Update Operators | $set, $unset, $inc, $push, $addToSet, $pull and friends, positional operators and arrayFilters, updates with an aggregation pipeline | Update Operators
+
+## Field Operators | rose
+```js
+db.carts.insertOne({ _id: 1, user: "ann", items: [{ sku: "PEN-1", qty: 1 }, { sku: "NB-1", qty: 2 }], tags: ["new"], coupon: "WELCOME", views: 0 })
+db.carts.updateOne({ _id: 1 }, {
+  $set:   { status: "OPEN", "address.city": "Pune" },    // set fields; dot notation creates the embedded document
+  $unset: { coupon: "" },                               // remove a field (the value is ignored)
+  $inc:   { views: 1 }                                  // atomic increment (negative to decrement)
+})
+// { user: 'ann', items: [...], tags: ['new'], views: 1, address: { city: 'Pune' }, status: 'OPEN' }
+```
+- **`$set`** sets a value and creates missing fields and paths. **`$unset`** removes a field. **`$inc`** adds atomically, so concurrent increments never lose updates.
+- Others: **`$mul`** multiplies; **`$min` / `$max`** set the field only if the new value is lower or higher; **`$rename`** renames a field; **`$currentDate`** sets the current date; **`$setOnInsert`** applies only when an upsert inserts.
+- One update may combine operators, but **not two operators on the same path**: `{ $set: { tags: [] }, $push: { tags: "x" } }` fails with "Updating the path 'tags' would create a conflict at 'tags'".
+
+## Array Operators | blue
+```js
+db.carts.updateOne({ _id: 1 }, { $push: { items: { sku: "MUG-1", qty: 1 } } })            // append (duplicates allowed)
+db.carts.updateOne({ _id: 1 }, { $addToSet: { tags: { $each: ["vip", "new"] } } })        // add only if absent -> ['new', 'vip']
+db.carts.updateOne({ _id: 1 }, { $pull: { items: { sku: "NB-1" } } })                      // remove every element matching a condition
+db.carts.updateOne({ _id: 1 }, { $pop: { tags: 1 } })                                      // remove last (1) or first (-1) element
+
+db.feed.insertOne({ _id: 1, recent: [] })
+for (const n of [5, 9, 1, 7])
+  db.feed.updateOne({ _id: 1 }, { $push: { recent: { $each: [n], $sort: -1, $slice: 3 } } })
+// { recent: [ 9, 7, 5 ] }        a capped, sorted "top 3" array
+```
+- **`$push`** appends; with **`$each`** it appends several values, and with **`$sort`**, **`$slice`** and **`$position`** it keeps the array ordered and bounded, which prevents unbounded growth.
+- **`$addToSet`** adds a value only if it is not already present (set semantics; documents must be identical to count as duplicates).
+- **`$pull`** removes all elements equal to a value or matching a condition; **`$pullAll`** removes all listed values.
+
+## Positional Operators and arrayFilters | green
+```js
+db.carts.updateOne({ _id: 1, "items.sku": "PEN-1" }, { $inc: { "items.$.qty": 2 } })      // $: the FIRST element the filter matched
+db.carts.updateOne({ _id: 1 }, { $mul: { "items.$[].qty": 10 } })                         // $[]: EVERY element
+db.carts.updateOne({ _id: 1 }, { $set: { "items.$[big].flag": true } },
+                   { arrayFilters: [{ "big.qty": { $gte: 20 } }] })                         // $[id]: elements matching arrayFilters
+// items: [ { sku: 'PEN-1', qty: 30, flag: true }, { sku: 'MUG-1', qty: 10 } ]
+```
+- **`$`** updates the first array element matched by the query filter (the filter must include the array field).
+- **`$[]`** updates all elements; **`$[identifier]`** with **`arrayFilters`** updates only the elements that satisfy a condition, even in nested arrays.
+
+## Updates with an Aggregation Pipeline | amber
+```js
+db.carts.updateOne({ _id: 1 }, [
+  { $set: { itemCount: { $size: "$items" }, total: { $sum: "$items.qty" } } }      // computed from the document's own fields
+])
+// { ..., itemCount: 2, total: 40 }
+```
+- Passing an **array** as the update runs a pipeline (`$set`/`$addFields`, `$unset`, `$project`, `$replaceWith`...) that can **compute new values from existing fields**, which plain operators cannot do.
+- Every update to a single document is **atomic** and isolated: other readers see the document either before or after it.
+
+## Interview Q&A | sky | wide
+Q: $push vs $addToSet?
+A: $push always appends, so duplicates are possible. $addToSet appends only when an identical value is not already in the array.
+Q: How do you update one element inside an array?
+A: Match it in the filter and use the positional $ (items.$.qty), or use $[identifier] with arrayFilters to update every element meeting a condition. $[] updates all elements.
+Q: How do you keep an array from growing forever?
+A: $push with $each plus $slice (and optionally $sort) keeps only the newest or top N elements; otherwise move the data to its own collection.
+Q: Why use $inc instead of reading, adding and writing?
+A: $inc is applied atomically on the server, so concurrent updates are not lost; read-modify-write in the application races.
+Q: How do you set a field from another field's value?
+A: Use an update with an aggregation pipeline, for example [{ $set: { total: { $sum: "$items.qty" } } }].
+Q: What does $setOnInsert do?
+A: During an upsert, it sets its fields only when a new document is inserted, leaving them untouched when an existing document is updated.
+
+# 05 | Schema Design: Embedding vs Referencing | Data accessed together stays together, embedding, referencing, 1:1, 1:few, 1:many, 1:squillions, N:N, common patterns, anti-patterns | Schema Design
+
+## The Core Rule | rose
+- **Design for the queries, not for normal forms**: data that is **read together** should be **stored together**. MongoDB has no foreign keys or cross-collection constraints, and joins (`$lookup`) cost more than reading one document.
+- **Embedding**: put related data inside the parent document (sub-documents, arrays). One read returns everything, and a single-document write is atomic.
+- **Referencing**: store the related document's `_id` and fetch it with a second query or `$lookup`. This avoids duplication and unbounded growth.
+- The decision depends on **cardinality**, **read/write ratio**, **how often the child changes**, **whether the child is used on its own**, and the **16 MiB document limit**.
+
+## Embed When | blue
+- **1:1** relationships read together: a user and their profile settings.
+- **1:few** children that belong to the parent and are read with it: an order and its line items, a customer and a handful of addresses.
+- The child has **no meaning on its own** and is **not shared** between parents.
+- You need **atomic updates** across parent and child: one document, one atomic write.
+- Duplicate a little to avoid joins: an order embeds the product name and price **as they were at purchase time** (which you want anyway, for history).
+```js
+{ _id: "N-1001", customer: { id: "c42", name: "Ann Lee" },
+  shippingAddress: { line1: "12 MG Road", city: "Pune", pin: "411001" },
+  items: [ { sku: "PEN-1", name: "Gel Pen", qty: 2, price: 1.5 } ] }
+```
+
+## Reference When | green
+- **1:many with many** children, or **1:squillions** (log entries, IoT readings): put the parent's id **in the child** (`{ productId, ... }`), never an ever-growing array in the parent.
+- **N:N**: store an array of ids on one or both sides (`student.courseIds`), or use a link collection when the relationship has attributes (enrolment date, grade).
+- The child is **large**, **changes often**, or is **shared and queried on its own** (products referenced from many orders).
+```js
+db.authors.insertOne({ _id: "a1", name: "Martin Fowler" })
+db.books.insertMany([{ _id: "b1", title: "Refactoring", authorId: "a1" }, { _id: "b2", title: "PoEAA", authorId: "a1" }])
+db.authors.aggregate([{ $lookup: { from: "books", localField: "_id", foreignField: "authorId", as: "books" } },
+                      { $project: { _id: 0, name: 1, titles: "$books.title" } }])
+// [ { name: 'Martin Fowler', titles: [ 'Refactoring', 'PoEAA' ] } ]
+
+db.students.insertMany([{ _id: "s1", name: "Ann", courseIds: ["c1", "c2"] }, { _id: "s2", name: "Bo", courseIds: ["c1"] }])
+db.courses.insertMany([{ _id: "c1", title: "Databases" }, { _id: "c2", title: "Networks" }])
+db.students.aggregate([{ $lookup: { from: "courses", localField: "courseIds", foreignField: "_id", as: "courses" } }])
+// Ann -> [ 'Networks', 'Databases' ]   ($lookup does NOT keep the order of the courseIds array)
+```
+
+## Common Design Patterns | amber
+- **Extended reference**: copy the few frequently read fields of the referenced document (`customer: { id, name }`) to avoid a join; accept updating copies when they change.
+- **Subset**: embed only the most recent or most relevant items (the last 10 reviews) and keep the full list in another collection.
+- **Computed**: store precomputed values (`reviewCount`, `avgRating`, `total`) updated on write, so reads stay cheap.
+- **Bucket**: group many small items into one document per time window (one document per sensor per hour with a `readings` array), which cuts document and index counts. Time series collections apply this automatically.
+- **Outlier**: handle the rare huge case separately (a celebrity with millions of followers gets overflow documents) instead of designing everything for it.
+- **Polymorphic**: different shapes in one collection with a `type` field (payments: card, UPI, wallet), queried together.
+- **Schema versioning**: a `schemaVersion` field lets old and new shapes coexist while the application migrates documents lazily.
+
+## Anti-Patterns | violet
+- **Unbounded arrays** (all comments inside the product): documents grow towards 16 MiB, updates get slower, and multikey indexes get huge.
+- **Massive numbers of collections** (one per customer): every collection and index has overhead; use a field instead.
+- **Over-normalising** (relational design ported directly): every page needs several `$lookup`s.
+- **Unnecessary indexes** and **bloated documents** (huge fields read on every query): move rarely used large fields to another collection.
+- **Case-insensitive lookups without a collation index**, and **separating data that is always accessed together**.
+
+## Interview Q&A | sky | wide
+Q: When do you embed and when do you reference?
+A: Embed data that is read together, bounded in size and owned by the parent (1:1, 1:few). Reference when the child set is large or unbounded, changes independently, is shared, or is queried on its own (1:many, 1:squillions, N:N).
+Q: How do you model a many-to-many relationship?
+A: Store an array of referenced ids on one or both sides (students.courseIds), or a separate link collection when the relationship has its own attributes, and resolve it with $lookup or a second query.
+Q: Why are unbounded arrays an anti-pattern?
+A: The document keeps growing towards the 16 MiB limit, every update rewrites a larger document, and multikey indexes on the array explode. Reference the children instead, or bucket them.
+Q: What is the extended reference pattern?
+A: Copying a few frequently needed fields of a referenced document (such as the customer's name in an order) so common reads avoid a join, at the cost of updating the copies.
+Q: Does MongoDB enforce relationships between collections?
+A: No. There are no foreign keys or cascades; the application (or a transaction) keeps references consistent.
+Q: How is schema design in MongoDB different from SQL?
+A: SQL normalises first and joins at query time. MongoDB designs around the application's access patterns, embedding and duplicating where it makes reads cheap.
+
+# 06 | Aggregation Pipeline: Core Stages | The pipeline model, $match, $project, $set, $group and accumulators, $sort, $limit, $skip, $unwind, $count, memory limits and optimisation | Aggregation
+
+## The Pipeline Model | rose
+- An **aggregation pipeline** is an array of **stages**; documents flow through them in order, and each stage transforms the stream (filter, reshape, group, sort, join).
+- It is MongoDB's equivalent of SQL's `WHERE`, `GROUP BY`, `HAVING`, `ORDER BY` and `JOIN`, and it replaced map-reduce for nearly all uses.
+- Run it with **`db.collection.aggregate([...])`**. Expressions use **`"$field"`** for field paths and operators such as `$sum`, `$multiply`, `$cond`.
+```js
+db.orders.aggregate([
+  { $match: { status: "PAID" } },                                            // WHERE (put first: can use indexes)
+  { $unwind: "$items" },                                                     // one document per line item
+  { $group: { _id: "$customer",                                              // GROUP BY customer
+              revenue: { $sum: { $multiply: ["$items.qty", "$items.price"] } },
+              orders: { $addToSet: "$_id" } } },
+  { $project: { _id: 0, customer: "$_id", revenue: 1, orderCount: { $size: "$orders" } } },
+  { $sort: { revenue: -1 } }                                                 // ORDER BY revenue DESC
+])
+// [ { revenue: 35, customer: 'bo', orderCount: 1 }, { revenue: 23, customer: 'cy', orderCount: 1 }, { revenue: 7.25, customer: 'ann', orderCount: 1 } ]
+```
+
+## $match, $project, $set, $sort, $limit, $skip | blue
+- **`$match`**: filters with the same syntax as `find`. **Place it as early as possible**: at the start of a pipeline it can use indexes, and it shrinks the data for later stages.
+- **`$project`**: includes, excludes, renames or computes fields. **`$set`** (alias **`$addFields`**) adds or overwrites fields and keeps the rest; **`$unset`** removes fields.
+- **`$sort`**, **`$limit`**, **`$skip`**: like the cursor methods. `$sort` followed by `$limit` keeps only the top N in memory.
+- The **optimiser reorders and merges stages**: for `[$sort, $match, $limit]` it moves `$match` first and, with an index on `{ category: 1, price: 1 }`, explain shows a single plan `LIMIT -> FETCH -> IXSCAN(category_1_price_1)` with no in-memory sort.
+
+## $group and Accumulators | green
+```js
+db.orders.aggregate([
+  { $group: { _id: "$status", n: { $sum: 1 }, first: { $min: "$placedAt" }, customers: { $addToSet: "$customer" } } }
+])
+// [ { _id: 'CANCELLED', n: 1, customers: ['ann'], ... }, { _id: 'PAID', n: 4, customers: ['ann', 'bo', 'cy'], ... } ]
+db.orders.aggregate([{ $match: { status: "PAID" } }, { $count: "paid" }])        // [ { paid: 4 } ]
+```
+- **`_id`** is the group key: a field (`"$status"`), a compound key (`{ year: { $year: "$placedAt" }, status: "$status" }`), or `null` for one group over everything.
+- **Accumulators**: `$sum` (`$sum: 1` counts), `$avg`, `$min`, `$max`, `$first`, `$last`, `$push` (all values), `$addToSet` (distinct values), `$count`, and `$top`, `$bottom`, `$topN`, `$firstN` for top-N per group.
+- Filter after grouping (SQL `HAVING`) with another **`$match`** after `$group`. In **9.0**, an accumulator with an empty field name is an error.
+
+## $unwind | amber
+```js
+db.orders.aggregate([{ $unwind: "$items" }])                                    // order 5 (items: []) disappears
+db.orders.aggregate([{ $unwind: { path: "$items", preserveNullAndEmptyArrays: true } }])   // order 5 kept, with no items field
+```
+- **`$unwind`** outputs **one document per array element**, copying the other fields: the usual step before grouping on array contents.
+- By default, documents whose array is **empty, null or missing are dropped**; **`preserveNullAndEmptyArrays: true`** keeps them, and **`includeArrayIndex`** records each element's position.
+- Unwinding large arrays multiplies the documents; `$match` before `$unwind`, and consider array operators (`$filter`, `$map`, `$reduce`) instead.
+
+## Memory Limits and Performance | violet
+- Each **blocking stage** (`$sort`, `$group`, `$bucketAuto`) has a **100 MB** memory limit. Above it, the stage **spills to disk**: `allowDiskUseByDefault` is `true` since 6.0, and `allowDiskUse: false` makes the query fail instead.
+- **9.0** adds a **per-operation memory limit** for the whole query (by default 1 GB or 20% of the server's memory, whichever is greater). Exceeding it fails with `ExceededMemoryLimit`.
+- The result of `aggregate` is a cursor; each document in the output must stay within **16 MiB**.
+- Check plans with **`db.orders.explain("executionStats").aggregate([...])`**; aim for an index-backed `$match` and `$sort` at the start.
+
+## Interview Q&A | sky | wide
+Q: What is the aggregation pipeline?
+A: An array of stages that documents flow through in order, each filtering, reshaping, grouping, sorting or joining them. It is MongoDB's framework for analytics and transformations, the counterpart of SQL GROUP BY and JOIN.
+Q: Why put $match first?
+A: At the start of the pipeline it can use indexes, and it reduces the number of documents every later stage must process.
+Q: What does $unwind do, and what happens to empty arrays?
+A: It emits one document per array element. Documents with an empty, null or missing array are dropped unless preserveNullAndEmptyArrays is true.
+Q: How do you implement SQL HAVING?
+A: Add a $match after the $group stage, filtering on the accumulated fields.
+Q: $project vs $set (or $addFields)?
+A: $project specifies the output shape (keeping only listed fields, unless you exclude); $set adds or replaces fields while keeping all the others.
+Q: What happens when a $group or $sort needs more than 100 MB?
+A: It spills to temporary files on disk, which allowDiskUseByDefault permits since 6.0. In 9.0 the whole operation is also bounded by a per-operation memory limit.
+
+# 07 | Aggregation Pipeline: $lookup, $facet & Output Stages | Joins with $lookup (equality, pipeline and concise forms), $facet, $bucket, $sortByCount, conditional expressions, $merge and $out | Aggregation II
+
+## $lookup: Left Outer Join | rose
+```js
+db.orders.aggregate([
+  { $match: { _id: { $in: [1, 2] } } },
+  { $lookup: { from: "customers", localField: "customer", foreignField: "_id", as: "c" } },    // c is an ARRAY of matches
+  { $unwind: "$c" },                                                                           // one customer per order
+  { $project: { _id: 1, name: "$c.name", city: "$c.city" } }
+])
+// [ { _id: 1, name: 'Ann Lee', city: 'Pune' }, { _id: 2, name: 'Bo Chen', city: 'Delhi' } ]
+```
+- **`$lookup`** is a **left outer join**: every input document is kept, and the matches from the `from` collection are put in an **array** field (empty if none). Follow with `$unwind` for a 1:1 join.
+- The `from` collection must be in the **same database**. Sharded `from` collections are supported since **5.1**.
+- **Index `foreignField`**, otherwise every input document scans the foreign collection.
+
+## Pipeline and Concise Forms | blue
+```js
+db.customers.aggregate([
+  { $lookup: { from: "orders", let: { cid: "$_id" }, pipeline: [                    // correlated subquery
+      { $match: { $expr: { $and: [{ $eq: ["$customer", "$$cid"] }, { $eq: ["$status", "PAID"] }] } } },
+      { $project: { _id: 1 } } ], as: "paidOrders" } },
+  { $project: { paid: { $size: "$paidOrders" } } }
+])
+// [ { _id: 'ann', paid: 1 }, { _id: 'bo', paid: 2 }, { _id: 'cy', paid: 1 } ]
+
+db.customers.aggregate([                                                            // concise form (5.0+): equality + pipeline
+  { $lookup: { from: "orders", localField: "_id", foreignField: "customer",
+               pipeline: [{ $match: { status: "PAID" } }, { $project: { _id: 1 } }], as: "paid" } }
+])
+```
+- The **pipeline form** joins on any condition: `let` defines variables from the input document, used inside as **`$$name`** in `$expr`, and the sub-pipeline can filter, sort, limit and project the joined documents.
+- The **concise form** combines `localField`/`foreignField` equality with a sub-pipeline.
+- **`$graphLookup`** performs recursive lookups (org charts, category trees, friends of friends).
+
+## $facet, $bucket, $sortByCount | green
+```js
+db.orders.aggregate([
+  { $match: { status: "PAID" } },
+  { $facet: {                                                          // several sub-pipelines over the SAME input
+      byMonth: [{ $group: { _id: { $dateToString: { format: "%Y-%m", date: "$placedAt" } }, n: { $sum: 1 } } }, { $sort: { _id: 1 } }],
+      total:   [{ $count: "orders" }],
+      latest:  [{ $sort: { placedAt: -1 } }, { $limit: 1 }, { $project: { _id: 1 } }]
+  } }
+])
+// [ { byMonth: [ { _id: '2026-09', n: 2 }, { _id: '2026-10', n: 2 } ], total: [ { orders: 4 } ], latest: [ { _id: 5 } ] } ]
+db.orders.aggregate([{ $unwind: "$items" }, { $sortByCount: "$items.sku" }])
+// [ { _id: 'MUG-1', count: 2 }, { _id: 'PEN-1', count: 2 }, { _id: 'BAG-1', count: 1 }, { _id: 'NB-1', count: 1 } ]
+```
+- **`$facet`** runs **several sub-pipelines on the same input** and returns **one document** with an array per facet: a search page's results, counts and category filters in a single query. Its output must fit in **16 MiB**, and stages inside a facet cannot use indexes (put the `$match` before it).
+- **`$bucket`** groups values into ranges you define (`boundaries: [0, 10, 30, 100]`, plus a `default` bucket); **`$bucketAuto`** picks the boundaries itself.
+- **`$sortByCount`** is shorthand for `$group` by an expression, with a count, sorted descending.
+
+## Expressions and Output Stages | amber
+- **Conditional expressions**: `$cond: [if, then, else]`, `$ifNull: ["$coupon", "none"]`, `$switch`. **Array expressions**: `$filter`, `$map`, `$reduce`, `$size`, `$in`. **Dates**: `$dateToString`, `$year`, `$dateTrunc`; **strings**: `$concat`, `$toUpper`, `$split`.
+- **`$merge`** writes the results into a collection, inserting, replacing, merging or keeping existing documents (`whenMatched` / `whenNotMatched`): incremental **materialised views**.
+- **`$out`** **replaces** a whole collection with the results. Both must be the **last stage**.
+```js
+db.orders.aggregate([
+  { $group: { _id: "$customer", n: { $sum: 1 } } },
+  { $merge: { into: "customer_stats", on: "_id", whenMatched: "replace", whenNotMatched: "insert" } }
+])
+db.customer_stats.find()      // [ { _id: 'ann', n: 2 }, { _id: 'bo', n: 2 }, { _id: 'cy', n: 1 } ]
+```
+
+## Interview Q&A | sky | wide
+Q: How do you join collections in MongoDB?
+A: With $lookup in an aggregation, a left outer join that puts the matching documents in an array. Use the equality form with localField and foreignField, or the pipeline form with let and $expr for other conditions, then $unwind for 1:1 results.
+Q: Is $lookup expensive?
+A: It runs a query against the foreign collection for each input document, so index the foreignField, $match first to reduce the input, and prefer embedding for data that is always read together.
+Q: What is $facet used for?
+A: Computing several aggregations over the same filtered input in one query, such as paginated results plus total count plus category counts for a search page.
+Q: $merge vs $out?
+A: $out replaces the target collection completely. $merge upserts results into an existing collection with configurable behaviour, which suits incrementally refreshed materialised views.
+Q: Does $lookup keep the order of an array of ids?
+A: No. With an array localField, the joined documents come back in no guaranteed order; sort them, or rebuild the order with $map, $filter or $indexOfArray.
+Q: How do you count documents per value, sorted?
+A: $sortByCount, or $group with { $sum: 1 } followed by $sort descending.
+
+# 08 | Indexing | B-tree indexes, single field, compound and the ESR rule, multikey, TTL, text, unique, partial, wildcard and hashed indexes, covered queries, explain | Indexes
+
+## How Indexes Work | rose
+- Without an index, a query performs a **collection scan** (`COLLSCAN`), reading every document. An index is a sorted **B-tree** of field values pointing to documents, so lookups and range scans examine only the needed keys (`IXSCAN`).
+- Every collection has a unique index on **`_id`**. Indexes speed up reads but cost **RAM, disk and write time** (every insert or update maintains them).
+- **`explain("executionStats")`** shows the winning plan and the key counts. The goal is `totalKeysExamined` close to `totalDocsExamined`, both close to `nReturned`.
+```js
+db.products.find({ sku: "SKU-42" }).explain("executionStats")        // 2,000 products, no index
+// stages: COLLSCAN, totalKeysExamined: 0, totalDocsExamined: 2000, nReturned: 1
+db.products.createIndex({ sku: 1 }, { unique: true })
+// stages: EXPRESS_IXSCAN(sku_1), totalKeysExamined: 1, totalDocsExamined: 1, nReturned: 1
+```
+- Since 8.0, simple equality lookups that can return at most one document (on `_id`, on a unique index, or with `limit(1)` on a single-field index) take a fast **express** path that skips query planning (`EXPRESS_IXSCAN` in explain).
+
+## Single Field and Compound Indexes, the ESR Rule | blue
+- **Single field**: `{ sku: 1 }`. The direction does not matter for a single field, because the index can be walked in both directions.
+- **Compound**: `{ category: 1, price: 1 }` sorts by category, then price. It supports queries on its **prefixes** (`category`, or `category + price`) but **not on `price` alone** (verified: a `COLLSCAN`).
+- **ESR rule** for ordering compound fields: **Equality** fields first, then **Sort** fields, then **Range** fields.
+```js
+// query: category = "pens" AND price > 50, sorted by stock
+db.products.createIndex({ category: 1, stock: 1, price: 1 })   // E, S, R
+// plan: FETCH <- IXSCAN, no in-memory sort (247 keys examined for 240 results)
+db.products.createIndex({ category: 1, price: 1, stock: 1 })   // E, R, S
+// plan: FETCH <- SORT <- IXSCAN, a blocking in-memory sort
+```
+- A sort can use an index only if its fields and directions match the index (or its exact reverse) after the equality prefix. Otherwise a **`SORT` stage** sorts in memory (the 100 MB limit applies).
+
+## Multikey, TTL and Text Indexes | green
+- **Multikey index**: an index on an array field stores **one key per element**, so `{ tags: 1 }` serves `{ tags: "t1" }`. It is created automatically when an indexed field holds an array. A compound index can contain **at most one array field per document**: indexing `{ a: 1, b: 1 }` where both are arrays fails with "cannot index parallel arrays".
+- **TTL index**: deletes documents automatically once a **date field** is older than `expireAfterSeconds`. A background monitor runs **every 60 seconds** (`ttlMonitorSleepSecs`), so deletion is not instant. Documents whose field is not a date are never deleted. It must be a **single-field** index. With `expireAfterSeconds: 0`, each document expires at the time stored in the field (`expireAt`).
+- **Text index**: tokenises and **stems** string fields for `$text` search (searching `index` also finds "Indexing" and "indexes"). It supports **weights**, phrases (`"\"shard key\""`) and negation (`-compound`), and relevance via `{ $meta: "textScore" }`. Only **one text index per collection** is allowed (it can cover several fields, or all of them with `"$**"`).
+```js
+db.sessions.createIndex({ createdAt: 1 }, { expireAfterSeconds: 3600 })        // sessions vanish an hour after createdAt
+db.articles.createIndex({ title: "text", body: "text" }, { weights: { title: 10, body: 1 } })
+db.articles.find({ $text: { $search: "index" } }, { title: 1, score: { $meta: "textScore" } }).sort({ score: { $meta: "textScore" } })
+// [ 'Index tips' (8.81), 'Indexing in MongoDB' (8.10) ]
+```
+- For relevance-ranked, typo-tolerant or vector search, **MongoDB Search** (`$search`, Lucene-based) and **Vector Search** (`$vectorSearch`) are the richer options.
+
+## Other Index Types and Properties | amber
+- **Unique**: rejects duplicates (E11000). **Partial**: indexes only the documents matching a `partialFilterExpression` (smaller); queries must include that condition to use it. **Sparse**: skips documents missing the field (partial indexes are the more flexible successor).
+- **Wildcard** (`{ "attrs.$**": 1 }`): indexes arbitrary or unknown sub-fields, which suits user-defined attributes. **Hashed** (`{ sku: "hashed" }`): for hashed sharding and equality lookups only (no ranges). **2dsphere**: geospatial queries.
+- **Hidden indexes** (`hideIndex`): the planner ignores the index while it is still maintained, so you can test the effect of dropping it safely.
+- **Collation**: a case-insensitive index (`collation: { locale: "en", strength: 2 }`) serves case-insensitive equality queries that use the same collation.
+
+## Covered Queries and Index Practice | violet
+```js
+db.products.find({ category: "pens", price: { $lt: 5 } }, { _id: 0, category: 1, price: 1 })
+// PROJECTION_COVERED <- IXSCAN(category_1_price_1): totalKeysExamined 40, totalDocsExamined 0
+```
+- A **covered query** is answered **from the index alone** (`totalDocsExamined: 0`): every filtered and returned field must be in the index, and `_id` must be excluded unless it is indexed with them.
+- Build indexes for your **most frequent and most important queries**; remove unused ones (`$indexStats`); watch the working set (frequently used data and indexes) fit in RAM.
+- Index builds in recent versions hold an exclusive lock only briefly at the start and end; on replica sets they build on all data-bearing members at once.
+
+## Interview Q&A | sky | wide
+Q: What is the ESR rule?
+A: Order compound index fields as Equality fields first, then Sort fields, then Range fields. The index then narrows to the equality values, returns them already sorted, and range-filters within that order, avoiding an in-memory sort.
+Q: Can a compound index { a: 1, b: 1 } serve a query on b alone?
+A: No. Only its prefixes (a, or a and b) can use it; a query on b alone scans the collection unless another index exists.
+Q: What is a multikey index?
+A: An index on an array field, with one key per element. A compound index may include at most one array field per document ("cannot index parallel arrays").
+Q: How does a TTL index work?
+A: A background thread runs every 60 seconds and deletes documents whose indexed date is older than expireAfterSeconds. It must be a single-field index on a date, and deletion is approximate in time.
+Q: What is a covered query?
+A: A query whose filter and projected fields are all in one index, so MongoDB answers it from the index without reading documents (totalDocsExamined is 0).
+Q: How many text indexes can a collection have?
+A: One. It can include several fields with weights, or all string fields via `"$**"`.
+Q: How do you find out whether a query uses an index?
+A: Run explain("executionStats") and check for IXSCAN rather than COLLSCAN, then compare totalKeysExamined and totalDocsExamined with nReturned.
+Q: What are the costs of indexes?
+A: Memory and disk, plus slower writes, because every insert, update and delete must maintain each index.
+
+@ Advanced
+
+# 09 | Replica Sets | Primary, secondaries and arbiters, the oplog, elections and automatic failover, priorities and member types, read preference, rollback | Replica Sets
+
+## Architecture | rose
+- A **replica set** is a group of `mongod` processes holding the **same data**: one **primary** accepts all writes; **secondaries** copy them and can serve reads. It provides **high availability** (automatic failover), **redundancy** and read scaling.
+- Use an **odd number of voting members** (3 or 5), spread across failure domains such as availability zones. A set allows up to **50 members**, of which at most **7 vote**.
+- A single-node replica set is fine for development: it enables **transactions and change streams**, which a standalone `mongod` does not support ("The $changeStream stage is only supported on replica sets or mongos").
+```js
+rs.initiate({ _id: "rs1", members: [
+  { _id: 0, host: "127.0.0.1:27201", priority: 2 },          // preferred primary
+  { _id: 1, host: "127.0.0.1:27202" },
+  { _id: 2, host: "127.0.0.1:27203" } ] })
+rs.status().members.map(m => m.name + " " + m.stateStr)
+// [ '127.0.0.1:27201 PRIMARY', '127.0.0.1:27202 SECONDARY', '127.0.0.1:27203 SECONDARY' ]
+// mongodb://127.0.0.1:27201,127.0.0.1:27202,127.0.0.1:27203/?replicaSet=rs1     (clients get the whole seed list)
+```
+
+## The Oplog | blue
+- The primary records every change in the **oplog** (`local.oplog.rs`), a capped collection. Secondaries **pull** and apply it, possibly from another secondary (**chaining**, allowed by default).
+- Oplog entries are **idempotent**: `$inc: { balance: 5 }` is logged as the resulting value (`{ $v: 2, diff: { u: { balance: 105 } } }`), so replaying an entry twice is harmless.
+- The default oplog size is 5% of free disk, at least 990 MB and at most 50 GB. Its **time window** must exceed the longest maintenance outage of a secondary; otherwise that member needs a full **initial sync**.
+
+## Elections and Automatic Failover | green
+- Members exchange **heartbeats every 2 seconds**. If secondaries see no primary for **`electionTimeoutMillis` (10 seconds by default)**, an eligible secondary runs a **dry-run (pre-vote) election**, then a real one, and becomes primary with **votes from a majority** of voting members. The protocol (version 1) is based on **Raft**: terms, one vote per term, and the most up-to-date member wins.
+- **Priority** (0 to 1000, default 1) makes a member more likely to be primary. When a higher-priority member catches up, it calls a **priority takeover** election.
+- **Verified failover** (3 members, Node.js driver 7.7 writing every 50 ms): the primary was killed, a new primary was elected **about 15 seconds later**, and the driver's writes **paused and resumed with 0 errors**, thanks to server selection waiting plus **retryable writes** (on by default).
+- Without a majority (for example 2 of 3 members down), **no primary** can be elected: the set becomes read-only.
+
+## Arbiters and Member Types | amber
+- **Arbiter**: votes but **holds no data** and can never be primary; it breaks ties cheaply (a Primary-Secondary-Arbiter set, **PSA**). Since 5.3 only **one arbiter** is allowed unless `allowMultipleArbiters` is set (verified: "Multiple arbiters are not allowed").
+- PSA drawbacks: with one data-bearing member down, `w: "majority"` writes cannot be acknowledged and the majority commit point stalls. MongoDB therefore makes the **implicit default write concern `w: 1`** for PSA sets (verified: no majority default reported), and recommends **three data-bearing members** instead.
+- **Priority 0** members can never become primary (for example in a remote data centre). **Hidden** members (priority 0, invisible to clients) suit reporting or backups. **Delayed** members (`secondaryDelaySecs`) keep an old copy to recover from operator mistakes. **Non-voting** members (`votes: 0`) let a set exceed 7 members.
+
+## Read Preference and Rollback | violet
+- **Read preference** decides which member serves reads: **`primary`** (default, strongly consistent), **`primaryPreferred`**, **`secondary`**, **`secondaryPreferred`**, **`nearest`** (lowest latency). Tag sets and `maxStalenessSeconds` refine it.
+- **Secondary reads may be stale** (replication lag) and do not reduce write load. Use them for analytics, geographically local reads or tolerance of primary loss, not as a default way to scale.
+- **Rollback**: if a primary accepted writes that never reached a majority and then failed, those writes are **rolled back** (saved to rollback files) when it rejoins. **`w: "majority"`** writes are never rolled back.
+
+## Interview Q&A | sky | wide
+Q: What is a replica set?
+A: A group of mongod processes holding the same data: one primary takes writes, secondaries replicate its oplog, and an election automatically promotes a secondary if the primary fails.
+Q: How does a MongoDB election work?
+A: If secondaries miss the primary's heartbeats for electionTimeoutMillis (10 s by default), an eligible member runs a pre-vote, then an election, and wins with votes from a majority of voting members. The Raft-based protocol favours the most up-to-date member, and priorities influence the outcome.
+Q: Why use an odd number of members?
+A: A majority of voting members is needed to elect a primary. Three members tolerate one failure; four still tolerate only one, so the fourth adds no fault tolerance for elections.
+Q: What is an arbiter and should you use one?
+A: A voting member with no data that only breaks ties. It is cheap, but in a PSA set losing the data-bearing secondary blocks majority writes, so three data-bearing members are recommended.
+Q: What happens to writes during failover?
+A: For roughly 10 to 15 seconds there is no primary. Drivers wait during server selection and retry a failed write once (retryable writes), so applications usually see only latency. Writes the old primary had not replicated to a majority are rolled back.
+Q: What is the oplog?
+A: A capped collection (local.oplog.rs) of idempotent change records written by the primary and replayed by secondaries; its time window bounds how long a member can be offline and still catch up.
+Q: Can reads from secondaries return stale data?
+A: Yes, replication is asynchronous. Use readPreference primary, or causally consistent sessions with majority read and write concerns, when you need read-your-writes.
+
+# 10 | Write Concern, Read Concern & Transactions | w and j, majority, wtimeout, defaults, read concern levels, causal consistency, multi-document ACID transactions, retryable writes | Concerns & Transactions
+
+## Write Concern | rose
+```js
+db.accounts.insertOne({ _id: "A", balance: 100 }, { writeConcern: { w: "majority", wtimeout: 5000 } })
+db.accounts.insertOne({ _id: "Z", balance: 0 },   { writeConcern: { w: 0 } })      // { acknowledged: false, ... }
+db.accounts.insertOne({ _id: "C", balance: 1 },   { writeConcern: { w: 3, wtimeout: 2000 } })   // one of 3 members is down
+// MongoWriteConcernError: waiting for replication timed out (code 64, WriteConcernTimeout)
+db.accounts.countDocuments({ _id: "C" })          // 1: the write WAS applied on the primary; only the acknowledgement failed
+```
+- **Write concern** says how many members must confirm a write before the server acknowledges it.
+- **`w: 0`**: no acknowledgement (fire and forget). **`w: 1`**: the primary applied it. **`w: "majority"`**: a majority of data-bearing voting members applied it, so it **survives failover**. **`w: <n>`**: n members.
+- **`j: true`**: wait for the on-disk journal. With `w: "majority"`, journaling is implied by default (`writeConcernMajorityJournalDefault`).
+- **`wtimeout`**: stop waiting after this time. A timeout **does not undo the write**: it is applied on the primary and may still replicate.
+- **Default since 5.0**: the **implicit default is `w: "majority"`** (verified on a 3-member set: `{ w: 'majority', wtimeout: 0 }`), **except PSA-style sets with arbiters, where it is `w: 1`**. Override it cluster-wide with `setDefaultRWConcern`.
+
+## Read Concern | blue
+- **`local`** (default): returns the node's most recent data, which might later be **rolled back**.
+- **`available`**: like `local`, but on sharded clusters it may return orphaned documents; it is the fastest.
+- **`majority`**: returns only data **acknowledged by a majority**, which can never be rolled back.
+- **`linearizable`**: majority data that also reflects **every write acknowledged before the read started**. It works only for reads on the **primary** and is slower (verified on a secondary: "cannot satisfy linearizable read concern on non-primary node").
+- **`snapshot`**: a consistent point-in-time view across documents; used by transactions and by `find`/`aggregate` at a chosen cluster time.
+- **Causal consistency**: within a causally consistent session using `majority` read and write concerns, a client always reads its own writes and sees operations in order, even on secondaries.
+
+## Multi-Document Transactions | green
+```js app.mjs
+async function transfer(from, to, amount) {
+  const session = client.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const res = await accounts.updateOne({ _id: from, balance: { $gte: amount } }, { $inc: { balance: -amount } }, { session });
+      if (res.modifiedCount === 0) throw new Error("Insufficient funds");           // throwing aborts the transaction
+      await accounts.updateOne({ _id: to }, { $inc: { balance: amount } }, { session });
+    }, { readConcern: { level: "snapshot" }, writeConcern: { w: "majority" } });
+  } finally {
+    await session.endSession();
+  }
+}
+await transfer("A", "B", 30);          // A 100 -> 70, B 50 -> 80
+await transfer("A", "B", 1000);        // Error: Insufficient funds; both balances unchanged
+```
+- **ACID transactions** across documents and collections arrived in **4.0** for replica sets and **4.2** for sharded clusters. Every operation passes the **session**. Uncommitted changes are **invisible** outside the transaction.
+- **`withTransaction`** retries the whole callback on **`TransientTransactionError`** and retries the commit on **`UnknownTransactionCommitResult`**. Two transactions writing the same document produce **`WriteConflict` (code 112)** labelled `TransientTransactionError` (verified).
+- **Limits** (verified defaults): a transaction may run for **60 seconds** (`transactionLifetimeLimitSeconds`); waiting for a lock fails after **5 ms** (`maxTransactionLockRequestTimeoutMillis`); **9.0** caps concurrent transactions at **10,000** (`maxConcurrentMultiDocumentTransactions`, error `TooManyOpenTransactions`).
+- **Design first**: a well-modelled single document is atomic without a transaction. Use transactions for genuinely multi-document invariants such as transfers and inventory-plus-order, and keep them short.
+
+## Retryable Writes and Reads | amber
+- **Retryable writes** (on by default in the drivers, verified `retryWrites: true`): a write that fails with a network error or a failover is **retried once** automatically. The server deduplicates the retry with the session's transaction number, so it is **not applied twice**.
+- **Retryable reads** (`retryReads: true`) retry a read once after a transient error.
+- Together with the driver waiting for a new primary during server selection (`serverSelectionTimeoutMS`, 30 s by default), they hide most failovers from applications.
+
+## Interview Q&A | sky | wide
+Q: What does w: "majority" guarantee?
+A: The write has been applied by a majority of data-bearing voting members, so it survives the primary's failure and will not be rolled back.
+Q: If a write concern times out, was the write applied?
+A: Yes, it may have been: wtimeout only stops waiting for acknowledgements. The primary already applied the write, and it may still replicate.
+Q: What is the default write concern?
+A: Since 5.0, an implicit w: "majority" for most deployments, but w: 1 for replica sets with arbiters where the data-bearing voting members do not exceed a voting majority (PSA). It can be overridden with setDefaultRWConcern.
+Q: Read concern local vs majority vs linearizable?
+A: local returns the node's latest data, which could be rolled back; majority returns only majority-committed data; linearizable also guarantees the read reflects all writes acknowledged before it began, and works only on the primary.
+Q: Does MongoDB support ACID transactions?
+A: Yes: multi-document transactions on replica sets since 4.0 and on sharded clusters since 4.2, with snapshot isolation, all-or-nothing commit, and automatic retry of transient errors in withTransaction.
+Q: Why should transactions be short?
+A: They hold locks and keep an old snapshot pinned in the cache, abort after 60 seconds by default, and conflicting writers fail with WriteConflict. Long transactions hurt everyone's throughput.
+Q: What is a retryable write?
+A: A write the driver automatically retries once after a network error or failover; the server recognises the retry by its session and transaction number, so it is applied exactly once.
+
+# 11 | Sharding | Why shard, shards, mongos and config servers, choosing a shard key, hashed vs ranged vs zones, chunks and the balancer, targeted vs scatter-gather queries, resharding and moving collections | Sharding
+
+## Architecture | rose
+- **Sharding** partitions a collection across **shards** to scale **writes, storage and working set** horizontally beyond one machine.
+- **Shards**: each is a **replica set** holding a subset of the data. **`mongos`**: a stateless **router**; applications connect to it as if it were one server. **Config servers**: a replica set (CSRS) storing the cluster metadata (which ranges live where). Since 8.0 a config server can also hold data as a **config shard**.
+- Each database has a **primary shard** that stores its **unsharded collections**. **`moveCollection`** (8.0) moves an unsharded collection to another shard, and **`unshardCollection`** (8.0) turns a sharded collection back into an unsharded one.
+```text
+            app  ->  mongos (router, caches routing table)  <-  config servers (replica set: metadata)
+                       |                  |
+                  shard sh1 (rs)     shard sh2 (rs)      each shard is a replica set
+```
+```js
+sh.addShard("sh1/127.0.0.1:27511"); sh.addShard("sh2/127.0.0.1:27521")
+sh.shardCollection("shop.orders", { customerId: "hashed" })        // enableSharding is optional since 6.0
+sh.shardCollection("shop.events", { tenantId: 1, createdAt: 1 })   // ranged, compound key
+```
+
+## Choosing a Shard Key | blue
+- The shard key decides **data distribution** and **query routing**, so it is the most important decision. A good key has:
+- **High cardinality** (many distinct values) and **low frequency** (no value dominates), so data can be spread finely.
+- **Non-monotonic** values: a key that always increases (timestamp, ObjectId) sends **every insert to the last range**, creating a **hot shard**.
+- **Query isolation**: the most common queries include the shard key, so they hit **one shard**.
+- **Ranged sharding** keeps nearby values together (efficient range queries) but risks hot spots. **Hashed sharding** spreads monotonic keys evenly, but range queries on the key go to all shards. **Zone sharding** pins ranges to shards (for example EU tenants on EU shards for data residency).
+- A shard key needs an index, which is created automatically on an empty collection. Documents may **omit shard key fields** (4.4+), and shard key **values can be updated** (4.2+).
+- Fix a poor key with **`refineCollectionShardKey`** (4.4+, adds suffix fields) or **`reshardCollection`** (5.0+, online resharding to a new key). Resharding-based operations take at least 5 minutes by default.
+
+## Chunks and the Balancer | green
+- Sharded data is divided into **chunks**: contiguous **ranges of shard key values** owned by one shard. The default chunk size is **128 MB** (since 6.0).
+- **Verified initial layout**: a **hashed** key started with **one chunk on each shard**; a **ranged** key started with **one chunk on the primary shard**.
+- The **balancer** (a config server process) migrates ranges between shards to keep data even. Since **6.0.3** it balances by **data size** rather than chunk count, and **automatic chunk splitting is gone**: ranges split only when the balancer needs to move part of one.
+- **Jumbo chunks** are ranges that cannot be split (too many documents with one shard key value): a symptom of low cardinality. Set a **balancing window** to keep migrations out of peak hours.
+
+## Targeted vs Scatter-Gather Queries | amber
+```js
+db.orders.find({ customerId: "c42" }).explain().queryPlanner.winningPlan.stage    // SINGLE_SHARD  (shards: ['sh1'])
+db.orders.find({ total: 5 }).explain().queryPlanner.winningPlan.stage            // SHARD_MERGE   (shards: ['sh1', 'sh2'])
+db.orders.find({ customerId: { $gt: "c4" } })                                     // range on a HASHED key -> all shards
+```
+- With the shard key (or its prefix) in the filter, `mongos` sends the query to the **owning shard(s)** only: a **targeted** query.
+- Without it, `mongos` **broadcasts** to every shard and merges the results (**scatter-gather**), which gets slower as shards are added.
+- Sorting, `$group` and `$lookup` across shards add merge work on `mongos` or a chosen shard. Design queries and the shard key together.
+
+## Interview Q&A | sky | wide
+Q: What are the components of a sharded cluster?
+A: Shards (each a replica set holding part of the data), mongos routers that applications connect to, and a config server replica set storing the metadata about which shard owns which ranges.
+Q: What makes a good shard key?
+A: High cardinality, low frequency, values that do not increase monotonically, and presence in the most common queries so they target a single shard.
+Q: Hashed vs ranged sharding?
+A: Ranged keeps adjacent key values together, so range queries are efficient, but monotonic keys create a hot shard. Hashed spreads values evenly, ideal for monotonic keys, but range queries on the key are broadcast to every shard.
+Q: What is a chunk, and what does the balancer do?
+A: A chunk is a contiguous range of shard key values on one shard (128 MB by default). The balancer migrates ranges to keep data evenly distributed and, since 6.0.3, balances by data size without automatic splitting.
+Q: What is a scatter-gather query?
+A: A query without the shard key that mongos must send to all shards and merge. It is slower and scales worse than targeted queries.
+Q: Can you change the shard key?
+A: Yes. Since 4.4 you can refine it by adding suffix fields, and since 5.0 reshardCollection changes it online. Individual documents' shard key values have been updatable since 4.2.
+Q: Where do unsharded collections live?
+A: On the database's primary shard. Since 8.0, moveCollection can move one to another shard.
+Q: Why not shard on an ObjectId or timestamp with ranged sharding?
+A: The values increase monotonically, so all new inserts hit the shard owning the highest range. Use a hashed key or a compound key that starts with a well-distributed field.
+
+# 12 | Change Streams | Watching collections, databases and deployments, event structure, full documents and pre- and post-images, resume tokens, filtering, guarantees, event-driven use cases | Change Streams
+
+## What Change Streams Are | rose
+- A **change stream** is a cursor that delivers **real-time change events** (insert, update, replace, delete, plus DDL events such as drop and rename) for a **collection**, a **database** or the **whole deployment** (`collection.watch()`, `db.watch()`, `client.watch()`).
+- It reads the **oplog** through a supported API: no polling, no tailing internals. It requires a **replica set or sharded cluster** (on a standalone server: "The $changeStream stage is only supported on replica sets or mongos").
+- Events are **majority-committed**, so a consumer never sees a change that is later rolled back, and they arrive **in order** (across shards, by cluster time).
+
+## Watching from Node.js | blue
+```js app.mjs
+await db.createCollection("orders", { changeStreamPreAndPostImages: { enabled: true } });   // enable pre-images
+const stream = db.collection("orders").watch(
+  [{ $match: { operationType: { $in: ["insert", "update", "delete"] } } }],                  // filter on the server
+  { fullDocument: "updateLookup", fullDocumentBeforeChange: "whenAvailable" }
+);
+for await (const change of stream) {
+  console.log(change.operationType, change.documentKey, change.updateDescription?.updatedFields);
+  saveResumeToken(change._id);                       // persist it so a restart can continue where it stopped
+}
+// insert { _id: 1 } undefined
+// update { _id: 1 } { status: 'PAID' }
+// delete { _id: 1 } undefined
+```
+- The pipeline may contain only filtering and reshaping stages: `$match`, `$project`, `$addFields`/`$set`, `$unset`, `$replaceRoot`/`$replaceWith`, `$redact`.
+
+## Event Structure and Full Documents | green
+```js
+{ _id: { _data: "8268EF..." },                              // the RESUME TOKEN
+  operationType: "update",
+  clusterTime: Timestamp({ t: 1792037200, i: 3 }), wallTime: ISODate("..."),
+  ns: { db: "bank", coll: "orders" },
+  documentKey: { _id: 1 },
+  updateDescription: { updatedFields: { status: "PAID" }, removedFields: [], truncatedArrays: [] },
+  fullDocument: { _id: 1, status: "PAID", total: 20 },                       // fullDocument: "updateLookup"
+  fullDocumentBeforeChange: { _id: 1, status: "NEW", total: 20 } }           // pre-image
+```
+- **Inserts and replaces** always carry `fullDocument`. **Updates** carry only the **delta** (`updateDescription`) unless you ask for more.
+- **`fullDocument: "updateLookup"`** fetches the **current** document when the event is read, which may be newer than this change. **`"whenAvailable"` / `"required"`** return the **post-image** as of this exact change, which needs `changeStreamPreAndPostImages` on the collection (6.0+).
+- **`fullDocumentBeforeChange`** (`"whenAvailable"` / `"required"`) returns the **pre-image**, the document before the change; deletes then include the deleted document.
+
+## Resuming and Reliability | amber
+- Every event's **`_id` is a resume token**. Store it after processing each event; after a crash, open the stream with **`resumeAfter: token`** and missed events are replayed (verified: resuming after the insert re-delivered the update and the delete).
+- **`startAfter`** also works after an **invalidate** event (the collection was dropped or renamed); **`startAtOperationTime`** starts from a cluster time.
+- Resuming works only while the token's position is **still in the oplog**: size the oplog window for the longest consumer outage.
+- Drivers **resume automatically** after transient errors and failovers. In **9.0**, a stream opened with read preference `primary` or `secondary` gets the resumable error `InterruptedDueToReplStateChange` (11602) when an election changes the node's role; drivers and `mongos` resume it transparently.
+- Delivery is **at-least-once** across restarts (an event may be seen again after resuming from an older token), so make consumers **idempotent**.
+
+## Use Cases and Alternatives | violet
+- **Event-driven microservices**: publish order events to other services or to Kafka (the MongoDB Kafka connector is built on change streams).
+- **Cache invalidation**, **search index synchronisation** (Elasticsearch, OpenSearch), **CQRS read models** and materialised views, **real-time notifications and dashboards** (pushed over WebSockets), and **audit trails** with pre-images.
+- **Transactional outbox**: write the business change and an outbox document in one transaction, then publish the outbox inserts from a change stream. That gives reliable event publishing without two-phase commit.
+- Change streams are **not a message queue**: there are no consumer groups or acknowledgements. Scale-out consumers need partitioning (for example by `$match` on a key hash), or use Kafka downstream.
+
+## Interview Q&A | sky | wide
+Q: What is a change stream?
+A: A resumable cursor over majority-committed change events for a collection, database or deployment, built on the oplog. It needs a replica set or sharded cluster.
+Q: How do you continue after a consumer restarts?
+A: Persist each event's _id (the resume token) and reopen the stream with resumeAfter (or startAfter after an invalidate). It works as long as that point is still in the oplog.
+Q: fullDocument "updateLookup" vs post-images?
+A: updateLookup reads the document's current state when the event is processed, which may include later changes. Post-images (whenAvailable or required, with changeStreamPreAndPostImages enabled) give the document exactly as it was after that change.
+Q: Can change stream consumers see changes that get rolled back?
+A: No. Change streams return only majority-committed changes.
+Q: What delivery guarantee do you get?
+A: Ordered, at-least-once delivery when you resume from stored tokens, so consumers should be idempotent.
+Q: Give real-world uses of change streams.
+A: Publishing domain events to other microservices or Kafka, invalidating caches, syncing search indexes, updating CQRS read models, live dashboards and notifications, and audit logs with pre-images.
+
+@ Review
+
+# 13 | Rapid-Fire & Scenarios | Tricky questions, one-liners, design scenarios, big Q&A | Rapid-fire
+
+## Tricky Questions | rose
+- **"updateOne matched 1 but modified 0"**: the document already had those values.
+- **"find({ tags: ['a', 'b'] }) misses documents"**: that is exact array equality, order included; use `$all` or a plain value.
+- **"Range on an array matched unexpectedly"**: different elements satisfied different conditions; use `$elemMatch`.
+- **"{ x: null } returns documents without x"**: null also matches missing fields; use `$type: "null"`.
+- **"Query on the second field of a compound index scans everything"**: only index prefixes can be used.
+- **"Slow sort, 'Sort exceeded memory limit'"**: no index supports the sort; follow ESR, or allow disk use.
+- **"Change streams fail locally"**: the server is a standalone; start a single-node replica set.
+- **"w: 3 timed out but the document is there"**: write concern errors do not roll back the write.
+- **"All inserts go to one shard"**: a monotonically increasing ranged shard key; use a hashed or compound key.
+- **"$where works in find but not in countDocuments"**: aggregation-based helpers do not allow `$where`; use `$expr`.
+
+## One-Line Cheat Sheet | blue
+- **Model**: BSON documents in collections, `_id` (ObjectId = time + random + counter), **16 MiB** limit, flexible schema with `$jsonSchema` validation (`strict` / `moderate` / `constraint` in 9.0).
+- **CRUD**: `insertOne/Many` (ordered), `find` (cursor, projection, sort, skip, limit), `updateOne/Many` (operators, upsert), `replaceOne`, `deleteOne/Many`, `findOneAndUpdate`, `bulkWrite`.
+- **Selectors**: `$eq $ne $gt $gte $lt $lte $in $nin`, `$and $or $not $nor`, `$exists $type`, `$regex`, `$all $size $elemMatch`, `$expr`.
+- **Updates**: `$set $unset $inc $mul $min $max $rename $currentDate`, `$push ($each $slice $sort) $addToSet $pull $pop`, `$`, `$[]`, `$[id]` + arrayFilters, pipeline updates.
+- **Design**: embed what is read together and bounded; reference large, shared or unbounded data; patterns: extended reference, subset, computed, bucket, outlier.
+- **Aggregation**: `$match` first, `$project/$set`, `$group` + accumulators, `$sort $limit`, `$unwind`, `$lookup` (left outer join), `$facet`, `$bucket`, `$merge/$out`; 100 MB per stage with spilling.
+- **Indexes**: single, compound (**ESR**), multikey (one array per index), TTL (60 s monitor), text (one per collection), unique, partial, wildcard, hashed; explain: IXSCAN vs COLLSCAN, covered queries.
+- **Replica sets**: primary + secondaries (+ arbiter), oplog, Raft-style elections (10 s timeout), read preference, rollback; retryable writes.
+- **Concerns**: `w: 0/1/majority`, `j`, `wtimeout`; default majority (w: 1 for PSA); read `local/majority/linearizable/snapshot`; transactions (60 s, WriteConflict retry).
+- **Sharding**: shards (replica sets) + mongos + config servers; shard key (cardinality, frequency, monotonicity, isolation); hashed / ranged / zones; 128 MB chunks; balancer by data size; targeted vs scatter-gather.
+- **Change streams**: `watch()`, resume tokens, `updateLookup`, pre/post-images, majority-committed, at-least-once.
+
+## How to Answer Well | green
+- **Define, give the mechanism, show the command, state the trade-off**. For example: "Embedding gives one atomic read and write but risks unbounded growth; we referenced reviews and embedded the latest five (the subset pattern)."
+- Mention **versions** when they matter (transactions 4.0/4.2, majority default 5.0, balancer by data size 6.0.3, express path and moveCollection 8.0, constraint validation 9.0).
+- For any design question, start from the **access patterns**, then the **document shape**, **indexes**, and finally the **shard key**.
+
+## Big Interview Q&A | sky | wide
+Q: Design the data model for an e-commerce order system in MongoDB.
+A: Orders embed line items (with name and price at purchase time), the shipping address and a customer summary (extended reference). Products are their own collection with the 10 latest reviews embedded and the rest in a reviews collection referencing productId. Index orders on { customerId: 1, placedAt: -1 } and products by category and price (ESR). Use a transaction only for stock reservation plus order creation, and shard orders on a hashed customerId when the data outgrows one replica set.
+Q: When would you choose MongoDB over PostgreSQL?
+A: When data is naturally hierarchical or varies in shape, when the access patterns read whole aggregates, and when horizontal write scaling is needed. Prefer PostgreSQL for heavily relational data with many ad-hoc joins and strong constraints, although both now cover much of the other's ground.
+Q: How do you find and fix a slow query?
+A: Enable the database profiler or check the slow-query log (Atlas: Query Profiler and Performance Advisor), run explain("executionStats"), look for COLLSCAN, in-memory SORT and a high keys- or docs-examined to nReturned ratio, then add or reorder an index (ESR), project fewer fields, or reshape the document.
+Q: How does MongoDB provide high availability and durability?
+A: Replica sets with automatic Raft-based elections for availability; w: "majority" with journaling so acknowledged writes survive failover; read concern majority to avoid reading data that could roll back; retryable writes so failovers are transparent.
+Q: How do you keep a search index or cache in sync with MongoDB?
+A: Consume a change stream (or the Kafka source connector), apply each event idempotently to the search index or cache, and persist the resume token so the consumer can resume after restarts.
+Q: How would you implement a counter or inventory reservation safely?
+A: With an atomic conditional update such as updateOne({ _id: sku, stock: { $gte: qty } }, { $inc: { stock: -qty } }), checking modifiedCount, which needs no transaction. Use a transaction when the reservation must commit together with an order document.
+Q: Explain CAP for MongoDB.
+A: During a network partition, a replica set keeps consistency for majority reads and writes by allowing only the majority side to have a primary; the minority side cannot accept writes. Tunable read and write concerns and read preferences let you trade consistency for latency or availability per operation.

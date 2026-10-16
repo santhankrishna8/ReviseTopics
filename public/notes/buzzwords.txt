@@ -1,0 +1,1723 @@
+@ Beginner
+# 00 | Buzzwords Basics: Start Here | How to use this glossary of 111 engineering buzzwords, a 3-line formula for any "what is X?" question, the buzzword map, memory tricks, and what to do when you don't know a term | Start Here
+
+## How to Use These Notes
+- Each of the 111 terms gets a **hook** (the catchy line in the box: remember this first), a **What** line (the definition to say out loud), an **Example** (a real product, number or incident) and, where interviewers usually push, a **Trade-off** or **Watch out**.
+- Headings keep your numbering (1 to 111), so you can map back to your list. Every sheet ends with **Bonus Buzzwords**: related terms that come up in the same conversation. The last sheet has one-liners for all 111, the confusing pairs, and a buzzword bingo list.
+- Revise hook-first: read the hook, say the definition from memory, then check.
+
+## The 3-Line Answer Formula
+```text
+1. DEFINE     one sentence, no jargon you can't explain    "A circuit breaker stops calling a dependency that keeps failing..."
+2. EXAMPLE    a real system, a number, or your project      "...in our payment service, Resilience4j opened after 50% of calls failed..."
+3. TRADE-OFF  when to use it and what it costs              "...we fail a few requests fast instead of letting the whole checkout hang."
+```
+- About 30 seconds, then stop. Let them ask the follow-up: that's where you show depth.
+- If you haven't used it in production, say so and explain how it works and where you'd use it. Honest reasoning beats confident bluffing.
+
+## The Buzzword Map
+```text
+Let traffic in           rate limiting, load balancer, reverse proxy, API gateway, CDN, WAF
+Survive failures         timeouts, retries + backoff, circuit breaker, idempotency, failover, health checks
+Talk asynchronously      message queue, pub/sub, events, saga, dead letter queue, webhooks, cron
+Store and scale data     indexing, connection pooling, replicas, sharding, partitioning, replication
+Stay correct             CAP, eventual consistency, locks, race conditions, deadlocks, thread safety
+Ship safely              CI/CD, Docker, Kubernetes, feature flags, blue-green, canary, rolling, rollback
+See what's happening     logs, metrics, traces, alerts, SLI/SLO/SLA, error budget, observability
+Stay secure              IAM, OAuth, JWT, TLS, secrets, encryption, WAF, CORS, CSRF, SQLi, XSS, SSRF
+Survive disasters        backups, disaster recovery (RPO/RTO), multi-region, chaos engineering
+Operate                  IaC, Terraform, Helm, build caching, on-call, incidents, postmortems
+```
+
+## Memory Tricks
+- **Learn the twins together**: liveness vs readiness, SLI vs SLO vs SLA, optimistic vs pessimistic, latency vs throughput, sharding vs partitioning, blue-green vs canary vs rolling, authentication vs authorization, CORS vs CSRF. Sheet 21 lists them all.
+- **Hang each term on a real story**: GitLab's 2017 database deletion (backups), CrowdStrike 2024 (canary releases), Facebook 2021 (DNS), Capital One 2019 (SSRF), left-pad 2016 (dependency hell). Stories stick; definitions fade.
+- **Draw it**: most of these are two boxes and an arrow. If you can sketch it on a whiteboard, you can explain it.
+
+## Beginner Q&A
+Q: An interviewer says "explain idempotency like I'm new". What does a good answer look like?
+A: A one-line definition (doing it twice has the same effect as doing it once), an everyday example (pressing the lift button ten times still calls one lift), a tech example (a payment API with an Idempotency-Key header), and why it matters (it makes retries safe).
+Q: What if I'm asked about a buzzword I've never heard?
+A: Say so, then reason from the name and the concepts around it: "I haven't used X, but if it works like Y, I'd expect...". Interviewers reward clear reasoning.
+Q: Should I name tools in my answers?
+A: Yes, after the concept: "a distributed lock, for example with Redis or etcd". Concept first, tool second, so the answer survives a "what if we don't use Redis?" follow-up.
+
+# 01 | Traffic Control: Terms 1-5 | Rate limiting, caching, load balancing, reverse proxies and API gateways, plus bonus buzzwords: throttling, token bucket, sticky sessions, consistent hashing, TLS termination, BFF, single point of failure | Traffic Control
+
+## 1. Rate Limiting
+> A bouncer with a clicker: only N requests per minute get in; the rest hear "429, come back later".
+- **What:** Capping how many requests a client (user, API key or IP) can make in a time window, so no single client can overload the service or starve the others.
+- **Example:** A login endpoint allows 5 attempts per minute per IP; the 6th gets `429 Too Many Requests` with `Retry-After: 60`. LLM APIs such as OpenAI's limit requests and tokens per minute in the same way.
+- **How:** **token bucket** (tokens refill at a steady rate; a full bucket allows a burst), **leaky bucket** (smooth, constant outflow), **fixed window**, **sliding window**. With many servers the counters live in a shared store such as Redis.
+- **Trade-off:** protects the system and keeps it fair, but limits that are too tight reject legitimate bursts.
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60
+```
+
+## 2. Caching
+> Keep the answer close: don't walk to the library for the book that's already on your desk.
+- **What:** Storing a copy of frequently read data in a faster layer (memory, a closer server) so repeated reads skip the slow source (database, remote API, disk).
+- **Example:** A product page reads from Redis in about 1 ms instead of running a 50 ms database query. On a miss the app loads from the database and stores the result with a 10-minute TTL: this is the **cache-aside** pattern.
+- **Where caches live:** browser → CDN → reverse proxy → application memory (e.g. Caffeine) → distributed cache (Redis, Memcached) → the database's own buffer cache.
+- **Trade-off:** speed and lower database load, paid for with **stale data** and the difficulty of invalidation (term 50).
+
+## 3. Load Balancing
+> A restaurant host seating guests across all the tables so no single waiter drowns.
+- **What:** Spreading incoming requests across several servers so none is overloaded, and steering traffic away from servers that fail their health checks.
+- **Example:** An AWS Application Load Balancer sends requests round-robin to 6 instances; when one fails its health check it stops getting traffic until it recovers.
+- **Algorithms:** round robin, weighted round robin, least connections, IP hash or consistent hashing (the same client keeps going to the same server).
+- **Layer 4 vs Layer 7:** L4 balances TCP/UDP connections by IP and port (fast, content-blind); L7 reads HTTP (path, headers, cookies) and can send `/images` and `/api` to different server pools.
+
+## 4. Reverse Proxies
+> A receptionist: visitors talk to the front desk and never walk straight into the offices behind it.
+- **What:** A server in front of your backend servers that accepts client requests on their behalf and forwards them, hiding the backends. To the client, the proxy *is* the server.
+- **Example:** Nginx on port 443 terminates TLS, serves the static files, compresses responses and forwards `/api/` to a Spring Boot app on port 8080.
+- **Jobs it does:** TLS termination, caching, compression, load balancing, buffering slow clients, hiding the internal layout.
+- **Forward vs reverse:** a **forward proxy** acts for **clients** (a company proxy that employees' browsers go through); a **reverse proxy** acts for **servers**.
+```nginx
+server {
+  listen 443 ssl;
+  server_name shop.example.com;
+  ssl_certificate     /etc/ssl/shop.crt;
+  ssl_certificate_key /etc/ssl/shop.key;
+  location /     { root /var/www/shop; }
+  location /api/ { proxy_pass http://127.0.0.1:8080; }
+}
+```
+
+## 5. API Gateways
+> One front door for all your microservices, with a security guard, a turnstile and a signpost.
+- **What:** A single entry point in front of many backend services that routes each request to the right service and handles cross-cutting concerns once: authentication, rate limiting, request and response transformation, logging, versioning.
+- **Example:** A mobile app calls `api.shop.com/orders` and `api.shop.com/users`; the gateway (Spring Cloud Gateway, Kong, AWS API Gateway) validates the JWT, applies the rate limit and forwards to the orders or users service.
+- **vs reverse proxy and load balancer:** an API gateway is a reverse proxy that understands APIs (keys, quotas, auth, versions); a load balancer only spreads load.
+- **Watch out:** it can become a bottleneck or a single point of failure, so run several instances and keep business logic out of it.
+
+## Bonus Buzzwords
+- **Throttling**: slowing down or queueing excess requests instead of rejecting them. Often used loosely as a synonym for rate limiting.
+- **Token bucket**: a bucket holds up to N tokens and refills at R tokens per second; each request spends one; an empty bucket means reject. Allows short bursts up to N.
+- **Sticky sessions (session affinity)**: the load balancer keeps sending a user to the same server, usually via a cookie. Simple, but load gets uneven and sessions are lost if that server dies; stateless servers are better.
+- **Consistent hashing**: servers and keys are placed on a ring, so adding or removing a server moves only about 1/N of the keys instead of nearly all of them. Used by distributed caches and by Cassandra and DynamoDB.
+- **TLS termination**: decrypting HTTPS at the load balancer or proxy so the backends handle plain HTTP (or re-encrypt for internal zero trust).
+- **Cache hit ratio**: the share of reads served from the cache. A falling hit ratio is an early warning that the database is about to feel more load.
+- **BFF (Backend for Frontend)**: a separate gateway per client type (web, mobile) that shapes responses for that client.
+- **Single point of failure (SPOF)**: a component whose failure takes the whole system down. The cure is redundancy: two load balancers, three gateway instances.
+- **Ingress**: the Kubernetes object that routes outside HTTP traffic to services, i.e. a reverse proxy configured in YAML. The newer **Gateway API** is its successor.
+
+# 02 | Ship & Run: Terms 6-8 | CI/CD, Docker and Kubernetes, plus bonus buzzwords: artifact, build once deploy many, shift left, container registry, multi-stage build, sidecar, service mesh, GitOps, cattle not pets | Ship & Run
+
+## 6. CI/CD
+> Robots that test every change and ship it: merged in the morning, live by lunch.
+- **What:** **Continuous Integration** = every push is built and tested automatically, so integration problems surface in minutes. **Continuous Delivery** = every passing build is ready to release with one click. **Continuous Deployment** = it goes to production automatically, with no human gate.
+- **Example:** On every pull request a GitHub Actions pipeline runs `mvn verify` (compile, unit and integration tests), builds a Docker image and deploys it to staging; merging to `main` deploys to production.
+- **Why:** small, frequent, low-risk releases and fast feedback instead of a painful "integration week" before a big release.
+```yaml
+# .github/workflows/ci.yml
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with: { distribution: temurin, java-version: '21', cache: maven }
+      - run: mvn -B verify
+```
+
+## 7. Docker
+> Ship the whole kitchen, not just the recipe: the app plus everything it needs, in one box that runs the same everywhere.
+- **What:** A tool that packages an application with its runtime, libraries and configuration into an **image**, and runs it as an isolated **container** that shares the host's operating-system kernel. It ends "works on my machine".
+- **Example:** A `Dockerfile` builds a Spring Boot image; `docker run -p 8080:8080 shop-api:1.4.0` runs that identical image on a laptop, in CI and in production.
+- **Image vs container:** the image is the read-only template (the class); a container is a running instance of it (the object).
+- **Container vs VM:** a virtual machine emulates hardware and boots a full guest OS (gigabytes, minutes to start); a container is an isolated process using kernel **namespaces** and **cgroups** (megabytes, starts in about a second).
+```dockerfile
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY target/shop-api.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+## 8. Kubernetes
+> A ship's captain for containers: you say "keep 3 copies running", and it makes that true, forever.
+- **What:** An open-source container orchestrator (from Google, 2014, now run by the CNCF) that runs containers across a cluster of machines and keeps the **actual state** equal to your **desired state**: scheduling, self-healing, scaling, rolling updates, service discovery, configuration and secrets.
+- **Example:** A Deployment declares `replicas: 3` of `shop-api:1.4.0`. If a node dies, Kubernetes starts replacement pods on other nodes; changing the image tag triggers a rolling update.
+- **Vocabulary:** **Pod** (smallest unit: one or more containers), **Deployment** (manages replicas and rollouts), **Service** (a stable name and IP in front of pods), **Ingress/Gateway** (HTTP routing from outside), **ConfigMap/Secret**, **Node** (a worker machine), **control plane** (API server, scheduler, etcd, controllers).
+- **Nickname:** K8s = K + 8 letters + s.
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: shop-api }
+spec:
+  replicas: 3
+  selector: { matchLabels: { app: shop-api } }
+  template:
+    metadata: { labels: { app: shop-api } }
+    spec:
+      containers:
+        - name: shop-api
+          image: shop-api:1.4.0
+          ports: [{ containerPort: 8080 }]
+```
+
+## Bonus Buzzwords
+- **Pipeline, stage, job**: a pipeline is the whole automated path from commit to production; stages (build, test, deploy) contain jobs that run steps.
+- **Artifact**: the built output (JAR, Docker image). **Build once, deploy many**: the same artifact is promoted from test to staging to production, never rebuilt.
+- **Shift left**: move testing and security checks earlier in the pipeline, where problems are cheaper to fix.
+- **DevOps**: the culture and practices that unite development and operations: "you build it, you run it".
+- **Container registry**: where images are stored and pulled by `name:tag`: Docker Hub, Amazon ECR, GitHub Container Registry.
+- **Multi-stage build**: build in a large image with the JDK or compilers, then copy only the result into a small runtime image.
+- **Sidecar**: a helper container in the same pod as the app (log shipper, proxy, secret refresher).
+- **Service mesh**: Istio or Linkerd add a proxy layer that gives services mTLS, retries, traffic splitting and telemetry without code changes.
+- **GitOps**: Git is the single source of truth for what runs in the cluster; Argo CD or Flux continuously sync the cluster to the repo.
+- **Cattle, not pets**: servers are identical and replaceable; when one is sick you replace it instead of nursing it by hand.
+- **Immutable infrastructure**: never patch a running server; build a new image and replace the old one.
+- **Twelve-Factor App**: twelve principles for cloud-native apps, such as config in environment variables, stateless processes and logs as event streams.
+
+# 03 | Resilience Patterns: Terms 9-14 | Service discovery, circuit breakers, timeouts, retries, exponential backoff and idempotency, plus bonus buzzwords: cascading failure, fail fast, fallback, graceful degradation, bulkhead, thundering herd, retry storm | Resilience
+
+## 9. Service Discovery
+> A phone book that updates itself: services look each other up by name, never by a hard-coded IP.
+- **What:** How a service finds the current address (IP and port) of another service when instances come and go with scaling, deployments and failures. Instances **register**; callers **look up** by name.
+- **Example:** In Kubernetes the orders service calls `http://payments:8080`; cluster DNS resolves `payments` to the Service's stable IP, which forwards to whichever payment pods are healthy right now. Outside Kubernetes: Netflix Eureka or HashiCorp Consul.
+- **Client-side vs server-side:** client-side = the caller asks the registry and picks an instance itself (Eureka with Spring Cloud LoadBalancer); server-side = the caller hits a router or load balancer that does the lookup (Kubernetes Service, AWS ALB).
+
+## 10. Circuit Breakers
+> Like the fuse box at home: when a service keeps failing, trip the switch and stop calling it before the whole house burns.
+- **What:** A wrapper around remote calls that tracks failures. Past a threshold it **opens** and fails fast (or returns a fallback) for a cool-down period, then goes **half-open** to let a few trial calls through; if they succeed it **closes** again.
+- **Example:** With Resilience4j configured so that 50% failures over the last 100 calls opens the breaker for 30 s, checkout shows "payment temporarily unavailable" instantly instead of hanging threads on a dead payment service.
+- **States:** `CLOSED` (normal) → `OPEN` (fail fast) → `HALF_OPEN` (test a few calls) → `CLOSED` or back to `OPEN`.
+- **Why:** it stops **cascading failure**: without it, threads stuck waiting on a dead dependency exhaust the caller too.
+```java
+@CircuitBreaker(name = "payments", fallbackMethod = "paymentDown")
+public Receipt pay(Order order) { return paymentClient.charge(order); }
+
+Receipt paymentDown(Order order, Throwable t) { return Receipt.pending(order); }
+```
+
+## 11. Timeouts
+> Never wait forever: decide how long you'll hold the line before you hang up.
+- **What:** An upper limit on how long a call may take (to connect, to read, in total) before the caller gives up and handles the failure. Without one, a slow dependency ties up threads and connections until the caller collapses too.
+- **Example:** Checkout calls inventory with a 1 s connect timeout and a 2 s read timeout. Inventory's p99 is 400 ms, so 2 s means "something is wrong", not "slow but fine".
+- **Rules:** put a timeout on **every** network call (Java's `HttpClient` waits forever unless you set one), base it on the dependency's p99, and give outer calls a bigger budget than inner calls, passing the remaining time down (**deadline propagation**, as gRPC deadlines do).
+
+## 12. Retries
+> If at first you don't succeed, try again, but only if it's safe, and only a few times.
+- **What:** Automatically re-sending a failed request, on the assumption that the failure was **transient** (a network blip, a restarting pod, a `503`).
+- **Example:** An HTTP client retries a `503 Service Unavailable` or a connection reset up to 3 times; it never retries `400 Bad Request` or `401 Unauthorized`, which will fail the same way every time.
+- **Rules:** retry only transient errors, cap the attempts, add **backoff with jitter** (term 13), and retry only **idempotent** operations (term 14), or a retried "charge card" can charge twice.
+- **Danger, the retry storm:** if 3 layers each retry 3 times, one failure at the bottom becomes 3 × 3 × 3 = 27 calls, hammering a service that is already struggling.
+
+## 13. Exponential Backoff
+> Knock, wait 1 s; knock, wait 2 s; knock, wait 4 s: back off so the server can breathe.
+- **What:** Waiting progressively longer between retries, usually doubling (1 s, 2 s, 4 s, 8 s...) up to a cap, so a struggling service gets room to recover instead of being hammered.
+- **Jitter:** add randomness to each wait, so thousands of clients that failed at the same moment don't all retry at the same moment (a **thundering herd**). AWS recommends **full jitter**: wait a random time between 0 and the exponential delay.
+- **Example:** AWS SDKs and Google Cloud client libraries retry throttled calls with exponential backoff and jitter by default.
+```java
+long delayMs(int attempt) {                                   // attempt = 0, 1, 2, ...
+    long exp = Math.min(30_000, 1_000L << Math.min(attempt, 15)); // 1 s, 2 s, 4 s ... capped at 30 s
+    return ThreadLocalRandom.current().nextLong(exp + 1);       // full jitter: 0..exp
+}
+```
+
+## 14. Idempotency
+> Pressing the lift button ten times still brings one lift.
+- **What:** An operation is idempotent if doing it once or many times leaves the system in the same state. It's what makes retries safe. Same **effect**, not necessarily the same response: a second `DELETE` may return `404`.
+- **HTTP:** `GET`, `PUT`, `DELETE`, `HEAD` and `OPTIONS` are idempotent by definition; `POST` isn't and `PATCH` isn't guaranteed to be. `PUT /users/7` twice = same user; `POST /orders` twice = two orders.
+- **Example:** Stripe's API accepts an `Idempotency-Key` header. The client sends "charge $50" with a unique key (a UUID); if the response is lost and it retries with the same key, Stripe returns the first result instead of charging again.
+- **How to build it:** store processed request or message ids under a unique constraint and skip duplicates, use upserts, and make state changes conditional (`UPDATE orders SET status = 'PAID' WHERE id = 42 AND status = 'PENDING'`).
+
+## Bonus Buzzwords
+- **Cascading failure**: one failing service drags down its callers, then their callers, like dominoes.
+- **Fail fast**: report failure immediately instead of waiting, freeing threads and giving the user a quick answer.
+- **Fallback**: a degraded answer when the real one fails: cached data, a default, "try again later".
+- **Graceful degradation**: core features keep working when extras fail; if recommendations are down, the shop still sells.
+- **Bulkhead**: separate thread or connection pools per dependency, like a ship's watertight compartments, so one slow dependency can't use up every thread.
+- **Thundering herd**: many clients waking up or retrying at the same moment and flattening a resource.
+- **Retry storm (retry amplification)**: retries at several layers multiplying the load on a struggling service.
+- **Jitter**: deliberate randomness in timing to spread clients out.
+- **Self-healing**: the platform detects failures and fixes them automatically (restart, reschedule, fail over) without a human.
+- **Resilience4j vs Hystrix**: Netflix Hystrix has been in maintenance mode since 2018; Resilience4j is the usual Java choice today (circuit breaker, retry, rate limiter, bulkhead, time limiter).
+- **Effectively once**: at-least-once delivery plus an idempotent consumer gives the same result as exactly-once.
+- **N+1 redundancy** (not the N+1 query!): run one more instance than you need, so losing one doesn't cause an outage.
+
+@ Intermediate
+# 04 | Async Messaging: Terms 15-21 | Message queues, pub/sub, event-driven architecture, distributed transactions, the saga pattern, dead letter queues and cron jobs, plus bonus buzzwords: outbox pattern, dual write, CDC, delivery guarantees, event sourcing, CQRS, consumer lag | Async Messaging
+
+## 15. Message Queues
+> A to-do list between services: the producer drops work in, a worker picks it up when it's ready.
+- **What:** A buffer that holds messages from **producers** until **consumers** process them, so the two are **decoupled** in time and speed. Each message is handled by **one** consumer, which acknowledges it so it's removed.
+- **Example:** On "Place order" the API puts `{"orderId": 42}` on a RabbitMQ or Amazon SQS queue and returns `202 Accepted` at once; workers send the email, build the invoice PDF and notify the warehouse in the background. A traffic spike makes the queue longer instead of crashing the workers.
+- **Wins:** absorbs spikes (**load levelling**), survives consumer downtime, lets you scale consumers independently, makes retries easy.
+- **Delivery guarantees:** at-most-once, **at-least-once** (the usual one, so consumers must be idempotent), exactly-once (only in limited scopes, such as Kafka transactions).
+
+## 16. Pub/Sub
+> A radio station: the publisher broadcasts once, and every tuned-in subscriber hears it.
+- **What:** Publish-subscribe messaging: a publisher sends a message to a **topic** without knowing who listens, and **every** subscriber gets its own copy.
+- **Example:** `OrderPlaced` is published once; the email, analytics and loyalty-points services each receive it. Adding a fraud-check subscriber later needs no change to the publisher. Tools: Kafka, Google Cloud Pub/Sub, AWS SNS (often fanning out to SQS queues), Redis Pub/Sub.
+- **Queue vs pub/sub:** a queue gives each message to **one** worker (sharing the work); pub/sub gives each message to **every** subscriber (sharing the news). Kafka does both: consumers in the same group share a topic's partitions, while each separate group gets every message.
+
+## 17. Event-Driven Architecture
+> Announce facts, don't give orders: services react to "OrderPlaced" instead of being told "SendEmail".
+- **What:** An architecture where services communicate by publishing and reacting to **events**: immutable records that something happened. The producer doesn't know or wait for the consumers.
+- **Example:** In a ride-hailing app, `RideRequested` triggers the matching service, which emits `DriverAssigned`, which the notification and ETA services react to. Each service owns its data and can change independently.
+- **Event vs command:** an event is past tense and broadcast (`PaymentCaptured`); a command is an instruction to one receiver (`CapturePayment`).
+- **Trade-off:** loose coupling, independent scaling and a natural audit trail, paid for with **eventual consistency**, harder debugging (you need tracing and correlation ids) and duplicate or out-of-order events to handle.
+
+## 18. Distributed Transactions
+> All-or-nothing across several databases: either every account changes, or none does.
+- **What:** A transaction that spans several databases or services and must stay **atomic** (all commit or all roll back) even though no single database controls everything.
+- **Classic solution, Two-Phase Commit (2PC):** a coordinator asks every participant to **prepare** (vote yes or no, holding locks); if all vote yes it tells them to **commit**, otherwise to **abort**.
+- **Example:** moving money from an account in database A to one in database B with XA transactions (JTA in Java).
+- **Problems:** 2PC is **blocking** (if the coordinator dies after "prepare", participants sit on their locks waiting), slow (extra round trips, locks held longer), and many NoSQL stores and message brokers don't support it. That's why microservices prefer **sagas** (term 19) plus the **outbox pattern**.
+
+## 19. Saga Pattern
+> Booking a holiday with free cancellation: book the flight, then the hotel, then the car; if the car fails, cancel the hotel and the flight.
+- **What:** A long business transaction split into a sequence of **local transactions**, one per service. Each step triggers the next; if a step fails, the saga runs **compensating transactions** that undo the steps already done.
+- **Example:** Order saga: create order (PENDING) → reserve stock → charge card → confirm order. If the charge fails: release stock → mark order CANCELLED.
+- **Choreography vs orchestration:** **choreography** = each service reacts to the others' events (no central brain; fine for a few steps, hard to follow for many); **orchestration** = a central orchestrator tells each service what to do next (easier to see and change; tools: Temporal, AWS Step Functions, Camunda).
+- **Remember:** sagas give **eventual** consistency without isolation: other requests can see the PENDING state in between, compensations must be idempotent, and some actions (a sent email) can't be undone, only followed by a correction. The idea comes from Garcia-Molina and Salem's 1987 paper "Sagas".
+
+## 20. Dead Letter Queues
+> The post office's undeliverable-mail bin: letters that keep failing go there instead of blocking everyone else.
+- **What:** A separate queue where messages go after failing processing a set number of times (or expiring), so one **poison message** can't block the queue or loop forever, and people or tools can inspect and replay it later.
+- **Example:** An SQS queue with a redrive policy of `maxReceiveCount: 5`: a message whose JSON can't be parsed is received and fails 5 times, then moves to `orders-dlq`; an alarm fires because the DLQ isn't empty; after the bug fix, the messages are redriven to the main queue.
+- **Must-have:** an alert on DLQ depth. A DLQ nobody watches is a silent data-loss bin.
+
+## 21. Cron Jobs
+> An alarm clock for code: "every night at 2 a.m., run the cleanup".
+- **What:** A task scheduled to run automatically at fixed times or intervals, named after the Unix `cron` daemon. The schedule is written as a **cron expression**.
+- **Example:** `0 2 * * *` runs at 02:00 every day: nightly reports, deleting expired sessions, billing runs, renewing certificates.
+- **Where:** Linux crontab, Kubernetes `CronJob`, Spring `@Scheduled(cron = "0 0 2 * * *")` (Spring's format has an extra **seconds** field first, so 6 fields), AWS EventBridge Scheduler.
+- **Pitfalls:** with 5 app instances the job runs 5 times unless you add a distributed lock (ShedLock) or a single scheduler; jobs should be idempotent and safe if one run is skipped or overlaps; watch time zones and daylight-saving changes.
+```text
+┌──────── minute (0-59)
+│ ┌────── hour (0-23)
+│ │ ┌──── day of month (1-31)
+│ │ │ ┌── month (1-12)
+│ │ │ │ ┌ day of week (0-6, Sunday = 0)
+0 2 * * *        every day at 02:00
+*/15 * * * *     every 15 minutes
+0 9 * * 1-5      09:00 on weekdays
+```
+
+## Bonus Buzzwords
+- **Producer, consumer, broker**: who sends, who receives, and the server in between (RabbitMQ, Kafka, SQS).
+- **Ack (acknowledgement)**: the consumer confirming it processed a message, so the broker can remove it or move the offset.
+- **Dual write problem**: saving to the database and publishing a message are two separate actions; a crash between them leaves the two out of sync.
+- **Outbox pattern**: the fix for dual writes. Write the business row and an "event to publish" row in the **same** local transaction; a relay (a poller, or CDC with Debezium) publishes it afterwards.
+- **CDC (Change Data Capture)**: streaming every insert, update and delete from a database's log to other systems.
+- **At-most-once / at-least-once / exactly-once**: may lose messages / may duplicate them / neither (expensive and limited in scope).
+- **Poison message**: a message that always fails processing; it belongs in the DLQ.
+- **Event sourcing**: storing the full sequence of events as the source of truth and computing current state by replaying them, like a bank ledger.
+- **CQRS**: Command Query Responsibility Segregation, separate models (often separate stores) for writes and for reads.
+- **Fan-out**: one event delivered to many consumers.
+- **Consumer group, partition, offset**: Kafka's way to share a topic among consumers, split it for parallelism, and track each consumer's position.
+- **Consumer lag / queue depth**: how far behind the consumers are; the key metric for scaling workers.
+- **Workflow engine**: Temporal, AWS Step Functions or Camunda run long multi-step processes durably, with retries and compensation built in.
+
+# 05 | Real-Time Communication: Terms 22-24 | WebSockets, long polling and server-sent events, how to choose between them, plus bonus buzzwords: short polling, full-duplex, heartbeat, Socket.IO, STOMP, presence, push notifications, WebTransport | Real-Time
+
+## 22. WebSockets
+> A phone call instead of letters: one line stays open and both sides talk whenever they like.
+- **What:** A protocol (RFC 6455) that upgrades an HTTP connection into a persistent, **full-duplex** channel over TCP, so client and server can each send messages at any time with tiny per-message overhead.
+- **How it starts:** the client sends `GET /chat` with `Upgrade: websocket`; the server answers `101 Switching Protocols`; from then on both sides exchange WebSocket frames (`ws://`, or `wss://` over TLS).
+- **Example:** chat apps, multiplayer games, collaborative editors showing other people's cursors, live trading dashboards.
+- **Trade-off:** long-lived stateful connections are harder to load-balance and scale: you need to know which server holds a user's connection (a shared pub/sub such as Redis helps), and every proxy on the way must allow them.
+```javascript
+const ws = new WebSocket('wss://chat.example.com/room/42');
+ws.onopen = () => ws.send('hello');
+ws.onmessage = e => console.log('got', e.data);
+```
+
+## 23. Long Polling
+> Asking "any news?" and the other side holds the line until there is some, or until a timeout.
+- **What:** The client sends a normal HTTP request and the server **doesn't answer until it has new data** (or a timeout of, say, 30 s); the client then immediately sends the next request. Near-real-time over plain HTTP.
+- **Example:** Early Facebook Chat used it; Telegram's Bot API `getUpdates` takes a `timeout` for long polling; Socket.IO starts with long polling and then upgrades to WebSocket when it can.
+- **vs short polling:** short polling asks every N seconds and usually hears "nothing new" (wasted requests, delay up to N seconds); long polling waits on the server side, so data arrives as soon as it exists.
+- **Cost:** a held connection per client, and a full HTTP request and response for every batch of messages.
+
+## 24. Server-Sent Events
+> A news ticker: the server keeps sending updates down one open HTTP response, and the client just listens.
+- **What:** A web standard where the server streams text events to the browser over a single long-lived HTTP response with `Content-Type: text/event-stream`. **One-way**, server to client. The browser's `EventSource` reconnects automatically and sends `Last-Event-ID` so the server can resume.
+- **Example:** streaming an LLM's answer token by token (the OpenAI and Anthropic APIs stream as SSE), live scores, build logs, notification feeds.
+- **vs WebSockets:** SSE is simpler (plain HTTP, works through proxies, multiplexes nicely over HTTP/2, reconnects by itself) but one-way and text only. Choose WebSockets when the client must also send frequent messages.
+```text
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+
+id: 1
+data: {"score": "2-1"}
+
+id: 2
+event: goal
+data: {"team": "home"}
+```
+```javascript
+const es = new EventSource('/scores');
+es.onmessage = e => render(JSON.parse(e.data));
+es.addEventListener('goal', e => celebrate(JSON.parse(e.data)));
+```
+
+## Which One When
+```text
+Need                                         Pick
+Server → browser updates only                Server-Sent Events
+Two-way, frequent, low latency               WebSocket
+Infrastructure can't hold connections        Long polling (or short polling)
+Server → another server when an event fires  Webhook (term 101)
+Reach a phone when the app is closed         Push notification (APNs, FCM)
+```
+
+## Bonus Buzzwords
+- **Short polling**: asking on a fixed interval whether anything changed. Simple, wasteful, adds delay.
+- **Full-duplex / half-duplex / simplex**: both directions at once (WebSocket) / one direction at a time (walkie-talkie) / one direction only (SSE).
+- **Heartbeat (ping/pong)**: small periodic messages that keep a connection alive through proxies and detect dead peers.
+- **Socket.IO**: a popular library on top of WebSockets that adds rooms, automatic reconnection and a long-polling fallback.
+- **STOMP**: a simple messaging protocol often run over WebSockets, used by Spring's WebSocket support.
+- **Presence**: showing who is online, typing or viewing, built on connection state and heartbeats.
+- **Push notification**: a message delivered through Apple (APNs) or Google (FCM) services, even when the app isn't running.
+- **Comet**: the old umbrella name for long-polling and streaming tricks from before WebSockets existed.
+- **WebTransport**: a newer browser API over HTTP/3 (QUIC) with multiple streams and unreliable datagrams, aimed at games and media.
+
+# 06 | Database Performance: Terms 25-29 | Database indexing, query optimization, N+1 queries, connection pooling and read replicas, plus bonus buzzwords: B-tree, clustered and covering indexes, selectivity, EXPLAIN ANALYZE, denormalization, materialized views, lazy vs eager loading | DB Performance
+
+## 25. Database Indexing
+> The index at the back of a book: jump straight to page 412 instead of reading every page.
+- **What:** A separate data structure (usually a **B-tree**) that keeps a column's values sorted with pointers to the rows, so lookups, range scans and sorting go from reading every row, O(n), to a tree search, O(log n).
+- **Example:** `WHERE email = 'a@x.com'` on 10 million users: without an index the database scans every row; with `CREATE INDEX idx_users_email ON users (email)` it reads a handful of pages.
+- **Cost:** every `INSERT`, `UPDATE` and `DELETE` must also update each index (slower writes, more disk and memory). Index the columns you filter, join and sort on, not every column.
+- **Composite index rule (leftmost prefix):** an index on `(country, city)` serves `WHERE country = ?` and `WHERE country = ? AND city = ?`, but generally not `WHERE city = ?` alone.
+```sql
+CREATE INDEX idx_users_email ON users (email);
+EXPLAIN SELECT * FROM users WHERE email = 'a@x.com';
+-- before the index: Seq Scan on users      after: Index Scan using idx_users_email on users
+```
+
+## 26. Query Optimization
+> Ask the database smarter questions: fetch less, filter early, and let the indexes do the work.
+- **What:** Making a query return the same result faster, mostly by making it read less data: the right indexes, selective `WHERE` clauses, only the columns you need, efficient joins and pagination. The main tool is the **query plan** (`EXPLAIN`, `EXPLAIN ANALYZE`).
+- **Example:** `WHERE EXTRACT(YEAR FROM created_at) = 2026` can't use the index on `created_at`, because the function hides the column. Rewritten as a range, `WHERE created_at >= '2026-01-01' AND created_at < '2027-01-01'`, it becomes an index range scan.
+- **Checklist:** read the plan (sequential scans of big tables, row estimates far from reality), add or fix indexes, avoid `SELECT *`, use keyset pagination instead of a huge `OFFSET`, batch instead of row-by-row, keep statistics fresh (`ANALYZE`), cache hot results.
+```sql
+-- slow on deep pages: reads and throws away 100,000 rows first
+SELECT id, title FROM posts ORDER BY id LIMIT 20 OFFSET 100000;
+-- keyset pagination: remember the last id you showed and seek straight to it through the index
+SELECT id, title FROM posts WHERE id > 100020 ORDER BY id LIMIT 20;
+```
+
+## 27. N+1 Queries
+> Fetching the class list once, then walking to the office separately for each student's file.
+- **What:** A performance bug where code runs **1** query to load a list of N items and then **N more** queries to load something for each item, usually hidden by an ORM's lazy loading. 100 orders = 101 database round trips.
+- **Example:** In JPA, loading all orders and then calling `order.getCustomer().getName()` in a loop fires one `SELECT ... FROM customer WHERE id = ?` per order.
+- **Fix:** fetch everything in one go: `JOIN FETCH` or `@EntityGraph` in JPA, `select_related`/`prefetch_related` in Django, `include` in Prisma, batch fetching with `IN (...)`, or a DataLoader in GraphQL.
+- **Spot it:** turn on SQL logging or Hibernate statistics and count the queries per request; a count that grows with the data is the giveaway.
+```java
+// N+1: one query for the orders, then one more per order for its customer
+List<Order> orders = orderRepo.findAll();
+orders.forEach(o -> System.out.println(o.getCustomer().getName()));
+
+// Fixed: one query with a join
+@Query("select o from Order o join fetch o.customer")
+List<Order> findAllWithCustomer();
+```
+
+## 28. Connection Pooling
+> A taxi rank: keep a few cabs waiting instead of building a new car for every trip.
+- **What:** Keeping a set of open database connections and lending them to requests, instead of opening a new connection (TCP, TLS, authentication, server-side memory: often tens of milliseconds) for every query.
+- **Example:** Spring Boot uses **HikariCP** by default with a maximum pool size of 10; a request borrows a connection, runs its queries and returns it. In front of PostgreSQL, **PgBouncer** pools connections for many app instances.
+- **Sizing:** bigger is not better, because the database can only run a few queries per CPU core at once. HikariCP's starting formula is `(cores × 2) + effective spindle count`; then measure. Watch for **pool exhaustion**: requests waiting for a connection until `connectionTimeout` (30 s by default in Hikari).
+- **Gotcha:** 20 app instances × 10 connections = 200 connections at the database, while PostgreSQL's default `max_connections` is 100.
+
+## 29. Read Replicas
+> Photocopies of the master ledger: anyone can read a copy, but only the master gets written in.
+- **What:** Copies of the primary database that receive its changes (usually **asynchronously**) and serve **read-only** queries, multiplying read capacity and moving reports and analytics off the primary.
+- **Example:** A shop where 95% of queries are reads sends writes to the primary and product browsing and reports to 3 replicas. Amazon RDS supports up to 15 read replicas for MySQL and PostgreSQL.
+- **The catch, replication lag:** a user updates their profile, the next page reads from a replica that hasn't caught up, and they see their old name. Fix with **read-your-writes**: read from the primary for that user for a short while after they write.
+- **Not for:** scaling writes. Every write still goes to one primary; scaling writes needs sharding (term 30).
+
+## Bonus Buzzwords
+- **B-tree**: the balanced tree behind most database indexes; shallow (3-4 levels for millions of rows) and good at both exact lookups and ranges.
+- **Clustered vs non-clustered index**: clustered = the table rows themselves are stored in index order (InnoDB's primary key, SQL Server's clustered index; one per table); non-clustered = a separate structure pointing to the rows.
+- **Covering index**: an index that contains every column the query needs, so the database never touches the table (an index-only scan).
+- **Full table scan (Seq Scan)**: reading every row; fine for small tables, a red flag for big ones.
+- **Selectivity**: how well a condition narrows the rows. `email = ?` is highly selective; `is_active = true` usually isn't, so an index on it rarely helps.
+- **EXPLAIN ANALYZE**: runs the query and shows the real plan with actual times and row counts.
+- **Slow query log**: the database's list of queries that took longer than a threshold; where tuning starts.
+- **Denormalization**: deliberately duplicating data (storing `customer_name` on orders) to avoid joins on hot reads, at the cost of keeping copies in sync.
+- **Materialized view**: a query result stored like a table and refreshed periodically, e.g. daily sales per store.
+- **Lazy vs eager loading**: load related data only when first accessed vs together with the parent. Lazy loading is how N+1 sneaks in.
+- **Keyset (cursor) pagination**: "give me 20 rows after id X", fast at any depth, unlike `OFFSET`.
+- **Replication lag**: how far a replica is behind the primary, in seconds or bytes.
+- **Hot path**: the code path that runs most often; optimise there first.
+
+# 07 | Scaling Data: Terms 30-33 | Sharding, partitioning, replication and leader election, plus bonus buzzwords: shard key, hot partition, resharding, quorum, split brain, consensus, replication factor, federation | Scaling Data
+
+## 30. Sharding
+> Split the phone book into A-M and N-Z volumes and put each on its own shelf (server).
+- **What:** Splitting one large dataset **across several database servers** (shards), each holding a subset of the rows chosen by a **shard key**, so storage and **write** throughput scale out.
+- **Example:** Users sharded by `user_id`: a hash of the id picks one of 4 servers, and every query that includes `user_id` goes to exactly one shard. MongoDB, Cassandra and DynamoDB shard for you; Vitess (built at YouTube) shards MySQL.
+- **Choosing the key:** many distinct values, even spread of data and traffic, and present in most queries. A bad key makes a **hot shard**: sharding by `country` puts most of the traffic on one server.
+- **Costs:** cross-shard queries and joins are expensive, cross-shard transactions are hard, and **resharding** means moving data. Plain `hash % N` moves almost every key when N changes; consistent hashing or many small virtual shards make it cheap.
+
+## 31. Partitioning
+> Filing-cabinet drawers by year: same cabinet (database), but you only open the 2026 drawer.
+- **What:** Splitting one large table into smaller pieces (**partitions**) by a rule (range, list or hash), usually **inside one database server**. Queries that filter on the partition key touch only the partitions they need (**partition pruning**), and old data can be dropped a partition at a time.
+- **Example:** An `events` table partitioned by month on `created_at`: a query for October 2026 scans one partition, and deleting January 2025 is `DROP TABLE events_2025_01` instead of a slow `DELETE` of millions of rows.
+- **Horizontal vs vertical:** horizontal splits **rows** (by date, by region); vertical splits **columns** (move a rarely read large `bio` column into a side table).
+- **Sharding vs partitioning:** sharding is horizontal partitioning **across servers**; "partitioning" on its own usually means within one server. (Kafka also calls a topic's splits partitions: its unit of parallelism and ordering.)
+```sql
+CREATE TABLE events (id bigint, created_at timestamptz NOT NULL, payload jsonb)
+  PARTITION BY RANGE (created_at);
+CREATE TABLE events_2026_10 PARTITION OF events
+  FOR VALUES FROM ('2026-10-01') TO ('2026-11-01');
+```
+
+## 32. Replication
+> Backup singers who know every line: if the lead loses their voice, one of them steps up.
+- **What:** Keeping **copies of the same data** on several machines, for **availability** (survive a node failure), **read scaling** and **lower latency** (a copy near the users).
+- **Models:** **leader-follower** (one primary takes writes and followers copy it: PostgreSQL, MySQL, MongoDB replica sets), **multi-leader** (several nodes accept writes and conflicts must be resolved; used across regions), **leaderless** (any replica accepts writes and reads use quorums: Cassandra, Dynamo-style stores).
+- **Sync vs async:** synchronous = the write waits for replicas (no data loss on failover, slower writes); asynchronous = the write returns at once (fast, but the last few writes can be lost if the leader dies).
+- **Example:** A 3-node MongoDB replica set with `w: "majority"`: a write is acknowledged once 2 of 3 nodes have it, so losing any single node loses no acknowledged data.
+- **Replication vs sharding:** replication = the same data in many places; sharding = different data in different places. Real systems do both.
+
+## 33. Leader Election
+> Electing a class monitor: when the monitor is absent the class votes in a new one, and there can only ever be one.
+- **What:** How a group of nodes agrees on **exactly one** leader (to accept writes, run a job, coordinate), and picks a new one automatically when the leader dies.
+- **Example:** In etcd or Kafka's KRaft controllers, nodes run the **Raft** consensus algorithm: when followers stop hearing the leader's heartbeats, one becomes a candidate, asks for votes and wins with a **majority**. Each election starts a new **term**, so a stale leader is recognised and ignored. Kubernetes controllers elect a leader with a `Lease` object.
+- **Why a majority (quorum):** if a 5-node cluster is split 3 and 2 by a network partition, only the side with 3 can elect a leader, so there are never two leaders (**split brain**). Hence odd cluster sizes: 3 nodes tolerate 1 failure, 5 tolerate 2.
+- **Algorithms and tools:** Raft (etcd, Consul, KRaft), Zab (ZooKeeper), Paxos (the classic, by Leslie Lamport).
+
+## Bonus Buzzwords
+- **Shard key / partition key**: the column whose value decides where a row lives. The most important decision in a sharded design.
+- **Hot spot (hot key, hot partition)**: one shard or key getting far more traffic than the rest, e.g. a celebrity's account.
+- **Resharding (rebalancing)**: moving data when shards are added or removed.
+- **Virtual nodes**: many small slots per physical server on a consistent-hash ring, so data spreads evenly and moves in small pieces.
+- **Directory-based sharding**: a lookup table maps each key (or tenant) to its shard; flexible, but the directory must be fast and highly available.
+- **Quorum**: a majority of nodes. In leaderless stores, `R + W > N` means every read set overlaps every write set, so a read reaches at least one replica holding the latest acknowledged write.
+- **Split brain**: two nodes both believe they're the leader and accept conflicting writes.
+- **Consensus**: getting distributed nodes to agree on a value despite failures (Raft, Paxos).
+- **Heartbeat**: a periodic "I'm alive" message; missing heartbeats trigger failure detection and elections.
+- **Fencing token**: an increasing number handed out with leadership or a lock, so storage can reject an old leader that wakes up late.
+- **Replication factor**: how many copies of each piece of data exist (Kafka and Cassandra often use 3).
+- **Federation (functional partitioning)**: splitting databases by feature (users DB, orders DB) instead of by rows.
+- **Data residency**: keeping certain users' data in a specific country or region, often by sharding on region.
+
+# 08 | Consistency & Concurrency: Terms 34-40 | CAP theorem, eventual consistency, optimistic and pessimistic locking, distributed locks, race conditions and deadlocks, plus bonus buzzwords: ACID, BASE, PACELC, isolation levels, MVCC, CRDTs, compare-and-swap, livelock | Consistency
+
+## 34. CAP Theorem
+> When the network splits, you must choose: be right (Consistency) or be up (Availability).
+- **What:** Eric Brewer's conjecture (2000), proved by Gilbert and Lynch (2002): a distributed data store can't guarantee all three of **Consistency** (every read sees the latest write), **Availability** (every request to a working node gets a non-error answer) and **Partition tolerance** (it keeps working when messages between nodes are lost). Partitions **will** happen, so the real choice during one is **CP or AP**.
+- **Example:** A bank-balance service is **CP**: during a partition, a node that can't confirm the latest balance returns an error rather than a possibly wrong number. A shopping cart or a "likes" counter is **AP**: it keeps accepting reads and writes and reconciles afterwards.
+- **Systems:** CP-leaning: etcd, ZooKeeper, HBase, MongoDB with majority reads and writes. AP-leaning: Cassandra, CouchDB, Dynamo-style stores.
+- **Common mistakes:** "CA" isn't a real option for a distributed system, and CAP only describes behaviour **during a partition**. **PACELC** adds the normal case: if Partition, choose A or C; **E**lse, choose **L**atency or **C**onsistency.
+
+## 35. Eventual Consistency
+> Gossip spreads: not everyone hears the news at once, but if nothing new happens, eventually everyone knows the same story.
+- **What:** A guarantee that if no new writes arrive, all replicas will **eventually** converge to the same value. Meanwhile, reads may return stale data.
+- **Example:** You change a DNS record and some users keep reaching the old IP until their resolver's cached copy expires (the TTL). You like a post and your friend sees the count move from 99 to 100 a second later.
+- **Fine for:** likes, view counts, feeds, product catalogues, search indexes. **Not fine for:** account balances, the last item in stock at checkout, unique usernames. Use strong consistency there.
+- **Making it friendlier:** read-your-writes and monotonic reads guarantees, conflict resolution (last-write-wins, CRDTs).
+- **ACID vs BASE:** relational databases promise ACID; many distributed stores promise **BASE**: **B**asically **A**vailable, **S**oft state, **E**ventually consistent.
+
+## 36. Optimistic Locking
+> Edit freely, check at save time: "someone changed this while you were editing, please reload".
+- **What:** A concurrency strategy that takes **no lock** while reading. Each row carries a **version** number, and an update succeeds only if the version is still the one you read. Zero rows updated means someone else got there first: retry or tell the user.
+- **Example:** Two admins open product 7 at version 3. Admin A saves: the update matches `version = 3` and sets version 4. Admin B saves with `version = 3`: 0 rows match, conflict. In JPA a `@Version` field does this for you and throws `OptimisticLockException`. Over HTTP the same idea is `ETag` + `If-Match`, answered with `412 Precondition Failed`.
+- **Best when** conflicts are rare (most web apps): no locks held, high throughput. When conflicts are frequent, the retries pile up; use pessimistic locking instead.
+```sql
+UPDATE products SET price = 90, version = version + 1
+WHERE id = 7 AND version = 3;   -- 0 rows updated = someone else changed it first
+```
+
+## 37. Pessimistic Locking
+> Lock the bathroom door: nobody else gets in until you're done.
+- **What:** Locking data **when you read it**, so nobody else can change it until your transaction ends. Others wait in line.
+- **Example:** Booking the last seat: `SELECT ... FOR UPDATE` locks the seat's row, so a second booking transaction waits until the first commits and then sees the seat is taken. In JPA: `@Lock(LockModeType.PESSIMISTIC_WRITE)`.
+- **Best when** conflicts are frequent and retries are costly (inventory, money). **Costs:** waiting, lower throughput, and the risk of **deadlocks** (term 40), so keep these transactions short.
+- **Variants:** `FOR UPDATE NOWAIT` fails at once instead of waiting; `FOR UPDATE SKIP LOCKED` skips rows others hold, which is perfect for a job queue stored in a table.
+```sql
+BEGIN;
+SELECT status FROM seats WHERE id = 12 FOR UPDATE;  -- other transactions now wait on this row
+UPDATE seats SET status = 'BOOKED', user_id = 42 WHERE id = 12;
+COMMIT;
+```
+
+## 38. Distributed Locks
+> One "talking stick" shared by many servers: whoever holds it may act, and it vanishes by itself if the holder disappears.
+- **What:** A lock that works **across machines**, so only one instance does something at a time (run a scheduled job, process a payment, rebuild a cache). It needs an **expiry (lease)**, so a crashed holder can't block everyone forever.
+- **Example:** In Redis, `SET lock:report-job <random-token> NX PX 30000` succeeds only if the key doesn't exist yet, and the key expires after 30 s. Release it only if it still holds your token (an atomic check-and-delete in a Lua script). Other options: ZooKeeper or etcd leases, PostgreSQL advisory locks, ShedLock for Spring scheduled jobs.
+- **The trap:** the holder pauses (a long GC, a network stall) past its lease, the lock expires, another node takes it, and now two nodes think they own it. The fix is a **fencing token**: every grant returns a bigger number, and the storage rejects writes carrying an older number. This is the heart of Martin Kleppmann's critique of the Redlock algorithm.
+```text
+SET lock:report-job 7f3a9c NX PX 30000     → OK (you have the lock) or nil (someone else has it)
+```
+
+## 39. Race Conditions
+> Two people grab the last cookie at the same moment: who gets it depends on who's faster.
+- **What:** A bug where the result depends on the **timing or interleaving** of concurrent operations on shared data. The classic shapes are **check-then-act** and **read-modify-write** without atomicity.
+- **Example:** Two requests both read stock = 1, both check `stock > 0`, both decrement: the last item is sold twice and stock is −1. In Java, `count++` from two threads loses updates, because it's three steps (read, add, write).
+- **Fixes:** make it one atomic step (`UPDATE stock SET qty = qty - 1 WHERE id = 7 AND qty > 0`, `AtomicInteger`, `ConcurrentHashMap.merge`), use locks (terms 36-38), unique constraints, or idempotency keys.
+- **Why they hurt:** they're intermittent, pass every test, and show up only under real load. **TOCTOU** (time of check to time of use) is the security flavour.
+
+## 40. Deadlocks
+> Two cars on a one-lane bridge, each waiting for the other to reverse: forever.
+- **What:** Two or more transactions or threads each hold a lock the other needs, so all of them wait forever. It needs all four **Coffman conditions**: mutual exclusion, hold and wait, no preemption, circular wait.
+- **Example:** Transfer 1 locks account A, then wants B; transfer 2 locks B, then wants A. Databases detect the cycle and kill one transaction (PostgreSQL: `ERROR: deadlock detected`; MySQL: error 1213), which the app should retry.
+- **Prevention:** always take locks in the **same order** (e.g. lower account id first), keep transactions short, use lock timeouts (`tryLock` with a timeout), lock less.
+- **Cousins:** **livelock** (both keep politely stepping aside and nobody progresses), **starvation** (one thread never gets its turn).
+
+## Bonus Buzzwords
+- **ACID**: Atomicity (all or nothing), Consistency (constraints hold), Isolation (concurrent transactions don't see each other's half-done work), Durability (committed means saved).
+- **Two different C's**: CAP's C means every read sees the latest write; ACID's C means the data obeys its rules and constraints.
+- **Strong consistency (linearizability)**: the system behaves as if there were one copy of the data and every operation happened at a single instant.
+- **Read-your-writes / monotonic reads**: you always see your own updates / you never see time go backwards between reads.
+- **Isolation levels**: Read Uncommitted, Read Committed (PostgreSQL's default), Repeatable Read (MySQL InnoDB's default), Serializable.
+- **Dirty read, non-repeatable read, phantom read, lost update**: the anomalies those isolation levels prevent, one by one.
+- **MVCC (multi-version concurrency control)**: readers see a snapshot, so readers don't block writers and writers don't block readers.
+- **CRDT**: a data type (counters, sets) whose replicas can be updated independently and always merge to the same result. Used in collaborative editors.
+- **Last-write-wins (LWW)**: keep the update with the latest timestamp. Simple, but it silently drops concurrent writes and trusts clocks (term 96).
+- **Mutex vs semaphore**: a mutex lets one thread in; a semaphore lets up to N in.
+- **Compare-and-swap (CAS)**: an atomic "set to new value only if it still equals the old value". The CPU-level cousin of optimistic locking.
+- **Lease**: a lock with an expiry time that the holder must keep renewing.
+
+# 09 | Runtime Health: Terms 41-44 | Memory leaks, garbage collection, thread safety and backpressure, plus bonus buzzwords: OOMKilled, heap vs stack, stop-the-world, heap dump, load shedding, bounded queue, virtual threads, event-loop blocking | Runtime Health
+
+## 41. Memory Leaks
+> A bathtub with the plug in and the tap dripping: memory fills slowly until the app drowns.
+- **What:** Memory the program no longer needs but can't release, so usage keeps growing until the process slows down (the garbage collector runs constantly) or crashes. In garbage-collected languages it means objects that are still **reachable** by mistake; in C and C++ it's `malloc` without `free`.
+- **Example:** A `static Map<String, Session>` that gets an entry on every request and never removes any; the heap climbs for days until the pod dies with `OutOfMemoryError` or Kubernetes reports `OOMKilled`.
+- **Usual suspects:** unbounded caches and collections, listeners and callbacks never removed, `ThreadLocal` values in pooled threads, unclosed streams and connections, and in JavaScript closures or `setInterval` handlers holding on to big objects or DOM nodes.
+- **Find and fix:** a memory graph whose low points keep rising; a heap dump (`-XX:+HeapDumpOnOutOfMemoryError`, `jcmd <pid> GC.heap_dump`) analysed in Eclipse MAT or VisualVM; Chrome DevTools heap snapshots for JS. Then bound the cache (Caffeine `maximumSize`), use try-with-resources, remove listeners, call `ThreadLocal.remove()`.
+
+## 42. Garbage Collection
+> A cleaning crew that throws away anything nobody is holding on to.
+- **What:** Automatic memory management: the runtime finds objects that can no longer be **reached** from the roots (stack variables, static fields) and reclaims their memory, so developers never call `free`. Java, C#, Go, JavaScript and Python all have it.
+- **How the JVM does it:** most objects die young (the **generational hypothesis**), so the heap has a young generation collected often and cheaply and an old generation collected rarely. Collectors: **G1** (the default since Java 9, balanced), **ZGC** and **Shenandoah** (pauses around a millisecond even on huge heaps), Parallel (maximum throughput).
+- **The cost, stop-the-world pauses:** a 2-second pause is a 2-second delay for every request in flight, and it shows up straight in your p99 (term 93).
+- **Example:** An API's p99 spikes every few minutes; GC logs (`-Xlog:gc`) show long old-generation collections. Fixes: right-size the heap, allocate less, or switch to ZGC.
+- **Elsewhere:** Python uses reference counting plus a cycle collector; V8 (Node, Chrome) uses a generational, mostly concurrent collector.
+
+## 43. Thread Safety
+> A shared whiteboard with rules: one marker writes at a time, or everyone gets their own copy.
+- **What:** Code is thread-safe if it behaves correctly when many threads use it at the same time: no race conditions, lost updates or corrupted state.
+- **Example:** `SimpleDateFormat` keeps internal state, so one instance shared by request threads produces garbled dates; `DateTimeFormatter` is immutable and safe. `HashMap` isn't thread-safe; `ConcurrentHashMap` is.
+- **Ways to get it, best first:** **don't share** (local variables, request-scoped objects), **immutability** (final fields, records, `List.of`), **thread-safe classes** (`AtomicLong`, `ConcurrentHashMap`, `BlockingQueue`), then **locks** (`synchronized`, `ReentrantLock`) for compound actions. `volatile` gives visibility, not atomicity.
+- **Spring gotcha:** singleton beans are shared by every request thread, so never keep per-request data in a field.
+```java
+class Counter {
+    private final AtomicLong hits = new AtomicLong();
+    long hit() { return hits.incrementAndGet(); }   // atomic: safe from many threads at once
+}
+```
+
+## 44. Backpressure
+> A waiter telling the kitchen "slow down, the tables are full": the slow consumer pushes back on the fast producer.
+- **What:** A feedback mechanism where a consumer that can't keep up makes the producer **slow down**, buffer within limits, or drop work, instead of being flooded until memory runs out.
+- **Example:** In Node.js streams, `writable.write()` returns `false` when the buffer is full, and the producer waits for the `'drain'` event. In Reactive Streams (Project Reactor, RxJava) the consumer `request(n)`s only what it can handle. TCP's receive window is backpressure in the network itself. Kafka consumers **pull**, so they set their own pace.
+- **Strategies:** block (a bounded queue makes the producer wait), buffer up to a limit, drop or sample (metrics, video frames), or reject at the edge with `429`/`503` (**load shedding**).
+- **Without it:** unbounded queues grow until the process runs out of memory, and latency rises for everyone first.
+
+## Bonus Buzzwords
+- **OutOfMemoryError / OOMKilled**: the JVM can't allocate more heap / Kubernetes killed the container for exceeding its memory limit (exit code 137).
+- **Heap vs stack**: the heap holds objects shared across the program and managed by the GC; each thread's stack holds its method calls and local variables.
+- **Stop-the-world (STW)**: a GC phase where all application threads are paused.
+- **Heap dump / thread dump**: a snapshot of every object in memory (for leaks) / of every thread's stack (for deadlocks and hangs; `jstack`, `jcmd <pid> Thread.print`).
+- **-Xms / -Xmx**: the JVM's initial and maximum heap size. In containers, prefer `-XX:MaxRAMPercentage`.
+- **Load shedding**: deliberately rejecting some requests when overloaded so the rest still succeed.
+- **Bounded queue**: a queue with a maximum size, the simplest form of backpressure.
+- **Thread pool exhaustion**: every worker thread is busy (often waiting on a slow dependency), so new requests queue or fail.
+- **Virtual threads (Java 21)**: very lightweight JVM-managed threads, so blocking code can scale to huge numbers of concurrent requests.
+- **Event-loop blocking**: in Node.js, one slow synchronous task (a big JSON parse, a CPU loop) freezes every request on that process.
+- **Immutability**: objects that never change after creation are automatically thread-safe.
+- **Flow control**: the network-level version of backpressure (TCP windows, HTTP/2 stream windows).
+
+# 10 | Scaling & Caching at the Edge: Terms 45-50 | Autoscaling, horizontal and vertical scaling, CDNs, edge caching and cache invalidation, plus bonus buzzwords: stateless vs stateful, HPA, KEDA, PoP, origin shield, TTL, cache-aside vs write-through, eviction, stampede, cache busting | Scaling & Edge
+
+## 45. Autoscaling
+> A shop that opens more checkout counters when the queue grows and closes them when it's quiet.
+- **What:** Automatically adding or removing capacity (instances, pods, nodes) based on a metric (CPU, memory, requests per second, queue length) or a schedule, so you survive spikes and don't pay for idle machines.
+- **Example:** A Kubernetes **Horizontal Pod Autoscaler** keeps average CPU near 70% with between 3 and 20 pods; at 140% average CPU it roughly doubles the pods. **Cluster Autoscaler** or **Karpenter** adds nodes when pods can't be scheduled; **KEDA** scales consumers on queue depth.
+- **Watch out:** scaling takes time (image pull, JVM warm-up), so scale on a **leading** metric and keep headroom; use cooldowns to avoid flapping; pre-scale on a schedule for known peaks (9 a.m., a sale); the database is often the next bottleneck.
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: shop-api }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: shop-api }
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+```
+
+## 46. Horizontal Scaling
+> Hire more workers instead of trying to make one worker superhuman.
+- **What:** **Scaling out**: adding more machines or instances and spreading the load across them with a load balancer. Almost no ceiling, and redundancy for free: if one dies, the others carry on.
+- **Example:** Going from 2 to 10 API pods behind a load balancer before a big sale. Every large web company scales its app tier this way.
+- **Prerequisite, stateless services:** keep sessions and state out of the instance (in Redis, the database or a token), so any instance can serve any request.
+- **Costs:** distributed-system complexity (more moving parts, consistency, coordination). App servers scale out easily; databases are much harder (replicas, sharding).
+
+## 47. Vertical Scaling
+> Buy a bigger truck instead of more trucks.
+- **What:** **Scaling up**: giving one machine more CPU, RAM or faster disks. No code changes and no distributed-system problems.
+- **Example:** Moving a PostgreSQL server from 8 vCPUs and 32 GB to 32 vCPUs and 128 GB to handle more queries. It's usually the first step for databases.
+- **Limits:** there's a hardware ceiling, price grows faster than capacity at the top end, it's still a **single point of failure**, and resizing usually means a restart.
+- **Interview line:** "Scale up first because it's simple, especially for the database; scale out when you hit the ceiling or need redundancy."
+
+## 48. CDN
+> Stock in a warehouse in every city, so customers get their parcel from nearby instead of from the factory.
+- **What:** A Content Delivery Network: a worldwide network of **edge servers** (points of presence, **PoPs**) that cache and serve content close to users, cutting latency and taking load off your **origin** server.
+- **Example:** A user in Chennai downloads `app.3f9a1c.js` from a nearby Cloudflare, CloudFront or Akamai edge in tens of milliseconds instead of from your origin in Virginia, more than 200 ms away per round trip. Netflix's Open Connect boxes sit inside ISPs' networks to serve video.
+- **Also gives:** absorbs DDoS traffic, terminates TLS near users, optimises images, runs code at the edge (Cloudflare Workers, Lambda@Edge).
+- **Controlled by headers from the origin:** `Cache-Control: public, max-age=31536000, immutable` for fingerprinted assets; a short TTL or `no-cache` for HTML.
+
+## 49. Edge Caching
+> Keep the answer at the front gate instead of walking back to headquarters every time.
+- **What:** Caching responses at the **network edge** (CDN PoPs, edge proxies) close to users, including API responses and rendered pages, not only static files. Controlled with HTTP cache headers, cache keys and purge APIs.
+- **Example:** A news homepage sent with `Cache-Control: public, s-maxage=60, stale-while-revalidate=30`: the edge serves its copy for 60 s, then may serve the stale copy for up to 30 s more while it refetches in the background. 10,000 requests a minute reach the origin about once a minute.
+- **Gotchas:** never edge-cache personalised responses unless the cache key includes the user, or mark them `Cache-Control: private`; the `Vary` header names the request headers that split the cache; `s-maxage` applies only to shared caches.
+- **CDN vs edge caching:** the CDN is the network; edge caching is what you do on it. **Edge computing** goes further and runs your code at the edge.
+
+## 50. Cache Invalidation
+> "There are only two hard things in Computer Science: cache invalidation and naming things." (Phil Karlton)
+- **What:** Removing or updating cached copies when the source data changes, so users don't see stale data for too long. It's hard because caches are many, spread out, and racing with writes.
+- **Strategies:** **TTL expiry** (simple, staleness is bounded), **delete on write** (update the database, then delete the cache key; the next read refills it), **write-through** (update cache and database together), **event-driven** (publish a change event; listeners evict; call the CDN purge API), **versioned keys and URLs** (`app.3f9a1c.js`, `product:42:v7`: old entries simply stop being used; also called **cache busting**).
+- **Example:** Product 42's price changes: the service updates the database, deletes `product:42` from Redis and purges `/products/42` from the CDN.
+- **Races to know:** delete the cache entry **after** the database commit, not before; that narrows the window in which a concurrent read can put the old value back, and a short TTL is the safety net.
+- **Stampede:** when a hot key expires, thousands of requests miss at once and hit the database together. Fix with request coalescing (one request refills, the rest wait), a lock, or refreshing slightly before expiry.
+
+## Bonus Buzzwords
+- **Scale out / in, scale up / down**: add or remove machines / make one machine bigger or smaller.
+- **Stateless vs stateful**: a stateless service keeps nothing between requests, so any copy can serve anyone; a stateful one (database, WebSocket server) needs care to scale.
+- **HPA / VPA**: Kubernetes autoscalers that change the number of pods / each pod's CPU and memory requests.
+- **Headroom and capacity planning**: spare capacity kept for spikes, and estimating how much you'll need and when.
+- **Flapping**: scaling up and down repeatedly because thresholds are too close; cooldowns prevent it.
+- **Origin / origin shield**: your real server / an extra CDN cache layer in front of it, so edge misses don't all reach the origin.
+- **Cache hit / miss, TTL**: found in the cache / not found / how long an entry stays valid.
+- **Cache-aside, read-through, write-through, write-behind**: the app fills the cache on a miss / the cache loads from the DB itself / writes go to cache and DB together / writes go to the cache and reach the DB later in batches.
+- **Eviction (LRU, LFU)**: what to throw out when the cache is full: least recently used / least frequently used.
+- **Cache penetration**: requests for keys that don't exist bypass the cache every time; cache the "not found" briefly or use a Bloom filter.
+- **Cache stampede (dogpile)**: many simultaneous misses for the same hot key.
+- **Cache busting (fingerprinting)**: putting a content hash in the file name so a new version gets a brand-new URL.
+- **stale-while-revalidate**: serve the slightly old copy instantly while fetching a fresh one in the background.
+
+@ Advanced
+# 11 | Releasing Safely: Terms 51-57 | Feature flags, blue-green deployment, canary releases, rolling deployments, rollbacks, health checks, liveness and readiness probes, plus bonus buzzwords: deploy vs release, dark launch, shadow traffic, A/B testing, progressive delivery, graceful shutdown, DORA metrics | Releasing Safely
+
+## 51. Feature Flags
+> A light switch in production: ship the code switched off, turn it on for 1% of users, and turn it off in a second if it misbehaves.
+- **What:** A runtime toggle that turns a feature on or off (for everyone, a percentage, or chosen users) **without redeploying**. It separates **deploy** (the code is in production) from **release** (users can see it).
+- **Example:** `if (flags.isEnabled("new-checkout", user))` → new checkout, else old. Turned on for employees first, then 5% of users, then 100%; if errors rise, flip it off instantly (a **kill switch**). Tools: LaunchDarkly, Unleash, Flagsmith, and OpenFeature (a vendor-neutral CNCF standard API).
+- **Uses:** trunk-based development (merge unfinished work, hidden), gradual rollouts, A/B tests, kill switches, per-customer features.
+- **The debt:** every flag is an `if` with two paths to test. Remove flags once the rollout is finished.
+
+## 52. Blue-Green Deployment
+> Two identical stages: the show runs on Blue while Green is set up, then you swing the spotlight across.
+- **What:** Run two identical production environments. **Blue** serves live traffic; deploy the new version to **Green**, test it, then switch the router or load balancer so all traffic goes to Green. Blue stays ready as an instant rollback.
+- **Example:** Green runs v2.0 and passes smoke tests; the load balancer is pointed from Blue to Green in seconds; if errors spike, it's pointed back just as fast.
+- **Pros:** near-zero downtime, instant rollback, testing in a real production environment before users arrive. **Cons:** double infrastructure during the switch, every user moves at once (no gradual exposure), and the **database is shared**, so schema changes must work with both versions (expand-contract, term 81).
+
+## 53. Canary Releases
+> Miners carried a canary into the mine: if it stopped singing, everyone got out. Send a little traffic first.
+- **What:** Release the new version to a **small slice** of traffic (1%, then 5%, 25%, 100%), compare its error rate and latency with the old version, and promote it or roll back automatically.
+- **Example:** v2.0 gets 5% of requests; if its 5xx rate or p99 latency is worse than v1.9's after 15 minutes, traffic shifts back to v1.9 automatically. Tools: Argo Rollouts, Flagger, service-mesh traffic splitting, weighted target groups on cloud load balancers.
+- **Why it matters:** in July 2024 a faulty CrowdStrike content update went to all Windows hosts at once and crashed about 8.5 million machines; staged, canary-style rollout was one of the main fixes promised afterwards.
+- **Canary vs blue-green:** canary limits the **blast radius** through gradual exposure; blue-green moves everyone at once but rolls back instantly.
+
+## 54. Rolling Deployments
+> Change the tyres one at a time while the car keeps driving.
+- **What:** Replacing old instances with new ones a few at a time, waiting for each new one to become healthy before continuing. No second full environment is needed.
+- **Example:** Kubernetes Deployments use the `RollingUpdate` strategy by default with `maxSurge: 25%` and `maxUnavailable: 25%`: with 8 pods, up to 2 extra new pods start and up to 2 old ones stop at a time, until all 8 run the new version. `kubectl rollout status deployment/shop-api` follows it.
+- **Trade-off:** cheap and zero-downtime, but **both versions serve traffic during the rollout**, so APIs and schemas must be backward compatible, and rolling back is another rollout rather than an instant switch.
+- **What makes it safe:** readiness probes (term 57): traffic reaches a new pod only once it reports ready.
+
+## 55. Rollbacks
+> The undo button for production: get back to the last version that worked, fast.
+- **What:** Reverting to the previous known-good version after a bad release. Roll back first, investigate second: restore service, then find the cause.
+- **Example:** `kubectl rollout undo deployment/shop-api`, `helm rollback shop 41`, pointing blue-green back, turning a feature flag off, or redeploying the previous image tag from CI.
+- **The hard part is data:** code rolls back easily; a migration that dropped a column doesn't. Keep migrations backward compatible (expand-contract) so the old version still works with the new schema.
+- **Roll forward:** shipping a quick fix instead of reverting. Reasonable when rollback is impossible or riskier, but don't debug under pressure in production if a rollback is available.
+```text
+kubectl rollout history deployment/shop-api
+kubectl rollout undo deployment/shop-api                    # back to the previous revision
+kubectl rollout undo deployment/shop-api --to-revision=3
+```
+
+## 56. Health Checks
+> A nurse taking your pulse: "are you alive and able to work?" If not, stop sending patients your way.
+- **What:** An endpoint or command reporting whether an instance is healthy, polled by load balancers, orchestrators and monitoring. Unhealthy instances are taken out of rotation or restarted.
+- **Example:** Spring Boot Actuator's `GET /actuator/health` returns `{"status":"UP"}`, or `DOWN` with HTTP 503, and can include database and disk checks. An AWS target group marks an instance unhealthy after a few failed checks and stops routing to it.
+- **Shallow vs deep:** shallow = "the process answers"; deep = "and my database and cache are reachable". Careful: a deep check that fails because a **shared** dependency is down marks **every** instance unhealthy at once, turning a partial outage into a total one.
+- **Where:** Docker `HEALTHCHECK`, load balancer target groups, Kubernetes probes (term 57), external uptime monitors.
+
+## 57. Liveness & Readiness Probes
+> Liveness asks "are you alive?" (no → restart). Readiness asks "can you take customers right now?" (no → no traffic, but no restart).
+- **What:** Kubernetes health probes. A failing **liveness** probe makes the kubelet **restart** the container (for deadlocks and hung processes). A failing **readiness** probe **removes the pod from the Service's endpoints** until it passes again (while warming up, overloaded, or waiting on a dependency). A **startup** probe holds off the other two until a slow-starting app is up.
+- **Example:** A Spring Boot app needs about 40 s to start: the startup probe allows up to 60 s; readiness checks `/actuator/health/readiness`; liveness checks `/actuator/health/liveness`.
+- **Classic mistake:** checking the database in the **liveness** probe. The database blips, every pod is restarted in a loop, and recovery takes longer. Dependency checks belong in readiness, if anywhere.
+```yaml
+startupProbe:
+  httpGet: { path: /actuator/health/liveness, port: 8080 }
+  failureThreshold: 30
+  periodSeconds: 2
+livenessProbe:
+  httpGet: { path: /actuator/health/liveness, port: 8080 }
+  periodSeconds: 10
+readinessProbe:
+  httpGet: { path: /actuator/health/readiness, port: 8080 }
+  periodSeconds: 5
+```
+
+## Bonus Buzzwords
+- **Deploy vs release**: deploy = the new code is running in production; release = users are actually exposed to it. Flags and canaries let the two happen at different times.
+- **Dark launch**: running new code paths on real traffic without showing users the results, to test performance safely.
+- **Shadow traffic (traffic mirroring)**: copying live requests to the new version and discarding its responses.
+- **A/B testing**: showing variants to different users to see which performs better on a **business** metric. A canary checks **safety**; an A/B test measures **impact**.
+- **Progressive delivery**: the umbrella term for canaries, feature flags and automated analysis working together.
+- **Blast radius**: how many users a failure can affect. Every safe-release technique is about shrinking it.
+- **Zero-downtime deployment**: users notice nothing during a release.
+- **Recreate strategy**: stop every old instance, then start the new ones. Simple, with downtime.
+- **Smoke test**: a quick check that the most important paths work right after a deploy.
+- **Graceful shutdown**: on `SIGTERM`, stop accepting new requests and finish the in-flight ones before exiting, so rolling updates drop nothing.
+- **Trunk-based development**: everyone merges small changes to `main` often, with unfinished work hidden behind flags.
+- **DORA metrics**: deployment frequency, lead time for changes, change failure rate and time to restore service: the standard measures of delivery performance.
+
+# 12 | Observability: Terms 58-66 | Monitoring, logging, distributed tracing, metrics, alerts, SLOs, SLIs, error budgets and observability, plus bonus buzzwords: SLA, golden signals, RED and USE, MTTR, correlation id, sampling, cardinality, APM, synthetic monitoring | Observability
+
+## 58. Monitoring
+> A car dashboard: speed, fuel, engine light. It tells you **that** something is wrong.
+- **What:** Continuously collecting and watching predefined health signals (error rate, latency, CPU, queue depth) with dashboards and alerts, to catch known kinds of failure.
+- **Example:** A Grafana dashboard on Prometheus metrics shows checkout's request rate, error rate and p99 latency; an alert fires when 5xx errors stay above 2% for 5 minutes.
+- **What to watch:** Google's **four golden signals**: **latency, traffic, errors, saturation**. For each service, **RED** (Rate, Errors, Duration); for each resource, **USE** (Utilization, Saturation, Errors).
+- **Black-box vs white-box:** black-box checks from outside, like a user (synthetic checks, uptime pings); white-box uses what the app exposes about itself (metrics, logs).
+
+## 59. Logging
+> The ship's logbook: a timestamped diary of what happened, for when you need to reconstruct the story.
+- **What:** Recording discrete events (requests, errors, decisions) with a timestamp, level and context, shipped to a central store where they can be searched.
+- **Example:** `{"ts":"2026-10-16T09:12:03Z","level":"ERROR","service":"payments","traceId":"4bf92f35...","orderId":42,"msg":"card declined"}`, searched in Elasticsearch/OpenSearch (ELK), Grafana Loki, Splunk or CloudWatch Logs.
+- **Good practice:** **structured** (JSON) logs, consistent levels (ERROR, WARN, INFO, DEBUG), a **trace or correlation id** on every line, write to stdout and let the platform ship it, and never log passwords, tokens, card numbers or other personal data.
+- **Cost:** at scale, logs are usually the most expensive signal; sample DEBUG logs and set retention limits.
+
+## 60. Distributed Tracing
+> A parcel tracking number for a request: follow it through every service it visited and see where it waited.
+- **What:** Following one request across services. A **trace** is the whole journey, identified by one trace id; it's made of **spans**, one per operation (service, start time, duration, parent span). The context travels between services in a header, standardised as W3C `traceparent`.
+- **Example:** Checkout takes 3.2 s; the trace waterfall in Jaeger, Zipkin, Grafana Tempo or Datadog shows 2.8 s spent in one `SELECT` in the inventory service, three hops down. Logs alone would never have shown which hop was slow.
+- **How:** instrument with **OpenTelemetry** (auto-instrumentation agents exist for Java, Python and Node), propagate the context, export to a tracing backend, and sample: keep, say, 10% of normal traces but every trace with an error (**tail sampling**).
+```text
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+             version - trace id (32 hex) - parent span id (16 hex) - flags (01 = sampled)
+```
+
+## 61. Metrics
+> Your app's vital signs: numbers over time, cheap to keep, perfect for graphs and alerts.
+- **What:** Numeric measurements aggregated over time, each with a name and labels, e.g. `http_requests_total{service="checkout",status="500"}`. Cheap to store and query, so they drive dashboards and alerts.
+- **Types:** **counter** (only goes up: requests served), **gauge** (goes up and down: memory in use, queue depth), **histogram** (counts in buckets: latency, from which percentiles are computed), **summary**.
+- **Example:** Prometheus scrapes `/actuator/prometheus` every 15 s; Grafana plots `rate(http_server_requests_seconds_count{status=~"5.."}[5m])` as the error rate.
+- **Cardinality trap:** a label like `userId` creates one time series per user and can explode storage and cost. Labels should have a small, fixed set of values.
+- **Metrics vs traces vs logs:** metrics tell you **something** is wrong, traces tell you **where**, logs tell you **why**.
+
+## 62. Alerts
+> A smoke alarm: it should wake you for a fire, not for toast.
+- **What:** Automatic notifications when a metric or check crosses a threshold, routed to the right people: page the on-call engineer for urgent problems, open a ticket or post in chat for the rest.
+- **Example:** "Checkout 5xx rate above 2% for 5 minutes" pages the on-call through PagerDuty with links to the runbook and dashboard; "disk 80% full" just opens a ticket.
+- **Good alerts are** urgent, actionable and about user impact: alert on **symptoms** (users see errors, the SLO is burning fast) rather than every possible cause (one pod's CPU is high). Every page should need a human to act now.
+- **Alert fatigue:** too many noisy alerts, people learn to ignore them, and the real one gets missed. Delete or downgrade alerts nobody acts on.
+- **Burn-rate alerts:** page when the error budget is being spent fast; Google's SRE Workbook suggests paging when 2% of a 30-day budget is consumed within one hour.
+
+## 63. SLOs
+> The promise you make to yourself: "99.9% of checkouts succeed this month", set stricter than what you promise customers.
+- **What:** A **Service Level Objective** is a target for an SLI over a time window: "99.9% of requests succeed over 30 days", "95% of searches return in under 300 ms". It's an internal engineering goal.
+- **Example:** Checkout SLO = 99.9% of requests successful over 30 days, so 1 in 1,000 may fail, or about 43 minutes of complete downtime.
+- **SLA vs SLO:** an **SLA** (Service Level Agreement) is the external contract with consequences ("99.9% monthly uptime or you get service credits"; AWS, Azure and Google Cloud publish theirs). Set the SLO **tighter** than the SLA so you notice and fix problems before you owe money.
+- **Don't aim for 100%:** users can't tell 99.99% from 100% through their own Wi-Fi, each extra nine costs far more, and a 100% target means never changing anything.
+
+## 64. SLIs
+> The thermometer reading: the measured number that says how good the service actually is.
+- **What:** A **Service Level Indicator** is a carefully defined measurement of quality from the user's point of view, usually a ratio: **good events / valid events**.
+- **Examples:** availability = successful requests / all requests (not counting 4xx errors the client caused); latency = requests served in under 300 ms / all requests; freshness = data updated within the last minute; also correctness and durability.
+- **Measure close to the user:** at the load balancer or with synthetic clients, not only inside the app: a crashed app logs no errors at all.
+- **The chain:** **SLI** (what you measured: 99.95% this month) → **SLO** (your target: 99.9%) → **SLA** (the contract: 99.5%, or credits) → **error budget** (what's left to spend).
+
+## 65. Error Budgets
+> An allowance for failure: you may break 0.1%; spend it on shipping fast, and stop shipping risky things when it runs out.
+- **What:** **100% − SLO**: the amount of unreliability you're allowed in the window. It turns the developers-vs-operations argument into a number: budget left → ship features and take risks; budget gone → freeze risky releases and work on reliability.
+- **Example:** SLO 99.9% over 30 days → budget 0.1% ≈ **43.2 minutes** of downtime, or 1,000 failed requests out of 1,000,000. A bad deploy burns 30 minutes on day 5, so the team slows its releases and adds canary analysis.
+- **Why it's clever:** reliability becomes a shared, measurable trade-off owned by product and engineering together, instead of "never change anything". The idea comes from Google's SRE book (2016).
+
+## 66. Observability
+> Monitoring tells you **when** it broke; observability lets you ask **why**, including questions you never thought to ask in advance.
+- **What:** How well you can understand a system's internal state from its outputs: rich **telemetry** (metrics, logs, traces, plus profiles) carrying enough context (trace ids and attributes such as customer, app version, region) to debug **unknown unknowns** without shipping new code. The term comes from control theory (Rudolf Kálmán, 1960).
+- **Example:** Latency is up only for Android users on app version 5.2 in one region. With detailed traces you can slice by those attributes and find that 5.2 calls a new, uncached endpoint. A dashboard built in advance would never have shown that.
+- **Stack:** **OpenTelemetry** (the vendor-neutral CNCF standard for producing and shipping telemetry) feeding backends such as Prometheus, Grafana (Loki, Tempo, Mimir), Jaeger, Elastic, Datadog, Honeycomb or New Relic.
+- **The three pillars:** logs, metrics and traces; continuous profiling is often called the fourth.
+
+## Bonus Buzzwords
+- **SLA**: the contract with customers, with penalties such as service credits if it's missed.
+- **The nines**: 99.9% ("three nines") ≈ 8.8 hours of downtime a year; 99.99% ≈ 53 minutes; 99.999% ≈ 5 minutes.
+- **Golden signals, RED, USE**: latency/traffic/errors/saturation; rate/errors/duration for services; utilization/saturation/errors for resources.
+- **MTTD, MTTA, MTTR, MTBF**: mean time to detect, to acknowledge, to recover (or resolve), and between failures.
+- **Correlation id (request id)**: an id generated at the edge and passed through every service and log line, so one request's story can be pulled together.
+- **Structured logging**: logs as key-value fields (JSON) rather than free text, so they can be filtered and aggregated.
+- **Span, trace, context propagation**: one operation / the whole request / passing the ids along in headers.
+- **Head vs tail sampling**: decide whether to keep a trace at the start (cheap) / at the end, once you know it was slow or failed (smarter).
+- **Cardinality**: the number of distinct label combinations, i.e. time series. High cardinality is expensive in metrics, valuable in traces.
+- **APM (Application Performance Monitoring)**: tools that bundle tracing, metrics and error tracking (Datadog, New Relic, Dynatrace).
+- **Synthetic monitoring vs RUM**: scripted fake users checking your site / Real User Monitoring measured in actual users' browsers.
+- **Runbook**: step-by-step instructions linked from an alert: what it means and what to do.
+- **eBPF**: a way to run safe programs inside the Linux kernel, used for observability without changing app code.
+
+# 13 | Security Foundations: Terms 67-73 | Secrets management, IAM, OAuth, JWT rotation, TLS, encryption at rest and in transit, plus bonus buzzwords: authentication vs authorization, least privilege, zero trust, MFA, SSO, OIDC, PKCE, RBAC vs ABAC, KMS, hashing vs encryption, mTLS | Security
+
+## 67. Secrets Management
+> Keys belong in a safe, not under the doormat (your Git repo).
+- **What:** Storing, handing out, rotating and auditing sensitive values (database passwords, API keys, private keys, tokens) in a dedicated secure system rather than in code, config files or images, with access granted per service and every read logged.
+- **Example:** The payments service fetches its database password at startup from **HashiCorp Vault**, **AWS Secrets Manager**, Azure Key Vault or Google Secret Manager, authenticating with its cloud identity. Vault can even issue **dynamic** database credentials that expire after an hour.
+- **Rules:** never commit secrets (bots scan public repositories for leaked keys within minutes; turn on secret scanning and push protection), rotate regularly and immediately after a leak, grant least privilege, prefer short-lived over long-lived credentials.
+- **Gotcha:** Kubernetes `Secret` values are only **base64-encoded**, not encrypted. Enable encryption at rest for etcd, restrict access with RBAC, or sync secrets from an external manager (External Secrets Operator).
+
+## 68. IAM
+> A building's badge system: who you are, which doors your badge opens, and a log of every swipe.
+- **What:** **Identity and Access Management**: defining **identities** (users, groups, roles, service accounts) and **policies** that say who may perform which **actions** on which **resources**, under which conditions. **Authentication** answers "who are you?"; **authorization** answers "what may you do?".
+- **Example:** An AWS IAM role for the order service allows only `s3:GetObject` on `arn:aws:s3:::invoices/*`. The EC2 instance or pod assumes the role and receives short-lived credentials, so there are no access keys in the code.
+- **Principles:** **least privilege**, roles over long-lived user keys, MFA for humans, separation of duties, regular review and audit logs (CloudTrail).
+- **Models:** **RBAC** (permissions through roles: admin, editor, viewer) and **ABAC** (rules on attributes: department = finance AND region = EU).
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::invoices/*"
+  }]
+}
+```
+
+## 69. OAuth
+> A hotel key card instead of your house keys: limited access, for a limited time, revocable, and the app never sees your password.
+- **What:** **OAuth 2.0** (RFC 6749) is a framework for **delegated authorization**: a user lets an app access their data on another service, which issues the app an **access token** limited to certain **scopes**. The password is never shared with the app.
+- **Example:** A photo-printing app wants your Google Photos. You're redirected to Google, sign in there, approve "view your photos"; Google redirects back with a one-time **code**, and the app's backend exchanges it for an access token that only works for photos.
+- **Roles:** resource owner (you), client (the app), authorization server (Google's sign-in), resource server (the Photos API).
+- **Flows:** **Authorization Code + PKCE** (the default for web, mobile and single-page apps), **Client Credentials** (service to service, no user), **Device Code** (TVs, CLIs). The Implicit and Password grants are deprecated and dropped in OAuth 2.1.
+- **OAuth vs OIDC:** OAuth is about **authorization** (an access token for APIs). **OpenID Connect** adds **authentication** on top: an **ID token**, a JWT that says who the user is. "Sign in with Google" is OIDC.
+
+## 70. JWT Rotation
+> Change the locks regularly, but keep the old key working for a little while so nobody gets locked out halfway through a visit.
+- **What:** Two related practices. **Signing-key rotation**: regularly replacing the key that signs JWTs, publishing the old and new public keys together in a **JWKS** endpoint; each token's header carries a `kid` (key id) telling verifiers which key to use. **Refresh-token rotation**: every time a refresh token is used, a new one is issued and the old one is invalidated.
+- **Example:** The auth server adds key `2026-10` to `/.well-known/jwks.json`, starts signing new tokens with it, and keeps key `2026-09` published until every token it signed has expired. If an already-used refresh token shows up again, it was probably stolen, so the whole token family is revoked.
+- **Why:** it limits the damage of a leaked key or token. JWTs are hard to revoke before they expire, so keep access tokens **short-lived** (5 to 15 minutes) and rotate refresh tokens.
+- **JWT refresher:** `header.payload.signature`, each part Base64URL-encoded. It's **signed, not encrypted** by default: anyone can read the payload, so never put secrets in it.
+```json
+{ "alg": "RS256", "typ": "JWT", "kid": "2026-10" }
+```
+
+## 71. TLS
+> A sealed, tamper-proof envelope with a verified return address, for every message on the internet.
+- **What:** **Transport Layer Security**, the protocol behind HTTPS. It provides **encryption** (no eavesdropping), **integrity** (no tampering) and **authentication** (the server proves its identity with a certificate signed by a trusted Certificate Authority). It replaced SSL, whose versions are all broken and retired.
+- **Handshake, TLS 1.3 (one round trip):** the client sends its supported ciphers and a key share; the server replies with its key share, certificate and a signature; both sides derive the same **symmetric session keys** (ECDHE), and everything after that is encrypted. Asymmetric crypto agrees on the keys; fast symmetric crypto (AES-GCM, ChaCha20) protects the data.
+- **Example:** Let's Encrypt issues free certificates automatically (the ACME protocol); the browser checks the certificate chain, the hostname and the expiry date, then shows the padlock.
+- **Versions:** use TLS 1.3 (2018) or 1.2; 1.0 and 1.1 are formally deprecated (RFC 8996). **mTLS** (mutual TLS) means the client presents a certificate too, which is common between microservices.
+
+## 72. Encryption at Rest
+> Lock the filing cabinet, not just the delivery van: a stolen disk or backup is just noise without the key.
+- **What:** Encrypting data while it's **stored** (disks, databases, files, backups, object storage), so someone who steals a disk, a snapshot or a backup can't read it.
+- **Example:** An RDS database and its backups encrypted with AES-256 using a key held in **AWS KMS**; **TDE** (Transparent Data Encryption) in SQL Server and Oracle; BitLocker or LUKS on laptops and servers.
+- **Envelope encryption:** each object is encrypted with its own **data key**, and the data key is encrypted with a **master key** that never leaves the KMS or HSM. Rotating the master key doesn't mean re-encrypting all the data.
+- **Limits:** it doesn't stop someone with valid application access, or a SQL injection: the app decrypts for them. For very sensitive fields add **application-level (field-level) encryption**.
+
+## 73. Encryption in Transit
+> An armoured van between buildings: data is protected while it's moving across the network.
+- **What:** Encrypting data as it travels between client and server or between services, so nobody on the network path (public Wi-Fi, an ISP, a compromised router) can read or change it. Mostly done with TLS.
+- **Example:** HTTPS everywhere plus **HSTS** (`Strict-Transport-Security`, so browsers refuse plain HTTP to your site); **mTLS** between microservices through a service mesh (Istio, Linkerd); TLS to the database (`sslmode=verify-full` in PostgreSQL); SSH, VPN/IPsec, SFTP instead of FTP.
+- **Zero trust:** don't assume the internal network is safe; encrypt and authenticate service-to-service traffic too.
+- **At rest vs in transit:** at rest protects stored data if storage is stolen; in transit protects moving data from interception. You need both. Data "in use" (in memory) is the third state, covered by confidential computing.
+
+## Bonus Buzzwords
+- **Authentication (AuthN) vs authorization (AuthZ)**: proving who you are (login, 401 Unauthorized when missing) vs what you're allowed to do (403 Forbidden when denied).
+- **Least privilege**: every user and service gets only the permissions it needs, nothing more.
+- **Zero trust**: "never trust, always verify": every request is authenticated and authorized, wherever it comes from.
+- **MFA**: multi-factor authentication: something you know plus something you have (an authenticator app, a passkey) or are.
+- **SSO (Single Sign-On)**: log in once with the company identity provider (Okta, Microsoft Entra ID) and get into every app. **SAML** is the older XML-based SSO protocol; OIDC is the modern one.
+- **PKCE**: "pixie": a one-time secret that proves the app finishing the OAuth flow is the one that started it, so a stolen authorization code is useless.
+- **Access token, refresh token, ID token**: call APIs (short-lived) / get new access tokens (long-lived, stored carefully) / tell the app who logged in (OIDC).
+- **Scopes and claims**: what a token is allowed to do (`read:photos`) / statements inside a token (`sub`, `exp`, `roles`).
+- **JWKS**: a JSON document listing an issuer's public signing keys, selected by `kid`.
+- **Passkeys**: passwordless login with a device-bound key pair (WebAuthn/FIDO2); phishing-resistant.
+- **KMS / HSM**: a managed key service / tamper-resistant hardware that stores keys and performs crypto without exposing them.
+- **Hashing vs encryption**: hashing is one-way (store passwords with bcrypt or Argon2, plus a **salt**); encryption is reversible with the key.
+- **Symmetric vs asymmetric**: one shared key (AES, fast) vs a public/private key pair (RSA, ECDSA; for key exchange and signatures).
+- **Certificate Authority and chain of trust**: your certificate is signed by an intermediate, signed by a root the browser already trusts.
+
+# 14 | Web Attacks & Defences: Terms 74-80 | WAF, DDoS protection, CORS, CSRF, SQL injection, XSS and SSRF, plus bonus buzzwords: OWASP Top 10, same-origin policy, cookie flags, CSP, clickjacking, defence in depth, path traversal, supply chain attacks, CVE | Web Attacks
+
+## 74. WAF
+> A security guard who reads every letter at the gate and bins the ones that look like attacks.
+- **What:** A **Web Application Firewall** inspects HTTP(S) requests at Layer 7 and blocks malicious patterns (SQL injection, XSS, path traversal, bad bots) using managed rule sets such as the **OWASP Core Rule Set** plus your own rules (rate limits, geo-blocking, IP lists).
+- **Example:** AWS WAF in front of a load balancer blocks `?id=1' OR '1'='1`. In December 2021, WAF vendors shipped rules against Log4Shell (`${jndi:ldap://...}`) within hours, buying teams time to patch: this is called **virtual patching**.
+- **vs a network firewall:** a network firewall filters by IP address, port and protocol (Layers 3-4); a WAF understands HTTP content.
+- **Limits:** it's a safety net, not a fix. It can be bypassed and it produces false positives, so the code must still use parameterized queries and output encoding.
+
+## 75. DDoS Protection
+> A flash mob blocking the shop door so real customers can't get in. Protection = a much bigger door plus bouncers who can spot the mob.
+- **What:** Defending against **Distributed Denial of Service** attacks: floods of traffic from many machines (usually a botnet) that exhaust bandwidth, connection tables or server capacity.
+- **Attack types:** **volumetric** (UDP floods, DNS/NTP/memcached **amplification**, where a small spoofed request triggers a huge reply to the victim), **protocol** (SYN floods filling connection tables), **application layer / L7** (floods of realistic HTTP requests to expensive pages such as search).
+- **Example:** In 2018 GitHub survived a 1.35 Tbps memcached amplification attack by routing its traffic through Akamai's scrubbing network. Record attacks today are measured in tens of Tbps; AWS Shield, Cloudflare and Akamai absorb them across huge anycast networks.
+- **Defences:** a CDN or anycast network to absorb volume, scrubbing centres, rate limits and WAF rules for L7, SYN cookies, caching so most requests never reach the origin, autoscaling with cost limits.
+
+## 76. CORS
+> The browser asks the API: "is this website allowed to read your answer?" The API's headers say yes or no.
+- **What:** **Cross-Origin Resource Sharing** is a browser mechanism that relaxes the **Same-Origin Policy**. By default, JavaScript on `https://shop.com` can't read responses from `https://api.other.com`; the server opts in with headers such as `Access-Control-Allow-Origin: https://shop.com`. An **origin** = scheme + host + port.
+- **Preflight:** for "non-simple" requests (methods like `PUT` or `DELETE`, `Content-Type: application/json`, custom headers such as `Authorization`), the browser first sends an `OPTIONS` request asking permission, and sends the real request only if the answer allows it.
+- **Example:** An Angular app on `localhost:4200` calls a Spring Boot API on `localhost:8080`. A different port is a different origin, so the API must allow it (e.g. `@CrossOrigin(origins = "http://localhost:4200")`) or the browser refuses to hand the response to the app.
+- **Misconceptions:** CORS is enforced **only by browsers** (curl and Postman ignore it), and it protects **users**, not your server. Never echo back any origin while also sending `Access-Control-Allow-Credentials: true`.
+```http
+Access-Control-Allow-Origin: https://shop.com
+Access-Control-Allow-Methods: GET, POST, PUT
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Max-Age: 600
+```
+
+## 77. CSRF
+> A forged letter carrying your seal: an evil site makes your logged-in browser send a request you never meant to send.
+- **What:** **Cross-Site Request Forgery**: a malicious site makes the victim's browser send a state-changing request to a site where the victim is logged in. The browser automatically attaches that site's **cookies**, so the request looks genuine.
+- **Example:** You're logged in to `bank.com`. A page on `evil.com` contains a hidden form that auto-submits `POST https://bank.com/transfer` with `to=attacker&amount=1000`. Your session cookie goes along, and the bank obeys.
+- **Defences:** **SameSite** cookies (`Lax` stops cookies on cross-site POSTs, and Chrome treats cookies without the attribute as `Lax` by default), **anti-CSRF tokens** (a random value in the form that the attacker's page can't read; Spring Security enables this by default), checking the `Origin` header, re-authentication for sensitive actions, and never changing state with `GET`.
+- **When it doesn't apply:** APIs that authenticate with an `Authorization: Bearer` header rather than cookies, because browsers never attach that header automatically.
+- **CORS vs CSRF:** CORS controls who may **read** a response; CSRF is about **sending** a request, which CORS doesn't block (a plain form POST needs no preflight).
+
+## 78. SQL Injection
+> The input says "my name is Robert'); DROP TABLE students;--" and the database obeys.
+- **What:** An attack where user input is glued into a SQL string and gets executed as **SQL code**, letting the attacker read, change or delete data, or skip the login check.
+- **Example:** `"SELECT * FROM users WHERE name = '" + name + "' AND password = '" + pw + "'"` with the name `admin' --` comments out the password check and logs in as admin. xkcd #327, "Exploits of a Mom", made "Little Bobby Tables" the classic picture of it.
+- **Fix:** **parameterized queries (prepared statements)**: the query's structure is sent separately from the data, so input is never parsed as SQL. ORMs do this when used properly. Allowlist anything that can't be a parameter (column names in `ORDER BY`), give the app's database account only the rights it needs, and add a WAF as an extra layer.
+- Injection is still in the **OWASP Top 10**.
+```java
+// Vulnerable: the input becomes part of the SQL text
+String sql = "SELECT * FROM users WHERE email = '" + email + "'";
+// Safe: the ? is filled in as data, never parsed as SQL
+PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE email = ?");
+ps.setString(1, email);
+```
+
+## 79. XSS
+> The attacker hides a script inside your page's content, and every visitor's browser runs it as if you wrote it.
+- **What:** **Cross-Site Scripting**: getting malicious JavaScript into pages other users view, where it runs with the site's privileges: stealing session tokens, acting as the user, rewriting the page.
+- **Types:** **stored** (saved in the database, e.g. a comment containing `<script>`), **reflected** (bounced back from a URL parameter in a crafted link), **DOM-based** (the page's own JavaScript writes untrusted data into the page, e.g. `element.innerHTML = location.hash`).
+- **Example:** In 2005 the **Samy worm** spread through stored XSS in MySpace profiles and added over a million "friends" in about 20 hours.
+- **Defences:** **encode output** for its context (React, Angular and Thymeleaf escape by default; be very careful with React's `dangerouslySetInnerHTML`, Angular's `bypassSecurityTrustHtml` and Vue's `v-html`), sanitise HTML you must accept (DOMPurify), a **Content Security Policy** that blocks inline scripts, and `HttpOnly` cookies so scripts can't read the session cookie.
+
+## 80. SSRF
+> Tricking the server into fetching a URL for you, from inside the walls, where it can see things you can't.
+- **What:** **Server-Side Request Forgery**: the app fetches a URL the user supplied (import an image from a link, a webhook URL, a PDF generator), and the attacker points it at **internal** addresses the server can reach but the attacker can't.
+- **Example:** `{"imageUrl": "http://169.254.169.254/latest/meta-data/iam/security-credentials/"}` makes a cloud server fetch its own temporary credentials from the instance metadata service. SSRF was central to the 2019 Capital One breach, which exposed data on about 100 million people.
+- **Defences:** allowlist destinations; resolve the hostname and block private, loopback and link-local ranges (`10.0.0.0/8`, `127.0.0.0/8`, `169.254.0.0/16`, ...), checking again after every redirect; use **IMDSv2** on AWS (it requires a session token obtained with a `PUT`, which stops most SSRF); run URL fetchers in an isolated network with outbound restrictions.
+- SSRF got its own entry in the 2021 OWASP Top 10.
+
+## Bonus Buzzwords
+- **OWASP Top 10**: the Open Worldwide Application Security Project's list of the most critical web app risks (broken access control, injection, cryptographic failures...). Interviewers love it.
+- **Same-Origin Policy**: the browser rule that scripts from one origin can't read data from another unless CORS allows it.
+- **Cookie flags**: `HttpOnly` (JavaScript can't read it), `Secure` (HTTPS only), `SameSite` (`Strict`, `Lax`, `None`: when it's sent cross-site).
+- **CSP (Content Security Policy)**: a response header listing which sources of scripts, styles and frames the browser may load; a strong XSS defence.
+- **Clickjacking**: hiding your page in an invisible frame so users click things unknowingly. Block framing with CSP `frame-ancestors` (or `X-Frame-Options`).
+- **Defence in depth**: several independent layers (WAF, parameterized queries, least privilege, monitoring), so one failure isn't a breach.
+- **Input validation vs output encoding**: reject bad data on the way in / make data harmless on the way out. You need both.
+- **Path traversal**: `../../etc/passwd` in a file name to escape the intended folder.
+- **Credential stuffing**: trying username and password pairs leaked from other sites; stopped by MFA, rate limits and breached-password checks.
+- **Amplification and scrubbing**: turning a small request into a huge reply aimed at the victim / filtering attack traffic out in big data centres.
+- **Supply chain attack**: compromising something you depend on rather than you, e.g. SolarWinds (2020) or the xz-utils backdoor (2024).
+- **CVE / CVSS / zero-day**: a public id for a known vulnerability / its severity score from 0 to 10 / a flaw exploited before a fix exists.
+- **Penetration test and bug bounty**: hired attackers testing you / paying outside researchers for the bugs they report.
+
+# 15 | Data Evolution & Disaster Recovery: Terms 81-87 | Database migrations, schema versioning, disaster recovery, backups, failover, multi-region deployment and chaos engineering, plus bonus buzzwords: expand-contract, RPO and RTO, pilot light, warm standby, PITR, 3-2-1, availability zones, game days | Data & DR
+
+## 81. Database Migrations
+> Version control for your database: numbered scripts that move every environment forward in exactly the same way.
+- **What:** Versioned, ordered scripts (or code) that change the schema or the data (create a table, add a column, backfill values), applied automatically and exactly once per environment; a history table records which have run.
+- **Example:** Flyway runs `V1__create_users.sql`, then `V2__add_phone_to_users.sql`, at application startup and records them in `flyway_schema_history`. Liquibase, Alembic (Python), Prisma Migrate and Django or Rails migrations work the same way.
+- **Zero-downtime rule, expand → migrate → contract:** to rename `name` to `full_name`: 1) add `full_name` (expand); 2) deploy code that writes both and backfill old rows; 3) switch reads to `full_name`; 4) later, drop `name` (contract). Every step works with both the old and the new app version, which rolling and blue-green deploys require.
+- **Watch out:** big table changes can lock tables (in PostgreSQL build indexes with `CREATE INDEX CONCURRENTLY`), never edit a migration that has already run (add a new one), and test against production-sized data.
+```text
+src/main/resources/db/migration/
+  V1__create_users.sql
+  V2__add_phone_to_users.sql
+  V3__create_orders.sql
+```
+
+## 82. Schema Versioning
+> Every message and table layout carries a version stamp, so old and new readers can still understand each other.
+- **What:** Tracking and evolving the shape of data, both database schemas and message, event or API payloads, with explicit versions and **compatibility rules**, so producers and consumers can be upgraded independently.
+- **Example:** Kafka events in Avro or Protobuf are registered in a **Schema Registry** set to `BACKWARD` compatibility: adding an optional field with a default is accepted, but adding a field with **no** default, or changing a field's type, is rejected when the producer registers the schema, before it can break any consumer. On the database side, the migration number (`V7`) is the schema version.
+- **Compatibility:** **backward** = consumers on the new schema can read data written with the old one; **forward** = consumers on the old schema can read data written with the new one; **full** = both.
+- **Safe habits:** add optional fields with defaults, never reuse a field name or number for a different meaning (Protobuf field numbers are forever), deprecate before removing.
+
+## 83. Disaster Recovery
+> The fire drill and the spare office: how the business gets running again after the building burns down.
+- **What:** The plan, tooling and practice for restoring service after a major failure (a region outage, data corruption, ransomware, an accidental `DROP TABLE`). It's defined by two numbers:
+- **RPO (Recovery Point Objective):** how much **data** you can afford to lose, measured in time ("at most 5 minutes of writes"). **RTO (Recovery Time Objective):** how long you can afford to be **down** ("back within 1 hour").
+- **Strategies, cheapest and slowest first:** **backup and restore** (hours) → **pilot light** (data replicated, servers off until needed) → **warm standby** (a scaled-down copy always running) → **multi-site active-active** (near-zero RTO and RPO, highest cost).
+- **Example:** A payments platform sets RPO = 1 minute and RTO = 15 minutes: continuous replication to a second region, infrastructure as code to rebuild everything, DNS failover, and a quarterly drill that really fails over.
+- **A DR plan you've never tested is fiction.**
+
+## 84. Backups
+> A save point in a video game: when things go wrong you reload from it, if you actually saved.
+- **What:** Point-in-time copies of data stored separately from the original, so you can restore after deletion, corruption, ransomware or disaster. **Replication is not a backup**: it copies your accidental `DELETE` to every replica within seconds.
+- **Types:** **full**; **incremental** (changes since the last backup of any kind); **differential** (changes since the last full); **snapshots**; **point-in-time recovery (PITR)**: a base backup plus replayed write-ahead logs, to restore to any second.
+- **The 3-2-1 rule:** **3** copies of the data, on **2** different kinds of storage, **1** off-site. Today add one immutable or offline copy against ransomware.
+- **Example:** In January 2017 an engineer at GitLab.com accidentally deleted a production database directory; several backup methods turned out to be broken or not running, and about 6 hours of data was lost. The lesson: **test restores regularly**. An untested backup is a hope, not a backup.
+
+## 85. Failover
+> The understudy takes the stage the moment the lead actor collapses.
+- **What:** Switching traffic and responsibility from a failed component to a standby, automatically or by hand: a database replica is promoted to primary, traffic moves to another server, zone or region.
+- **Example:** Amazon RDS Multi-AZ: when the primary's availability zone fails, the synchronous standby in another zone is promoted and the database's DNS name is pointed at it, typically within a minute or two; apps reconnect to the same hostname. Route 53 health checks can fail DNS over to another region.
+- **Active-passive vs active-active:** a passive standby waits idle (simpler, with a failover delay); in active-active every site serves traffic (no idle capacity, but harder data consistency).
+- **Watch out:** **split brain** (the old primary comes back still thinking it's in charge; fencing and quorums prevent it), clients caching DNS longer than its TTL, failover paths that have never been tested, and **failback** (moving back afterwards).
+
+## 86. Multi-Region Deployment
+> Branches of the shop in several cities: if one city floods, customers walk to another, and everyone shops close to home.
+- **What:** Running the application in two or more geographic cloud regions, for **resilience** (survive the loss of a whole region), **latency** (serve users from a nearby region) and **data residency** law (EU users' data stays in the EU under GDPR).
+- **Example:** Latency-based or geo DNS sends European users to `eu-west-1` and American users to `us-east-1`; each region runs the full stack, and data replicates between them (DynamoDB global tables, Aurora Global Database, Google Spanner, CockroachDB).
+- **The hard part is data:** a cross-region round trip adds roughly 70-150 ms, so you choose between strong consistency (slower writes) and asynchronous replication (possible conflicts, and lost writes on failover). Active-passive is simpler; active-active is faster for users and much harder to get right.
+- **Cost and motivation:** roughly double the infrastructure plus cross-region data transfer; worth it when downtime costs more. The long October 2025 AWS `us-east-1` outage, triggered by a DNS automation fault in DynamoDB, took down many apps that lived in that single region.
+
+## 87. Chaos Engineering
+> A fire drill for software: break things on purpose, carefully, before they break on their own at 3 a.m.
+- **What:** Experimenting on a system by deliberately injecting failures (kill instances, add latency, cut network links, fill disks, lose a zone) to check that it behaves as expected, and to find weaknesses before real outages do.
+- **Example:** Netflix's **Chaos Monkey** randomly terminates production instances during working hours, so every team has to build services that survive it; "Chaos Kong" exercises losing an entire region. Tools today: Gremlin, AWS Fault Injection Service, Chaos Mesh, LitmusChaos.
+- **The method:** 1) define the **steady state** (e.g. orders per minute); 2) hypothesise it won't change when X fails; 3) inject X with a small **blast radius**; 4) compare; 5) fix what broke, then widen. **Game days** run these as planned team exercises.
+- **It's science, not vandalism:** start in staging, keep an abort button, tell the on-call team.
+
+## Bonus Buzzwords
+- **Expand-contract (parallel change)**: add the new structure, migrate, then remove the old one, so every step is backward compatible.
+- **Backfill**: filling a new column or table with values for existing rows, usually in small batches.
+- **Flyway vs Liquibase**: plain versioned SQL files vs changelogs in XML, YAML, JSON or SQL with rollback support. Both are common in Spring Boot.
+- **Schema Registry**: a service that stores message schemas and enforces compatibility rules (Confluent, AWS Glue, Apicurio).
+- **Pilot light, warm standby, hot standby**: the minimal core kept running / a smaller full copy running / a full-size copy ready to take over at once.
+- **PITR and WAL**: point-in-time recovery, made possible by the write-ahead log, which records every change before it's applied.
+- **Immutable backups and air gaps**: backups nobody can modify or delete for a set period / copies physically or logically disconnected from the network.
+- **Failback**: returning to the original primary or region after a failover.
+- **Availability Zone (AZ)**: one or more separate data centres within a cloud region, with independent power and networking. Spreading across AZs survives a data-centre failure; surviving a regional failure takes multi-region.
+- **Business continuity plan (BCP)**: the company-wide plan (people, offices, suppliers) of which IT disaster recovery is one part.
+- **Steady state**: the normal, measurable behaviour that a chaos experiment checks.
+- **Game day**: a scheduled exercise in which the team simulates a failure and practises the response.
+
+# 16 | Cost & Serverless: Terms 88-90 | Cost optimization, cold starts and serverless limits, plus bonus buzzwords: FinOps, right-sizing, reserved and spot instances, egress costs, scale to zero, provisioned concurrency, SnapStart, FaaS, vendor lock-in, edge functions | Cost & Serverless
+
+## 88. Cost Optimization
+> Stop paying to light empty rooms.
+- **What:** Cutting cloud spend without hurting reliability or speed: paying only for what you use, at the best price model, and making cost a number engineers can see. The discipline is called **FinOps**.
+- **Levers:** **right-size** (that 16 vCPU instance idling at 5% CPU), **autoscale** down at night, **switch off** dev and test environments outside working hours, **commitment discounts** (Reserved Instances and Savings Plans, up to about 72% off for 1 or 3 years), **spot instances** for interruptible work (up to 90% off), **storage tiering** (S3 lifecycle rules to Infrequent Access and Glacier), deleting orphaned volumes, snapshots and idle load balancers, watching **data egress** and NAT gateway charges, ARM instances (AWS Graviton), and caching to cut database and API calls.
+- **Example:** A team tags every resource by service, discovers that 40% of the bill is idle staging clusters, schedules them off at nights and weekends, and moves batch jobs to spot instances: the bill drops by about a third.
+- **Rule:** you can't optimise what you can't see. Tags, budgets, alerts and per-team cost dashboards come first.
+
+## 89. Cold Starts
+> The first customer of the morning waits while the shop unlocks, switches on the lights and warms up the coffee machine.
+- **What:** The extra delay on the **first request** to a new serverless function instance (or a freshly started container or JVM): creating the environment, downloading the code, starting the runtime and running initialisation, all before the handler even runs. Requests to an already-warm instance are fast.
+- **Example:** A Java Spring function on AWS Lambda answers in 20 ms when warm but takes several seconds when cold, while Node.js or Python functions typically cold-start in a few hundred milliseconds. Users hit cold starts after idle periods and during spikes, because every extra concurrent instance starts cold.
+- **Fixes:** **provisioned concurrency** or minimum instances (pay to keep some warm), **Lambda SnapStart** (resume from a snapshot of an already-initialised runtime; Java, Python and .NET), smaller packages and fewer dependencies, lazy initialisation, lighter frameworks or **GraalVM native images**, and Node, Python or Go for latency-sensitive paths.
+- **JVM warm-up** is the non-serverless cousin: the JIT compiler makes the first minutes of a fresh JVM slower.
+
+## 90. Serverless Limits
+> Taking a taxi instead of owning a car: no maintenance and you pay per ride, but there are rules: a maximum trip length and a luggage limit.
+- **What:** **Serverless** platforms (AWS Lambda, Azure Functions, Google Cloud Run functions) run your code on demand with no servers to manage, scale to zero, and bill per request and per millisecond. The price is a set of hard limits you have to design around.
+- **AWS Lambda numbers worth remembering:** at most **15 minutes** per invocation; **128 MB to 10 GB** of memory (CPU grows with it); **6 MB** request and response payload for synchronous calls; 250 MB unzipped deployment package (10 GB as a container image); up to 10 GB of `/tmp`; **1,000** concurrent executions per region by default (a quota you can raise). API Gateway in front adds a 29-second integration timeout by default.
+- **Other constraints:** stateless between invocations, cold starts (term 89), each instance opening its own database connections (use RDS Proxy), harder local testing, vendor lock-in, and a bill that can exceed a plain server under steady heavy load.
+- **Good fit:** spiky or low traffic, event processing (an image upload triggers a thumbnail), scheduled jobs, glue code, webhooks. **Poor fit:** long-running jobs, steady high traffic, latency-critical paths, many long-lived connections.
+
+## Bonus Buzzwords
+- **FinOps**: cloud financial operations: engineering, finance and product sharing responsibility for cloud cost.
+- **Right-sizing**: matching instance size to real usage.
+- **On-demand vs reserved vs spot**: full price with no commitment / a discount for committing 1 to 3 years / a deep discount for spare capacity that can be taken back at short notice.
+- **Egress**: data leaving the cloud provider (or crossing regions), often the surprise line on the bill.
+- **Unit economics**: cost per request, per user or per order; more useful than the total bill.
+- **Tagging**: labelling resources by team, service and environment so costs can be allocated.
+- **Scale to zero**: no running instances and no cost when there's no traffic.
+- **FaaS vs BaaS**: Functions as a Service (Lambda) vs Backend as a Service (Firebase, Supabase: ready-made auth, database and storage).
+- **Provisioned concurrency**: pre-initialised Lambda instances kept warm for a fee.
+- **Warm start**: a request served by an instance that's already running.
+- **Throttling (serverless)**: requests rejected because the concurrency limit has been reached.
+- **Vendor lock-in**: depending on one provider's proprietary services so deeply that moving away is very costly.
+- **RDS Proxy**: a managed connection pool between many short-lived functions and a relational database.
+- **Edge functions**: code running in CDN locations (Cloudflare Workers, Vercel Edge Functions), often in lightweight V8 isolates that start in a few milliseconds.
+- **Serverless containers**: run a container image with no servers to manage (Google Cloud Run, AWS Fargate).
+
+# 17 | Performance & Distributed Time: Terms 91-96 | Latency, throughput, P99 latency, tail latency, network partitions and clock skew, plus bonus buzzwords: RPS, percentiles, bandwidth, RTT, Little's law, hedged requests, noisy neighbour, fallacies of distributed computing, Lamport clocks, TrueTime | Performance & Time
+
+## 91. Latency
+> How long one pizza takes to arrive.
+- **What:** The time from sending a request to getting the response, usually in milliseconds. It's what one user **feels**.
+- **Example:** An API call takes 120 ms: 40 ms of network round trip, 10 ms of TLS, a 50 ms database query and 20 ms in the app. An often-quoted Amazon finding is that every 100 ms of extra latency cost about 1% in sales.
+- **Where it comes from:** distance (light in fibre covers about 200 km per millisecond, so India to the US East Coast is 200+ ms per round trip), the number of round trips (DNS, TCP and TLS handshakes), queueing under load, slow dependencies, GC pauses, disk I/O.
+- **Cutting it:** caching, a CDN, fewer round trips (batching, connection reuse, HTTP/2 and HTTP/3), moving work off the request path, indexes, putting data close to users.
+
+## 92. Throughput
+> How many pizzas the shop delivers per hour.
+- **What:** How much work a system completes per unit of time: requests per second (RPS or QPS), messages per second, megabytes per second. It's what the **system** handles in total.
+- **Example:** One API instance handles 800 RPS before latency starts climbing; 10 instances behind a load balancer handle roughly 8,000 RPS.
+- **Latency vs throughput, the highway:** latency is how long one car takes from A to B; throughput is cars per hour. More lanes (parallelism) raise throughput without making any one car faster; batching raises throughput but can make each item wait longer.
+- **Little's Law:** items in the system = throughput × time each spends there (**L = λW**). 1,000 requests per second × 0.2 s each = 200 requests in flight at any moment, so you need at least 200 threads or connections, or non-blocking I/O.
+
+## 93. P99 Latency
+> The time the slowest 1 in 100 requests takes: the experience the average hides.
+- **What:** The **99th percentile**: 99% of requests are faster than this value and 1% are slower. P50 is the median (the typical request); p95, p99 and p99.9 describe the slow end.
+- **Example:** Average 90 ms and p50 70 ms, but **p99 = 1.8 s**: one request in every hundred waits nearly two seconds. A page that makes 50 such calls has a 1 − 0.99^50 ≈ **40%** chance of hitting at least one of them.
+- **Why not the average:** averages hide outliers; one 10-second request among 99 fast ones barely moves the mean. That's why SLOs are written on percentiles ("p99 under 300 ms").
+- **Measure it properly:** compute percentiles from histograms of all requests; you can't average percentiles from different servers.
+
+## 94. Tail Latency
+> The slowest runners decide when the relay team finishes.
+- **What:** The high end of the latency distribution (p99, p99.9 and beyond): the rare slow requests. At scale they dominate what users experience, because one user request **fans out** to many backend calls and has to wait for the slowest.
+- **Example:** A search fans out to 100 servers, each slow 1% of the time: 1 − 0.99^100 ≈ **63%** of searches are slow. This is the core of "The Tail at Scale" by Jeff Dean and Luiz André Barroso (Google, 2013).
+- **Causes:** GC pauses, queueing, noisy neighbours, cache misses, retries, background jobs, cold starts, lock contention.
+- **Fixes:** **hedged requests** (if the first replica hasn't answered by about the p95 time, ask a second one and take whichever answers first), timeouts with backup requests, less fan-out, isolating slow work, short queues, low-pause GC.
+
+## 95. Network Partitions
+> The bridge between two towns collapses: both keep going, but they can't hear each other, and each may think the other has vanished.
+- **What:** A network failure that splits a cluster into groups that can't talk to each other, although every node is still running. From the inside, a partition looks exactly like the other nodes crashing.
+- **Example:** The link between two data centres fails, and the database nodes on each side think the others are dead. If both sides elect a primary and accept writes, you get **split brain** and conflicting data.
+- **Handling:** this is where CAP bites. A CP system lets only the **majority** side (the quorum) keep accepting writes and makes the minority refuse; an AP system lets both sides carry on and reconciles afterwards (merging, last-write-wins, CRDTs).
+- **Reality check:** "the network is reliable" is the first of the **Fallacies of Distributed Computing**. Partitions come from switch failures, misconfigurations, cloud zone problems, and even GC pauses long enough to look like death.
+
+## 96. Clock Skew
+> Everybody's watch shows a slightly different time, so "who came first?" can't be settled by looking at watches.
+- **What:** The difference between the clocks of different machines. Hardware clocks drift; **NTP** keeps them close (typically within a few milliseconds) but never identical, and a correction can even make a clock jump backwards.
+- **Example:** Server A's clock is 50 ms fast. It writes at "10:00:00.100"; server B writes a **newer** value at "10:00:00.080" by its own clock. With **last-write-wins** by timestamp, the newer write is thrown away. JWT and one-time-password checks fail when a server's clock is off, so libraries allow a small **leeway** (often up to a minute) on `exp` and `nbf`.
+- **Handling:** don't order events across machines by wall-clock time. Use **logical clocks** (Lamport timestamps, vector clocks), **hybrid logical clocks** (CockroachDB), a single sequencer (a database sequence, Kafka partition offsets), or bounded uncertainty like **Google Spanner's TrueTime** (GPS and atomic clocks; it waits out the uncertainty before committing). Measure durations with a **monotonic** clock (`System.nanoTime()`), never with wall time.
+
+## Bonus Buzzwords
+- **RPS, QPS, TPS**: requests, queries or transactions per second.
+- **Percentiles (p50, p95, p99, p99.9)**: the value below which that percentage of measurements fall.
+- **Bandwidth vs throughput**: the pipe's maximum capacity vs what actually flows through it.
+- **RTT (round-trip time)**: there and back, the basic unit of network latency; every handshake costs at least one.
+- **Utilisation knee**: latency stays flat until a resource is roughly 70-80% busy, then shoots up as queues form. Keep headroom.
+- **Hedged requests**: send a backup request if the first one is slow; take the first answer.
+- **Fan-out**: one request turning into many downstream calls.
+- **Noisy neighbour**: another tenant on the same machine or database eating shared resources and slowing you down.
+- **Head-of-line blocking**: everything queued behind one slow or lost item has to wait.
+- **Fallacies of Distributed Computing**: eight false assumptions (from Peter Deutsch and colleagues at Sun): the network is reliable, latency is zero, bandwidth is infinite, the network is secure, topology doesn't change, there is one administrator, transport cost is zero, the network is homogeneous.
+- **Split brain**: two sides of a partition both acting as the leader.
+- **NTP / PTP**: protocols that synchronise clocks over the network; PTP is far more precise and used in finance and telecoms.
+- **Lamport timestamp / vector clock**: a counter that orders causally related events / a per-node set of counters that can also detect concurrent events.
+- **Byzantine fault**: a node that lies or behaves arbitrarily, as opposed to simply crashing. Blockchains are designed for it; most databases aren't.
+
+# 18 | Networking & APIs: Terms 97-103 | DNS, TCP vs UDP, HTTP/2 and HTTP/3, gRPC, webhooks, API versioning and semantic versioning, plus bonus buzzwords: anycast, BGP, OSI layers, keep-alive, QUIC, 0-RTT, Protobuf, HMAC, OpenAPI, contract testing, CalVer | Networking & APIs
+
+## 97. DNS
+> The internet's phone book: look up a name, get back a number (an IP address).
+- **What:** The **Domain Name System** turns names such as `shop.example.com` into IP addresses through a hierarchy: your **recursive resolver** (from your ISP, or 8.8.8.8, 1.1.1.1) asks a **root** server, then the **TLD** server for `.com`, then the domain's **authoritative** server, and caches the answer for its **TTL**.
+- **Record types:** **A** (name → IPv4), **AAAA** (→ IPv6), **CNAME** (an alias for another name), **MX** (mail servers), **TXT** (domain verification, SPF and DKIM for email), **NS** (which servers are authoritative).
+- **Example:** Before moving to a new load balancer, lower the record's TTL from 3600 to 60 seconds a day ahead, then change the A record; within about a minute most clients follow. Clients that ignore TTLs are why people talk about "DNS propagation".
+- **"It's always DNS":** in Facebook's October 2021 outage (about 6 hours), a faulty backbone maintenance command cut off its data centres; its DNS servers then withdrew their BGP routes, so facebook.com stopped resolving worldwide.
+- Most queries use **UDP port 53** (TCP for large responses and zone transfers); DNS over HTTPS or TLS encrypts the lookups.
+
+## 98. TCP vs UDP
+> TCP is registered post with tracking and a signature on delivery; UDP is tossing postcards: faster, but some get lost or arrive out of order.
+- **TCP:** connection-oriented (the **three-way handshake**: SYN, SYN-ACK, ACK), **reliable** (acknowledgements and retransmission), **ordered**, with flow control and congestion control. Used by HTTP/1.1 and HTTP/2, databases, email, SSH, file transfer.
+- **UDP:** connectionless, no handshake, no delivery or ordering guarantees, a tiny 8-byte header (TCP's is 20 bytes or more). Used where speed beats completeness or the application handles reliability itself: **DNS**, video calls and live streaming, online games, VoIP, and **QUIC**, the transport under HTTP/3.
+- **Example:** In a video call, a video frame retransmitted 300 ms late is useless, so it's better dropped (UDP); in a bank transfer every byte must arrive, in order (TCP).
+- **Head-of-line blocking:** because TCP delivers bytes strictly in order, one lost packet holds up everything behind it. That's the problem HTTP/3 fixes.
+
+## 99. HTTP/2 & HTTP/3
+> HTTP/1.1 is a single-lane road; HTTP/2 is many lanes inside one tunnel; HTTP/3 rebuilds the tunnel so one crash doesn't block every lane.
+- **HTTP/1.1 (1997):** a text protocol, one request at a time per connection (so browsers open about 6 connections per host), with verbose headers repeated on every request.
+- **HTTP/2 (2015, now RFC 9113):** **binary framing**, **multiplexing** many requests as independent streams over **one TCP connection**, and **HPACK** header compression. (It also had server push, which browsers have since dropped.) What's left: TCP-level head-of-line blocking, where one lost packet stalls every stream.
+- **HTTP/3 (2022, RFC 9114):** runs over **QUIC**, which runs on **UDP**. Streams are independent, so a lost packet only stalls its own stream; **TLS 1.3 is built in** (1-RTT setup, 0-RTT on resumption); and **connection migration** keeps the connection alive when a phone switches from Wi-Fi to mobile data.
+- **Example:** A page with 80 assets loads over one HTTP/2 connection instead of many; on lossy mobile networks HTTP/3 stalls less. Major CDNs and Google serve HTTP/3, and browsers discover it through the `Alt-Svc` header or DNS HTTPS records. gRPC runs on HTTP/2.
+
+## 100. gRPC
+> Calling a function on another server as if it were local, with a strict contract and a compact binary format.
+- **What:** A high-performance **RPC** framework (open-sourced by Google in 2015, now a CNCF project). You define services and messages in a `.proto` file using **Protocol Buffers**, generate client and server code in many languages, and exchange compact binary messages over **HTTP/2**.
+- **Four call types:** unary (one request, one response), server streaming, client streaming and **bidirectional streaming**.
+- **Example:** The orders service calls the inventory service's `CheckStock` through a generated stub; payloads are smaller and faster to parse than JSON, and deadlines, cancellation and streaming come built in.
+- **gRPC vs REST:** gRPC shines **between services** (strict contracts, speed, streaming, code generation); REST with JSON is better for **public and browser-facing** APIs (human-readable, works with curl, cacheable, universal). Browsers need **gRPC-Web** or a translating proxy.
+```protobuf
+syntax = "proto3";
+
+service Inventory {
+  rpc CheckStock (StockRequest) returns (StockReply);
+}
+message StockRequest { string sku = 1; }
+message StockReply   { int32 available = 1; }
+```
+
+## 101. Webhooks
+> "Don't call us, we'll call you": instead of you asking for news every minute, the other system POSTs to your URL when something happens.
+- **What:** A user-defined **HTTP callback**: you register a URL with a provider, and when an event occurs the provider sends a `POST` with a JSON payload to it. Real-time, server-to-server, no polling.
+- **Example:** Stripe sends `payment_intent.succeeded` to `https://shop.com/webhooks/stripe` when a payment completes; GitHub sends `push` events to trigger CI; Slack and Twilio work the same way.
+- **Receiver checklist:** **verify the signature** (Stripe's `Stripe-Signature` and GitHub's `X-Hub-Signature-256` are HMACs of the body with a shared secret) and reject old timestamps to stop replays; **respond 2xx quickly** and do the work asynchronously from a queue; be **idempotent**, because providers retry and the same event can arrive twice (deduplicate on the event id); don't assume ordering.
+- **Sender side:** retries with backoff, signed payloads, a delivery log, and a way for customers to replay events.
+- **Webhook vs WebSocket:** a webhook is server-to-server, one HTTP request per event; a WebSocket is a persistent two-way connection, usually to a browser.
+
+## 102. API Versioning
+> Keep the old menu available while you introduce the new one, so regular customers aren't caught out.
+- **What:** Letting an API evolve with **breaking changes** without breaking existing clients, by exposing versions that clients choose explicitly, and retiring old versions on a published schedule.
+- **Styles:** **URI path** `/v1/orders` (most common: visible, easy to route and cache); **header**, e.g. `Accept: application/vnd.shop.v2+json`; **query parameter** `?version=2`; **date-based**: Stripe pins each account to a dated API version, which a request can override with the `Stripe-Version` header.
+- **Breaking vs non-breaking:** adding endpoints or optional fields is safe; removing or renaming fields, changing types, making a field required or changing a field's meaning is breaking, and needs a new version.
+- **Retiring a version:** announce the deprecation, signal it in responses with `Deprecation` and `Sunset` headers, watch who still calls the old version, then remove it.
+- **Tip:** design for additive change so you rarely need a v2 at all.
+
+## 103. Semantic Versioning
+> MAJOR.MINOR.PATCH = "I broke something" . "I added something" . "I fixed something".
+- **What:** A version-numbering convention (semver.org) in which **MAJOR** changes for incompatible API changes, **MINOR** for backward-compatible new features, and **PATCH** for backward-compatible bug fixes. Pre-releases look like `2.0.0-rc.1`.
+- **Example:** A library at `3.4.2`: fix a bug → `3.4.3`; add an optional method → `3.5.0`; remove a method → `4.0.0`. Versions `0.y.z` mean early development, where anything may change.
+- **npm ranges:** `^3.4.2` accepts `>=3.4.2 <4.0.0` (new minors and patches); `~3.4.2` accepts `>=3.4.2 <3.5.0` (patches only); `3.4.2` pins exactly. The lockfile (`package-lock.json`) records exactly what was installed.
+- **Reality check:** SemVer is a promise, not a guarantee; a "minor" release can still break you, which is why lockfiles and tests exist.
+
+## Bonus Buzzwords
+- **IP address, port, socket**: the machine's address / which program on it / one end of a connection (IP + port).
+- **OSI layers in practice**: L3 network (IP), L4 transport (TCP, UDP), L7 application (HTTP). "An L4 load balancer" vs "an L7 load balancer".
+- **Anycast**: the same IP address announced from many locations, so each user reaches the nearest one (CDNs, 1.1.1.1, 8.8.8.8).
+- **BGP**: the routing protocol networks use to tell each other which IP ranges they can reach: the internet's map.
+- **Keep-alive (connection reuse)**: keeping a TCP/TLS connection open across requests to skip repeated handshakes.
+- **Multiplexing**: many independent streams sharing one connection.
+- **QUIC and 0-RTT**: the UDP-based transport under HTTP/3 / sending data in the very first packet when resuming a known connection.
+- **Protobuf**: Google's compact, schema-based binary serialisation format used by gRPC.
+- **REST vs GraphQL vs gRPC**: resources over HTTP / one endpoint where the client asks for exactly the fields it needs / typed RPC over HTTP/2.
+- **HMAC**: a keyed hash proving a message came from someone holding the shared secret and wasn't altered.
+- **Polling vs webhooks**: asking repeatedly vs being told once.
+- **Breaking change**: any change that can make an existing client fail.
+- **OpenAPI (Swagger)**: a standard machine-readable description of a REST API, used for docs, client generation and testing.
+- **Contract testing**: checking that a provider still satisfies what its consumers expect (Pact), so breaking changes are caught before deployment.
+- **CalVer**: calendar-based versioning such as Ubuntu 24.04 (year.month).
+
+# 19 | Infrastructure & Build: Terms 104-108 | Infrastructure as code, Terraform, Helm charts, build caching and dependency hell, plus bonus buzzwords: declarative vs imperative, configuration drift, state file, OpenTofu, Kustomize, reproducible builds, monorepo, transitive dependencies, BOM, SBOM | Infra & Build
+
+## 104. Infrastructure as Code
+> A recipe for your data centre: write it once, review it like code, and cook the identical meal in any kitchen.
+- **What:** Defining infrastructure (networks, servers, databases, load balancers, DNS, permissions) in **version-controlled files** that a tool applies automatically, instead of clicking around a cloud console. Reviewable, repeatable, auditable, and a whole environment can be rebuilt from scratch.
+- **Declarative vs imperative:** declarative = describe the **end state** and let the tool work out the steps (Terraform, CloudFormation, Kubernetes YAML); imperative = write the **steps** yourself (scripts calling the cloud CLI).
+- **Tools:** Terraform and OpenTofu (multi-cloud), AWS CloudFormation and CDK, Pulumi (real programming languages), Azure Bicep; configuration management with Ansible, Chef or Puppet.
+- **Example:** A pull request adds a Redis cluster in 15 lines of Terraform; CI runs `terraform plan` and posts the planned changes on the PR; after review, merging runs `terraform apply`. Staging and production come from the same code with different variables.
+- **Benefits:** no **configuration drift** or hand-built "snowflake" servers, disaster recovery by re-applying code, peer review for infrastructure changes.
+
+## 105. Terraform
+> You write "I want 3 servers and a database"; Terraform compares that with what exists and makes only the changes needed.
+- **What:** HashiCorp's declarative IaC tool. You describe resources in **HCL**; **providers** (AWS, Azure, Google Cloud, Kubernetes, Cloudflare, GitHub and thousands more) talk to each platform's API; a **state file** maps your code to the real resources so Terraform can compute a **plan** (what to create, change or destroy) and **apply** it.
+- **Workflow:** `terraform init` (download providers) → `terraform plan` (preview the changes) → `terraform apply` (make them) → `terraform destroy` (tear everything down).
+- **State:** keep it in a **remote backend** (S3, HCP Terraform, Google Cloud Storage) with **locking**, so two people can't apply at once. State can contain secrets, so encrypt it and restrict access. **Drift** = someone changed a resource by hand; the next `plan` reveals it.
+- **Reuse:** **modules** (reusable groups of resources), variables, outputs, and separate state per environment.
+- **History:** HashiCorp moved Terraform to the Business Source License in 2023; the community fork **OpenTofu** (Linux Foundation) stays open source. IBM completed its acquisition of HashiCorp in 2025.
+```hcl
+provider "aws" {
+  region = "ap-south-1"
+}
+
+resource "aws_s3_bucket" "invoices" {
+  bucket = "shop-invoices-prod"
+  tags   = { team = "payments" }
+}
+```
+
+## 106. Helm Charts
+> npm for Kubernetes: one package installs an app's whole bundle of YAML, configured by a values file.
+- **What:** **Helm** is the package manager for Kubernetes. A **chart** is a package of templated Kubernetes manifests (Deployment, Service, Ingress, ConfigMap...) plus a `values.yaml` of defaults. Installing a chart with your values creates a **release**, which Helm can upgrade and roll back as one unit.
+- **Example:** `helm install shop ./shop-chart -f values-prod.yaml` deploys the app with production settings; `helm upgrade shop ./shop-chart -f values-prod.yaml --set image.tag=1.5.0` rolls out a new version; `helm rollback shop 3` returns to revision 3. Ready-made charts for PostgreSQL, Redis, Prometheus and ingress controllers are listed on **Artifact Hub**.
+- **Why:** one chart for every environment (dev, staging and prod differ only in values), versioned packaging, chart dependencies.
+- **Alternatives:** Kustomize (patch-based overlays, built into `kubectl apply -k`) or plain YAML managed with GitOps; Argo CD can deploy Helm charts too.
+```text
+shop-chart/
+  Chart.yaml          name, version (the chart's own SemVer), appVersion
+  values.yaml         replicaCount: 2, image.tag: "1.4.0", ...
+  templates/
+    deployment.yaml   replicas: {{ .Values.replicaCount }}
+    service.yaml
+```
+
+## 107. Build Caching
+> Don't bake the whole cake again because you changed the icing: reuse every layer that didn't change.
+- **What:** Reusing outputs from earlier builds (downloaded dependencies, compiled classes, Docker layers, test results) when their inputs haven't changed, usually keyed by a hash of those inputs. It can turn a 20-minute build into a 2-minute one.
+- **Docker layer caching:** copy the dependency manifest and install dependencies **before** copying the source code, so editing source reuses the cached dependency layer.
+- **CI caching:** cache `~/.m2` or `~/.npm` keyed by a hash of `pom.xml` or `package-lock.json`; `actions/setup-java` with `cache: maven` does it for you.
+- **Shared remote caches:** Gradle build cache, Bazel remote cache, Nx and Turborepo remote caching: if a teammate or CI has already built exactly these inputs, you download the result instead of rebuilding.
+- **Pitfall:** a wrong cache key gives stale results or "works in CI but not on my machine". Builds must be deterministic (**reproducible**) for caching to be safe.
+```dockerfile
+FROM node:24-alpine
+WORKDIR /app
+# Changes rarely: this layer stays cached until the lockfile changes
+COPY package.json package-lock.json ./
+RUN npm ci
+# Changes often: only the steps from here on rerun when source changes
+COPY . .
+RUN npm run build
+```
+
+## 108. Dependency Hell
+> Library A needs version 1 of C, library B needs version 2 of C, and you can only ship one.
+- **What:** The pain of managing many interdependent packages: version **conflicts** between transitive dependencies, upgrades that break each other, huge dependency trees, and builds that work on one machine but not another.
+- **Example:** Your app uses `lib-a`, built against Jackson 2.15, and `lib-b`, which needs Jackson 2.18. Maven's "nearest definition wins" rule picks one version, and the other library fails at runtime with `NoSuchMethodError`: the classic **diamond dependency**. In npm, the 2016 removal of the 11-line `left-pad` package broke builds across the ecosystem, Babel included.
+- **Fixes:** **lockfiles** for reproducible installs; inspect the tree (`mvn dependency:tree`, `npm ls`, `pipdeptree`); pin versions centrally with Maven `<dependencyManagement>` and **BOMs** (Spring Boot's BOM aligns hundreds of versions) or npm `overrides`; update in small steps automatically (**Dependabot**, **Renovate**); have fewer dependencies.
+- **Security side:** transitive dependencies bring transitive vulnerabilities. Log4Shell reached many apps through a `log4j-core` they never declared directly. Scan with SCA tools (Dependabot alerts, Snyk, OWASP Dependency-Check).
+
+## Bonus Buzzwords
+- **Configuration drift**: real infrastructure slowly differing from what the code says, through manual changes.
+- **Snowflake server**: a hand-configured, unique server nobody can rebuild exactly.
+- **State file and state locking**: Terraform's record of what it manages / preventing two simultaneous applies.
+- **Plan and apply**: preview the changes, then make them. Always read the plan.
+- **Provider and module**: Terraform's plugin for one platform / a reusable bundle of resources.
+- **Pulumi, CDK, CloudFormation, OpenTofu**: IaC alternatives (general-purpose languages / AWS's code-first tool / AWS's native templates / the open-source Terraform fork).
+- **Kustomize**: customising Kubernetes YAML with overlays instead of templates.
+- **Release and revision (Helm)**: one installed instance of a chart / each numbered upgrade of it, which you can roll back to.
+- **Artifact repository**: storage for built artifacts and packages (Nexus, JFrog Artifactory, GitHub Packages).
+- **Reproducible build**: the same inputs always produce bit-for-bit the same output.
+- **Incremental build**: rebuilding only what changed since the last build.
+- **Monorepo vs polyrepo**: all projects in one repository (Google, Meta) vs one repository per service.
+- **Transitive dependency**: a dependency of your dependency, which you never chose but still ship.
+- **BOM (Bill of Materials)**: a Maven POM that fixes compatible versions for a family of libraries.
+- **SBOM (Software Bill of Materials)**: a machine-readable inventory of every component in your software (SPDX, CycloneDX), increasingly required by customers and regulators.
+- **Vendoring**: copying dependencies into your own repository so builds don't depend on a remote registry.
+
+# 20 | Incidents & On-Call: Terms 109-111 | Production incidents, on-call and postmortems, plus bonus buzzwords: severity levels, incident commander, status page, runbook, escalation policy, MTTA and MTTR, toil, SRE, 5 whys, hotfix, change freeze | Incidents
+
+## 109. Production Incidents
+> The building is on fire: first get everyone out (mitigate), then find out what started it (root cause).
+- **What:** An unplanned event that degrades or interrupts a production service for users (an outage, errors, data problems, a security breach), handled with a defined process: **detect → triage (assign severity) → mitigate → resolve → learn**.
+- **Severity levels:** for example **SEV1** (major outage, all hands, status page updated), SEV2 (significant degradation), SEV3 (minor or limited impact), SEV4 (cosmetic). Severity decides who gets paged and how often stakeholders hear from you.
+- **Roles:** **incident commander** (coordinates and decides; doesn't debug), responders and subject-matter experts, a communications lead (status page, stakeholders), a scribe (keeps the timeline).
+- **Example:** Checkout errors jump to 30% just after a deploy. The on-call engineer declares SEV1, the incident commander opens an incident channel, the team **rolls back first** (mitigated in 12 minutes), then investigates the cause and writes a postmortem. Famous large ones: CrowdStrike (July 2024, about 8.5 million Windows machines) and AWS `us-east-1` (October 2025).
+- **Golden rule:** **mitigate before you investigate**. Stop the bleeding first, then diagnose.
+
+## 110. On-Call
+> Being the firefighter on shift: the phone may ring at 3 a.m., and you have the runbook and the authority to act.
+- **What:** A rotation in which one engineer is responsible, for a period (often a week), for responding to alerts and incidents on their team's services, including outside office hours, within an agreed response time.
+- **Example:** A team of 6 runs weekly rotations with a primary and a secondary. PagerDuty pages the primary for SEV1 and SEV2 alerts, escalates to the secondary if nobody acknowledges within 10 minutes, then to the manager. A handover note at each shift change lists open issues.
+- **What makes it humane and effective:** only actionable alerts, a **runbook** for each one, the authority to roll back, enough people in the rotation, pay or time off in lieu, **follow-the-sun** rotations across time zones for global teams, and fixing the causes of repeat pages ("you build it, you run it").
+- **Metrics:** pages per shift, out-of-hours pages, time to acknowledge (MTTA) and time to resolve (MTTR).
+
+## 111. Postmortems
+> The flight-recorder review after a crash: understand what happened so it never happens the same way again, without blaming the pilot.
+- **What:** A written review after an incident covering the **impact** (who, how long, how bad), a **timeline**, the **root cause and contributing factors**, what went well and badly, and **action items** with owners and due dates. It's **blameless**: it asks how the system and process allowed the failure, not who pressed the button.
+- **Example:** "A config push with a typo disabled authentication caching; login latency rose tenfold for 47 minutes. Contributing factors: no validation of config in CI, the push skipped the canary stage, the alert fired 20 minutes late. Actions: schema-validate config in CI (owner A, 2 weeks), route config through canary (owner B), tighten the alert (owner C)."
+- **Techniques:** **5 Whys** (keep asking why until you reach something in the process you can fix), fishbone diagrams, rebuilding the timeline from logs and chat.
+- **Why blameless:** if people are punished for mistakes they hide them, and the next incident is worse. Google's SRE book describes the practice; companies such as Cloudflare and GitLab publish detailed public postmortems.
+- **A postmortem whose action items never get done is just a story.**
+
+## Bonus Buzzwords
+- **SEV / P levels**: severity or priority scales (SEV1 to SEV4, P0 to P4) agreed in advance so nobody argues mid-incident.
+- **Incident commander (IC)**: the single person coordinating the response.
+- **War room / bridge**: the dedicated channel or call where the incident is worked.
+- **Status page**: a public page where customers see current incidents and updates.
+- **Runbook / playbook**: step-by-step instructions for a known alert or task / a broader plan for a type of incident.
+- **Escalation policy**: who gets paged next, and when, if the first person doesn't respond.
+- **MTTA, MTTR, MTBF**: mean time to acknowledge, to recover (or resolve), and between failures.
+- **SRE (Site Reliability Engineering)**: Google's approach of treating operations as a software problem, with SLOs, error budgets and a cap on toil.
+- **Toil**: manual, repetitive, automatable work that grows with the service. SREs aim to keep it under about half their time.
+- **RCA (root cause analysis)**: digging out why something failed. Modern practice prefers "contributing factors", because big failures rarely have a single cause.
+- **Hotfix**: an urgent fix shipped straight to production outside the normal release cycle.
+- **Change freeze**: a period with no non-essential deploys (holiday peaks, after a string of incidents, when the error budget is spent).
+- **Near miss**: something that almost caused an incident; worth a short review too.
+- **Follow-the-sun**: on-call handed between teams in different time zones so nobody gets paged at night.
+
+@ Review
+# 21 | Rapid-Fire: All 111 in One Line | The confusable twins side by side, one-line answers for all 111 terms (quiz yourself), scenario questions that chain several buzzwords, and buzzword bingo: more terms you'll hear in interviews | Rapid-fire
+
+## The Twins: Don't Mix These Up
+```text
+Rate limiting vs throttling          reject the excess (429)                 vs  slow it down or queue it
+Queue vs pub/sub                     each message to ONE worker              vs  each message to EVERY subscriber
+Load balancer vs API gateway         spreads load                            vs  one front door: routing + auth + quotas
+Forward vs reverse proxy             acts for clients                        vs  acts for servers
+Latency vs throughput                how long one request takes              vs  how many requests per second
+Average vs p99                       hides the slow requests                 vs  shows the slowest 1%
+Horizontal vs vertical scaling       more machines                           vs  a bigger machine
+Sharding vs partitioning             split across servers                    vs  split inside one server
+Replication vs sharding              same data, many copies                  vs  different data on different nodes
+Replication vs backup                copies mistakes instantly               vs  lets you go back in time
+Optimistic vs pessimistic locking    check version at save (rare conflicts)  vs  lock on read (frequent conflicts)
+Race condition vs deadlock           wrong result from bad timing            vs  everyone waiting forever
+Deadlock vs livelock                 nobody moves                            vs  everybody moves, nobody progresses
+CAP's C vs ACID's C                  every read sees the latest write        vs  data obeys its constraints
+2PC vs saga                          atomic, blocking, locks held            vs  local steps + compensations, eventual
+Retry vs circuit breaker             try again (transient errors)            vs  stop trying (persistent failure)
+Liveness vs readiness                failing → restart the container         vs  failing → stop sending it traffic
+Blue-green vs canary vs rolling      switch all at once, instant rollback    vs  small % first   vs  a few instances at a time
+Feature flag vs canary               who SEES the feature (no deploy)        vs  which VERSION serves traffic
+SLI vs SLO vs SLA                    measured value                          vs  internal target   vs  contract with penalties
+Monitoring vs observability          known questions: is it broken?          vs  new questions: why is it broken?
+Logs vs metrics vs traces            why                                     vs  that something's wrong   vs  where
+AuthN vs AuthZ                       who are you? (401)                      vs  what may you do? (403)
+OAuth vs OIDC                        authorization: access token             vs  authentication: ID token
+At rest vs in transit                stored data                             vs  moving data
+CORS vs CSRF                         who may READ a response                 vs  forged SENDING of a request
+XSS vs CSRF                          attacker's script runs in your page     vs  your browser sends a forged request
+SSRF vs CSRF                         the SERVER is tricked into a request    vs  the user's BROWSER is tricked
+WebSocket vs SSE vs long polling     two-way, persistent                     vs  server→client stream   vs  held request, repeat
+Webhook vs WebSocket                 server→server POST per event            vs  persistent two-way connection
+TCP vs UDP                           reliable, ordered                       vs  fast, best effort
+HTTP/2 vs HTTP/3                     multiplexed over TCP                    vs  multiplexed over QUIC (UDP)
+gRPC vs REST                         binary contract, service-to-service     vs  JSON resources, public and browser
+RPO vs RTO                           how much data you can lose              vs  how long you can be down
+Failover vs failback                 switch to the standby                   vs  switch back afterwards
+Docker vs Kubernetes                 build and run one container             vs  run many containers across many machines
+Terraform vs Helm                    creates cloud infrastructure            vs  installs apps into a Kubernetes cluster
+Continuous delivery vs deployment    releasable with one click               vs  released automatically
+Memory leak vs high memory use       grows forever                           vs  big but stable
+N+1 query vs N+1 redundancy          101 queries for 100 rows (bad)          vs  one spare instance (good)
+```
+
+## One-Liners: Quiz Yourself on All 111
+Q: 1. Rate limiting
+A: Capping how many requests a client may make per time window; the excess gets `429 Too Many Requests`.
+Q: 2. Caching
+A: Keeping copies of hot data in a faster layer so repeated reads skip the slow source; trades freshness for speed.
+Q: 3. Load balancing
+A: Spreading requests across healthy servers so none is overloaded and failed ones get no traffic.
+Q: 4. Reverse proxy
+A: A server in front of your servers that receives requests for them: TLS, caching, compression, routing.
+Q: 5. API gateway
+A: One entry point for many services that routes requests and handles auth, rate limits and logging once.
+Q: 6. CI/CD
+A: Every change is built and tested automatically (CI) and kept releasable or released automatically (CD).
+Q: 7. Docker
+A: Packages an app and its dependencies into an image that runs as an isolated container anywhere.
+Q: 8. Kubernetes
+A: Orchestrates containers across a cluster, constantly making the actual state match the desired state.
+Q: 9. Service discovery
+A: Services find each other's current addresses by name through a registry or DNS, not hard-coded IPs.
+Q: 10. Circuit breaker
+A: After repeated failures, stop calling a dependency for a while and fail fast; probe, then resume.
+Q: 11. Timeout
+A: A maximum wait for a call, so a slow dependency can't hold your threads hostage.
+Q: 12. Retries
+A: Re-sending a failed request for transient errors only, capped, with backoff, and only if idempotent.
+Q: 13. Exponential backoff
+A: Doubling the wait between retries, plus random jitter, so a struggling service can recover.
+Q: 14. Idempotency
+A: Doing it twice has the same effect as doing it once, which makes retries safe (Idempotency-Key).
+Q: 15. Message queue
+A: A buffer between producer and consumer; each message is processed by one worker, at its own pace.
+Q: 16. Pub/sub
+A: A publisher sends to a topic once and every subscriber gets its own copy.
+Q: 17. Event-driven architecture
+A: Services publish facts ("OrderPlaced") and others react, giving loose coupling and eventual consistency.
+Q: 18. Distributed transaction
+A: All-or-nothing across several databases, classically via two-phase commit, which is blocking and slow.
+Q: 19. Saga
+A: A chain of local transactions with compensating actions to undo earlier steps if a later one fails.
+Q: 20. Dead letter queue
+A: Where messages go after repeated processing failures, to inspect and replay instead of blocking the queue.
+Q: 21. Cron job
+A: A task scheduled by a time expression (`0 2 * * *` = daily at 2 a.m.); make it run once and idempotently.
+Q: 22. WebSocket
+A: A persistent, full-duplex connection upgraded from HTTP, for real-time two-way messaging.
+Q: 23. Long polling
+A: The server holds the request open until there's data or a timeout, then the client asks again.
+Q: 24. Server-sent events
+A: A one-way server-to-browser event stream over plain HTTP with automatic reconnection.
+Q: 25. Database indexing
+A: A sorted structure (usually a B-tree) that turns full scans into fast lookups, at the cost of slower writes.
+Q: 26. Query optimization
+A: Making queries read less data (indexes, selective filters, keyset pagination), guided by EXPLAIN.
+Q: 27. N+1 queries
+A: One query for a list plus one per item; fix with a join fetch or batch loading.
+Q: 28. Connection pooling
+A: Reusing a small set of open database connections instead of opening one per request (HikariCP).
+Q: 29. Read replicas
+A: Read-only copies of the primary that scale reads; beware replication lag (read-your-writes).
+Q: 30. Sharding
+A: Splitting data across several database servers by a shard key to scale writes and storage.
+Q: 31. Partitioning
+A: Splitting a big table into pieces (e.g. by month) inside one database, for pruning and easy archiving.
+Q: 32. Replication
+A: Keeping copies of the same data on several nodes for availability, read scaling and locality.
+Q: 33. Leader election
+A: Nodes agree on exactly one leader by majority vote (Raft), and re-elect one when it fails.
+Q: 34. CAP theorem
+A: During a network partition a distributed store must choose consistency or availability.
+Q: 35. Eventual consistency
+A: Replicas may be briefly stale but converge once writes stop.
+Q: 36. Optimistic locking
+A: No lock on read; the update succeeds only if the version is unchanged, otherwise retry.
+Q: 37. Pessimistic locking
+A: Lock the row when reading (`SELECT ... FOR UPDATE`) so others wait.
+Q: 38. Distributed lock
+A: A lock shared across machines with an expiry (lease); use fencing tokens to stay safe.
+Q: 39. Race condition
+A: A bug where the result depends on the timing of concurrent operations (check-then-act).
+Q: 40. Deadlock
+A: Each party holds a lock the other needs, so all wait forever; prevent with consistent lock order.
+Q: 41. Memory leak
+A: Memory that's no longer needed but still referenced, growing until the app slows or crashes.
+Q: 42. Garbage collection
+A: The runtime frees unreachable objects automatically; its pauses can hurt tail latency.
+Q: 43. Thread safety
+A: Correct behaviour under concurrent access: don't share, make it immutable, use atomics or locks.
+Q: 44. Backpressure
+A: A slow consumer signals a fast producer to slow down, instead of drowning in an unbounded buffer.
+Q: 45. Autoscaling
+A: Adding or removing instances automatically based on load metrics or a schedule.
+Q: 46. Horizontal scaling
+A: More machines behind a load balancer; needs stateless services.
+Q: 47. Vertical scaling
+A: A bigger machine; simple, but has a ceiling and stays a single point of failure.
+Q: 48. CDN
+A: A global network of edge servers caching content near users to cut latency and origin load.
+Q: 49. Edge caching
+A: Caching responses at those edge locations, controlled by Cache-Control headers and purges.
+Q: 50. Cache invalidation
+A: Removing or refreshing cached data when the source changes: TTLs, delete-on-write, purges, versioned keys.
+Q: 51. Feature flags
+A: Runtime switches that turn features on or off for chosen users without a redeploy.
+Q: 52. Blue-green deployment
+A: Two identical environments; switch all traffic to the new one and switch back to roll back.
+Q: 53. Canary release
+A: Send a small share of traffic to the new version, compare metrics, then widen or roll back.
+Q: 54. Rolling deployment
+A: Replace instances a few at a time, each becoming ready before the next; both versions run meanwhile.
+Q: 55. Rollback
+A: Return to the last good version quickly; keep migrations backward compatible so you can.
+Q: 56. Health checks
+A: Endpoints that report whether an instance can serve; unhealthy ones are removed or restarted.
+Q: 57. Liveness and readiness probes
+A: Liveness failing → restart; readiness failing → no traffic; startup protects slow starters.
+Q: 58. Monitoring
+A: Watching known signals (latency, traffic, errors, saturation) on dashboards and alerts.
+Q: 59. Logging
+A: Timestamped, structured event records with trace ids, centralised and searchable.
+Q: 60. Distributed tracing
+A: Following one request across services as a trace made of spans, to find where time goes.
+Q: 61. Metrics
+A: Numeric time series (counters, gauges, histograms) that are cheap to store and power alerts.
+Q: 62. Alerts
+A: Notifications on symptoms that need a human now; everything else is a ticket or nothing.
+Q: 63. SLO
+A: An internal reliability target for an SLI over a window, e.g. 99.9% success over 30 days.
+Q: 64. SLI
+A: The measured indicator of service quality: good events divided by valid events.
+Q: 65. Error budget
+A: 100% minus the SLO: unreliability you may spend on change; when it's gone, slow down.
+Q: 66. Observability
+A: Being able to explain any internal state from telemetry, including questions nobody predicted.
+Q: 67. Secrets management
+A: Keeping credentials in a vault with access control, auditing and rotation, never in code.
+Q: 68. IAM
+A: Identities plus policies deciding who can do what on which resource, by least privilege.
+Q: 69. OAuth
+A: Delegated authorization: an app gets a scoped access token instead of the user's password.
+Q: 70. JWT rotation
+A: Rotating signing keys (JWKS plus `kid`) and refresh tokens to limit damage from leaks.
+Q: 71. TLS
+A: Encrypts, protects integrity and authenticates the server with certificates; HTTPS uses it.
+Q: 72. Encryption at rest
+A: Stored data encrypted (AES-256 with keys in a KMS) so stolen disks and backups are useless.
+Q: 73. Encryption in transit
+A: Data encrypted as it moves across networks: TLS, HSTS, mTLS between services.
+Q: 74. WAF
+A: A Layer 7 filter that blocks malicious HTTP patterns (SQLi, XSS, bots) before they reach the app.
+Q: 75. DDoS protection
+A: Absorbing and filtering floods of traffic with anycast CDNs, scrubbing and rate limits.
+Q: 76. CORS
+A: Browser rules, set by server headers, about which other origins may read your responses.
+Q: 77. CSRF
+A: A malicious site makes your logged-in browser send a forged request; stop it with SameSite cookies and tokens.
+Q: 78. SQL injection
+A: Input executed as SQL; prevented with parameterized queries.
+Q: 79. XSS
+A: Attacker script running in your page for other users; prevented with output encoding and CSP.
+Q: 80. SSRF
+A: The server is tricked into requesting internal URLs (like cloud metadata); block private ranges and allowlist.
+Q: 81. Database migrations
+A: Versioned scripts that evolve the schema the same way everywhere (Flyway, Liquibase), using expand-contract.
+Q: 82. Schema versioning
+A: Versioning data and message shapes with compatibility rules so producers and consumers evolve independently.
+Q: 83. Disaster recovery
+A: The tested plan to restore service after a major loss, measured by RPO and RTO.
+Q: 84. Backups
+A: Separate point-in-time copies (3-2-1 rule) that you regularly restore to prove they work.
+Q: 85. Failover
+A: Switching to a standby when the primary fails, while avoiding split brain.
+Q: 86. Multi-region deployment
+A: Running in several regions for resilience, latency and data residency; the data layer is the hard part.
+Q: 87. Chaos engineering
+A: Injecting failures on purpose, with a small blast radius, to prove the system copes.
+Q: 88. Cost optimization
+A: Right-size, autoscale, use commitments and spot, tier storage, and make cost visible (FinOps).
+Q: 89. Cold start
+A: The delay while a new serverless instance initialises; reduce with provisioned concurrency or SnapStart.
+Q: 90. Serverless limits
+A: Hard caps such as Lambda's 15-minute run time, 10 GB memory, 6 MB sync payload and concurrency quota.
+Q: 91. Latency
+A: The time one request takes, as one user feels it.
+Q: 92. Throughput
+A: The amount of work done per second across the whole system.
+Q: 93. P99 latency
+A: The value 99% of requests beat; it shows the slow tail that averages hide.
+Q: 94. Tail latency
+A: The rare slowest requests, which dominate at scale because fan-out waits for the slowest call.
+Q: 95. Network partition
+A: Nodes alive but unable to talk; only a majority side should keep accepting writes.
+Q: 96. Clock skew
+A: Different machines disagree on the time, so order events with logical clocks, not wall clocks.
+Q: 97. DNS
+A: Hierarchical, cached lookup from names to IP addresses, governed by TTLs.
+Q: 98. TCP vs UDP
+A: Reliable, ordered and connection-based vs fast, connectionless and best effort.
+Q: 99. HTTP/2 and HTTP/3
+A: Multiplexed streams over one TCP connection vs over QUIC on UDP, without TCP head-of-line blocking.
+Q: 100. gRPC
+A: Contract-first RPC with Protocol Buffers over HTTP/2, including streaming, for service-to-service calls.
+Q: 101. Webhooks
+A: The provider POSTs to your URL when an event happens; verify the signature and be idempotent.
+Q: 102. API versioning
+A: Exposing explicit versions (`/v1`, headers, dates) so breaking changes don't break existing clients.
+Q: 103. Semantic versioning
+A: MAJOR.MINOR.PATCH = breaking, feature, fix.
+Q: 104. Infrastructure as code
+A: Infrastructure defined in version-controlled files and applied by tools: reviewable and reproducible.
+Q: 105. Terraform
+A: Declarative IaC with providers and a state file: init, plan, apply.
+Q: 106. Helm charts
+A: Packages of templated Kubernetes manifests plus values, installed as releases you can upgrade and roll back.
+Q: 107. Build caching
+A: Reusing outputs of unchanged build steps, keyed by input hashes (Docker layers, CI caches).
+Q: 108. Dependency hell
+A: Conflicting transitive dependency versions; tame it with lockfiles, BOMs and small regular updates.
+Q: 109. Production incident
+A: An unplanned service disruption, handled by severity, an incident commander, and mitigation first.
+Q: 110. On-call
+A: A rotation responsible for responding to alerts, with runbooks, escalation and fair load.
+Q: 111. Postmortem
+A: A blameless written review: impact, timeline, contributing factors and owned action items.
+
+## Scenario Questions That Chain Buzzwords
+Q: "Customers were charged twice during a network glitch." What went wrong and how do you fix it?
+A: The client or a queue **retried** a non-**idempotent** charge. Add an **idempotency key** stored under a unique constraint, return the stored result for repeats, and make consumers idempotent because delivery is **at-least-once**.
+Q: Your p99 latency doubled right after a deploy. Walk me through it.
+A: Check the deploy marker on the dashboards and **roll back** first if users are hurting (mitigate before investigating). Then compare **traces** before and after to find the slow span, look for new **N+1 queries**, missing **indexes**, smaller **connection pools** or more **GC** pauses, and add a **canary** stage so the next regression is caught at 5% of traffic.
+Q: How do you rename a database column with zero downtime?
+A: **Expand-contract**: add the new column, deploy code that writes both, **backfill**, switch reads, then drop the old column in a later release. Each step works with the old and new versions during a **rolling deployment**.
+Q: Five instances all run the same nightly cron job. How do you make it run once?
+A: A **distributed lock** with a lease (ShedLock, Redis `SET NX PX`, a database lock), or a single scheduler such as a Kubernetes `CronJob`, plus making the job **idempotent** in case it ever runs twice.
+Q: The payment provider is down. How do you keep checkout from collapsing?
+A: **Timeouts** on the call, limited **retries** with **backoff and jitter**, a **circuit breaker** to fail fast, a **bulkhead** so other features keep their threads, and a **fallback** such as accepting the order as "payment pending" and finishing it from a **queue** later.
+Q: What happens when you type a URL and press Enter?
+A: **DNS** resolves the name (cache, resolver, root, TLD, authoritative), the browser opens a **TCP** connection (or **QUIC** for HTTP/3), does the **TLS** handshake, sends the HTTP request to a **CDN** edge or **load balancer**, a **reverse proxy** or **API gateway** routes it to an app server, which may hit a **cache** and a **database**; the response comes back and the browser renders it.
+Q: How would you make a service survive a whole AWS region going down?
+A: **Multi-region** deployment with infrastructure as code, cross-region **replication** of data, health-checked DNS **failover**, chosen **RPO/RTO** targets, and regular **DR drills** or **chaos** game days to prove it works.
+Q: Your Redis cache key for the homepage expires and the database falls over. Why?
+A: A **cache stampede**: thousands of simultaneous misses on one hot key. Fix with request coalescing or a lock so one request refills it, refresh before expiry, and **stale-while-revalidate**.
+
+## Buzzword Bingo: More Terms You'll Hear
+- **Monolith / modular monolith / microservices**: one deployable / one deployable with strict internal modules / many small independently deployable services.
+- **Strangler Fig pattern**: replace a legacy system piece by piece behind a facade until the old one can be switched off.
+- **Domain-Driven Design (DDD) and bounded context**: model the software on the business domain; each context has its own model and language.
+- **Hexagonal (ports and adapters) / clean architecture**: business logic in the centre, frameworks and databases plugged in at the edges.
+- **Loose coupling, high cohesion**: parts depend little on each other, and each part does one focused job.
+- **Separation of concerns / single source of truth**: each part handles one concern / each piece of data has one authoritative home.
+- **Cloud-native**: built for the cloud from the start: containers, microservices, automation, elasticity.
+- **Elasticity vs scalability**: scaling automatically up and down with demand vs being able to handle growth at all.
+- **High availability vs fault tolerance**: minimal downtime (quick recovery) vs no interruption at all when a part fails.
+- **Durability**: data, once acknowledged, survives failures. S3 is designed for 99.999999999% ("eleven nines") durability.
+- **Multi-tenancy**: one system serving many customers (tenants) with their data isolated.
+- **Lift and shift**: moving an application to the cloud as-is, without redesigning it.
+- **Greenfield vs brownfield**: a brand-new project vs work inside an existing system.
+- **Technical debt**: shortcuts that speed you up now and cost interest later.
+- **Platform engineering, internal developer platform, golden path**: a team building self-service tooling, with a paved, supported way to build and ship services.
+- **DevSecOps**: security built into every stage of DevOps rather than bolted on at the end.
+- **MLOps / LLMOps / AIOps**: operating machine-learning models / LLM applications / using AI to run IT operations.
+- **Data lake vs data warehouse vs lakehouse**: raw files of any shape / cleaned, structured data for analytics / one platform trying to be both.
+- **ETL vs ELT**: transform data before loading it into the warehouse vs load raw data first and transform inside it.
+- **Bloom filter**: a tiny probabilistic structure answering "definitely not present" or "maybe present"; used to skip pointless disk or cache lookups.
+- **Bus factor**: how many people would have to disappear before a project stalls. One is a risk.
+- **Happy path vs edge case**: the normal successful flow vs the unusual inputs where bugs hide.
+- **Dogfooding**: using your own product internally before customers do.
+- **Bikeshedding and yak shaving**: arguing about trivial details / a chain of side tasks far away from the real goal.
+

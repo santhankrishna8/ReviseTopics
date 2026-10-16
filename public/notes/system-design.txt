@@ -1,0 +1,2232 @@
+@ Beginner
+# 00 | System Design Basics: Start Here | What system design is, HLD vs LLD, a step-by-step interview framework, numbers every engineer should know, back-of-the-envelope estimation, availability nines, core vocabulary, the building blocks of a web-scale system | Start Here
+
+## What System Design Is | rose
+- **System design** is deciding the **architecture, components, data and interactions** of a software system so that it meets its **functional requirements** (what it does) and **non-functional requirements** (scale, latency, availability, consistency, security, cost).
+- **High-Level Design (HLD)**: the big picture: services, databases, caches, queues, load balancers, how data flows between them and how the system scales and survives failures (sheets 01 to 10).
+- **Low-Level Design (LLD)**: inside one component: classes, interfaces, design patterns, database schema, API contracts, concurrency (sheets 11 to 15).
+- In interviews there is **no single right answer**. Interviewers look for a structured approach, sensible **trade-offs** ("I'd choose X because..., the cost is ..."), awareness of bottlenecks and failures, and clear communication.
+
+## A Framework for Design Interviews | blue
+```text
+1. Clarify requirements        (≈5 min)   functional features, non-functional goals, scale, what's out of scope
+2. Estimate                    (≈5 min)   users, requests per second, read:write ratio, storage, bandwidth
+3. Define the API              (≈5 min)   main endpoints or events, request and response shapes
+4. Model the data              (≈5 min)   entities, access patterns, SQL vs NoSQL, keys and indexes
+5. High-level design           (≈10 min)  boxes and arrows: clients, LB, services, cache, DB, queue
+6. Deep dives                  (≈15 min)  1-2 hard parts: scaling the DB, hot keys, consistency, failures
+7. Wrap up                     (≈5 min)   bottlenecks, monitoring and alerts, trade-offs, future work
+```
+- **Ask before you draw**: "How many users? Is it read-heavy? Do we need strong consistency? Global or one region? Any latency target?" State your assumptions out loud.
+- Start **simple** (one server, one database), then evolve the design as the numbers demand. Name concrete technologies only as examples ("a key-value store such as DynamoDB or Redis").
+
+## Numbers Every Engineer Should Know | green
+```text
+Approximate latencies (orders of magnitude matter, not exact values)
+L1 cache reference ............................ 1 ns
+Main memory reference ......................... 100 ns
+Read 4 KB randomly from SSD ................... ~100 µs
+Round trip within the same data centre ........ ~0.5 ms
+Read 1 MB sequentially from SSD ............... ~1 ms
+Disk (HDD) seek ............................... ~10 ms
+Round trip between continents ................. ~150 ms
+
+Powers of two        2^10 ≈ 1 thousand (KB)   2^20 ≈ 1 million (MB)   2^30 ≈ 1 billion (GB)   2^40 ≈ 1 trillion (TB)
+Time                 1 day = 86,400 s ≈ 10^5 s        1 month ≈ 2.6 × 10^6 s        1 year ≈ 3.15 × 10^7 s
+
+Availability         downtime per year     per 30-day month
+99%    (two nines)   3.65 days             7.2 hours
+99.9%  (three)       8.76 hours            43.2 minutes
+99.99% (four)        52.6 minutes          4.3 minutes
+99.999% (five)       5.26 minutes          26 seconds
+```
+- Memory is about **1,000 times faster** than SSD random reads and **100,000 times faster** than a cross-continent round trip: that's why caches and data locality matter.
+- **Availability of components in series multiplies**: two services at 99.9% each give 0.999 × 0.999 ≈ **99.8%**. **Redundant components in parallel** improve it: two independent 99% replicas give 1 − 0.01² = **99.99%**.
+
+## Back-of-the-Envelope Estimation | amber
+```text
+Example: a photo-sharing app with 10 million daily active users (DAU)
+
+Writes   each user uploads 2 photos/day      → 20 M uploads/day ÷ 10^5 s ≈ 200 uploads/s (peak ×3 ≈ 600/s)
+Reads    each user views 50 photos/day       → 500 M views/day  ÷ 10^5 s ≈ 5,000 reads/s (peak ≈ 15,000/s)
+Ratio    25 reads per write                  → read-heavy: cache and CDN are worth it
+Storage  20 M photos/day × 500 KB            → 10 TB/day ≈ 3.65 PB/year (plus replicas) → object storage
+Metadata 20 M rows/day × 500 bytes           → 10 GB/day ≈ 3.6 TB/year → a sharded DB in a few years
+Bandwidth 5,000 reads/s × 500 KB             → 2.5 GB/s outbound → serve images from a CDN
+```
+- Round aggressively (86,400 ≈ 100,000) and keep one significant figure; the goal is the **order of magnitude**, which drives decisions: "15,000 reads per second won't fit on one database without a cache."
+- Typical outputs: **QPS** (average and peak, usually 2 to 10 times the average), **storage** per year, **bandwidth**, **number of servers** (if one server handles about 1,000 requests per second, 15,000 needs about 15 plus headroom).
+
+## Core Vocabulary | violet
+- **Latency**: time for one request (report **percentiles**: p50 median, **p95**, **p99** tail latency). **Throughput**: requests handled per second.
+- **Availability**: the share of time the system answers requests (uptime). **Reliability**: it gives correct results over time. **Durability**: committed data isn't lost.
+- **SLI / SLO / SLA**: an **indicator** (measured value, such as p99 latency), an **objective** (internal target: p99 < 300 ms for 99.9% of the month), an **agreement** (contract with customers, with penalties).
+- **Scalability**: handling more load by adding resources. **Elasticity**: adding and removing them automatically with demand.
+- **Stateless service**: keeps no client state between requests, so any instance can serve any request and instances can be added freely.
+- **Replication**: copies of data on several nodes (availability, read scaling). **Sharding / partitioning**: splitting data across nodes (write and storage scaling).
+- **Consistency**: whether every reader sees the latest write (sheet 04). **Idempotency**: repeating an operation has the same effect as doing it once (safe retries).
+- **SPOF (Single Point Of Failure)**, **fault tolerance**, **graceful degradation** (serve a reduced experience rather than fail), **backpressure** (slowing producers when consumers can't keep up).
+
+## The Building Blocks | sky
+```text
+ Users ─▶ DNS ─▶ CDN (static files, cached pages)
+   │
+   └─▶ Load balancer ─▶ API gateway (auth, rate limits, routing)
+                              │
+                ┌─────────────┼──────────────┐
+           Service A      Service B      Service C     (stateless, many instances)
+                │             │              │
+            Cache (Redis)  Database      Message queue (Kafka, SQS) ─▶ Workers
+                          primary + replicas                            │
+                                                            Object storage (S3), search index
+ Observability everywhere: logs, metrics, traces, alerts
+```
+- **DNS** turns names into IP addresses (and can route by geography). **CDN** serves static content from edge servers near users. **Load balancer** spreads traffic across instances (sheet 02). **API gateway** handles cross-cutting concerns. **Cache** keeps hot data in memory (sheet 03). **Databases**: relational or NoSQL, replicated and sharded. **Message queues** decouple services and absorb spikes. **Object storage** holds files and images. **Search index** (Elasticsearch, OpenSearch) serves full-text search.
+
+## Interview Q&A | sky | wide
+Q: What is the difference between HLD and LLD?
+A: HLD describes the overall architecture: components, data flow, storage, scaling and fault tolerance. LLD describes the internals of components: classes, interfaces, design patterns, schemas and APIs.
+Q: How do you approach a system design question?
+A: Clarify functional and non-functional requirements, estimate scale, define the API and data model, draw a simple high-level design, deep-dive into the hardest parts, then discuss bottlenecks, failures, monitoring and trade-offs.
+Q: Latency vs throughput?
+A: Latency is how long one request takes; throughput is how many requests are handled per unit of time. A system can have high throughput but poor tail latency.
+Q: Why do we look at p99 latency rather than the average?
+A: Averages hide slow requests; p99 shows what the slowest 1% of users experience, and with many backend calls per page, tail latency affects most users.
+Q: What does 99.99% availability mean?
+A: About 52.6 minutes of downtime per year, or roughly 4.3 minutes per month.
+Q: SLI vs SLO vs SLA?
+A: An SLI is a measured indicator (error rate, latency), an SLO is the internal target for it, and an SLA is the external contract with consequences if the target is missed.
+Q: How many requests per second is 100 million requests per day?
+A: About 100 million ÷ 86,400 ≈ 1,160 per second on average, with peaks perhaps 2 to 3 times higher.
+
+# 01 | Scalability & Building Blocks | Vertical vs horizontal scaling, stateless services, scaling the database, CDNs, message queues and asynchronous processing, redundancy and failover, eliminating single points of failure, graceful degradation | Scalability
+
+## Vertical vs Horizontal Scaling | rose
+- **Vertical scaling (scale up)**: a **bigger machine**: more CPU, RAM, faster disks.
+- Pros: simple, no code changes, no distributed-systems problems, strong consistency stays easy.
+- Cons: a **hard upper limit** (the biggest machine available), cost grows faster than capacity, and the single machine remains a **single point of failure**; upgrades often need downtime.
+- **Horizontal scaling (scale out)**: **more machines** sharing the load behind a load balancer.
+- Pros: near-limitless capacity, **fault tolerance** (one node dies, others continue), commodity hardware, elastic autoscaling.
+- Cons: requires **stateless** application design, load balancing, data partitioning, and brings distributed problems: network failures, consistency, coordination, more complex operations.
+- In practice: scale up first while it's cheap, design the application tier stateless from day one, and scale out where the load is.
+
+## Stateless Services | blue
+- A service is **stateless** when no request depends on data stored in a particular instance's memory or disk. Any instance can then handle any request, so you can **add, remove or replace instances freely** and the load balancer needs no sticky sessions.
+- Move state out of the application: sessions → **Redis** or self-contained **JWTs**; uploaded files → **object storage** (S3); caches → a **distributed cache**; scheduled jobs → a coordinated scheduler or queue.
+- The **database** is then the hard part to scale: replicas for reads, caching, partitioning and sharding for writes (SQL topic, sheet 18), or a horizontally scalable database (Cassandra, DynamoDB, distributed SQL).
+
+## CDN, Queues and Asynchronous Processing | green
+- **CDN (Content Delivery Network)**: a global network of edge servers caching static assets (images, JS, CSS, video) and even whole pages close to users. Cuts latency and origin load. **Pull CDNs** fetch from your origin on the first request; **push CDNs** receive content you upload in advance. Controlled with `Cache-Control` headers and versioned file names (`app.3f9a1c.js`).
+- **Message queues and logs** (RabbitMQ, Amazon SQS, Kafka): the producer puts work in a queue and returns immediately; workers process it at their own pace.
+- Benefits: **decoupling** (services don't need each other to be up at the same moment), **absorbing spikes** (the queue buffers bursts), **retries** and dead-letter queues for failed work, **fan-out** of one event to many consumers (pub/sub).
+- Use async processing for anything the user doesn't need to wait for: sending emails, generating thumbnails, updating search indexes, analytics. Return `202 Accepted` with a job id when the client must check later.
+
+## Redundancy, Failover and SPOFs | amber
+- A **single point of failure (SPOF)** is any component whose failure takes the system down: one load balancer, one database primary, one region, even one DNS provider. **Remove each with redundancy**.
+- **Active-passive (failover)**: a standby takes over when the active node fails (database primary and replica with automatic promotion). Simple; the standby's capacity is idle and failover takes seconds to minutes.
+- **Active-active**: all nodes serve traffic simultaneously (many app servers behind a load balancer, multi-region deployments). Better utilisation and instant takeover, but harder data consistency for writes.
+- Spread replicas across **availability zones** (separate data centres in one region) and, for the highest availability, across **regions**.
+- **Health checks** and automatic replacement (Kubernetes, auto-scaling groups) turn failures into non-events.
+
+## Designing for Failure | violet
+- Assume every remote call can **fail or be slow**: set **timeouts**, **retry with exponential backoff and jitter** (only idempotent operations), and use **circuit breakers** to stop calling a failing dependency (Resilience4j, Spring Boot topic).
+- **Bulkheads** isolate resources (separate thread pools per dependency) so one slow dependency can't exhaust everything.
+- **Graceful degradation**: if recommendations are down, show the product page without them; if the payment provider is slow, queue the order and confirm by email.
+- **Backpressure and load shedding**: reject or queue excess work early (rate limits, `429`/`503`) instead of collapsing under it.
+- **Observability**: metrics, logs and distributed traces with alerts on SLOs, so failures are noticed and diagnosed quickly.
+
+## Interview Q&A | sky | wide
+Q: Vertical vs horizontal scaling?
+A: Vertical scaling adds resources to one machine: simple but limited, costly and still a single point of failure. Horizontal scaling adds machines behind a load balancer: nearly unlimited and fault tolerant, but needs stateless services and distributed data handling.
+Q: Why should application servers be stateless?
+A: So any instance can serve any request, which allows adding, removing and replacing instances freely and load balancing without sticky sessions. State lives in shared stores such as Redis, databases or object storage.
+Q: What is a CDN and when do you use it?
+A: A distributed network of edge caches that serves static and cacheable content near users, reducing latency, bandwidth and load on the origin. Use it for images, scripts, styles, video and cacheable pages.
+Q: Why put a message queue between services?
+A: To decouple producers from consumers, absorb traffic spikes, process work asynchronously with retries and dead-letter queues, and fan events out to several consumers.
+Q: Active-active vs active-passive?
+A: In active-passive, a standby takes over when the primary fails; in active-active, all nodes serve traffic at once, which uses capacity better and fails over instantly but makes consistent writes harder.
+Q: How do you eliminate single points of failure?
+A: Add redundancy at every layer (multiple load balancers, app instances, database replicas with automatic failover, multiple zones or regions) and automate health checks and failover.
+Q: What is graceful degradation?
+A: Continuing to provide core functionality when a dependency fails, by disabling or simplifying non-essential features instead of failing completely.
+
+# 02 | Load Balancing | What a load balancer does, Layer 4 vs Layer 7, algorithms from round robin to consistent hashing, a consistent hashing ring in Java, health checks, sticky sessions, TLS termination, redundancy, common products | Load Balancing
+
+## What a Load Balancer Does | rose
+- A **load balancer (LB)** sits in front of a group of servers and **distributes incoming requests** among them, so no server is overloaded and the group behaves as one service.
+- It provides **scalability** (add servers behind it), **availability** (it stops sending traffic to unhealthy servers) and a **single entry point** (one address or DNS name for clients).
+- Extra jobs: **TLS termination** (decrypting HTTPS once, at the LB), connection pooling, compression, request routing, rate limiting and protection against some attacks.
+- Load balancers appear at several levels: DNS (GeoDNS across regions), edge/global (Cloudflare, AWS Global Accelerator), regional (AWS ALB/NLB, NGINX, HAProxy, Envoy), and client-side (in service meshes or gRPC clients).
+
+## Layer 4 vs Layer 7 | blue
+- **Layer 4 (transport) load balancing** routes using **IP addresses and TCP/UDP ports** only, without looking inside the traffic. Very fast, low overhead, protocol-agnostic (databases, MQTT, gaming), can pass TLS through untouched. Example: **AWS Network Load Balancer**, HAProxy in TCP mode.
+- **Layer 7 (application) load balancing** understands **HTTP**: it can route by **path** (`/api/orders` → order service), **host name**, **headers**, **cookies** or method; terminate TLS; rewrite requests; add headers; cache; do canary releases. Slower than L4 because it parses every request. Examples: **AWS Application Load Balancer**, NGINX, HAProxy (HTTP mode), Envoy, Traefik, Kubernetes Ingress controllers.
+```text
+L4:  client ──TCP──▶ LB (looks at IP:port) ──TCP──▶ server 2
+L7:  client ──HTTPS─▶ LB (decrypts, reads "GET /api/orders/42", Host, cookies)
+                        ├─ /api/orders/*  ─▶ order-service pool
+                        ├─ /api/users/*   ─▶ user-service pool
+                        └─ /*             ─▶ web front-end pool
+```
+
+## Balancing Algorithms | green
+- **Round robin**: each new request goes to the next server in turn. Simple; assumes servers and requests are similar.
+- **Weighted round robin**: servers with more capacity get proportionally more requests (weights 3:1 for a big and a small machine).
+- **Least connections**: send to the server with the fewest active connections. Good when request durations vary a lot (long-lived connections, WebSockets). **Weighted least connections** factors in capacity.
+- **Least response time**: the fastest-responding server with few connections.
+- **Random** and **power of two choices**: pick two servers at random and send to the less loaded one; nearly as good as least connections with very little coordination.
+- **IP hash / hash-based**: hash the client IP or a key to pick a server, so the same client or key always lands on the same server (affinity). Plain `hash % N` remaps almost every key when N changes.
+- **Consistent hashing**: place servers and keys on a **hash ring**; each key goes to the next server clockwise. Adding or removing a server only moves the keys of its neighbourhood, about **1/N** of them. Used for **distributed caches** (Memcached clients), partitioning in **Cassandra** and **DynamoDB**, and sticky routing.
+
+## Consistent Hashing in Java | amber
+```java ConsistentHashRing.java
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
+
+public class ConsistentHashRing {
+
+    private final TreeMap<Long, String> ring = new TreeMap<>();   // position on the ring → node
+    private final int virtualNodes;
+
+    public ConsistentHashRing(int virtualNodes) { this.virtualNodes = virtualNodes; }
+
+    public void addNode(String node) {
+        for (int i = 0; i < virtualNodes; i++) ring.put(hash(node + "#" + i), node);
+    }
+
+    public void removeNode(String node) {
+        for (int i = 0; i < virtualNodes; i++) ring.remove(hash(node + "#" + i));
+    }
+
+    public String nodeFor(String key) {
+        Map.Entry<Long, String> next = ring.ceilingEntry(hash(key));    // first node clockwise
+        return (next != null ? next : ring.firstEntry()).getValue();     // wrap around the ring
+    }
+
+    static long hash(String s) {                                         // first 4 bytes of MD5 as an unsigned 32-bit number
+        try {
+            byte[] d = MessageDigest.getInstance("MD5").digest(s.getBytes(StandardCharsets.UTF_8));
+            return ((long) (d[0] & 0xFF) << 24) | ((d[1] & 0xFF) << 16) | ((d[2] & 0xFF) << 8) | (d[3] & 0xFF);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    public static void main(String[] args) {
+        ConsistentHashRing ring = new ConsistentHashRing(100);
+        for (String node : List.of("cache-a", "cache-b", "cache-c")) ring.addNode(node);
+
+        Map<String, String> before = new HashMap<>();
+        Map<String, Integer> load = new TreeMap<>();
+        for (int i = 0; i < 100_000; i++) {
+            String key = "user:" + i;
+            String node = ring.nodeFor(key);
+            before.put(key, node);
+            load.merge(node, 1, Integer::sum);
+        }
+        System.out.println("3 nodes: " + load);
+
+        ring.addNode("cache-d");
+        long moved = before.entrySet().stream().filter(e -> !ring.nodeFor(e.getKey()).equals(e.getValue())).count();
+        System.out.printf("Add cache-d (consistent hashing): %d of 100000 keys moved (%.1f%%)%n", moved, moved / 1000.0);
+
+        long movedModulo = 0;
+        for (int i = 0; i < 100_000; i++) {
+            long h = hash("user:" + i);
+            if (h % 3 != h % 4) movedModulo++;
+        }
+        System.out.printf("Same change with hash %% N:        %d of 100000 keys moved (%.1f%%)%n", movedModulo, movedModulo / 1000.0);
+    }
+}
+```
+```text
+3 nodes: {cache-a=33457, cache-b=30925, cache-c=35618}
+Add cache-d (consistent hashing): 27132 of 100000 keys moved (27.1%)
+Same change with hash % N:        74701 of 100000 keys moved (74.7%)
+```
+- Real output: with consistent hashing, adding a fourth node moved about a quarter of the keys (the ideal is 1/4, since the new node takes its share); with `hash % N`, three quarters of all keys changed servers, which for a cache means a sudden flood of misses on the database.
+- **Virtual nodes** (here 100 per server) place each server at many points on the ring, which **evens out the load** and spreads a removed server's keys across all remaining servers instead of dumping them on one neighbour. Servers with more capacity can get more virtual nodes.
+- `TreeMap.ceilingEntry` finds the next position clockwise in O(log n); wrapping to `firstEntry()` closes the ring.
+
+## Health Checks, Sticky Sessions and Redundancy | violet
+- **Health checks**: the LB periodically calls each server (TCP connect, or `GET /health` expecting `200`) and stops routing to servers that fail several checks in a row, adding them back when they recover. **Passive checks** watch real traffic for errors and timeouts.
+- **Sticky sessions (session affinity)**: the LB pins a client to one server (cookie or IP hash) so in-memory sessions keep working. It hurts even distribution and loses sessions when a server dies; prefer **stateless servers** with shared session stores.
+- **Connection draining**: when removing a server (deploys, scale-in), stop sending new requests but let in-flight ones finish.
+- **The LB must not be a SPOF**: run LBs in pairs (active-passive with a floating IP, or active-active), or use a managed cloud LB that is redundant across zones; use **DNS** or **anycast** to spread traffic across regions.
+- **Global server load balancing**: route users to the nearest healthy region (GeoDNS, latency-based routing, anycast).
+
+## Interview Q&A | sky | wide
+Q: What is a load balancer and why use one?
+A: A component that distributes requests across multiple servers, providing horizontal scalability, high availability through health checks, and a single entry point, often also terminating TLS.
+Q: Layer 4 vs Layer 7 load balancing?
+A: Layer 4 routes by IP and port without inspecting content, so it's fast and protocol-agnostic. Layer 7 understands HTTP and can route by path, host, headers or cookies, terminate TLS and modify requests, at a higher processing cost.
+Q: Round robin vs least connections?
+A: Round robin rotates through servers regardless of load and suits uniform requests; least connections sends each request to the server with the fewest active connections and suits variable or long-lived requests.
+Q: What is consistent hashing and why is it useful?
+A: Servers and keys are hashed onto a ring and each key belongs to the next server clockwise. Adding or removing a server moves only about 1/N of the keys, unlike hash % N, which remaps most keys. It is used for distributed caches and data partitioning.
+Q: Why use virtual nodes in consistent hashing?
+A: They place each physical node at many ring positions, giving a more even key distribution and spreading the load of a failed node across all others.
+Q: Why are sticky sessions discouraged?
+A: They cause uneven load, complicate scaling and lose user sessions when a server fails. Keeping servers stateless with an external session store is more robust.
+Q: How do you avoid the load balancer becoming a single point of failure?
+A: Run redundant load balancers (active-passive with a floating IP or active-active), use managed multi-zone cloud load balancers, and distribute across regions with DNS or anycast.
+
+@ Intermediate
+# 03 | Caching | Where caches live, cache-aside, read-through, write-through, write-behind, write-around and refresh-ahead, TTLs and invalidation, LRU and LFU eviction with Java implementations, stampedes, penetration, avalanches and hot keys | Caching
+
+## Why and Where to Cache | rose
+- A **cache** stores the results of expensive work (database queries, API calls, rendered pages) in **fast storage**, usually memory, so later requests are served quickly. Memory reads take about 100 ns versus milliseconds for a database round trip (sheet 00).
+- Benefits: **lower latency**, **less load** on databases and services, **higher throughput**, and a buffer during traffic spikes. Costs: **stale data**, extra infrastructure, memory cost, more failure modes.
+- Caching layers from the user inwards: **browser cache** (`Cache-Control`, `ETag`) → **CDN** (edge caches) → **reverse proxy** (NGINX, Varnish) → **application cache** (in-process: Caffeine, Guava) → **distributed cache** (**Redis**, Memcached) shared by all instances → the **database's own buffer cache**.
+- **In-process vs distributed**: in-process caches are fastest but each instance has its own copy (inconsistent, duplicated memory, lost on restart); a distributed cache is shared and survives app restarts, at the cost of a network hop.
+- **What to cache**: read-heavy, rarely changing, expensive-to-compute data (product catalogue, user profiles, configuration, session data). Measure the **hit ratio** (hits ÷ lookups); a low hit ratio means the cache isn't helping.
+
+## Cache-Aside, Read-Through and Writes | blue
+```java
+// Cache-aside (lazy loading): the application manages the cache
+public Product getProduct(long id) {
+    String key = "product:" + id;
+    Product cached = cache.get(key);
+    if (cached != null) return cached;                               // cache hit
+    Product product = repository.findById(id);                       // cache miss: load from the database
+    if (product != null) cache.set(key, product, Duration.ofMinutes(10));   // store with a TTL
+    return product;
+}
+
+public void updateProduct(Product product) {
+    repository.save(product);                                        // 1. write the database (source of truth)
+    cache.delete("product:" + product.id());                         // 2. invalidate; the next read reloads it
+}
+```
+- **Cache-aside (lazy loading)**: the app checks the cache, on a miss reads the database and fills the cache. Only requested data is cached and a cache failure isn't fatal; the first request for each key is slow, and data can be stale until the TTL expires. **The most common pattern.**
+- **Read-through**: the app always asks the cache; on a miss the **cache itself** loads from the database (a cache library or provider with a loader). Same behaviour, simpler application code.
+- **Write-through**: every write goes to the cache **and** synchronously to the database. The cache is always fresh; writes are slower and rarely read data gets cached.
+- **Write-behind (write-back)**: writes go to the cache and are flushed to the database **asynchronously** in batches. Very fast writes and fewer database writes; **risk of data loss** if the cache node fails before flushing, and more complexity.
+- **Write-around**: writes go **only to the database**; the cache fills on later reads. Good when written data is rarely read soon after.
+- **Refresh-ahead**: popular entries are **refreshed before they expire**, so hot keys never cause a slow miss; wasted work if the prediction is wrong.
+- **Invalidate rather than update** on writes (delete the key): updating the cache and the database separately can race and leave the cache holding an older value.
+
+## Expiry and Eviction | green
+- **TTL (time to live)**: every entry expires after a set time, bounding staleness. Pick per data type (seconds for prices and stock, hours for catalogue text).
+- **Eviction** decides what to remove when the cache is full:
+- **LRU (Least Recently Used)**: evict the entry not accessed for the longest time. Good general default.
+- **LFU (Least Frequently Used)**: evict the entry with the fewest accesses. Keeps long-term popular items; slow to adapt when popularity changes.
+- **FIFO**: evict the oldest inserted entry. **Random**: cheap, surprisingly decent.
+- **Redis** policies (`maxmemory-policy`): `noeviction` (the default: writes fail when memory is full), `allkeys-lru`, `volatile-lru` (only keys with a TTL), `allkeys-lfu`, `volatile-lfu`, `allkeys-random`, `volatile-random`, `volatile-ttl`. Redis uses an approximated LRU/LFU by sampling keys.
+```java LruCache.java
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class LruCache<K, V> extends LinkedHashMap<K, V> {
+
+    private final int capacity;
+
+    public LruCache(int capacity) {
+        super(16, 0.75f, true);                  // accessOrder = true: get() moves an entry to the end
+        this.capacity = capacity;
+    }
+
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+        return size() > capacity;                // after each put: evict the least recently used entry
+    }
+
+    public static void main(String[] args) {
+        LruCache<String, String> cache = new LruCache<>(3);
+        cache.put("a", "1");
+        cache.put("b", "2");
+        cache.put("c", "3");
+        cache.get("a");                          // "a" becomes the most recently used
+        cache.put("d", "4");                     // evicts "b", the least recently used
+        System.out.println(cache.keySet());      // [c, a, d]
+    }
+}
+```
+
+## LRU From Scratch (the Interview Version) | amber
+```java LruCacheManual.java
+import java.util.HashMap;
+import java.util.Map;
+
+public class LruCacheManual {
+
+    private static final class Node {
+        final int key;
+        int value;
+        Node prev, next;
+        Node(int key, int value) { this.key = key; this.value = value; }
+    }
+
+    private final int capacity;
+    private final Map<Integer, Node> index = new HashMap<>();      // key → node, O(1) lookup
+    private final Node head = new Node(0, 0);                       // sentinel: head.next is the most recent
+    private final Node tail = new Node(0, 0);                       // sentinel: tail.prev is the least recent
+
+    public LruCacheManual(int capacity) {
+        this.capacity = capacity;
+        head.next = tail;
+        tail.prev = head;
+    }
+
+    public int get(int key) {
+        Node node = index.get(key);
+        if (node == null) return -1;
+        moveToFront(node);
+        return node.value;
+    }
+
+    public void put(int key, int value) {
+        Node node = index.get(key);
+        if (node != null) {                                         // update an existing key
+            node.value = value;
+            moveToFront(node);
+            return;
+        }
+        if (index.size() == capacity) {                             // full: evict the least recently used
+            Node lru = tail.prev;
+            unlink(lru);
+            index.remove(lru.key);
+        }
+        node = new Node(key, value);
+        index.put(key, node);
+        addFirst(node);
+    }
+
+    private void moveToFront(Node node) { unlink(node); addFirst(node); }
+    private void unlink(Node node) { node.prev.next = node.next; node.next.prev = node.prev; }
+    private void addFirst(Node node) {
+        node.next = head.next;
+        node.prev = head;
+        head.next.prev = node;
+        head.next = node;
+    }
+
+    public static void main(String[] args) {
+        LruCacheManual cache = new LruCacheManual(2);
+        cache.put(1, 1);
+        cache.put(2, 2);
+        System.out.println(cache.get(1));                           // 1
+        cache.put(3, 3);                                            // evicts key 2
+        System.out.println(cache.get(2));                           // -1
+        cache.put(4, 4);                                            // evicts key 1
+        System.out.println(cache.get(1) + " " + cache.get(3) + " " + cache.get(4));   // -1 3 4
+    }
+}
+```
+- A **HashMap** gives O(1) lookup; a **doubly linked list** ordered by recency gives O(1) move-to-front and O(1) removal of the least recent node. **Sentinel** head and tail nodes remove null checks. Both `get` and `put` run in **O(1)**.
+- **LFU in O(1)** keeps a map from key to node plus a map from frequency to a linked list of keys, and tracks the current minimum frequency.
+
+## Cache Problems and Fixes | violet
+- **Cache stampede (thundering herd)**: a hot key expires and thousands of requests miss at once and all hit the database. Fixes: let **one request rebuild** while others wait or get the stale value (a lock or request coalescing), **refresh-ahead**, or probabilistic early expiration.
+- **Cache penetration**: requests for keys that **don't exist** always miss and hit the database (often an attack). Fixes: **cache the "not found"** result briefly, validate ids, or use a **Bloom filter** of existing keys.
+- **Cache avalanche**: many keys **expire at the same moment** (all set with the same TTL after a deploy), or the cache cluster goes down. Fixes: **add random jitter to TTLs**, warm the cache, replicate the cache, rate-limit fallbacks to the database.
+- **Hot keys**: one key gets enormous traffic (a celebrity profile) and overloads one cache node. Fixes: a small **local in-process cache** in front, or **replicate the key** under several names (`key#1`...`key#5`) and read a random copy.
+- **Consistency**: caches are eventually consistent with the database. Keep TTLs short for volatile data, invalidate on writes, and never cache what must be strictly current (an account balance used for a payment decision).
+
+## Interview Q&A | sky | wide
+Q: What is cache-aside?
+A: The application checks the cache first; on a miss it loads from the database and puts the result in the cache, usually with a TTL; on writes it updates the database and invalidates the cache entry.
+Q: Write-through vs write-behind?
+A: Write-through writes to the cache and the database synchronously, keeping them consistent at the cost of slower writes. Write-behind writes to the cache and flushes to the database asynchronously, which is faster but can lose data if the cache fails.
+Q: LRU vs LFU?
+A: LRU evicts the entry unused for the longest time; LFU evicts the least frequently used. LRU adapts quickly to changing access patterns; LFU protects consistently popular items.
+Q: How would you implement an LRU cache?
+A: A hash map from key to node plus a doubly linked list ordered by recency: get moves the node to the front, put adds at the front and evicts from the back when full, both in O(1). In Java, LinkedHashMap with access order and removeEldestEntry does it in a few lines.
+Q: What is a cache stampede and how do you prevent it?
+A: Many requests missing on the same expired hot key and hitting the database at once. Prevent it with a single rebuilder (lock or request coalescing), serving stale data while refreshing, refresh-ahead or jittered early expiry.
+Q: How do you keep the cache consistent with the database?
+A: Treat the database as the source of truth, invalidate (delete) cache entries after writes, use TTLs to bound staleness, and avoid caching data that must always be current.
+Q: Why invalidate instead of updating the cache on writes?
+A: Two concurrent writers can update the database and the cache in different orders, leaving an old value in the cache; deleting the key makes the next read load the current value.
+Q: What is the default eviction policy in Redis?
+A: noeviction: when maxmemory is reached, writes that need more memory return errors. Caches usually set allkeys-lru or allkeys-lfu.
+
+# 04 | CAP, PACELC & Consistency | The CAP theorem stated precisely, CP vs AP systems, PACELC, consistency models from strong to eventual, quorums with N, R and W, ACID vs BASE, consensus | CAP & PACELC
+
+## The CAP Theorem | rose
+- Proposed by **Eric Brewer** (2000) and proved by Seth Gilbert and Nancy Lynch (2002). For a distributed data store, at most two of these three can be guaranteed at the same time:
+- **Consistency (C)**: every read receives the **most recent write** or an error. All nodes appear to have the same, current data (formally, linearizability).
+- **Availability (A)**: every request to a non-failing node receives a **non-error response**, without a guarantee that it contains the most recent write.
+- **Partition tolerance (P)**: the system keeps working even when the **network between nodes drops or delays messages**.
+- **Network partitions will happen** in any real distributed system, so P is not optional. The real choice is what to give up **while a partition lasts**: **CP** (refuse some requests to stay consistent) or **AP** (keep answering, possibly with stale data, and reconcile later).
+- "CA" only exists for a single node or a system that never partitions, which is not a distributed system.
+
+## CP vs AP in Practice | blue
+```text
+Partition: nodes in region 1 can't talk to region 2. A client in region 2 writes x = 5.
+
+CP choice: region 2 is in the minority, so it rejects the write (or the read)  → consistent, not available there
+AP choice: region 2 accepts the write; region 1 still answers x = 4            → available, temporarily inconsistent
+           when the partition heals, replicas reconcile (last-write-wins, vector clocks, CRDTs)
+```
+- **CP examples**: systems built on **consensus** (ZooKeeper, etcd, Consul): only the majority side can make progress; HBase; MongoDB with majority write and read concerns; relational databases using synchronous replication that refuse writes without the replica.
+- **AP examples**: **Cassandra**, **DynamoDB** (with default eventually consistent reads), CouchDB, Riak, DNS: always accept reads and writes and converge later.
+- **Choose by business impact**: bank balances, inventory reservation, seat booking, unique usernames → **CP**. Social feeds, likes, view counters, product reviews, shopping-cart contents → **AP** is usually fine.
+- Many databases are **tunable** per operation: Cassandra's consistency levels (`ONE`, `QUORUM`, `ALL`), DynamoDB's strongly consistent reads, MongoDB's read and write concerns.
+
+## PACELC | green
+- **PACELC** (Daniel Abadi) extends CAP to the normal case: **if** there is a **P**artition, choose **A**vailability or **C**onsistency; **E**lse (no partition), choose **L**atency or **C**onsistency.
+- The "else" part matters more day to day: keeping replicas strongly consistent means waiting for other nodes on every write (higher **latency**), even when the network is healthy.
+- **PA/EL**: Cassandra, DynamoDB (default settings): available under partitions, low latency otherwise, consistency is eventual.
+- **PC/EC**: Google Spanner, HBase, VoltDB, traditional single-primary relational setups with synchronous replicas: consistency first, paying latency.
+- **PA/EC**: MongoDB with its default settings, in Abadi's classification.
+
+## Consistency Models | amber
+- **Strong consistency (linearizability)**: after a write completes, every read anywhere returns it. Easiest to reason about; needs coordination (consensus or synchronous replication), so it costs latency and availability.
+- **Sequential consistency**: all nodes see operations in the same order, though not necessarily in real time.
+- **Causal consistency**: operations that are causally related (a reply after the post it answers) are seen in that order by everyone; unrelated ones may differ.
+- **Read-your-writes**: a user always sees their own updates (a common requirement after editing a profile). **Monotonic reads**: a user never sees data go backwards in time.
+- **Eventual consistency**: if writes stop, all replicas **eventually** converge; reads in the meantime may be stale. Highest availability and lowest latency.
+- **Quorums**: with **N** replicas, a write waits for **W** acknowledgements and a read queries **R** replicas. If **R + W > N**, every read set overlaps the latest write set, so reads see the latest acknowledged write. Example: N = 3, W = 2, R = 2. `W = 1, R = 1` is fastest but eventually consistent.
+
+## ACID vs BASE and Consensus | violet
+- **ACID** (relational transactions): Atomicity, Consistency, Isolation, Durability (SQL topic, sheet 15). "Consistency" in ACID means **constraints hold**, a different idea from the C in CAP.
+- **BASE** (many NoSQL systems): **B**asically **A**vailable, **S**oft state (state may change without input as replicas converge), **E**ventually consistent.
+- **Consensus algorithms** let a group of nodes agree on values despite failures, as long as a **majority** is alive: **Paxos**, **Raft** (etcd, Consul, CockroachDB, Kafka's KRaft), **ZAB** (ZooKeeper). Used for leader election, configuration, locks and strongly consistent replication. A 5-node cluster tolerates 2 failures.
+- **Distributed transactions** across services avoid two-phase commit (blocking, coordinator failure) and use **sagas** with compensating actions and the **outbox pattern** (Spring Boot topic).
+
+## Interview Q&A | sky | wide
+Q: Explain the CAP theorem.
+A: A distributed data store can't guarantee consistency, availability and partition tolerance all at once. Since partitions are unavoidable, during a partition it must choose between consistency (rejecting some requests) and availability (answering with possibly stale data).
+Q: Give examples of CP and AP systems.
+A: CP: ZooKeeper, etcd, HBase, MongoDB with majority concerns, synchronously replicated relational databases. AP: Cassandra, DynamoDB with eventual reads, CouchDB, DNS.
+Q: What does PACELC add?
+A: That even without a partition there is a trade-off between latency and consistency, because keeping replicas consistent requires waiting for coordination on each operation.
+Q: Strong vs eventual consistency?
+A: Strong consistency guarantees every read returns the latest write; eventual consistency only guarantees replicas converge if writes stop, so reads may be stale for a while.
+Q: What is a quorum and why R + W > N?
+A: With N replicas, writes wait for W acknowledgements and reads contact R replicas; when R + W > N the read and write sets always overlap, so at least one replica in every read has the latest write.
+Q: Which would you choose for a payment system and for a social feed?
+A: Payments: strong consistency (CP), accepting reduced availability during failures. Social feed: availability and low latency (AP), accepting brief staleness.
+Q: ACID vs BASE?
+A: ACID transactions guarantee atomicity, consistency, isolation and durability; BASE systems are basically available, soft-state and eventually consistent, trading strict consistency for availability and scale.
+Q: Is the C in CAP the same as the C in ACID?
+A: No. CAP's C is linearizable reads across replicas; ACID's C means a transaction keeps the database's integrity constraints valid.
+
+# 05 | Rate Limiting Algorithms | Why rate limit, where to enforce it, token bucket, leaky bucket, fixed window, sliding window log and sliding window counter implemented and compared in Java, distributed limits with Redis, HTTP 429 | Rate Limiting
+
+## Why and Where | rose
+- A **rate limiter** caps how many requests a client may make in a period ("100 requests per minute per API key"). It **protects services from overload** (spikes, runaway clients, retry storms), **prevents abuse** (brute-force logins, scraping, credential stuffing, DoS), **controls cost** (paid third-party APIs, LLM tokens) and enforces **fair use** and pricing tiers.
+- **Where**: at the **API gateway or edge** (NGINX, Kong, AWS API Gateway, Cloudflare) for everyone; as **middleware** in a service for fine-grained rules; on the **client** to stay under a partner's limits.
+- **Keys**: per user, per API key, per IP address, per endpoint, per tenant, or combinations ("10 login attempts per account per 15 minutes").
+- **Response**: **`429 Too Many Requests`** with a **`Retry-After`** header, and usually headers telling clients their budget (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, or the IETF draft `RateLimit` / `RateLimit-Policy` headers).
+
+## The Five Algorithms in Java | blue
+```java RateLimiters.java
+import java.util.ArrayDeque;
+import java.util.Deque;
+
+public class RateLimiters {
+
+    interface RateLimiter { boolean allow(long nowMs); }
+
+    /** Token bucket: up to `capacity` tokens, refilled continuously; each request spends one. Allows bursts. */
+    static final class TokenBucket implements RateLimiter {
+        private final double capacity, refillPerMs;
+        private double tokens;
+        private long last;
+        TokenBucket(int capacity, double perSecond) {
+            this.capacity = capacity; this.refillPerMs = perSecond / 1000; this.tokens = capacity;
+        }
+        public synchronized boolean allow(long now) {
+            tokens = Math.min(capacity, tokens + (now - last) * refillPerMs);   // refill for the time that passed
+            last = now;
+            if (tokens >= 1) { tokens -= 1; return true; }
+            return false;
+        }
+    }
+
+    /** Leaky bucket (queue): accepted requests wait in a queue drained at a constant rate. Smooths output. */
+    static final class LeakyBucket implements RateLimiter {
+        private final int capacity;
+        private final long intervalMs;
+        private final Deque<Long> queue = new ArrayDeque<>();     // scheduled processing times of waiting requests
+        private long nextFree;                                    // when the drain can take the next request
+        long lastScheduled;
+        LeakyBucket(int capacity, double perSecond) { this.capacity = capacity; this.intervalMs = (long) (1000 / perSecond); }
+        public synchronized boolean allow(long now) {
+            while (!queue.isEmpty() && queue.peekFirst() <= now) queue.pollFirst();   // processing started: left the queue
+            if (queue.size() >= capacity) return false;                               // bucket full: drop
+            lastScheduled = Math.max(now, nextFree);                                  // wait for the next free slot
+            nextFree = lastScheduled + intervalMs;
+            queue.addLast(lastScheduled);
+            return true;
+        }
+    }
+
+    /** Fixed window counter: count requests per calendar window, reset at each boundary. */
+    static final class FixedWindow implements RateLimiter {
+        private final int limit; private final long windowMs;
+        private long window = -1; private int count;
+        FixedWindow(int limit, long windowMs) { this.limit = limit; this.windowMs = windowMs; }
+        public synchronized boolean allow(long now) {
+            long w = now / windowMs;
+            if (w != window) { window = w; count = 0; }
+            if (count < limit) { count++; return true; }
+            return false;
+        }
+    }
+
+    /** Sliding window log: keep timestamps of accepted requests within the last window. Exact, memory-hungry. */
+    static final class SlidingWindowLog implements RateLimiter {
+        private final int limit; private final long windowMs;
+        private final Deque<Long> log = new ArrayDeque<>();
+        SlidingWindowLog(int limit, long windowMs) { this.limit = limit; this.windowMs = windowMs; }
+        public synchronized boolean allow(long now) {
+            while (!log.isEmpty() && log.peekFirst() <= now - windowMs) log.pollFirst();
+            if (log.size() < limit) { log.addLast(now); return true; }
+            return false;
+        }
+    }
+
+    /** Sliding window counter: weight the previous window's count by how much of it still overlaps. Cheap approximation. */
+    static final class SlidingWindowCounter implements RateLimiter {
+        private final int limit; private final long windowMs;
+        private long window = -1; private int current, previous;
+        SlidingWindowCounter(int limit, long windowMs) { this.limit = limit; this.windowMs = windowMs; }
+        public synchronized boolean allow(long now) {
+            long w = now / windowMs;
+            if (w != window) { previous = (w == window + 1) ? current : 0; current = 0; window = w; }
+            double overlap = 1 - (now % windowMs) / (double) windowMs;   // share of the previous window still inside
+            if (previous * overlap + current < limit) { current++; return true; }
+            return false;
+        }
+    }
+
+    public static void main(String[] args) {
+        // Limit: 5 requests per second. Traffic: 5 requests at 900-940 ms, then 5 more at 1000-1040 ms.
+        long[] times = {900, 910, 920, 930, 940, 1000, 1010, 1020, 1030, 1040};
+        LeakyBucket leaky = new LeakyBucket(5, 5);
+        RateLimiter[] limiters = { new TokenBucket(5, 5), leaky, new FixedWindow(5, 1000),
+                                   new SlidingWindowLog(5, 1000), new SlidingWindowCounter(5, 1000) };
+        String[] names = { "Token bucket", "Leaky bucket", "Fixed window", "Sliding window log", "Sliding window counter" };
+        for (int i = 0; i < limiters.length; i++) {
+            StringBuilder line = new StringBuilder();
+            int allowed = 0;
+            for (long t : times) {
+                boolean ok = limiters[i].allow(t);
+                line.append(ok ? "✔" : "✘");
+                if (ok) allowed++;
+            }
+            System.out.printf("%-23s %s  allowed %d of %d%n", names[i], line, allowed, times.length);
+        }
+        System.out.println("Leaky bucket processes its last accepted request at " + leaky.lastScheduled + " ms");
+    }
+}
+```
+
+## Comparing Them | green
+```text
+Limit 5 per second; 5 requests at 900-940 ms, then 5 at 1000-1040 ms   (real output of the program above)
+Token bucket            ✔✔✔✔✔✘✘✘✘✘  allowed 5 of 10
+Leaky bucket            ✔✔✔✔✔✔✘✘✘✘  allowed 6 of 10
+Fixed window            ✔✔✔✔✔✔✔✔✔✔  allowed 10 of 10
+Sliding window log      ✔✔✔✔✔✘✘✘✘✘  allowed 5 of 10
+Sliding window counter  ✔✔✔✔✔✘✔✘✘✘  allowed 6 of 10
+Leaky bucket processes its last accepted request at 1900 ms
+```
+- **Token bucket**: a bucket holds up to `capacity` tokens and refills at a steady rate; each request takes a token. **Allows bursts** up to the capacity, then enforces the average rate. Simple, memory-light (two numbers per key). Used by **AWS API Gateway** and Stripe, among many others.
+- **Leaky bucket**: requests enter a fixed-size queue that is **processed at a constant rate**; when the queue is full, new requests are dropped. **Smooths bursts** into a steady flow (good for protecting a fragile downstream), but adds queueing delay: above, it accepted 6 requests but released them 200 ms apart, the last one at 1900 ms. **NGINX `limit_req`** is based on it.
+- **Fixed window counter**: count per calendar window (per second, per minute). Simplest and cheapest, but has the **boundary burst** problem: up to **2× the limit** can pass around a window edge, as the run above shows (10 requests within 140 ms).
+- **Sliding window log**: stores a timestamp per accepted request and counts those inside the last window. **Exact**, no boundary problem, but stores up to `limit` timestamps per key (Redis sorted sets: `ZADD`, `ZREMRANGEBYSCORE`, `ZCARD`).
+- **Sliding window counter**: keeps only the current and previous window counts and **weights** the previous one by its overlap with the sliding window. Nearly exact with tiny memory: a popular production choice (Cloudflare describes using it).
+
+## Distributed Rate Limiting with Redis | amber
+```lua fixed_window.lua
+-- KEYS[1] = "rl:{apiKey}:{minute}"   ARGV[1] = limit   ARGV[2] = window in seconds
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[2])   -- the first request in the window sets the expiry
+end
+if count > tonumber(ARGV[1]) then
+  return 0                                 -- reject
+end
+return 1                                   -- allow
+```
+- With many gateway or service instances, counters must be **shared**: usually **Redis**, which is fast, has atomic `INCR`, key expiry and sorted sets.
+- Run the check-and-update as one **Lua script** (atomic in Redis) to avoid races between "read count" and "increment" across instances.
+- **Fail open or closed?** If Redis is down, failing **open** (allow traffic) keeps the product working; failing **closed** protects the backend. Choose per endpoint (fail closed for login attempts).
+- Reduce Redis load with **local token buckets** per instance that periodically sync, accepting slight inaccuracy.
+
+## Interview Q&A | sky | wide
+Q: Token bucket vs leaky bucket?
+A: A token bucket allows bursts up to its capacity and then limits to the refill rate; a leaky bucket queues requests and releases them at a constant rate, smoothing bursts at the cost of added latency and dropped requests when the queue is full.
+Q: What is the problem with fixed window rate limiting?
+A: Bursts at window boundaries: a client can send the full limit at the end of one window and again at the start of the next, up to twice the limit in a short period.
+Q: Sliding window log vs sliding window counter?
+A: The log stores every request timestamp in the window and is exact but memory-heavy; the counter keeps two counts and weights the previous window, approximating closely with constant memory.
+Q: How do you rate limit across many servers?
+A: Keep counters in a shared store such as Redis, updated atomically (INCR with EXPIRE or a Lua script), keyed by user, API key or IP, with a fail-open or fail-closed decision for Redis outages.
+Q: What status code and headers does a rate-limited API return?
+A: 429 Too Many Requests with Retry-After, plus headers showing the limit, remaining requests and reset time.
+Q: Which algorithm would you choose for a public API?
+A: Usually a token bucket (allows reasonable bursts, simple, cheap) or a sliding window counter (smooth, accurate), implemented at the gateway with Redis.
+
+# 06 | Monolith to Microservices: The Strangler Fig | Monoliths, modular monoliths and microservices, when to split, decomposing by business capability, the Strangler Fig pattern step by step, the anti-corruption layer, migrating data, risks | Strangler Fig
+
+## Monolith vs Microservices | rose
+- A **monolith** is one deployable application containing all features, usually with one database.
+- Pros: simple to develop, test, deploy and debug at the start; in-process calls are fast; transactions are easy. Cons as it grows: slow builds and deploys, **one change requires redeploying everything**, a bug can take everything down, the whole app scales together, and teams step on each other's code.
+- **Microservices**: the system is split into **small, independently deployable services**, each owning one business capability and **its own data**, talking over the network (REST, gRPC, events).
+- Pros: independent deployment and scaling, team autonomy, fault isolation, technology freedom. Cons: **distributed-systems complexity** (network failures, latency, eventual consistency, sagas instead of transactions), harder testing and debugging, operational overhead (CI/CD per service, observability, service discovery).
+- **Modular monolith**: one deployable, but with strict internal module boundaries (separate packages, no shared tables between modules). Often the best starting point: easy to run, and modules can later become services.
+- **Conway's law**: systems mirror the communication structure of the organisations that build them; service boundaries usually follow team boundaries.
+
+## When and How to Split | blue
+- Split when there is a real need: different **scaling** needs, teams blocked by each other, very different **release cadences**, or **fault isolation** for a critical capability. "Microservices because everyone does them" is a classic mistake (a **distributed monolith**: services that must be deployed together).
+- **Decompose by business capability or subdomain** (Domain-Driven Design **bounded contexts**): Catalogue, Orders, Payments, Shipping, Notifications. Not by technical layer ("a database service").
+- Good boundaries have **high cohesion** inside and **loose coupling** between services; each service owns its data (**database per service**) and others access it only through its API or events.
+- Start with the capability that is **easiest to extract** or that brings the **most value** (independent scaling, frequent changes), not the most entangled core.
+
+## The Strangler Fig Pattern | green
+```text
+Step 1: put a facade in front           Step 2: route one capability out        Step 3: repeat, then retire
+
+ clients ─▶ [ API gateway ]             clients ─▶ [ API gateway ]              clients ─▶ [ API gateway ]
+                 │                                   │         │                              │      │      │
+                 ▼                          /orders  ▼         ▼ everything else          Orders  Payments  Catalogue
+          [   MONOLITH   ]               [Orders svc]   [ MONOLITH ]                     svc     svc       svc
+                                          (own DB)       (shrinking)                     (monolith switched off)
+```
+- Named by **Martin Fowler** (2004) after the **strangler fig** vine, which grows around a host tree until it can stand on its own and the host dies.
+- **1. Intercept**: put a **facade** (API gateway, reverse proxy) in front of the monolith so routing can change without clients noticing.
+- **2. Extract one capability** into a new service with its own data store. Build it behind the facade, test it with **shadow (dark) traffic** or a small canary percentage.
+- **3. Redirect** that capability's traffic at the facade to the new service; keep the old code path available for rollback (feature flags).
+- **4. Remove** the now-unused code from the monolith. **Repeat** for the next capability until the monolith is gone or small enough to keep.
+- Advantages over a **big-bang rewrite**: value is delivered incrementally, risk is spread over many small migrations, the system keeps running, and you can stop at any point. Big-bang rewrites famously run late while the old system keeps changing.
+
+## Migrating Data and Other Supporting Patterns | amber
+- **Anti-corruption layer (ACL)**: a translation layer between the new service and the monolith, so the new service's clean model isn't polluted by the legacy model and API.
+- **Branch by abstraction**: inside the monolith, introduce an interface in front of the functionality, implement it twice (old and new), switch implementations with a flag, then delete the old one.
+- **Data migration**: the hardest part. Options: the new service reads the monolith's tables temporarily (coupling, to be removed); **Change Data Capture** (Debezium reading the database log) to stream changes into the new store; publishing domain events via the **outbox pattern**; one-off backfills plus incremental sync. Avoid **dual writes** from the application (they drift when one write fails).
+- **Parallel run**: send requests to both implementations and compare results before switching.
+- Supporting infrastructure first: CI/CD per service, centralised logging and tracing, service discovery, configuration, an API gateway.
+
+## Interview Q&A | sky | wide
+Q: Monolith vs microservices?
+A: A monolith is a single deployable with shared code and database: simple at first but harder to scale, deploy and evolve as it grows. Microservices are independently deployable services owning their data: scalable and autonomous but with distributed-systems complexity and operational cost.
+Q: What is the Strangler Fig pattern?
+A: Migrating a monolith incrementally by placing a facade in front of it, extracting one capability at a time into a new service, routing that capability's traffic to it and removing the old code, until the monolith is replaced.
+Q: Why not rewrite the monolith from scratch?
+A: Big-bang rewrites deliver nothing until the end, carry huge risk, must chase a moving target as the old system keeps changing, and often fail. Incremental migration delivers value continuously and can be rolled back step by step.
+Q: How do you decide service boundaries?
+A: By business capabilities or DDD bounded contexts with high cohesion and loose coupling, aligned with team ownership, each service owning its data.
+Q: What is an anti-corruption layer?
+A: A translation layer between a new system and a legacy one that converts between their models and APIs, protecting the new design from legacy concepts.
+Q: How do you migrate data out of a monolith's database?
+A: Give the new service its own store, backfill it, then keep it in sync with change data capture or events (outbox) until the switch, avoiding application dual writes; finally remove the old tables.
+Q: What is a distributed monolith?
+A: Services that are split physically but still tightly coupled (shared database, synchronous call chains, coordinated deployments), getting the costs of microservices without the benefits.
+
+# 07 | Design a URL Shortener | Requirements, estimates, API, 301 vs 302, generating short codes (hashing, counters with Base62, key generation service), data model, caching, analytics, expiry and abuse | URL Shortener
+
+## Requirements and Estimates | rose
+- **Functional**: given a long URL, return a short one (`https://sho.rt/aZ3kQ9x`); visiting the short URL **redirects** to the long one; optional **custom alias** and **expiry**; optional click **analytics**.
+- **Non-functional**: redirects must be **very fast** (tens of milliseconds) and **highly available**; short codes should not be guessable for private links; the system is **read-heavy**.
+```text
+Assume 100 M new URLs per month and 100 redirects per URL on average.
+Writes     100 M / month ÷ 2.6 M s           ≈ 40 per second
+Reads      10 B / month ÷ 2.6 M s            ≈ 3,800 per second (peaks ×3-5 ≈ 15-20 K/s)
+Storage    100 M × 12 months × 5 years = 6 B records × ~500 bytes ≈ 3 TB
+Code length  62^6 ≈ 56.8 billion, 62^7 ≈ 3.5 trillion  → 7 Base62 characters is plenty
+```
+- **Base62** uses `0-9`, `a-z`, `A-Z`: URL-safe and compact, with no `+` or `/` as in Base64.
+
+## API and Redirects | blue
+```http
+POST /api/v1/urls
+Content-Type: application/json
+
+{ "longUrl": "https://shop.example.com/sale/diwali?utm=mail", "alias": "diwali", "expiresAt": "2026-12-31T23:59:59Z" }
+
+201 Created
+{ "code": "diwali", "shortUrl": "https://sho.rt/diwali" }
+
+GET /diwali
+302 Found
+Location: https://shop.example.com/sale/diwali?utm=mail
+```
+- **301 Moved Permanently**: browsers and CDNs cache the redirect, so repeat visits never reach your servers. Lowest load, but you **lose click analytics** and can't change or expire the target reliably.
+- **302 Found** (or 307): every click hits the service, enabling **analytics**, expiry and later edits, at the cost of more traffic.
+- Services that want both can send a 301 with a short `Cache-Control` lifetime, so browsers re-check after a while and clicks keep reaching the service.
+- Return `404` for unknown codes and `410 Gone` for expired ones; validate the long URL (scheme, length, a malicious-site check) on creation.
+
+## Generating Short Codes | green
+- **Option 1: hash the long URL** (MD5 or SHA-256 → Base62 → first 7 characters). The same URL gets the same code (free de-duplication), but truncated hashes **collide**: check the database and, on collision, append a salt and retry.
+- **Option 2: unique counter + Base62**. Take a unique 64-bit id and Base62-encode it. **No collisions** by construction. The id source must be distributed:
+- a database sequence handing out **ranges** (each app server reserves 10,000 ids at a time, so the database is hit rarely),
+- or **Snowflake-style** ids (timestamp + machine id + sequence), which are longer (about 11 characters).
+- Sequential codes are **guessable** (`aZ3kQ9x`, `aZ3kQ9y`...): scramble the id with a reversible permutation, or use a shuffled alphabet, when links shouldn't be enumerable.
+- **Option 3: Key Generation Service (KGS)**: pre-generate random unique 7-character keys into a "free keys" table; servers take keys in batches, and a used key moves to the "used" table. No collision checks at write time; the KGS must be replicated so it isn't a single point of failure.
+```java Base62.java
+public class Base62 {
+
+    private static final String ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    public static String encode(long id) {
+        if (id == 0) return "0";
+        StringBuilder code = new StringBuilder();
+        while (id > 0) {
+            code.append(ALPHABET.charAt((int) (id % 62)));   // least significant digit first
+            id /= 62;
+        }
+        return code.reverse().toString();
+    }
+
+    public static long decode(String code) {
+        long id = 0;
+        for (char c : code.toCharArray()) id = id * 62 + ALPHABET.indexOf(c);
+        return id;
+    }
+
+    public static void main(String[] args) {
+        System.out.println(encode(125));                       // 21  (2 × 62 + 1)
+        System.out.println(encode(1_000_000_000L));            // 15FTGg: a billion links still fit in 6 characters
+        System.out.println(decode(encode(1_000_000_000L)));    // 1000000000
+        System.out.println(encode((long) Math.pow(62, 7) - 1)); // ZZZZZZZ: the largest 7-character code (62^7 - 1)
+    }
+}
+```
+
+## Data Model and Architecture | amber
+```text
+url_mappings
+  code         VARCHAR(10)  PRIMARY KEY      -- the short code or custom alias
+  long_url     TEXT         NOT NULL
+  user_id      BIGINT                         -- owner, for listing and analytics
+  created_at   TIMESTAMP    NOT NULL
+  expires_at   TIMESTAMP                      -- NULL = never
+
+Write:  client → LB → URL service → generate code → INSERT (unique code) → 201
+Read:   client → LB → redirect service → Redis (code → long_url) ─hit→ 302
+                                              └─miss→ database → fill cache → 302
+                                     └─▶ click event → Kafka → analytics consumers → analytics store
+```
+- Access is a pure **key-value lookup by code**: a key-value or wide-column store (DynamoDB, Cassandra) scales horizontally with no effort; PostgreSQL works too, sharded by code once it outgrows one primary.
+- **Cache** hot codes in **Redis** with LRU eviction: a small share of links gets most clicks, so even a modest cache absorbs most reads. Edge caching at a CDN helps further for popular links.
+- **Analytics** must not slow redirects: publish a click event (code, time, referrer, country, device) **asynchronously** to Kafka and aggregate in a stream processor into an analytics store.
+- **Expiry**: check `expires_at` on read (lazy), plus a background job that deletes expired rows and their cache entries.
+- **Abuse**: rate-limit creation per user and IP, scan target URLs against malware and phishing lists, and let users report links.
+
+## Interview Q&A | sky | wide
+Q: How do you generate unique short codes?
+A: Either hash the long URL and resolve collisions, Base62-encode a unique id from a distributed id generator (database ranges or Snowflake), or take pre-generated random keys from a key generation service. Counter + Base62 avoids collisions; KGS avoids collision checks and guessable codes.
+Q: How long should the code be?
+A: Enough for the expected number of links: 7 Base62 characters give about 3.5 trillion combinations, far more than billions of links over several years.
+Q: 301 or 302 for the redirect?
+A: 301 lets browsers cache the redirect and reduces load but loses analytics and control; 302 sends every click to the service, enabling analytics, expiry and edits.
+Q: Which database would you use?
+A: A horizontally scalable key-value or wide-column store (DynamoDB, Cassandra), since access is by key only; a relational database is fine at first and can be sharded by code later.
+Q: How do you make redirects fast?
+A: Keep the redirect path minimal: a cache lookup in Redis, database only on misses, asynchronous analytics, multiple regions and CDN or edge caching for popular links.
+Q: How do you handle custom aliases?
+A: Validate allowed characters and length, reserve words such as "api", and rely on the primary-key uniqueness constraint to reject aliases already taken.
+
+# 08 | Design a Notification Service | Channels and providers, requirements, architecture with per-channel queues, templates and preferences, priorities, retries and idempotency, tracking delivery, scaling for campaigns | Notification Service
+
+## Requirements | rose
+- **Functional**: other services (orders, payments, auth, marketing) send notifications to users through **push** (iOS via APNs, Android and web via FCM), **SMS**, **email** and **in-app** messages; **templates** with localisation; **user preferences** (opt-out per channel and category, quiet hours); **scheduled** and **bulk** (campaign) sends; **delivery status** tracking.
+- **Non-functional**: **reliable** (never silently lose a notification, never spam duplicates), **low latency for critical messages** (an OTP within seconds), **scalable** to campaign spikes of millions, resilient to **third-party provider outages**, and compliant with consent and unsubscribe rules.
+```text
+Assume 10 M push, 5 M emails and 1 M SMS per day.
+Average   16 M / 10^5 s ≈ 160 notifications per second
+Campaign  5 M pushes in 10 minutes ≈ 8,000 per second → queues and horizontally scaled workers
+```
+
+## Architecture | blue
+```text
+ Order svc  Auth svc  Marketing scheduler
+     │          │            │
+     └─────▶ Notification API (auth, validation, idempotency key) ──▶ notification_log (status: QUEUED)
+                       │
+              Notification service: user preferences + contact info (cached),
+              render template, check opt-out, quiet hours, per-user limits
+                       │
+      ┌───────────┬────┴──────┬──────────────┐
+  push-high   push-low       sms           email          (queues/topics per channel and priority)
+      │           │            │              │
+  push workers  push workers  SMS workers   email workers   (stateless, autoscaled on queue depth)
+      │                        │              │
+  APNs / FCM               Twilio / SNS    SES / SendGrid  (provider callbacks → status updates)
+                        failed after retries ─▶ dead-letter queue → alerting / manual replay
+```
+- **Decouple with queues**: callers get `202 Accepted` immediately; a slow provider can't block order placement, and traffic spikes are buffered.
+- **Separate queues per channel and priority**: transactional messages (OTP, password reset, order confirmation) never wait behind a 5-million-user marketing campaign.
+- **Workers** are stateless and autoscale on queue depth; each respects the provider's own rate limits (a token bucket per provider account).
+
+## Data | green
+```text
+user_preferences   user_id, channel, category (transactional | marketing), enabled, quiet_hours, locale
+device_tokens      user_id, platform (ios | android | web), token, last_seen     (one user, many devices)
+templates          template_id, channel, locale, subject, body ("Your order {{orderId}} has shipped")
+notification_log   id, idempotency_key (unique), user_id, channel, template_id, status, provider_message_id,
+                   attempts, created_at, sent_at, delivered_at
+```
+- **Status lifecycle**: `QUEUED → SENT → DELIVERED / OPENED / CLICKED` or `FAILED / BOUNCED`, updated from provider responses and **webhooks** (delivery receipts, email bounces).
+- Remove **invalid device tokens** when APNs or FCM report them as unregistered; suppress emails that hard-bounced.
+
+## Reliability and Correctness | amber
+- **At-least-once delivery** from the queue plus **idempotency**: every request carries an idempotency key (for example `order-42-shipped`), stored with a **unique constraint**, so a retried event never sends twice.
+- Producers publish events with the **outbox pattern**, so "order saved" and "notification requested" can't diverge.
+- **Retries** with exponential backoff and jitter for temporary failures (timeouts, 5xx, provider throttling); **no retries** for permanent errors (invalid number); a **dead-letter queue** for what still fails.
+- **Provider failover**: a secondary SMS or email provider used when the primary's error rate rises (a circuit breaker per provider).
+- **User protection**: frequency caps (at most N marketing messages per day), quiet hours by the user's time zone, honour unsubscribe immediately; transactional messages bypass marketing caps.
+- **Observability**: send rate, failure rate per provider, queue lag, end-to-end latency for OTPs, with alerts.
+
+## Interview Q&A | sky | wide
+Q: How do you design a scalable notification system?
+A: An API that validates and records requests, a service that applies preferences and templates, separate queues per channel and priority, autoscaled workers that call push, SMS and email providers, and status tracking through provider callbacks, with retries, a dead-letter queue and idempotency.
+Q: How do you avoid sending duplicate notifications?
+A: Use an idempotency key per logical notification with a unique constraint in the log; workers check it before sending, so retries and duplicate events are ignored.
+Q: How do you make sure OTPs aren't delayed by marketing campaigns?
+A: Separate high-priority queues and dedicated workers for transactional messages, plus provider capacity reserved for them.
+Q: What happens when an SMS provider is down?
+A: Retry with backoff for transient errors, open a circuit breaker on persistent failure, fail over to a secondary provider, and move messages that still fail to a dead-letter queue for replay.
+Q: How do you handle user preferences and compliance?
+A: Check per-channel and per-category opt-outs, quiet hours and frequency caps before enqueueing, honour unsubscribe requests immediately, and keep transactional and marketing categories separate.
+Q: Push notifications for a user with several devices?
+A: Store a device token per device and platform, send to all active tokens, and remove tokens the provider reports as invalid.
+
+# 09 | Design a Chat System | Requirements and scale, WebSockets vs polling, stateful chat servers and a connection registry, message flow and receipts, message storage and ids, group chat fan-out, presence, offline sync and push | Chat System
+
+## Requirements and Scale | rose
+- **Functional**: one-to-one and **group chats** (say up to 500 members), **online presence**, **sent / delivered / read** receipts, **message history** synced across a user's devices, **push notifications** for offline users, media sharing.
+- **Non-functional**: **low latency** delivery (under a few hundred milliseconds), **no lost messages**, **ordering within a conversation**, high availability.
+```text
+Assume 50 M daily active users sending 40 messages each.
+Messages   50 M × 40 = 2 B per day ÷ 86,400 ≈ 23,000 messages per second (peaks higher)
+Storage    2 B × ~100 bytes ≈ 200 GB per day ≈ 73 TB per year (before replication; media in object storage)
+Connections  ~10 M concurrent; at ~100 K WebSocket connections per server ≈ 100+ chat servers
+```
+
+## Real-Time Connections | blue
+- **Short polling**: the client asks "anything new?" every few seconds. Simple but wasteful and laggy.
+- **Long polling**: the server holds the request open until a message arrives or a timeout. Better, but still one request per message batch and awkward to scale.
+- **Server-Sent Events (SSE)**: a one-way server → client stream over HTTP. Good for feeds and notifications, not for two-way chat.
+- **WebSockets**: one **persistent, full-duplex** connection per client over TCP, started with an HTTP upgrade. **The standard choice for chat**: minimal overhead and instant delivery in both directions.
+- WebSocket servers are **stateful** (they hold live connections), so a **connection registry** (in Redis: `user 123 → chat-server-17`) records where each user is connected. Stateless HTTP API servers handle everything else (login, profiles, groups, history pages).
+
+## Message Flow | green
+```text
+Ann (phone) ──WS──▶ chat server 3
+                     1. assign message_id (time-ordered), store message  ──▶ message store
+                     2. ack to Ann: "sent ✓"
+                     3. look up Ravi's server in the registry ──▶ chat server 9  (via internal pub/sub)
+                                                                   4. push over Ravi's WebSocket
+                                                                   5. Ravi's app acks → "delivered ✓✓" to Ann
+                     Ravi offline? ──▶ push notification service (APNs / FCM); message waits in the store
+Ravi opens the chat → "read" receipt (last read message_id) → Ann sees blue ticks
+```
+- **Persist before acknowledging** "sent", so an acknowledged message is never lost.
+- The client attaches its own **client message id**; the server de-duplicates on it, making retries after a dropped connection **idempotent**.
+- **Ordering**: ids are generated per conversation in time order (a Snowflake-style id: timestamp + server + sequence), and clients sort by id, not by arrival time.
+- **Offline and multi-device sync**: each device remembers the last message id it has per conversation and, on reconnect, fetches everything newer (a cursor-based sync).
+
+## Storage, Groups and Presence | amber
+```text
+messages   PRIMARY KEY (conversation_id, message_id)   -- partition by conversation, newest first
+           sender_id, body (or ciphertext), type, created_at
+```
+- Chat is **write-heavy** and read by conversation and recency: a **wide-column store** (Cassandra, ScyllaDB, HBase) partitioned by `conversation_id` and clustered by `message_id` fits well. Facebook Messenger used HBase; Discord moved from Cassandra to ScyllaDB.
+- **Group chats**: the sending server **fans out** the message to the chat servers of all online members (looked up in the registry). Small groups fan out on write; very large channels let clients fetch on read.
+- **Presence**: clients send a **heartbeat** every ~30 seconds; the server keeps `presence:{userId}` in Redis with a TTL (~60 s), so a user who disappears goes offline automatically. Status changes are published to friends who are online; for users with huge contact lists, presence is fetched on demand instead of pushed.
+- **Media**: uploaded directly to **object storage** (pre-signed URLs) and served through a **CDN**; the message holds only the link and metadata.
+- **Security**: TLS everywhere; **end-to-end encryption** (the Signal protocol, used by WhatsApp and Signal) means servers store and relay only ciphertext.
+
+## Interview Q&A | sky | wide
+Q: Why WebSockets for chat?
+A: They keep one persistent, bidirectional connection per client, so messages are pushed instantly in both directions with minimal overhead, unlike polling.
+Q: How does a message reach a user connected to a different server?
+A: A connection registry maps users to chat servers; the sender's server looks up the recipient's server and forwards the message over an internal pub/sub channel, which pushes it over the recipient's WebSocket.
+Q: How do you guarantee messages aren't lost or duplicated?
+A: Persist each message before acknowledging it, retry until the recipient acknowledges delivery, and de-duplicate using a client-generated message id.
+Q: How do you keep messages ordered?
+A: Assign time-ordered, unique ids per conversation and sort by id on clients, rather than relying on arrival order.
+Q: Which database would you use for messages?
+A: A horizontally scalable wide-column store such as Cassandra or ScyllaDB, partitioned by conversation id and clustered by message id, because the workload is write-heavy and reads are "latest messages of a conversation".
+Q: How does online presence work?
+A: Clients send periodic heartbeats; presence is stored in Redis with a short TTL so silent users expire to offline, and changes are published to online friends.
+Q: What happens when the recipient is offline?
+A: The message stays in the store, a push notification is sent through APNs or FCM, and when the app reconnects it syncs all messages after its last received id.
+
+# 10 | Design a Rate Limiter Service | Requirements, where it runs, rules configuration, a Redis-backed design, handling races, multi-region limits, failure modes, client experience and monitoring | Rate Limiter Design
+
+## Requirements | rose
+- **Functional**: limit requests per **client identity** (API key, user id, IP) and per **rule** (per endpoint, per plan: free 100 per minute, pro 1,000 per minute); several rules can apply at once; return **`429`** with clear headers when exceeded.
+- **Non-functional**: **very low overhead** (a millisecond or less per request), **accurate enough** across many gateway instances, **highly available** (the limiter must never become the reason the API is down), and easy to change rules without redeploying.
+- Algorithm choices are in sheet 05: usually a **token bucket** or **sliding window counter**.
+
+## Architecture | blue
+```text
+client ─▶ API gateway / edge
+            │  rate-limit middleware:
+            │   1. identify the client (API key, user, IP) and matching rules (cached locally)
+            │   2. atomic check-and-increment in Redis (Lua script)        ──▶  Redis cluster
+            │   3a. allowed → forward to the service, add X-RateLimit-* headers      (sharded by key)
+            │   3b. limited → 429 Too Many Requests + Retry-After
+            ▼
+          services
+
+rules service (YAML / DB) ──push or poll──▶ gateways cache the rules in memory
+```
+```yaml rules.yaml
+# Illustrative rules in the style of Envoy's rate limit service
+domain: public-api
+descriptors:
+  - key: plan
+    value: free
+    rate_limit: { unit: minute, requests_per_unit: 100 }
+  - key: plan
+    value: pro
+    rate_limit: { unit: minute, requests_per_unit: 1000 }
+  - key: path
+    value: /auth/login
+    rate_limit: { unit: minute, requests_per_unit: 5 }     # brute-force protection
+```
+- Enforce at the **edge or API gateway** so rejected traffic never reaches services; services can add finer business limits (5 OTP requests per phone per hour).
+- **Rules** live outside the code, are cached in each gateway and refreshed periodically or pushed on change.
+
+## Accuracy, Races and Scale | green
+- **Race condition**: two gateway instances read count 99 at the same time, both allow, and the limit is exceeded. Fix with **atomic** operations in Redis: `INCR` with `EXPIRE`, or a **Lua script** that reads, decides and writes in one step (sheet 05).
+- **Scale Redis** by sharding counters by key across a **Redis Cluster**; each check is one round trip of well under a millisecond inside a data centre.
+- **Hot keys** (one huge customer): give that key a local token bucket on each gateway that syncs its consumption to Redis in batches; accept small inaccuracy.
+- **Multi-region**: either independent per-region limits (simple, a client can get N × limit across regions), or regional counters synchronised asynchronously (approximate global limit). Strict global limits need a single region of record and cost latency.
+
+## Failure Modes and Client Experience | amber
+- **Redis unavailable**: **fail open** (allow requests, log and alert) for general traffic so the API stays up; **fail closed** for security-sensitive limits such as login attempts.
+- **Client experience**: return `429` with **`Retry-After`** and the remaining budget, document limits, and offer higher limits on paid plans. Well-behaved clients back off exponentially with jitter.
+- **Soft vs hard limits**: warn or log above a soft limit, block at the hard limit; queue non-urgent excess work instead of dropping it where possible.
+- **Monitoring**: rate of 429s per rule and client, Redis latency and errors, top limited clients (often a bug in a client or an attack).
+
+## Interview Q&A | sky | wide
+Q: Where would you place a rate limiter?
+A: At the API gateway or edge so excess traffic is rejected before reaching services, with optional finer limits inside services for business rules.
+Q: How do you make it work across many gateway instances?
+A: Keep counters in a shared Redis cluster and update them atomically with INCR/EXPIRE or a Lua script, keyed by client and rule.
+Q: What happens if Redis goes down?
+A: Decide per rule: fail open for general API traffic to stay available, fail closed for security limits; alert on the failure.
+Q: How do you handle rate limiting across regions?
+A: Use per-region limits for simplicity, or synchronise regional counters asynchronously for an approximate global limit; exact global limits trade latency for accuracy.
+Q: How do clients know they are being limited?
+A: A 429 response with Retry-After and headers showing the limit, remaining requests and reset time.
+Q: Which algorithm would you use?
+A: A token bucket for burst-friendly API limits or a sliding window counter for smooth, accurate limits; both need only a couple of numbers per key in Redis.
+
+@ Advanced
+# 11 | SOLID Principles | Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation and Dependency Inversion, each with a violation and a fix in Java, how they relate to patterns and testing | SOLID
+
+## Where SOLID Comes From | rose
+- Five object-oriented design principles collected by **Robert C. Martin** ("Uncle Bob") in his 2000 paper "Design Principles and Design Patterns"; **Michael Feathers** coined the acronym. Liskov substitution comes from **Barbara Liskov** (1987) and open/closed from **Bertrand Meyer** (1988).
+- Goal: code that is **easy to change**: changes stay local, new features are added rather than hacked in, and parts can be tested and replaced independently.
+- They are **guidelines, not laws**: applying them everywhere produces needless interfaces and indirection. Apply them where change actually happens.
+
+## S: Single Responsibility Principle | blue
+- "A class should have **only one reason to change**": it should be responsible to one actor or concern.
+- Violation: an `InvoiceService` that calculates totals, saves to the database and sends emails changes whenever tax rules, the database or the email provider change, and its tests need all three.
+```java InvoiceSrp.java
+import java.util.List;
+
+public class InvoiceSrp {
+    public static void main(String[] args) {
+        List<Line> lines = List.of(new Line("Keyboard", 1, 1500), new Line("Mouse", 2, 500));
+        double total = new InvoiceCalculator().total(lines);
+        new InvoiceRepository().save("INV-1", total);
+        new InvoiceMailer().send("ann@shop.io", "INV-1");
+    }
+}
+
+record Line(String item, int qty, double unitPrice) {}
+
+class InvoiceCalculator {                                // changes only when pricing or tax rules change
+    double total(List<Line> lines) {
+        double net = lines.stream().mapToDouble(l -> l.qty() * l.unitPrice()).sum();
+        return net * 1.18;                               // 18% GST
+    }
+}
+
+class InvoiceRepository {                                // changes only when storage changes
+    void save(String id, double total) { System.out.printf("saved %s = %.2f%n", id, total); }
+}
+
+class InvoiceMailer {                                    // changes only when email content or provider changes
+    void send(String to, String id) { System.out.println("emailed " + id + " to " + to); }
+}
+```
+```text
+saved INV-1 = 2950.00
+emailed INV-1 to ann@shop.io
+```
+
+## O: Open/Closed Principle | green
+- "Software entities should be **open for extension, closed for modification**": add new behaviour by adding code, not by editing working code.
+- Violation: `if (type.equals("PERCENT")) ... else if (type.equals("FLAT")) ...` inside a pricing method: every new discount type edits and re-tests it.
+```java DiscountOcp.java
+import java.util.List;
+
+public class DiscountOcp {
+    public static void main(String[] args) {
+        for (Discount d : List.of(new NoDiscount(), new PercentOff(10), new FlatOff(150)))
+            System.out.println(d + " → " + d.apply(1000));
+    }
+}
+
+interface Discount { double apply(double price); }       // the extension point
+
+record NoDiscount() implements Discount {
+    public double apply(double price) { return price; }
+}
+record PercentOff(double percent) implements Discount {
+    public double apply(double price) { return price * (1 - percent / 100); }
+}
+record FlatOff(double amount) implements Discount {
+    public double apply(double price) { return Math.max(0, price - amount); }
+}
+// A new "buy one get one" discount is a new class; no existing class changes.
+```
+```text
+NoDiscount[] → 1000.0
+PercentOff[percent=10.0] → 900.0
+FlatOff[amount=150.0] → 850.0
+```
+- Achieved with **polymorphism**: interfaces plus **Strategy**, **Decorator** or **Template Method** (sheets 12 to 14), and plug-in mechanisms such as Spring injecting all beans of an interface.
+
+## L: Liskov Substitution Principle | amber
+- "Objects of a subtype must be usable **wherever the base type is expected** without breaking the program": subclasses must honour the base class's contract (no stronger preconditions, no weaker postconditions, no surprising exceptions).
+```java LiskovDemo.java
+public class LiskovDemo {
+    static void resize(Rectangle r) {
+        r.setWidth(5);
+        r.setHeight(4);
+        System.out.println(r.getClass().getSimpleName() + " area = " + r.area() + " (caller expects 20)");
+    }
+
+    public static void main(String[] args) {
+        resize(new Rectangle());
+        resize(new Square());                          // a Square breaks code written for Rectangles
+    }
+}
+
+class Rectangle {
+    protected int width, height;
+    void setWidth(int w) { width = w; }
+    void setHeight(int h) { height = h; }
+    int area() { return width * height; }
+}
+
+class Square extends Rectangle {                      // "is a" in geometry, but not in behaviour
+    @Override void setWidth(int w) { width = w; height = w; }
+    @Override void setHeight(int h) { width = h; height = h; }
+}
+```
+```text
+Rectangle area = 20 (caller expects 20)
+Square area = 16 (caller expects 20)
+```
+- Fix: don't inherit; model both as implementations of a `Shape` interface with `area()` (immutable records `Rectangle(int w, int h)` and `Square(int side)`).
+- Other classic violations: a subclass method that throws `UnsupportedOperationException` (a `ReadOnlyList` extending a mutable list), or overrides that ignore part of the contract. Test a subtype by running the base type's tests against it.
+
+## I: Interface Segregation Principle | violet
+- "Clients should not be forced to depend on methods they do not use": prefer **several small, role-specific interfaces** over one fat interface.
+```java IspDemo.java
+public class IspDemo {
+    public static void main(String[] args) {
+        Printer basic = new BasicPrinter();
+        basic.print("invoice.pdf");
+        OfficeMachine office = new OfficeMachine();
+        office.print("contract.pdf");
+        System.out.println("scanned: " + office.scan());
+    }
+}
+
+// Before: interface Machine { void print(String doc); String scan(); void fax(String doc, String number); }
+// BasicPrinter had to implement scan() and fax() by throwing UnsupportedOperationException.
+interface Printer { void print(String doc); }
+interface DocumentScanner { String scan(); }
+interface Fax { void fax(String doc, String number); }
+
+class BasicPrinter implements Printer {
+    public void print(String doc) { System.out.println("printing " + doc); }
+}
+
+class OfficeMachine implements Printer, DocumentScanner, Fax {     // implements only the roles it really has
+    public void print(String doc) { System.out.println("office printing " + doc); }
+    public String scan() { return "scan-001.png"; }
+    public void fax(String doc, String number) { System.out.println("faxing " + doc + " to " + number); }
+}
+```
+- Small interfaces are easier to implement, mock and understand; clients depend only on what they use (a reporting service needs `OrderReader`, not the whole `OrderRepository`).
+
+## D: Dependency Inversion Principle | rose
+- "High-level modules should not depend on low-level modules; **both should depend on abstractions**. Abstractions should not depend on details; details should depend on abstractions."
+```java DipDemo.java
+public class DipDemo {
+    public static void main(String[] args) {
+        OrderService service = new OrderService(new InMemoryOrderRepository());   // a fake for tests or demos
+        service.place("ORD-1");
+        // Production wiring: new OrderService(new JdbcOrderRepository(dataSource)), usually done by Spring
+    }
+}
+
+// Before: class OrderService { private final MySqlOrderRepository repo = new MySqlOrderRepository(); }
+interface OrderRepository { void save(String orderId); }          // the abstraction belongs to the business layer
+
+class OrderService {                                                 // high-level policy
+    private final OrderRepository repository;
+    OrderService(OrderRepository repository) { this.repository = repository; }   // injected
+    void place(String orderId) { repository.save(orderId); }
+}
+
+class InMemoryOrderRepository implements OrderRepository {           // low-level detail
+    public void save(String orderId) { System.out.println("saved " + orderId + " in memory"); }
+}
+```
+- **Dependency injection** (constructor injection, Spring) is the usual technique for following DIP; it also makes classes **unit-testable** with mocks (Testing topic).
+- DIP is the foundation of **hexagonal and clean architecture** (sheet 15): the domain defines interfaces (ports) and infrastructure implements them (adapters).
+
+## Interview Q&A | sky | wide
+Q: What are the SOLID principles?
+A: Single Responsibility (one reason to change), Open/Closed (extend without modifying), Liskov Substitution (subtypes must be usable as their base type), Interface Segregation (small, client-specific interfaces) and Dependency Inversion (depend on abstractions, not concrete implementations).
+Q: Give an example of a Liskov violation.
+A: Square extending Rectangle: code that sets width 5 and height 4 expects area 20 but gets 16 for a Square. Another is a subclass throwing UnsupportedOperationException for an inherited method.
+Q: How do you apply the Open/Closed principle in practice?
+A: Put the varying behaviour behind an interface and add new implementations (Strategy, Decorator, plug-ins) instead of extending if/else or switch chains.
+Q: Dependency inversion vs dependency injection?
+A: Dependency inversion is the design principle (depend on abstractions owned by the high-level code); dependency injection is the technique of passing dependencies in from outside, often by a framework like Spring, which helps achieve it.
+Q: Why does the Single Responsibility Principle help testing?
+A: Each class has one concern, so tests are small and focused and need fewer mocks; changes to one concern don't break tests of another.
+Q: Can SOLID be overused?
+A: Yes. Creating interfaces with a single implementation, deep hierarchies or many tiny classes "just in case" adds complexity. Apply the principles where requirements actually vary.
+
+# 12 | Creational Design Patterns | The Gang of Four catalogue, Singleton (enum, holder, double-checked locking), Factory Method vs simple factory, Abstract Factory, Builder, Prototype, with runnable Java and JDK examples | Creational Patterns
+
+## Design Patterns and the Gang of Four | rose
+- A **design pattern** is a reusable, named solution to a recurring design problem. Patterns give teams a **shared vocabulary** ("use a decorator here").
+- The classic catalogue is *Design Patterns: Elements of Reusable Object-Oriented Software* (**1994**) by Erich Gamma, Richard Helm, Ralph Johnson and John Vlissides, the **"Gang of Four" (GoF)**: **23 patterns** in three groups.
+- **Creational** patterns control **object creation**; **structural** patterns **compose** classes and objects into larger structures; **behavioural** patterns organise **communication and responsibilities** between objects.
+- Modern Java (lambdas, records, enums, DI frameworks) makes several patterns much shorter than the original C++ and Smalltalk versions.
+
+## Singleton | blue
+- **Intent**: ensure a class has **exactly one instance** and provide a global access point (configuration, a connection pool, a registry, a logger).
+```java SingletonDemo.java
+import java.util.concurrent.atomic.AtomicLong;
+
+public class SingletonDemo {
+    public static void main(String[] args) {
+        System.out.println(AppConfig.INSTANCE.region() + " " + (AppConfig.INSTANCE == AppConfig.INSTANCE));
+        System.out.println(IdGenerator.getInstance().next() + ", " + IdGenerator.getInstance().next());
+        System.out.println(Registry.getInstance() == Registry.getInstance());
+    }
+}
+
+enum AppConfig {                                  // 1. enum singleton: simplest, thread-safe,
+    INSTANCE;                                     //    safe against serialization and reflection attacks
+    String region() { return "ap-south-1"; }
+}
+
+final class IdGenerator {                         // 2. initialization-on-demand holder: lazy and thread-safe without locks
+    private final AtomicLong counter = new AtomicLong();
+    private IdGenerator() {}
+    private static final class Holder { static final IdGenerator INSTANCE = new IdGenerator(); }
+    static IdGenerator getInstance() { return Holder.INSTANCE; }   // Holder loads on the first call
+    long next() { return counter.incrementAndGet(); }
+}
+
+final class Registry {                            // 3. double-checked locking: needs volatile
+    private static volatile Registry instance;
+    private Registry() {}
+    static Registry getInstance() {
+        if (instance == null) {                   // fast path without locking
+            synchronized (Registry.class) {
+                if (instance == null) instance = new Registry();   // check again inside the lock
+            }
+        }
+        return instance;
+    }
+}
+```
+```text
+ap-south-1 true
+1, 2
+true
+```
+- Why `volatile` in double-checked locking: without it, another thread could see a **non-null reference to a not yet fully constructed object** because of instruction reordering.
+- **Criticism**: a singleton is **global mutable state**, hides dependencies and makes tests hard (you can't easily swap it). Prefer letting a **DI container** manage one instance (Spring beans are singletons by default) and inject it.
+- JDK examples: `Runtime.getRuntime()`, `Desktop.getDesktop()`.
+
+## Factory Method | green
+- **Intent**: define an interface for creating an object, but let **subclasses decide which class to instantiate**. The creator's algorithm stays fixed; the product varies.
+```java FactoryMethodDemo.java
+public class FactoryMethodDemo {
+    public static void main(String[] args) {
+        System.out.println(new UpiCheckout().pay(499));
+        System.out.println(new CardCheckout().pay(499));
+        System.out.println(Notifications.create("sms").send("Order shipped"));
+    }
+}
+
+interface PaymentGateway { String charge(double amount); }
+class UpiGateway implements PaymentGateway { public String charge(double a) { return "UPI collect request for Rs " + a; } }
+class CardGateway implements PaymentGateway { public String charge(double a) { return "Card authorised for Rs " + a; } }
+
+abstract class Checkout {                                  // the creator
+    String pay(double amount) {
+        PaymentGateway gateway = createGateway();          // fixed algorithm, product chosen by the subclass
+        return gateway.charge(amount);
+    }
+    protected abstract PaymentGateway createGateway();     // the factory method
+}
+class UpiCheckout extends Checkout { protected PaymentGateway createGateway() { return new UpiGateway(); } }
+class CardCheckout extends Checkout { protected PaymentGateway createGateway() { return new CardGateway(); } }
+
+interface Notification { String send(String message); }
+final class Notifications {                                // a "simple factory": one static method choosing the class
+    static Notification create(String channel) {
+        return switch (channel) {
+            case "sms" -> msg -> "SMS: " + msg;
+            case "email" -> msg -> "Email: " + msg;
+            default -> throw new IllegalArgumentException("unknown channel " + channel);
+        };
+    }
+}
+```
+```text
+UPI collect request for Rs 499.0
+Card authorised for Rs 499.0
+SMS: Order shipped
+```
+- **Simple factory / static factory method** (`Notifications.create`, `List.of`, `Integer.valueOf`) is not the GoF pattern but is the most common form in practice: one method hides which concrete class is created.
+- JDK examples: `Calendar.getInstance()`, `NumberFormat.getInstance()`, `Collection.iterator()` (each collection subclass returns its own iterator: a true factory method).
+
+## Abstract Factory | amber
+- **Intent**: create **families of related objects** without naming their concrete classes, so products from one family are always used together.
+```java AbstractFactoryDemo.java
+public class AbstractFactoryDemo {
+    public static void main(String[] args) {
+        for (CloudFactory cloud : new CloudFactory[] { new AwsFactory(), new GcpFactory() }) {
+            System.out.println(cloud.storage().upload("invoice.pdf") + " | " + cloud.queue().publish("order-created"));
+        }
+    }
+}
+
+interface ObjectStorage { String upload(String file); }
+interface MessageQueue { String publish(String event); }
+
+interface CloudFactory {                              // one factory per family
+    ObjectStorage storage();
+    MessageQueue queue();
+}
+
+class AwsFactory implements CloudFactory {
+    public ObjectStorage storage() { return file -> "S3 put " + file; }
+    public MessageQueue queue() { return event -> "SQS send " + event; }
+}
+
+class GcpFactory implements CloudFactory {
+    public ObjectStorage storage() { return file -> "GCS upload " + file; }
+    public MessageQueue queue() { return event -> "Pub/Sub publish " + event; }
+}
+```
+```text
+S3 put invoice.pdf | SQS send order-created
+GCS upload invoice.pdf | Pub/Sub publish order-created
+```
+- **Factory Method vs Abstract Factory**: a factory method creates **one product** and relies on **inheritance**; an abstract factory is an **object** that creates a **whole family** of products, chosen once (by configuration) and passed around.
+- JDK examples: `DocumentBuilderFactory`, `XPathFactory`, JDBC's `Connection` creating matching `Statement`s.
+
+## Builder | violet
+- **Intent**: construct a **complex object step by step**, separating construction from representation. Ideal for objects with **many optional parameters** (instead of "telescoping constructors"), and for producing **immutable** objects that are validated once.
+```java BuilderDemo.java
+import java.util.ArrayList;
+import java.util.List;
+
+public class BuilderDemo {
+    public static void main(String[] args) {
+        HttpCall call = HttpCall.builder("https://api.shop.io/orders")
+                .method("POST")
+                .header("Content-Type", "application/json")
+                .body("{\"sku\":\"KB-1\"}")
+                .timeoutSeconds(5)
+                .build();
+        System.out.println(call);
+    }
+}
+
+final class HttpCall {                                     // immutable product
+    private final String url, method, body;
+    private final List<String> headers;
+    private final int timeoutSeconds;
+
+    private HttpCall(Builder b) {
+        url = b.url; method = b.method; body = b.body; headers = List.copyOf(b.headers); timeoutSeconds = b.timeoutSeconds;
+    }
+
+    static Builder builder(String url) { return new Builder(url); }
+
+    @Override public String toString() {
+        return method + " " + url + " " + headers + " body=" + body + " timeout=" + timeoutSeconds + "s";
+    }
+
+    static final class Builder {
+        private final String url;                          // required: passed to the builder's constructor
+        private String method = "GET";                     // optional: sensible defaults
+        private final List<String> headers = new ArrayList<>();
+        private String body = "";
+        private int timeoutSeconds = 30;
+
+        private Builder(String url) { this.url = url; }
+        Builder method(String method) { this.method = method; return this; }     // each setter returns the builder
+        Builder header(String name, String value) { headers.add(name + ": " + value); return this; }
+        Builder body(String body) { this.body = body; return this; }
+        Builder timeoutSeconds(int seconds) { this.timeoutSeconds = seconds; return this; }
+
+        HttpCall build() {                                 // validate once, then create
+            if (!url.startsWith("https://")) throw new IllegalStateException("https required");
+            return new HttpCall(this);
+        }
+    }
+}
+```
+```text
+POST https://api.shop.io/orders [Content-Type: application/json] body={"sku":"KB-1"} timeout=5s
+```
+- JDK and library examples: `StringBuilder`, `HttpRequest.newBuilder()`, `Stream.builder()`, `Locale.Builder`; Lombok's `@Builder` generates one.
+
+## Prototype | rose
+- **Intent**: create new objects by **copying an existing, configured instance** (the prototype) instead of building from scratch, useful when setup is expensive or the exact class is only known at runtime.
+```java PrototypeDemo.java
+import java.util.ArrayList;
+import java.util.List;
+
+public class PrototypeDemo {
+    public static void main(String[] args) {
+        ReportTemplate monthly = new ReportTemplate("Monthly sales", new ArrayList<>(List.of("Revenue", "Orders")));
+        ReportTemplate refunds = monthly.copy();          // start from the configured prototype
+        refunds.sections().add("Refunds");
+        System.out.println(monthly.sections() + " vs " + refunds.sections());
+    }
+}
+
+record ReportTemplate(String title, List<String> sections) {
+    ReportTemplate copy() {
+        return new ReportTemplate(title, new ArrayList<>(sections));   // deep copy of the mutable list
+    }
+}
+```
+```text
+[Revenue, Orders] vs [Revenue, Orders, Refunds]
+```
+- **Shallow vs deep copy**: a shallow copy shares nested mutable objects (changing the copy's list would change the original's); a deep copy duplicates them.
+- In Java prefer **copy constructors or copy methods** over `Cloneable` / `Object.clone()`, which is error-prone (shallow by default, checked exception, bypasses constructors).
+
+## Interview Q&A | sky | wide
+Q: How do you implement a thread-safe singleton in Java?
+A: The simplest is an enum with one constant. Alternatives are the initialization-on-demand holder idiom, or double-checked locking with a volatile field.
+Q: Why is volatile needed in double-checked locking?
+A: To prevent other threads from seeing a reference to a partially constructed object due to instruction reordering; volatile guarantees safe publication.
+Q: Why is the Singleton pattern often criticised?
+A: It introduces global state, hides dependencies, complicates testing and can become a concurrency bottleneck. Dependency injection with a single managed instance is usually preferable.
+Q: Factory Method vs Abstract Factory?
+A: Factory Method lets subclasses decide which single product to create via an overridable method; Abstract Factory is an object that creates families of related products that must be used together.
+Q: When would you use the Builder pattern?
+A: For objects with many optional parameters or complex validation, to avoid telescoping constructors and to build immutable objects in a readable, step-by-step way.
+Q: Shallow vs deep copy in the Prototype pattern?
+A: A shallow copy duplicates the object but shares references to nested objects; a deep copy also duplicates the nested mutable objects so the copies are independent.
+Q: Give JDK examples of creational patterns.
+A: Runtime.getRuntime() (singleton), Calendar.getInstance() and List.of() (factory methods), DocumentBuilderFactory (abstract factory), StringBuilder and HttpRequest.newBuilder() (builder).
+
+# 13 | Structural Design Patterns | Adapter, Decorator, Facade, Proxy (including JDK dynamic proxies) and Composite, with runnable Java, where each appears in the JDK and Spring, and how they differ | Structural Patterns
+
+## Adapter | rose
+- **Intent**: convert the interface of a class into **another interface clients expect**, so incompatible classes can work together. Typical for **legacy systems and third-party libraries** you can't change.
+```java AdapterDemo.java
+public class AdapterDemo {
+    public static void main(String[] args) {
+        PaymentGateway gateway = new LegacyBankAdapter(new LegacyBankClient());
+        System.out.println("payment reference: " + gateway.charge("ann@shop.io", 499.0));
+    }
+}
+
+interface PaymentGateway { String charge(String customer, double amount); }   // what our code expects
+
+class LegacyBankClient {                                                        // third-party API we can't change
+    String makePaymentXml(String requestXml) { return "<ok ref=\"BNK-77\"/>"; }
+}
+
+class LegacyBankAdapter implements PaymentGateway {                             // translates calls and data
+    private final LegacyBankClient client;
+    LegacyBankAdapter(LegacyBankClient client) { this.client = client; }
+
+    public String charge(String customer, double amount) {
+        long paise = Math.round(amount * 100);                                  // the bank wants paise, as XML
+        String reply = client.makePaymentXml("<pay customer=\"" + customer + "\" paise=\"" + paise + "\"/>");
+        return reply.replaceAll(".*ref=\"([^\"]+)\".*", "$1");                  // and answers in XML
+    }
+}
+```
+```text
+payment reference: BNK-77
+```
+- JDK examples: `Arrays.asList` (array → `List`), `InputStreamReader` (byte stream → character reader), `Collections.enumeration`. Spring MVC's `HandlerAdapter` lets the dispatcher call very different handler types.
+
+## Decorator | blue
+- **Intent**: **add responsibilities to an object dynamically** by wrapping it in objects with the **same interface**. A flexible alternative to subclassing for every combination of features.
+```java DecoratorDemo.java
+public class DecoratorDemo {
+    public static void main(String[] args) {
+        Notifier notifier = new SlackDecorator(new SmsDecorator(new EmailNotifier()));   // stack behaviours at runtime
+        notifier.send("Server CPU at 95%");
+    }
+}
+
+interface Notifier { void send(String message); }
+
+class EmailNotifier implements Notifier {
+    public void send(String message) { System.out.println("email: " + message); }
+}
+
+abstract class NotifierDecorator implements Notifier {      // has the same interface and wraps another Notifier
+    protected final Notifier wrapped;
+    NotifierDecorator(Notifier wrapped) { this.wrapped = wrapped; }
+    public void send(String message) { wrapped.send(message); }
+}
+
+class SmsDecorator extends NotifierDecorator {
+    SmsDecorator(Notifier wrapped) { super(wrapped); }
+    public void send(String message) { super.send(message); System.out.println("sms: " + message); }
+}
+
+class SlackDecorator extends NotifierDecorator {
+    SlackDecorator(Notifier wrapped) { super(wrapped); }
+    public void send(String message) { super.send(message); System.out.println("slack: " + message); }
+}
+```
+```text
+email: Server CPU at 95%
+sms: Server CPU at 95%
+slack: Server CPU at 95%
+```
+- With subclasses alone you'd need `EmailSmsNotifier`, `EmailSlackNotifier`, `EmailSmsSlackNotifier`... Decorators combine freely.
+- JDK examples: `new BufferedReader(new InputStreamReader(new FileInputStream(f)))` (Java I/O streams), `Collections.unmodifiableList` / `synchronizedList`.
+
+## Facade | green
+- **Intent**: provide **one simple interface** to a complex subsystem, so clients don't need to know its internals.
+```java FacadeDemo.java
+public class FacadeDemo {
+    public static void main(String[] args) {
+        OrderFacade shop = new OrderFacade(new Inventory(), new Payments(), new Shipping());
+        System.out.println(shop.placeOrder("KB-1", "ann@shop.io"));
+    }
+}
+
+class Inventory { boolean reserve(String sku) { return true; } }
+class Payments { String charge(String customer) { return "pay_42"; } }
+class Shipping { String schedule(String sku) { return "AWB-9001"; } }
+
+class OrderFacade {                                         // one entry point over three subsystems
+    private final Inventory inventory;
+    private final Payments payments;
+    private final Shipping shipping;
+
+    OrderFacade(Inventory inventory, Payments payments, Shipping shipping) {
+        this.inventory = inventory; this.payments = payments; this.shipping = shipping;
+    }
+
+    String placeOrder(String sku, String customer) {
+        if (!inventory.reserve(sku)) return "out of stock";
+        String paymentId = payments.charge(customer);
+        String awb = shipping.schedule(sku);
+        return "order placed: payment " + paymentId + ", shipment " + awb;
+    }
+}
+```
+```text
+order placed: payment pay_42, shipment AWB-9001
+```
+- A facade doesn't hide the subsystem completely: advanced clients can still use it directly. Examples: SLF4J (a logging facade over Logback or Log4j), Spring's `JdbcTemplate` over raw JDBC, an API gateway's aggregated endpoint.
+
+## Proxy | amber
+- **Intent**: provide a **stand-in with the same interface** that **controls access** to the real object: lazy loading (virtual proxy), caching, access control (protection proxy), remote calls (remote proxy), logging and transactions.
+```java ProxyDemo.java
+import java.lang.reflect.Proxy;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+public class ProxyDemo {
+    public static void main(String[] args) {
+        ProductService real = new DatabaseProductService();
+
+        ProductService cached = new CachingProductService(real);           // a hand-written caching proxy
+        cached.price("KB-1");
+        cached.price("KB-1");                                               // second call never reaches the database
+
+        ProductService logged = (ProductService) Proxy.newProxyInstance(     // a JDK dynamic proxy, generated at runtime
+                ProductService.class.getClassLoader(),
+                new Class<?>[] { ProductService.class },
+                (proxy, method, methodArgs) -> {
+                    System.out.println("→ " + method.getName() + Arrays.toString(methodArgs));
+                    Object result = method.invoke(real, methodArgs);
+                    System.out.println("← " + result);
+                    return result;
+                });
+        logged.price("MS-2");
+    }
+}
+
+interface ProductService { double price(String sku); }
+
+class DatabaseProductService implements ProductService {
+    public double price(String sku) {
+        System.out.println("  loading " + sku + " from the database");
+        return 1500;
+    }
+}
+
+class CachingProductService implements ProductService {             // same interface as the real service
+    private final ProductService target;
+    private final Map<String, Double> cache = new HashMap<>();
+    CachingProductService(ProductService target) { this.target = target; }
+    public double price(String sku) { return cache.computeIfAbsent(sku, target::price); }
+}
+```
+```text
+  loading KB-1 from the database
+→ price[MS-2]
+  loading MS-2 from the database
+← 1500.0
+```
+- **Spring AOP** wraps beans in proxies (JDK dynamic proxies for interfaces, CGLIB subclasses otherwise) to apply `@Transactional`, `@Cacheable` and `@Async`; that's why calling such a method from **inside the same class** bypasses the proxy and the annotation has no effect. **Hibernate** uses proxies for **lazy loading** of associations.
+- **Proxy vs Decorator**: same structure, different intent: a decorator **adds behaviour** chosen by the client; a proxy **controls access** and usually manages the real object's lifecycle.
+
+## Composite | violet
+- **Intent**: compose objects into **tree structures** and let clients treat **individual objects and groups uniformly** (part-whole hierarchies).
+```java CompositeDemo.java
+import java.util.ArrayList;
+import java.util.List;
+
+public class CompositeDemo {
+    public static void main(String[] args) {
+        Folder root = new Folder("root");
+        Folder docs = new Folder("docs");
+        docs.add(new FileNode("resume.pdf", 120));
+        docs.add(new FileNode("notes.txt", 4));
+        root.add(docs);
+        root.add(new FileNode("photo.jpg", 2048));
+        System.out.println(root.size() + " KB");          // the client asks the root; it doesn't care what's inside
+        root.print("");
+    }
+}
+
+interface Node {
+    long size();
+    void print(String indent);
+}
+
+record FileNode(String name, long sizeKb) implements Node {        // leaf
+    public long size() { return sizeKb; }
+    public void print(String indent) { System.out.println(indent + name + " (" + sizeKb + " KB)"); }
+}
+
+class Folder implements Node {                                      // composite: is a Node and contains Nodes
+    private final String name;
+    private final List<Node> children = new ArrayList<>();
+    Folder(String name) { this.name = name; }
+    void add(Node node) { children.add(node); }
+    public long size() { return children.stream().mapToLong(Node::size).sum(); }
+    public void print(String indent) {
+        System.out.println(indent + name + "/");
+        children.forEach(child -> child.print(indent + "  "));
+    }
+}
+```
+```text
+2172 KB
+root/
+  docs/
+    resume.pdf (120 KB)
+    notes.txt (4 KB)
+  photo.jpg (2048 KB)
+```
+- Examples: file systems, UI component trees (Swing's `Container`, the DOM, Angular and React component trees), organisation charts, menus, expression trees, nested product bundles.
+
+## Interview Q&A | sky | wide
+Q: Adapter vs Facade?
+A: An adapter converts one existing interface into another that a client expects, usually for one class; a facade defines a new, simpler interface over a whole subsystem.
+Q: Decorator vs inheritance?
+A: Inheritance fixes behaviour at compile time and needs a subclass for every combination; decorators wrap objects at runtime and can be stacked in any combination.
+Q: Proxy vs Decorator?
+A: Both wrap an object with the same interface. A proxy controls access (lazy loading, caching, security, remote calls, transactions); a decorator adds behaviour the client chooses to stack.
+Q: How does Spring use the Proxy pattern?
+A: It wraps beans in JDK dynamic or CGLIB proxies to apply cross-cutting behaviour such as @Transactional, @Cacheable and security. Self-invocation inside the same class bypasses the proxy.
+Q: Give an example of the Composite pattern.
+A: A file system where files (leaves) and folders (composites containing files and folders) share one interface, so size() works the same on both.
+Q: Where are decorators used in the JDK?
+A: The java.io streams (BufferedInputStream wrapping FileInputStream, InputStreamReader, etc.) and Collections.unmodifiableList and synchronizedList.
+
+# 14 | Behavioral Design Patterns | Strategy, Observer, Command, Iterator, Template Method and State, with runnable Java, JDK and Spring examples, and Strategy vs State | Behavioral Patterns
+
+## Strategy | rose
+- **Intent**: define a **family of interchangeable algorithms**, encapsulate each one, and let the client choose at runtime. Removes `if/else` or `switch` chains over "types" (Open/Closed principle).
+```java StrategyDemo.java
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+
+public class StrategyDemo {
+    public static void main(String[] args) {
+        Map<String, ShippingStrategy> strategies = Map.of(
+                "standard", kg -> 40 + 10 * kg,
+                "express",  kg -> 100 + 25 * kg,
+                "pickup",   kg -> 0);
+        for (String option : List.of("standard", "express", "pickup"))
+            System.out.println(option + ": Rs " + new Cart(3.0, strategies.get(option)).shippingCost());
+
+        List<String> names = new ArrayList<>(List.of("Meera", "Ann", "Karthik"));
+        names.sort(Comparator.comparing(String::length));     // Comparator is the JDK's classic strategy
+        System.out.println(names);
+    }
+}
+
+@FunctionalInterface
+interface ShippingStrategy { double cost(double weightKg); }
+
+record Cart(double weightKg, ShippingStrategy shipping) {     // the context delegates to its strategy
+    double shippingCost() { return shipping.cost(weightKg); }
+}
+```
+```text
+standard: Rs 70.0
+express: Rs 175.0
+pickup: Rs 0.0
+[Ann, Meera, Karthik]
+```
+- With lambdas, a strategy is often just a functional interface. In Spring, inject a `Map<String, PaymentStrategy>` of all implementations and pick by key.
+
+## Observer | blue
+- **Intent**: a **subject** keeps a list of **observers** and **notifies them automatically** when its state changes. One-to-many, with loose coupling: the subject knows observers only through an interface.
+```java ObserverDemo.java
+import java.util.ArrayList;
+import java.util.List;
+
+public class ObserverDemo {
+    public static void main(String[] args) {
+        OrderEvents events = new OrderEvents();
+        events.subscribe(id -> System.out.println("email: order " + id + " confirmed"));
+        events.subscribe(id -> System.out.println("inventory: reserve items for " + id));
+        events.subscribe(id -> System.out.println("analytics: count order " + id));
+        events.orderPlaced("ORD-7");
+    }
+}
+
+interface OrderListener { void onOrderPlaced(String orderId); }
+
+class OrderEvents {                                          // the subject
+    private final List<OrderListener> listeners = new ArrayList<>();
+    void subscribe(OrderListener listener) { listeners.add(listener); }
+    void unsubscribe(OrderListener listener) { listeners.remove(listener); }
+    void orderPlaced(String orderId) { listeners.forEach(l -> l.onOrderPlaced(orderId)); }
+}
+```
+```text
+email: order ORD-7 confirmed
+inventory: reserve items for ORD-7
+analytics: count order ORD-7
+```
+- Everywhere in practice: GUI and DOM **event listeners**, Spring's `ApplicationEventPublisher` and `@EventListener`, RxJS and Angular signals, and at system scale **pub/sub messaging** (Kafka topics with many consumer groups).
+- `java.util.Observer` and `Observable` are **deprecated** since Java 9; use listener interfaces, `PropertyChangeListener` or `java.util.concurrent.Flow`.
+- Watch for **memory leaks** from observers that are never unsubscribed, and slow observers blocking the subject (make notification asynchronous).
+
+## Command | green
+- **Intent**: encapsulate **a request as an object**, so requests can be queued, logged, retried, scheduled or **undone**, and the invoker is decoupled from the receiver.
+```java CommandDemo.java
+import java.util.ArrayDeque;
+import java.util.Deque;
+
+public class CommandDemo {
+    public static void main(String[] args) {
+        Document doc = new Document();
+        Editor editor = new Editor();
+        editor.run(new Append(doc, "Hello"));
+        editor.run(new Append(doc, ", world"));
+        System.out.println(doc.text);
+        editor.undo();
+        System.out.println(doc.text);
+    }
+}
+
+class Document { String text = ""; }                         // the receiver
+
+interface Command { void execute(); void undo(); }
+
+class Append implements Command {                            // a request packaged as an object
+    private final Document doc;
+    private final String added;
+    Append(Document doc, String added) { this.doc = doc; this.added = added; }
+    public void execute() { doc.text += added; }
+    public void undo() { doc.text = doc.text.substring(0, doc.text.length() - added.length()); }
+}
+
+class Editor {                                               // the invoker keeps a history for undo
+    private final Deque<Command> history = new ArrayDeque<>();
+    void run(Command command) { command.execute(); history.push(command); }
+    void undo() { if (!history.isEmpty()) history.pop().undo(); }
+}
+```
+```text
+Hello, world
+Hello
+```
+- JDK examples: `Runnable` and `Callable` submitted to an `ExecutorService` are commands. At system level: job queues, CQRS commands, macro recording, transactional outboxes.
+
+## Iterator | amber
+- **Intent**: access the elements of a collection **sequentially without exposing its internal structure**.
+```java IteratorDemo.java
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+public class IteratorDemo {
+    public static void main(String[] args) {
+        for (int page : new PageRange(1, 3)) System.out.print("page " + page + " ");   // for-each calls iterator()
+        System.out.println();
+        Iterator<Integer> it = new PageRange(5, 6).iterator();
+        while (it.hasNext()) System.out.print(it.next() + " ");
+        System.out.println();
+    }
+}
+
+record PageRange(int from, int to) implements Iterable<Integer> {
+    public Iterator<Integer> iterator() {
+        return new Iterator<>() {                    // each iterator keeps its own position
+            private int next = from;
+            public boolean hasNext() { return next <= to; }
+            public Integer next() {
+                if (!hasNext()) throw new NoSuchElementException();
+                return next++;
+            }
+        };
+    }
+}
+```
+```text
+page 1 page 2 page 3
+5 6
+```
+- Built into Java: `Iterable` / `Iterator` power the **for-each loop**; `Spliterator` powers streams. Modifying a `List` while iterating it with for-each throws **`ConcurrentModificationException`** (fail-fast iterators); use `iterator.remove()` or `removeIf`.
+- At API level, **cursor-based pagination** is the iterator pattern over HTTP.
+
+## Template Method | violet
+- **Intent**: define the **skeleton of an algorithm in a base class** and let subclasses **override specific steps** without changing the overall structure.
+```java TemplateMethodDemo.java
+import java.util.List;
+
+public class TemplateMethodDemo {
+    public static void main(String[] args) {
+        List<String[]> rows = List.of(new String[] { "KB-1", "1500" }, new String[] { "MS-2", "500" });
+        System.out.print(new CsvExporter().export(rows));
+        System.out.print(new JsonExporter().export(rows));
+    }
+}
+
+abstract class Exporter {
+    final String export(List<String[]> rows) {           // the template method: final, so the steps can't be reordered
+        StringBuilder out = new StringBuilder(header());
+        for (int i = 0; i < rows.size(); i++) out.append(row(rows.get(i), i == rows.size() - 1));
+        return out.append(footer()).toString();
+    }
+    protected abstract String header();                  // steps every subclass must provide
+    protected abstract String row(String[] cols, boolean last);
+    protected String footer() { return ""; }             // a hook with a default
+}
+
+class CsvExporter extends Exporter {
+    protected String header() { return "sku,price\n"; }
+    protected String row(String[] c, boolean last) { return c[0] + "," + c[1] + "\n"; }
+}
+
+class JsonExporter extends Exporter {
+    protected String header() { return "["; }
+    protected String row(String[] c, boolean last) { return "{\"sku\":\"" + c[0] + "\",\"price\":" + c[1] + "}" + (last ? "" : ","); }
+    protected String footer() { return "]\n"; }
+}
+```
+```text
+sku,price
+KB-1,1500
+MS-2,500
+[{"sku":"KB-1","price":1500},{"sku":"MS-2","price":500}]
+```
+- JDK and framework examples: `AbstractList` (implement `get` and `size`, inherit the rest), `HttpServlet.service()` calling `doGet` / `doPost`, JUnit's lifecycle. Spring's `JdbcTemplate` is the callback-based variant: it fixes the steps (get connection, execute, handle errors, close) and you pass the varying part as a lambda.
+- **Template Method vs Strategy**: template method varies steps through **inheritance** (compile time); strategy swaps a whole algorithm through **composition** (runtime). Modern code usually prefers composition.
+
+## State | rose
+- **Intent**: let an object **change its behaviour when its internal state changes**, with each state as its own class instead of `switch (status)` in every method. A clean way to implement a **state machine**.
+```java StateDemo.java
+public class StateDemo {
+    public static void main(String[] args) {
+        Order order = new Order();
+        order.pay();
+        order.ship();
+        order.cancel();                                          // not allowed once shipped
+        order.deliver();
+        System.out.println("final: " + order.state().name());
+    }
+}
+
+interface OrderState {
+    default OrderState pay()     { return reject("pay"); }
+    default OrderState ship()    { return reject("ship"); }
+    default OrderState deliver() { return reject("deliver"); }
+    default OrderState cancel()  { return reject("cancel"); }
+    String name();
+    private OrderState reject(String action) {
+        System.out.println("  cannot " + action + " when " + name());
+        return this;                                             // stay in the same state
+    }
+}
+
+record New() implements OrderState {
+    public OrderState pay() { return new Paid(); }
+    public OrderState cancel() { return new Cancelled(); }
+    public String name() { return "NEW"; }
+}
+record Paid() implements OrderState {
+    public OrderState ship() { return new Shipped(); }
+    public OrderState cancel() { return new Cancelled(); }       // refund handled elsewhere
+    public String name() { return "PAID"; }
+}
+record Shipped() implements OrderState {
+    public OrderState deliver() { return new Delivered(); }
+    public String name() { return "SHIPPED"; }
+}
+record Delivered() implements OrderState { public String name() { return "DELIVERED"; } }
+record Cancelled() implements OrderState { public String name() { return "CANCELLED"; } }
+
+class Order {                                                    // the context delegates to its current state
+    private OrderState state = new New();
+    OrderState state() { return state; }
+    void pay()     { move(state.pay()); }
+    void ship()    { move(state.ship()); }
+    void deliver() { move(state.deliver()); }
+    void cancel()  { move(state.cancel()); }
+    private void move(OrderState next) {
+        if (next != state) System.out.println(state.name() + " → " + next.name());
+        state = next;
+    }
+}
+```
+```text
+NEW → PAID
+PAID → SHIPPED
+  cannot cancel when SHIPPED
+SHIPPED → DELIVERED
+final: DELIVERED
+```
+- Each state knows only its own **valid transitions**; adding a state (`RETURNED`) adds a class instead of editing every `switch`. Spring Statemachine and workflow engines generalise this.
+- **State vs Strategy**: same structure (a context delegating to an interchangeable object), different intent: in **State**, the state objects **change the context's state themselves** as events happen; in **Strategy**, the **client chooses** an algorithm and it usually stays fixed.
+
+## Interview Q&A | sky | wide
+Q: What is the Strategy pattern? Give a real example.
+A: Encapsulating interchangeable algorithms behind an interface and choosing one at runtime, such as shipping-cost or payment strategies, or Comparator in sorting.
+Q: Observer pattern vs pub/sub?
+A: In the Observer pattern the subject calls its registered observers directly, in-process. In pub/sub, publishers and subscribers don't know each other: a broker (Kafka, Redis, an event bus) delivers messages, often asynchronously and across services.
+Q: How would you implement undo/redo?
+A: With the Command pattern: each action is an object with execute and undo; executed commands go on an undo stack, and undone ones on a redo stack.
+Q: Template Method vs Strategy?
+A: Template Method fixes an algorithm's skeleton in a base class and varies steps through subclass overrides (inheritance); Strategy replaces the whole algorithm with an interchangeable object (composition, chosen at runtime).
+Q: State vs Strategy?
+A: Both delegate to interchangeable objects. In State, transitions between state objects happen internally as the object's state changes; in Strategy, the client picks the algorithm explicitly.
+Q: Why does modifying a list during a for-each loop throw an exception?
+A: The iterator is fail-fast: it detects that the collection was structurally modified outside the iterator and throws ConcurrentModificationException. Use iterator.remove() or removeIf.
+Q: Which behavioural patterns do you see in Spring?
+A: Template Method (JdbcTemplate, RestTemplate), Observer (application events), Strategy (pluggable implementations injected by interface), Command (Runnable tasks in executors) and Chain of Responsibility (servlet filters and the security filter chain).
+
+# 15 | LLD, Schema Design & Clean/Hexagonal Architecture | How to approach a low-level design question, UML class diagram basics, designing a database schema (movie booking), preventing double booking, layered vs clean vs hexagonal architecture with runnable Java | LLD & Architecture
+
+## Approaching a Low-Level Design Question | rose
+```text
+1. Clarify scope        actors and use cases ("users search shows, pick seats, pay; admins add shows")
+2. Find the entities    nouns → classes (Movie, Theatre, Screen, Seat, Show, Booking, Payment, User)
+3. Find behaviours      verbs → methods and services (searchShows, holdSeats, confirmBooking, cancel)
+4. Relationships        has-a / is-a, multiplicities, which class owns which data
+5. Apply principles     SOLID; patterns where they fit (Strategy for pricing, State for booking status,
+                        Observer for notifications, Factory for payment methods, Singleton-managed services)
+6. Concurrency & edge   two users booking the same seat, payment timeouts, idempotent retries
+7. Code the core        interfaces and key classes; mention tests and how to extend
+```
+- Classic LLD questions: **parking lot**, **elevator system**, **movie ticket booking**, **vending machine** (State), **ATM** (State, Chain of Responsibility), **library management**, **Splitwise / expense sharing**, **chess or snakes and ladders**, **logger framework** (Singleton, Chain of Responsibility), **LRU cache** (sheet 03), **rate limiter** (sheet 05), **notification system** (Observer, Strategy, Factory).
+- Interviewers value **clean interfaces, correct relationships, extensibility and concurrency awareness** over drawing every class.
+
+## UML Class Diagram Basics | blue
+```text
+Inheritance (is-a)                Square ───────▷ Shape                (solid line, hollow triangle)
+Realization (implements)          UpiGateway ┄┄┄▷ PaymentGateway       (dashed line, hollow triangle)
+Association (knows / uses)        Booking ─────── User
+Aggregation (has-a, parts live on) Playlist ◇───── Song                 (songs exist without the playlist)
+Composition (owns, parts die too)  Order ◆──────── OrderLine            (lines are deleted with the order)
+Dependency (uses briefly)         ReportService ┄┄> PdfRenderer
+Multiplicity                      Show "1" ─────── "0..*" Booking
+Visibility                        + public   - private   # protected   ~ package-private
+
+┌──────────────────────────┐
+│ Booking                  │   class name
+├──────────────────────────┤
+│ - id: long               │   attributes
+│ - status: BookingStatus  │
+│ - seats: List<Seat>      │
+├──────────────────────────┤
+│ + confirm(paymentId)     │   operations
+│ + cancel(): boolean      │
+└──────────────────────────┘
+```
+- **Aggregation vs composition**: both are "has-a"; in composition the part's lifetime is bound to the whole (deleting an order deletes its lines), in aggregation it isn't (deleting a playlist doesn't delete songs).
+- Other UML diagrams worth naming: **sequence diagrams** (message flow between objects over time, very useful in LLD interviews), use case, activity and state diagrams.
+
+## Designing the Database Schema: Movie Booking | green
+```sql schema.sql
+CREATE TABLE movies (
+  id            BIGINT PRIMARY KEY,
+  title         VARCHAR(200) NOT NULL,
+  duration_min  INT NOT NULL CHECK (duration_min > 0)
+);
+CREATE TABLE theatres (
+  id    BIGINT PRIMARY KEY,
+  name  VARCHAR(100) NOT NULL,
+  city  VARCHAR(50) NOT NULL
+);
+CREATE TABLE screens (
+  id          BIGINT PRIMARY KEY,
+  theatre_id  BIGINT NOT NULL REFERENCES theatres (id),
+  name        VARCHAR(20) NOT NULL,
+  UNIQUE (theatre_id, name)
+);
+CREATE TABLE seats (
+  id         BIGINT PRIMARY KEY,
+  screen_id  BIGINT NOT NULL REFERENCES screens (id),
+  seat_row   CHAR(1) NOT NULL,
+  seat_no    INT NOT NULL,
+  category   VARCHAR(10) NOT NULL CHECK (category IN ('SILVER', 'GOLD', 'RECLINER')),
+  UNIQUE (screen_id, seat_row, seat_no)
+);
+CREATE TABLE shows (
+  id         BIGINT PRIMARY KEY,
+  movie_id   BIGINT NOT NULL REFERENCES movies (id),
+  screen_id  BIGINT NOT NULL REFERENCES screens (id),
+  starts_at  TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX idx_shows_movie_start ON shows (movie_id, starts_at);      -- "shows of this movie from today"
+CREATE TABLE bookings (
+  id          BIGINT PRIMARY KEY,
+  user_id     BIGINT NOT NULL,
+  show_id     BIGINT NOT NULL REFERENCES shows (id),
+  status      VARCHAR(20) NOT NULL CHECK (status IN ('PENDING', 'CONFIRMED', 'CANCELLED')),
+  total       DECIMAL(10,2) NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE booked_seats (
+  booking_id  BIGINT NOT NULL REFERENCES bookings (id),
+  show_id     BIGINT NOT NULL REFERENCES shows (id),
+  seat_id     BIGINT NOT NULL REFERENCES seats (id),
+  PRIMARY KEY (booking_id, seat_id),
+  UNIQUE (show_id, seat_id)          -- a seat can be sold only once per show
+);
+
+INSERT INTO movies VALUES (1, 'Interstellar', 169);
+INSERT INTO theatres VALUES (1, 'PVR Phoenix', 'Chennai');
+INSERT INTO screens VALUES (1, 1, 'Audi 1');
+INSERT INTO seats VALUES (1, 1, 'A', 1, 'GOLD'), (2, 1, 'A', 2, 'GOLD');
+INSERT INTO shows VALUES (1, 1, 1, '2026-11-01 18:30+05:30');
+INSERT INTO bookings VALUES (1, 101, 1, 'CONFIRMED', 400.00, NOW());
+INSERT INTO booked_seats VALUES (1, 1, 1);                               -- user 101 holds seat A1
+```
+```sql
+-- User 202 tries to book the same seat A1 for the same show
+INSERT INTO bookings VALUES (2, 202, 1, 'PENDING', 200.00, NOW());
+INSERT INTO booked_seats VALUES (2, 1, 1);
+-- ERROR: duplicate key value violates unique constraint "booked_seats_show_id_seat_id_key"
+```
+- Work from **entities and relationships** (one theatre → many screens → many seats; a show = a movie on a screen at a time; a booking → many booked seats) and from the **access patterns** (shows by movie and date, seat availability by show), which decide the indexes.
+- Copy **show_id** into `booked_seats` (a deliberate denormalisation) so the database itself can enforce **"one seat, one show, sold once"** with a UNIQUE constraint. That constraint is the **last line of defence against double booking**, however the application is written.
+- Money as `DECIMAL`, statuses constrained with `CHECK` (or an enum type), times as `TIMESTAMPTZ`, every foreign key indexed in the real system.
+
+## Concurrency: Holding and Confirming Seats | amber
+- The user picks seats, then pays within a few minutes. Seats must be **held** in between without blocking the database: a `seat_holds` row with an `expires_at`, or a Redis key per seat with `SET seat:{show}:{seat} {user} NX EX 600` (set only if absent, expires in 10 minutes).
+- On payment success, **confirm** in one transaction (insert the booking and booked seats); the UNIQUE constraint rejects a seat someone else confirmed. On failure or timeout, the hold expires and the seats return to sale.
+- Alternatives: **pessimistic locking** (`SELECT ... FOR UPDATE` on the seat rows during booking: simple, but locks under contention) and **optimistic locking** (a version column checked on update, retry on conflict). For hot shows, holds plus the unique constraint scale best.
+- Payment callbacks must be **idempotent** (the payment gateway can retry webhooks): key them by payment id.
+
+## Layered vs Clean vs Hexagonal Architecture | violet
+- **Layered (n-tier)**: controller → service → repository → database. Simple and common, but the **business layer depends on the persistence layer**, so business rules get tangled with JPA entities and framework details.
+- **Hexagonal architecture (Ports and Adapters)**, Alistair **Cockburn** (2005): the **application core** (domain + use cases) sits in the middle and talks to the outside world only through **ports** (interfaces it defines). **Adapters** implement them: **driving (primary)** adapters call into the core (REST controllers, CLI, message listeners, tests); **driven (secondary)** adapters are called by the core (database, payment provider, email, Kafka producer).
+- **Clean Architecture**, Robert C. **Martin** (2012): concentric circles: **Entities** → **Use cases** → **Interface adapters** (controllers, presenters, gateways) → **Frameworks and drivers** (web, database, UI). **The Dependency Rule: source code dependencies point only inwards.** Onion architecture (Jeffrey Palermo, 2008) is the same idea.
+- Shared benefits: business rules are **framework-independent** and **testable without a database or web server**; infrastructure (database, broker, payment provider) can be swapped by writing a new adapter. Cost: more interfaces and mapping code, which is overkill for simple CRUD services.
+```text
+com.shop.orders
+├── domain/               Order, Money, OrderStatus             pure Java business rules, no Spring or JPA imports
+├── application/          PlaceOrderUseCase        (port in)    the use cases and the ports they need
+│                         PlaceOrderService        (use case)
+│                         OrderRepository, PaymentPort (ports out)
+└── adapters/
+    ├── in/web/           OrderController   (REST)              driving adapters call the use cases
+    ├── in/messaging/     OrderEventsListener (Kafka)
+    ├── out/persistence/  JpaOrderRepository                    driven adapters implement the output ports
+    └── out/payment/      RazorpayPaymentAdapter
+```
+```java HexagonalDemo.java
+import java.util.HashMap;
+import java.util.Map;
+
+public class HexagonalDemo {
+    public static void main(String[] args) {
+        // Composition root: wire adapters to the core (Spring does this in a real application)
+        OrderRepository repository = new InMemoryOrderRepository();            // driven adapter
+        PaymentPort payments = amount -> amount <= 10_000 ? "pay_1" : null;    // driven adapter (a stub)
+        PlaceOrderUseCase placeOrder = new PlaceOrderService(repository, payments);
+        OrderController controller = new OrderController(placeOrder);         // driving adapter
+
+        System.out.println(controller.post("ann@shop.io", 2500));
+        System.out.println(controller.post("ann@shop.io", 50_000));
+    }
+}
+
+// Domain: plain Java, no framework imports
+record Order(long id, String customer, double amount, String paymentId) {}
+
+// Ports: interfaces owned by the application core
+interface PlaceOrderUseCase { Order place(String customer, double amount); }   // driving (inbound) port
+interface OrderRepository { Order save(Order order); }                        // driven (outbound) port
+interface PaymentPort { String charge(double amount); }                        // driven (outbound) port
+
+// Application core: depends only on ports
+class PlaceOrderService implements PlaceOrderUseCase {
+    private final OrderRepository repository;
+    private final PaymentPort payments;
+    PlaceOrderService(OrderRepository repository, PaymentPort payments) { this.repository = repository; this.payments = payments; }
+
+    public Order place(String customer, double amount) {
+        String paymentId = payments.charge(amount);
+        if (paymentId == null) throw new IllegalStateException("payment declined");
+        return repository.save(new Order(0, customer, amount, paymentId));
+    }
+}
+
+// Adapters: depend on the core, never the other way round
+class OrderController {                                         // in a real app: a @RestController
+    private final PlaceOrderUseCase placeOrder;
+    OrderController(PlaceOrderUseCase placeOrder) { this.placeOrder = placeOrder; }
+    String post(String customer, double amount) {
+        try {
+            return "201 " + placeOrder.place(customer, amount);
+        } catch (IllegalStateException e) {
+            return "402 " + e.getMessage();
+        }
+    }
+}
+
+class InMemoryOrderRepository implements OrderRepository {      // in a real app: a JPA adapter
+    private final Map<Long, Order> store = new HashMap<>();
+    private long nextId = 1;
+    public Order save(Order order) {
+        Order saved = new Order(nextId++, order.customer(), order.amount(), order.paymentId());
+        store.put(saved.id(), saved);
+        return saved;
+    }
+}
+```
+```text
+201 Order[id=1, customer=ann@shop.io, amount=2500.0, paymentId=pay_1]
+402 payment declined
+```
+- The use case is tested by passing **fakes** for its ports (as `main` does here), with no Spring context, database or HTTP. Replacing the payment provider means writing one new adapter; the core doesn't change.
+
+## Interview Q&A | sky | wide
+Q: How do you approach a low-level design question?
+A: Clarify use cases and scope, identify entities and their relationships, define classes and interfaces with clear responsibilities, apply SOLID and suitable patterns, handle concurrency and edge cases, then code the core parts and discuss extensions.
+Q: Aggregation vs composition?
+A: Both are has-a relationships. In composition the parts belong to the whole and are destroyed with it (order and its lines); in aggregation the parts can exist independently (playlist and songs).
+Q: How do you prevent two users from booking the same seat?
+A: Hold seats temporarily (a hold table or Redis SET NX with expiry) during payment, confirm in a transaction, and enforce a unique constraint on (show_id, seat_id) in the database as the final guarantee; alternatively lock rows with SELECT FOR UPDATE or use optimistic locking.
+Q: What is hexagonal architecture?
+A: An architecture where the application core defines ports (interfaces) and the outside world connects through adapters: driving adapters such as REST controllers call the core, driven adapters such as database repositories implement its outbound ports. The core is independent of frameworks and infrastructure.
+Q: What is the Dependency Rule in Clean Architecture?
+A: Source code dependencies point only inwards: entities and use cases know nothing about controllers, databases or frameworks; outer layers depend on inner ones.
+Q: Layered vs hexagonal architecture?
+A: In a layered architecture the service layer depends on the persistence layer; in hexagonal architecture the core owns the repository interfaces and persistence depends on the core, so business logic stays independent and easily testable.
+Q: When is clean or hexagonal architecture overkill?
+A: For small CRUD services with little business logic, where the extra interfaces and mappings cost more than they save.
+
+@ Review
+# 16 | Rapid-Fire & Tricky Questions | One-liners, trade-off table, common mistakes, how to answer design questions, big Q&A | Rapid-fire
+
+## One-Line Cheat Sheet | rose
+- **Framework**: requirements → estimates → API → data model → high-level design → deep dives → trade-offs.
+- **Scale**: stateless app tier + load balancer → cache → read replicas → queue for async work → partition and shard → multi-region.
+- **Load balancing**: L4 (IP and port, fast) vs L7 (HTTP-aware routing); round robin, least connections, consistent hashing (moves about 1/N keys).
+- **Caching**: cache-aside (most common), read-through, write-through (consistent, slower writes), write-behind (fast, risk of loss), refresh-ahead; LRU, LFU; invalidate on write; jitter TTLs.
+- **CAP**: during a partition choose C or A. **PACELC**: else choose latency or consistency. Quorum R + W > N.
+- **Rate limiting**: token bucket (bursts), leaky bucket (smooth), fixed window (boundary burst), sliding log (exact), sliding counter (approximate, cheap); 429 + Retry-After; Redis + Lua.
+- **Migration**: Strangler Fig: facade, extract one capability, reroute, delete, repeat.
+- **SOLID**: one reason to change; extend, don't modify; substitutable subtypes; small interfaces; depend on abstractions.
+- **Patterns**: creational (Singleton, Factory Method, Abstract Factory, Builder, Prototype), structural (Adapter, Decorator, Facade, Proxy, Composite), behavioural (Strategy, Observer, Command, Iterator, Template Method, State).
+
+## Trade-Offs to Name Out Loud | blue
+```text
+Choice                         Gain                                   Cost
+SQL vs NoSQL                   joins, transactions, constraints       harder horizontal scaling / flexible schema, scale
+Strong vs eventual consistency correctness, simple reasoning         latency, availability / speed, stale reads
+Cache                          latency, database load                 staleness, invalidation complexity
+Sync REST vs async events      simplicity, immediate answers          coupling / resilience, eventual consistency
+Monolith vs microservices      simplicity, transactions               independent scaling and deploys / ops complexity
+Push vs pull (feeds, presence) freshness                              fan-out cost for huge audiences
+Normalised vs denormalised     consistency, no duplication            read speed / write cost and drift
+301 vs 302 redirect            fewer requests                         analytics and control
+```
+
+## Common Mistakes | green
+- Jumping into a diagram **without clarifying requirements** and scale.
+- Naming technologies without **justifying** them ("Kafka because it's popular").
+- Designing for a billion users when the stated scale is ten thousand (or the reverse).
+- Ignoring **failure modes**: what if the cache, a service, a region or a third party is down?
+- Forgetting **data**: schema, access patterns, indexes, growth, retention.
+- Single points of failure left in the design (one load balancer, one database primary without failover).
+- In LLD: god classes, inheritance where composition fits, no interfaces at the boundaries, ignoring concurrency.
+
+## How to Answer Well | amber
+- Think out loud, **state assumptions**, and check in with the interviewer ("Should I go deeper into the data model or the delivery path?").
+- Start simple, then evolve: "One server and Postgres handle 50 requests a second; at 15,000 reads a second we add a Redis cache and read replicas."
+- Every component earns its place with a reason and a trade-off; end with **monitoring, bottlenecks and what you'd do next**.
+- Tie to experience: "We moved product reads to cache-aside with Redis and jittered TTLs; database CPU dropped from 80% to 25% and p99 latency from 900 ms to 120 ms."
+
+## Big Interview Q&A | sky | wide
+Q: How would you scale a web application from 1,000 to 10 million users?
+A: Make app servers stateless behind a load balancer, add caching (CDN, Redis), read replicas, asynchronous processing with queues, then partition or shard the database, and finally go multi-region, monitoring bottlenecks at each step.
+Q: Horizontal vs vertical scaling?
+A: Vertical adds power to one machine (simple, limited, single point of failure); horizontal adds machines behind a load balancer (scalable and fault tolerant, but needs stateless design and distributed data).
+Q: What is consistent hashing?
+A: Mapping keys and nodes onto a hash ring so each key belongs to the next node clockwise; adding or removing a node moves only about 1/N of the keys, which matters for caches and partitioned databases.
+Q: Explain cache-aside and its consistency problem.
+A: The app reads from the cache, falls back to the database on a miss and populates the cache; writes update the database and invalidate the key. Stale data is possible between the write and invalidation, bounded by TTLs.
+Q: What is the CAP theorem?
+A: In a distributed store, during a network partition you must choose between consistency and availability; you can't have both while partition tolerance is required.
+Q: How would you design a rate limiter?
+A: At the API gateway, keyed by user or API key, using a token bucket or sliding window counter stored in Redis and updated atomically with Lua, returning 429 with Retry-After, and failing open or closed depending on the endpoint.
+Q: How would you design a URL shortener?
+A: Base62-encoded unique ids or pre-generated keys as 7-character codes, a key-value store mapping code to URL, Redis caching for hot links, 302 redirects for analytics with click events sent asynchronously to Kafka, plus expiry and abuse protection.
+Q: How do you migrate a monolith to microservices?
+A: Incrementally with the Strangler Fig pattern: put a facade in front, extract one bounded context at a time with its own data, reroute traffic, remove the old code, and repeat.
+Q: Explain SOLID briefly.
+A: Single responsibility, open for extension but closed for modification, Liskov substitutability of subtypes, small client-specific interfaces, and dependency on abstractions rather than concrete classes.
+Q: Strategy vs State pattern?
+A: Both delegate to an interchangeable object; the client chooses a strategy, while state objects switch themselves as the context's state changes.
+Q: What is the difference between the Adapter, Decorator and Proxy patterns?
+A: All wrap another object. An adapter changes the interface; a decorator keeps the interface and adds behaviour; a proxy keeps the interface and controls access (caching, laziness, security, remoting).
+Q: Factory Method vs Builder?
+A: A factory method decides which class to instantiate; a builder assembles one complex object step by step with many optional parts.
+Q: What is idempotency and why does it matter in distributed systems?
+A: An operation that has the same effect however many times it's applied. Networks force retries, so payments, webhooks and message consumers must be idempotent (idempotency keys, unique constraints) to avoid duplicates.
+Q: How do you choose between SQL and NoSQL?
+A: By data shape and access patterns: SQL for relational data needing joins, transactions and constraints; NoSQL for massive scale with simple key-based access, flexible schemas or special models (documents, wide-column, graphs).
+Q: What happens when a message queue consumer fails mid-processing?
+A: With at-least-once delivery the message isn't acknowledged, so it's redelivered to another consumer; processing must therefore be idempotent, and repeated failures go to a dead-letter queue.

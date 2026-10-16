@@ -1,0 +1,1321 @@
+@ Beginner
+
+# 00 | Spring Boot Basics: Start Here | History and versions, Spring vs Spring Boot vs Spring Cloud, creating, running and packaging a project, project structure, a first REST endpoint, core vocabulary, Spring Boot vs Jakarta EE, Quarkus, Micronaut, Node.js and FastAPI | Start Here
+
+## History | rose
+- The **Spring Framework** was created by **Rod Johnson**. It grew out of the code in his 2002 book "Expert One-on-One J2EE Design and Development", and **Spring 1.0** shipped in **March 2004** as a lightweight alternative to **EJB 2**: plain Java objects (POJOs) wired by **dependency injection**, with AOP for cross-cutting concerns, instead of heavyweight container components.
+- Framework milestones: **2.5** (2007) annotation-driven configuration (`@Autowired`, `@Component`); **3.0** (2009) Java `@Configuration` classes and SpEL; **4.0** (2013) Java 8; **5.0** (2017) the reactive **WebFlux** stack; **6.0** (Nov 2022) Java 17 and Jakarta EE; **7.0** (Nov 2025) Jakarta EE 11 and JSpecify null-safety.
+- **Spring Boot 1.0** (April 2014) removed the remaining setup work: no XML, no external server, sensible defaults. **2.0** (March 2018) moved to Spring 5 and rebuilt metrics on Micrometer; **3.0** (Nov 2022) and **4.0** (Nov 2025) are covered in sheets 02 and 16.
+- Stewardship: Johnson's company Interface21 became **SpringSource**, which **VMware** acquired in 2009; Spring moved to **Pivotal** in 2013, back to VMware in 2019 and, with VMware, to **Broadcom** in 2023. Every Spring project is open source under the **Apache License 2.0**.
+- **Release cadence**: a new Boot minor version every six months (May and November). Each line gets a limited period of free open-source support, and longer commercial support.
+- **Versions used in these notes**: Boot **3.5.6** (Spring Framework 6.2.11, embedded Tomcat 10.1) and Boot **4.1.1** (Spring Framework 7.0.9, Tomcat 11), which is what start.spring.io generates today. Both need **Java 17+**.
+
+## Spring vs Spring Boot vs Spring Cloud | blue
+- **Spring Framework**: the foundation. It provides the IoC container and DI (sheet 01), AOP, transactions, Spring MVC and WebFlux, and data access. You assemble and configure it yourself.
+- **Spring Boot**: an opinionated layer on top, with **starters**, **auto-configuration**, an **embedded server**, externalised configuration and production features (sheet 02). It follows **convention over configuration**: it supplies sensible defaults and backs off when you define your own beans.
+- **Spring Cloud**: tools for **distributed systems** built with Boot: service discovery, a config server, a gateway, load balancing and circuit breakers (sheets 11 and 12).
+- The wider portfolio includes **Spring Data** (repositories; see the ORM & Hibernate topic), **Spring Security** (its own topic), Spring Batch, Spring Integration, Spring for Apache Kafka and Spring AI.
+
+## Create, Run and Package a Project | green
+```bash
+# 1. Generate: https://start.spring.io  (Project: Maven, Language: Java, Java: 21, Dependencies: Spring Web)
+#    or from a terminal:
+curl https://start.spring.io/starter.zip -d dependencies=web -d javaVersion=21 -o demo.zip
+# 2. Run in development (the Maven wrapper downloads the right Maven version if needed):
+./mvnw spring-boot:run                       # Windows: mvnw.cmd spring-boot:run
+# 3. Build the executable JAR and run it:
+./mvnw clean package
+java -jar target/demo-0.0.1-SNAPSHOT.jar
+java -jar target/demo-0.0.1-SNAPSHOT.jar --server.port=9090      # any property can be overridden here
+```
+- Prerequisites: a **JDK 17 or later** and an IDE (IntelliJ IDEA, VS Code with the Spring Boot extensions, or Eclipse with Spring Tools). Maven or Gradle comes with the generated **wrapper**.
+- Startup prints the banner, then lines such as `Tomcat started on port 8080 (http) with context path '/'` and `Started DemoApplication in 3.357 seconds`. Stop the app with **Ctrl+C**.
+
+## Project Structure | amber
+```text
+demo/
+  pom.xml                          parent spring-boot-starter-parent, starters, spring-boot-maven-plugin
+  mvnw, mvnw.cmd, .mvn/wrapper/    Maven wrapper: builds without a global Maven install
+  src/main/java/com/example/demo/
+    DemoApplication.java           @SpringBootApplication main class in the ROOT package
+  src/main/resources/
+    application.properties         configuration (generated with spring.application.name=demo), or application.yml
+    static/                        files served as-is: index.html, CSS, JavaScript, images
+    templates/                     server-side templates (Thymeleaf), if used
+  src/test/java/com/example/demo/
+    DemoApplicationTests.java      @SpringBootTest contextLoads(): proves the context starts
+```
+- Put every other class in a **sub-package** of the main class's package (`com.example.demo.order`, `com.example.demo.product`) so component scanning finds it.
+- Two common layouts: **by layer** (`controller`, `service`, `repository`) or **by feature** (`order`, `product`, `customer`, each with its own controller, service and repository). Package by feature scales better as the codebase grows.
+
+## Your First REST Endpoint | violet
+```java DemoApplication.java
+package com.example.demo;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@SpringBootApplication
+public class DemoApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(DemoApplication.class, args);
+  }
+}
+
+@RestController
+class HelloController {
+  @GetMapping("/hello")
+  String hello(@RequestParam(defaultValue = "World") String name) {
+    return "Hello, " + name + "!";
+  }
+}
+// GET http://localhost:8080/hello?name=Ann  ->  Hello, Ann!
+// GET http://localhost:8080/hello           ->  Hello, World!
+```
+- **`@RestController`** = `@Controller` + `@ResponseBody`: return values become the response body (a `String` as text, objects as JSON through Jackson). **`@GetMapping`** maps HTTP GET; **`@RequestParam`** binds a query parameter.
+- With no configuration at all, the web starter brought Spring MVC, Jackson and Tomcat. Auto-configuration then created the `DispatcherServlet` and started Tomcat on **port 8080**, and component scanning found `HelloController`. Unknown paths get a **404** error response.
+
+## Core Vocabulary | rose
+- **Bean**: an object created and managed by the Spring container. **ApplicationContext**: the IoC container that holds the beans.
+- **Dependency injection**: the container passes a bean its dependencies (normally through the constructor) instead of the bean creating them.
+- **Starter**: one dependency that brings a working set of libraries. For example, `spring-boot-starter-web` brings Spring MVC, Jackson and Tomcat; Boot 4's Initializr generates its successor, `spring-boot-starter-webmvc`.
+- **Auto-configuration**: conditional configuration that creates beans from what is on the classpath, your properties and the beans you already defined.
+- **Embedded server**: Tomcat (default) or Jetty running inside the application.
+- **Profile**: a named set of configuration (`dev`, `prod`), activated with `spring.profiles.active` (sheet 05).
+- **Actuator**: production endpoints for health, metrics and info (sheet 07).
+- **Executable ("fat") JAR**: one JAR containing your classes, all dependency JARs and a launcher, started with `java -jar`.
+- **Microservice**: a small, independently deployable service that owns one business capability (sheet 10).
+
+## Spring Boot vs Other Back-End Stacks | blue
+- **vs Jakarta EE application servers** (WildFly, Open Liberty, WebLogic): Jakarta EE apps are WAR or EAR files deployed into a separately installed server. Boot embeds the server and runs as a self-contained JAR, while still using Jakarta APIs (Servlet, Persistence, Validation).
+- **vs Quarkus** (Red Hat, 2019) **and Micronaut** (2018): both do dependency injection and configuration at **build time** for very fast start-up and low memory, and target **GraalVM native images**. Spring Boot answers with Spring AOT and native image support, and keeps the largest ecosystem and community.
+- **vs Node.js** with Express or NestJS: Node runs one JavaScript thread with an event loop, while Boot uses a thread per request (or virtual threads). Boot adds static typing and a deeper enterprise toolset (transactions, security, batch, messaging).
+- **vs FastAPI** (Python): FastAPI is lighter and quicker to write for small APIs and ML serving; Boot brings more built-in infrastructure for large, long-lived enterprise systems.
+
+## Interview Q&A | sky | wide
+Q: What is the Spring Framework?
+A: An open-source Java application framework built around an IoC container that creates and wires objects (beans) through dependency injection. It has modules for web (MVC, WebFlux), data access, transactions, AOP, security and messaging.
+Q: Who created Spring and what problem did it solve?
+A: Rod Johnson. Spring 1.0 (2004) replaced the heavyweight EJB 2 programming model with plain Java objects wired by dependency injection, which made enterprise Java simpler and testable.
+Q: How do you create a Spring Boot project?
+A: Generate it with Spring Initializr (start.spring.io or the IDE wizard), choosing the build tool, Java version and starters. Then run the main class from the IDE, or use ./mvnw spring-boot:run.
+Q: What is the default port and how do you change it?
+A: 8080. Set server.port in application.properties, pass --server.port=9090, or set the SERVER_PORT environment variable. server.port=0 picks a random free port.
+Q: Why does a Spring Boot app not need an external Tomcat?
+A: The web starter embeds Tomcat in the application. SpringApplication.run starts it, and the executable JAR runs with java -jar.
+Q: What is the Maven wrapper (mvnw)?
+A: A script plus .mvn/wrapper that downloads and uses the Maven version pinned by the project, so anyone can build it without installing Maven.
+Q: Spring Boot vs Spring Cloud?
+A: Spring Boot builds individual applications. Spring Cloud adds distributed-system features on top: service discovery, a configuration server, a gateway, load balancing and resilience.
+Q: Which Java version do Spring Boot 3 and 4 need?
+A: Java 17 or later for both; Java 21 adds virtual threads.
+Q: Why must the main class sit in the root package?
+A: @SpringBootApplication scans its own package and sub-packages, so classes outside that tree are not found as beans.
+
+# 01 | Spring Core: IoC & Dependency Injection | IoC container, beans, injection styles, @Configuration and @Bean, qualifiers, bean lifecycle | IoC & DI
+
+## Inversion of Control and the Container | rose
+- **Inversion of Control (IoC)**: objects do not create or look up their collaborators; a **container** creates them and **wires** the dependencies in. Control of object creation is inverted from your code to the framework.
+- **Dependency Injection (DI)** is how Spring implements IoC: dependencies are supplied through **constructors**, setters or fields.
+- The container is the **`ApplicationContext`** (extends `BeanFactory`, adds events, i18n, resource loading, environment and profiles). Objects it manages are **beans**, described by **bean definitions** (class, scope, dependencies, lifecycle callbacks).
+- Beans are registered by **component scanning** (`@Component` and its stereotypes), by **`@Bean` methods** in `@Configuration` classes, or by auto-configuration.
+- Benefits: **loose coupling** (depend on interfaces), **testability** (inject mocks), central lifecycle management, and the basis for **AOP proxies** (transactions, security, caching).
+
+## Injection Styles | blue
+- **Constructor injection (recommended)**: dependencies are **required and final**, the object is never half-built, easy to test with plain `new`. With a **single constructor, `@Autowired` is optional** (since Spring 4.3).
+- **Setter injection**: for **optional** dependencies or reconfiguration.
+- **Field injection** (`@Autowired` on a field): concise but hides dependencies, prevents `final`, needs reflection or Spring to test. Avoid in production code.
+- **Circular dependencies** are **prohibited by default since Spring Boot 2.6**; a cycle usually signals a design problem (extract a third component or use events).
+```java
+@Service
+public class OrderService {
+  private final OrderRepository orders;
+  private final PaymentClient payments;
+
+  public OrderService(OrderRepository orders, PaymentClient payments) {   // no @Autowired needed
+    this.orders = orders;
+    this.payments = payments;
+  }
+}
+```
+
+## @Configuration and @Bean | green
+- **`@Bean` methods** register objects you cannot annotate (third-party classes) or that need construction logic. The method name is the bean name by default.
+- In a **`@Configuration`** class, calls between `@Bean` methods return the **same singleton** because the class is proxied with CGLIB (`proxyBeanMethods = true`). With `@Configuration(proxyBeanMethods = false)` ("lite mode", used by Boot's auto-configurations) each call creates a new object, so inject beans as method parameters instead.
+- **`@Primary`** marks the default when several beans match a type; **`@Qualifier("name")`** picks a specific one; injecting **`List<PaymentGateway>`** or **`Map<String, PaymentGateway>`** gives all implementations (strategy pattern).
+- **`ObjectProvider<T>`** for optional or lazy lookup.
+```java
+@Configuration
+public class ClientsConfig {
+  @Bean
+  Clock clock() { return Clock.systemUTC(); }
+
+  @Bean @Primary
+  PaymentGateway stripeGateway() { return new StripeGateway(); }
+
+  @Bean
+  PaymentGateway razorpayGateway() { return new RazorpayGateway(); }
+}
+
+@Service
+class CheckoutService {
+  CheckoutService(@Qualifier("razorpayGateway") PaymentGateway gateway, List<PaymentGateway> all) { }
+}
+```
+
+## Bean Lifecycle | amber
+- 1) **Instantiate** (constructor), 2) **populate** dependencies, 3) **Aware** callbacks (`BeanNameAware`, `ApplicationContextAware`), 4) **`BeanPostProcessor.postProcessBeforeInitialization`** (this is where **`@PostConstruct`** runs), 5) **`InitializingBean.afterPropertiesSet()`**, 6) custom **init method**, 7) **`postProcessAfterInitialization`** (where **AOP proxies** are created), 8) bean in use, 9) on shutdown **`@PreDestroy`** → `DisposableBean.destroy()` → custom destroy method.
+- **Prototype beans** are not destroyed by the container: `@PreDestroy` is **not** called for them.
+- **`BeanFactoryPostProcessor`** modifies **bean definitions** before beans are created (property placeholders); **`BeanPostProcessor`** modifies **bean instances**.
+- Singletons are created **eagerly at startup** by default (fail fast on misconfiguration); `@Lazy` defers creation.
+```java
+@Component
+class CacheWarmer {
+  @PostConstruct void warm() { /* runs once dependencies are injected */ }
+  @PreDestroy void flush() { /* runs on graceful shutdown */ }
+}
+```
+
+## AOP and Proxies in One Card | violet
+- Spring adds cross-cutting behaviour (**`@Transactional`**, `@Cacheable`, `@Async`, method security, `@Retryable`) by wrapping beans in **proxies** (JDK dynamic proxies for interfaces, CGLIB subclasses for classes; Spring Boot uses CGLIB by default).
+- **Self-invocation bypasses the proxy**: calling `this.save()` from inside the same bean skips `@Transactional` on `save()`.
+- Proxies only intercept **public** (and with CGLIB, non-final) methods called from **outside** the bean.
+- Custom aspects: `@Aspect` with `@Around("@annotation(com.shop.Timed)")`.
+
+## Interview Q&A | sky | wide
+Q: What is IoC and how does DI relate to it?
+A: IoC means the framework controls object creation and wiring instead of your code; dependency injection is the technique Spring uses, supplying dependencies through constructors, setters or fields.
+Q: Why prefer constructor injection?
+A: Dependencies become explicit, required and immutable, the object is always fully initialised, circular dependencies surface immediately, and unit tests can construct it without Spring.
+Q: BeanFactory vs ApplicationContext?
+A: BeanFactory is the basic container with lazy bean creation; ApplicationContext extends it with eager singleton creation, events, internationalisation, environment and profile support, and automatic post-processor registration. Applications use ApplicationContext.
+Q: How do you choose between two beans of the same type?
+A: Mark one @Primary, or inject with @Qualifier, or inject all of them as a List or Map and choose at runtime.
+Q: Describe the bean lifecycle.
+A: Instantiation, dependency injection, Aware callbacks, BeanPostProcessor before-initialisation (@PostConstruct), afterPropertiesSet and init methods, after-initialisation (proxy creation), use, then @PreDestroy and destroy methods on shutdown.
+Q: Why does @Transactional not work when I call the method from the same class?
+A: Transactions are applied by a proxy around the bean; an internal this.method() call never goes through the proxy.
+Q: What does proxyBeanMethods = false change?
+A: The @Configuration class is not CGLIB-proxied, so calling one @Bean method from another creates a new instance instead of returning the singleton; it starts faster and is used by Boot auto-configurations.
+
+# 02 | Spring Boot Essentials | Starters, auto-configuration, @SpringBootApplication, embedded server, packaging, Boot 3 vs 4 | Boot Essentials
+
+## What Spring Boot Adds | rose
+- **Spring Boot** is an opinionated layer over the Spring Framework for building **stand-alone, production-ready** applications quickly.
+- **Starters**: curated dependency sets (`spring-boot-starter-web`, `-data-jpa`, `-security`, `-actuator`, `-validation`, `-test`) with versions managed by the **Boot BOM** (`spring-boot-starter-parent` or the `spring-boot-dependencies` import).
+- **Auto-configuration**: beans configured automatically based on the **classpath, existing beans and properties**.
+- **Embedded server** (Tomcat by default, or Jetty): the app runs as an executable JAR, no external application server.
+- **Production features**: Actuator, externalised configuration, structured logging, graceful shutdown, Docker image building.
+- Versions: **Boot 3.x** needs **Java 17+**, Spring Framework 6 and **Jakarta EE** (`jakarta.*` packages instead of `javax.*`). **Boot 4.0** (Nov 2025) moves to Spring Framework 7, Jakarta EE 11 and **Jackson 3**, and splits auto-configuration into focused modules.
+
+## @SpringBootApplication | blue
+- A meta-annotation combining **`@SpringBootConfiguration`** (a `@Configuration`), **`@EnableAutoConfiguration`** and **`@ComponentScan`** (scans the annotated class's **package and sub-packages**).
+- Put the main class in the **root package** so scanning finds every component.
+- `SpringApplication.run` creates the ApplicationContext, starts the embedded server and runs `CommandLineRunner` / `ApplicationRunner` beans.
+```java
+@SpringBootApplication
+public class ShopApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(ShopApplication.class, args);
+  }
+
+  @Bean
+  ApplicationRunner seed(ProductRepository repo) {
+    return args -> { if (repo.count() == 0) repo.save(new Product("Pen", BigDecimal.TEN)); };
+  }
+}
+```
+
+## How Auto-Configuration Works | green
+- Auto-configuration classes are listed in **`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`** inside Boot's jars (the older `spring.factories` mechanism for auto-configuration was removed in Boot 3).
+- Each is guarded by **conditions**: **`@ConditionalOnClass`** (a library is on the classpath), **`@ConditionalOnMissingBean`** (you have not defined your own), **`@ConditionalOnProperty`**, `@ConditionalOnWebApplication`, `@ConditionalOnBean`.
+- **Your beans win**: defining your own `DataSource` or `ObjectMapper` makes the auto-configured one back off.
+- **Debug it**: run with **`--debug`** (or `debug=true`) to print the **condition evaluation report**, or use the Actuator `conditions` endpoint.
+- **Exclude**: `@SpringBootApplication(exclude = DataSourceAutoConfiguration.class)` or `spring.autoconfigure.exclude`.
+- You can write your own auto-configuration (a custom starter) with `@AutoConfiguration` and the same conditions.
+
+## Packaging and Running | amber
+- **`spring-boot-maven-plugin`** builds an **executable fat JAR** (`java -jar app.jar`) with nested dependency jars and a launcher.
+- **Container images**: `mvn spring-boot:build-image` (Cloud Native Buildpacks) or a multi-stage Dockerfile using **layered jars** for better caching.
+- **Graceful shutdown** (default in recent Boot): on SIGTERM the server stops accepting requests and lets in-flight ones finish (`spring.lifecycle.timeout-per-shutdown-phase`).
+- **Virtual threads** (Java 21, Boot 3.2+): `spring.threads.virtual.enabled=true` runs request handling on virtual threads.
+- **GraalVM native images** via Spring AOT: fast startup and low memory at the cost of build time and reflection limits.
+- **DevTools**: automatic restart and LiveReload in development only.
+
+## Interview Q&A | sky | wide
+Q: What is Spring Boot and how does it differ from Spring Framework?
+A: Spring Framework provides the core container, MVC, data access and AOP; Spring Boot adds opinionated auto-configuration, starters, an embedded server, externalised configuration and production features so applications need little setup.
+Q: What does @SpringBootApplication do?
+A: It combines @SpringBootConfiguration, @EnableAutoConfiguration and @ComponentScan of the class's package and sub-packages.
+Q: How does auto-configuration decide what to configure?
+A: Auto-configuration classes listed in AutoConfiguration.imports apply conditionally (@ConditionalOnClass, @ConditionalOnMissingBean, @ConditionalOnProperty), so they react to the classpath, your own beans and properties.
+Q: How do you see why something was or was not auto-configured?
+A: Start with --debug to print the condition evaluation report, or use the Actuator conditions endpoint.
+Q: What is a starter?
+A: A dependency descriptor that brings a consistent set of libraries for a capability, with versions managed by Spring Boot's dependency management.
+Q: What changed from Boot 2 to Boot 3?
+A: Java 17 baseline, Spring Framework 6, the move from javax.* to jakarta.* packages, Micrometer Observation and tracing replacing Sleuth, and native image support through Spring AOT.
+Q: How do you replace Tomcat with Jetty?
+A: Exclude spring-boot-starter-tomcat from the web starter and add spring-boot-starter-jetty.
+
+# 03 | Core & Stereotype Annotations | @Component, @Service, @Repository, @Controller, @RestController, @Autowired, @Value, mapping annotations | Annotations
+
+## Stereotype Annotations | rose
+- **`@Component`**: generic Spring-managed component found by component scanning.
+- **`@Service`**: business logic layer (a `@Component` specialisation that documents intent).
+- **`@Repository`**: data access layer; also enables **exception translation**: persistence exceptions are converted into Spring's **`DataAccessException`** hierarchy.
+- **`@Controller`**: web MVC controller whose methods return **view names** (server-side templates like Thymeleaf).
+- **`@RestController`**: **`@Controller` + `@ResponseBody`**: return values are serialised (JSON) into the response body.
+- **`@Configuration`**: source of `@Bean` definitions.
+- Spring Data repository interfaces are detected without annotations.
+
+## @Autowired, @Qualifier, @Value | blue
+- **`@Autowired`**: inject by type (constructor, setter or field); `required = false` or `Optional<T>` for optional dependencies.
+- **`@Qualifier`** narrows the candidate by name or custom qualifier; **`@Primary`** sets the default.
+- **`@Value("${app.page-size:20}")`**: inject a property with a **default after the colon**; `#{...}` evaluates **SpEL** expressions (`#{${app.timeout} * 2}`).
+- **`@Value` is fine for one or two values**; for groups of settings use **`@ConfigurationProperties`** (type-safe, validated, sheet 05).
+```java
+@Service
+public class PricingService {
+  private final int pageSize;
+  private final BigDecimal taxRate;
+
+  public PricingService(@Value("${app.page-size:20}") int pageSize,
+                        @Value("${app.tax-rate}") BigDecimal taxRate) {
+    this.pageSize = pageSize;
+    this.taxRate = taxRate;
+  }
+}
+```
+
+## Web Mapping Annotations | green
+- **`@RequestMapping`** (class-level base path), **`@GetMapping`**, **`@PostMapping`**, **`@PutMapping`**, **`@PatchMapping`**, **`@DeleteMapping`**.
+- Inputs: **`@PathVariable`**, **`@RequestParam`** (query or form params, `required`, `defaultValue`), **`@RequestBody`** (JSON body to object), **`@RequestHeader`**, `@CookieValue`, `@ModelAttribute`.
+- **`@Valid`** / `@Validated` triggers Bean Validation on arguments.
+- Output: return an object (200 with JSON), **`ResponseEntity<T>`** (control status and headers), or **`@ResponseStatus(HttpStatus.CREATED)`**.
+```java
+@RestController
+@RequestMapping("/api/products")
+public class ProductController {
+  private final ProductService service;
+  public ProductController(ProductService service) { this.service = service; }
+
+  @GetMapping("/{id}")
+  public ProductDto get(@PathVariable Long id) { return service.get(id); }
+
+  @GetMapping
+  public Page<ProductDto> list(@RequestParam(defaultValue = "0") int page,
+                               @RequestParam(defaultValue = "20") int size) { return service.list(page, size); }
+
+  @PostMapping
+  public ResponseEntity<ProductDto> create(@Valid @RequestBody CreateProductRequest req) {
+    ProductDto created = service.create(req);
+    return ResponseEntity.created(URI.create("/api/products/" + created.id())).body(created);
+  }
+}
+```
+
+## Other Annotations Worth Knowing | amber
+- **`@Transactional`** (transaction boundaries, see the Hibernate topic), **`@Async`** + `@EnableAsync`, **`@Scheduled`** + `@EnableScheduling`, **`@Cacheable`** / `@CacheEvict` + `@EnableCaching`, `@EventListener` and `@TransactionalEventListener`.
+- **`@Profile`**, **`@ConditionalOnProperty`**, `@Lazy`, `@Order`, `@DependsOn`.
+- **`@CrossOrigin`** for CORS on a controller (or global CORS configuration).
+
+## Interview Q&A | sky | wide
+Q: @Component vs @Service vs @Repository vs @Controller?
+A: All are component-scanned beans. @Service and @Controller express intent; @Repository adds persistence exception translation; @Controller handles web requests returning views.
+Q: @Controller vs @RestController?
+A: @RestController is @Controller plus @ResponseBody, so return values are written to the response body (JSON) instead of being resolved as view names.
+Q: @RequestParam vs @PathVariable?
+A: @PathVariable binds a URI template segment (/users/{id}); @RequestParam binds a query or form parameter (?page=2).
+Q: @Value vs @ConfigurationProperties?
+A: @Value injects single properties (with SpEL and defaults); @ConfigurationProperties binds a whole prefix to a type-safe, validatable object with relaxed binding.
+Q: How do you return 201 with a Location header?
+A: Return `ResponseEntity.created(uri).body(dto)`.
+Q: What does @Repository's exception translation do?
+A: A post-processor converts vendor-specific persistence exceptions into Spring's unchecked DataAccessException hierarchy, so callers do not depend on JDBC or JPA specifics.
+
+# 04 | Bean Scopes | singleton, prototype, request, session, application, scoped proxies, thread safety | Bean Scopes
+
+## The Scopes | rose
+- **`singleton`** (default): **one instance per ApplicationContext**, shared by everyone (not per JVM, not a classic GoF singleton).
+- **`prototype`**: a **new instance every time** the bean is requested or injected. The container does not manage its destruction.
+- Web-aware scopes (only in a web ApplicationContext): **`request`** (one per HTTP request), **`session`** (one per HTTP session), **`application`** (one per `ServletContext`), `websocket`.
+- Declare with **`@Scope("prototype")`** or shortcuts **`@RequestScope`**, **`@SessionScope`**, `@ApplicationScope`.
+```java
+@Component
+@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+class ReportBuilder { private final List<String> lines = new ArrayList<>(); }
+
+@Component
+@RequestScope                     // proxied by default
+class RequestContext { String correlationId; }
+```
+
+## Shorter-Lived Beans Inside Singletons | blue
+- **Problem**: injecting a **prototype into a singleton** happens **once**, so the singleton keeps the same "prototype" instance forever.
+- Fixes: inject an **`ObjectProvider<T>`** and call `getObject()` each time, use a **`@Lookup`** method, or a **scoped proxy**.
+- **Request and session beans injected into singletons need a proxy** (`proxyMode = ScopedProxyMode.TARGET_CLASS`); `@RequestScope` and `@SessionScope` set it by default. The proxy routes each call to the instance of the current request or session.
+```java
+@Service
+class ReportService {
+  private final ObjectProvider<ReportBuilder> builders;
+  ReportService(ObjectProvider<ReportBuilder> builders) { this.builders = builders; }
+  String build() { ReportBuilder b = builders.getObject(); /* fresh instance per call */ return b.toString(); }
+}
+```
+
+## Thread Safety | green
+- Singletons are **shared by all request threads**, so **mutable instance fields are race conditions**.
+- Keep singletons **stateless** (only final dependencies and configuration); keep per-request data in method variables, request-scoped beans or the request itself.
+- If shared state is unavoidable use thread-safe structures (`ConcurrentHashMap`, atomics) or move it to a cache or database.
+```java
+@Service
+class CounterService {
+  private int count;                        // BUG: shared by all threads
+  private final AtomicLong safeCount = new AtomicLong();
+  long hit() { return safeCount.incrementAndGet(); }
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What is the default bean scope?
+A: Singleton: one instance per ApplicationContext.
+Q: Is a Spring singleton thread-safe?
+A: No, Spring does not synchronise it. It is safe only if it is stateless or uses thread-safe state.
+Q: What happens when a prototype bean is injected into a singleton?
+A: It is injected once at singleton creation, so the singleton reuses that one instance. Use ObjectProvider, @Lookup or a scoped proxy to get new instances.
+Q: Why do request-scoped beans need a proxy?
+A: Singletons are created at startup when no request exists; the proxy is injected instead and delegates each call to the bean bound to the current request.
+Q: Does Spring call @PreDestroy on prototype beans?
+A: No. The container hands prototypes over and does not track them for destruction.
+Q: Singleton scope vs the Singleton design pattern?
+A: Spring's singleton is one instance per container (there can be several containers or several beans of the same class); the GoF pattern enforces one instance per class loader.
+
+# 05 | Configuration & Profiles | properties vs YAML, @ConfigurationProperties, profiles, externalized configuration order, environment variables | Configuration
+
+## application.properties vs application.yml | rose
+- Both configure Spring Boot from `src/main/resources` (or external files). **`.properties`**: flat `key=value`. **`.yml`**: hierarchical, less repetition, lists and maps are clearer; **indentation-sensitive**.
+- YAML supports **multiple documents** in one file separated by `---`, each activated by **`spring.config.activate.on-profile`**.
+- If both exist in the same location, `.properties` takes precedence over `.yml`.
+```yaml
+server:
+  port: 8080
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shop
+    username: shop
+    password: ${DB_PASSWORD}          # from the environment
+app:
+  page-size: 20
+  allowed-origins:
+    - https://shop.example.com
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+logging:
+  level:
+    com.shop: debug
+```
+
+## Profiles | blue
+- A **profile** is a named set of configuration and beans for an environment (`dev`, `test`, `prod`) or a feature.
+- Activate with **`spring.profiles.active=prod`** (property, **`SPRING_PROFILES_ACTIVE`** environment variable, or `--spring.profiles.active=prod`). With nothing active, the **`default`** profile applies.
+- **Profile-specific files** `application-{profile}.yml` load **on top of** `application.yml`.
+- **`@Profile("dev")`** on a `@Component` or `@Bean` registers it only when the profile is active; supports expressions like `"!prod"`, `"dev | test"`.
+- **Profile groups**: `spring.profiles.group.prod=prod-db,prod-mq` activates several at once.
+- In tests: **`@ActiveProfiles("test")`**.
+```java
+@Configuration
+class MailConfig {
+  @Bean @Profile("!prod") MailSender consoleMail() { return new ConsoleMailSender(); }
+  @Bean @Profile("prod")  MailSender smtpMail(MailProperties p) { return new SmtpMailSender(p); }
+}
+```
+
+## Type-Safe @ConfigurationProperties | green
+- Binds a **prefix** to a class or **record**, with **relaxed binding** (`page-size`, `pageSize`, `PAGE_SIZE` all match), type conversion (`Duration`, `DataSize`, lists, maps) and **validation** with `@Validated`.
+- Register with **`@ConfigurationPropertiesScan`** or `@EnableConfigurationProperties(AppProperties.class)`.
+- Records use constructor binding automatically (immutable configuration).
+- Add `spring-boot-configuration-processor` for IDE auto-completion of your own properties.
+```java
+@ConfigurationProperties(prefix = "app")
+@Validated
+public record AppProperties(
+    @Min(1) @Max(200) int pageSize,
+    @NotEmpty List<String> allowedOrigins,
+    Duration paymentTimeout) {}
+
+@SpringBootApplication
+@ConfigurationPropertiesScan
+public class ShopApplication { }
+```
+
+## Externalized Configuration and Precedence | amber
+- The same code runs in every environment; configuration comes from outside. **Higher sources override lower ones** (simplified, highest first):
+- 1) **Command-line arguments** (`--server.port=9090`), 2) `SPRING_APPLICATION_JSON`, 3) **Java system properties** (`-Dserver.port=9090`), 4) **OS environment variables**, 5) **profile-specific files** (outside the jar, then inside), 6) **`application.properties/yml`** (outside the jar, then inside), 7) `@PropertySource` on configuration classes, 8) default properties.
+- Test-specific sources (`@TestPropertySource`, `@SpringBootTest(properties=...)`, `@DynamicPropertySource`) override them in tests.
+- **Environment variables map by relaxed binding**: `SPRING_DATASOURCE_URL` → `spring.datasource.url`, `APP_PAGESIZE` → `app.pagesize` (dots become underscores, uppercase).
+- **`spring.config.import`** pulls in extra sources: `optional:file:./secrets.properties`, `configserver:`, Vault, Kubernetes ConfigMaps.
+- **Secrets never go in the repository**: environment variables, a secret manager (Vault, AWS Secrets Manager) or Kubernetes Secrets.
+
+## Interview Q&A | sky | wide
+Q: properties vs YAML?
+A: Same capabilities; YAML is hierarchical and supports multi-document files with profile activation but is whitespace-sensitive. If both exist, .properties wins.
+Q: How do you activate a profile?
+A: spring.profiles.active as a property, the SPRING_PROFILES_ACTIVE environment variable, a command-line argument, or @ActiveProfiles in tests.
+Q: What is the configuration precedence?
+A: Command-line arguments override system properties, which override environment variables, which override profile-specific files, which override application.properties/yml (external files beating packaged ones).
+Q: How does an environment variable override a property?
+A: Through relaxed binding: uppercase the name and replace dots and dashes with underscores, e.g. SPRING_DATASOURCE_URL.
+Q: Why use @ConfigurationProperties?
+A: Type-safe, grouped, validated configuration with relaxed binding, IDE metadata and easy testing, instead of scattered @Value strings.
+Q: How do you keep secrets out of configuration files?
+A: Reference placeholders like ${DB_PASSWORD} resolved from environment variables or a secret store (Vault, cloud secret managers, Kubernetes Secrets).
+
+@ Intermediate
+
+# 06 | REST Controllers, Validation & Exception Handling | Request binding, Bean Validation, ResponseEntity, @ControllerAdvice, @ExceptionHandler, ProblemDetail | Controllers & Errors
+
+## Request Handling and Validation | rose
+- **DTOs** (often records) for requests and responses; never expose JPA entities directly (lazy-loading surprises, over-posting, leaking fields).
+- **Bean Validation** (`spring-boot-starter-validation`, Hibernate Validator): `@NotNull`, **`@NotBlank`**, `@Size`, `@Email`, `@Min`, `@Max`, `@Positive`, `@Pattern`, `@Past`, `@Valid` for nested objects.
+- **`@Valid @RequestBody`** → failures throw **`MethodArgumentNotValidException`** (400). Constraints on `@PathVariable` / `@RequestParam` need `@Validated` on the class (or built-in method validation in Spring 6.1+), raising `HandlerMethodValidationException` / `ConstraintViolationException`.
+- Custom constraints: an annotation plus a `ConstraintValidator`.
+```java
+public record CreateProductRequest(
+    @NotBlank @Size(max = 120) String name,
+    @NotNull @Positive BigDecimal price,
+    @PositiveOrZero int stock,
+    @NotEmpty List<@NotBlank String> tags) {}
+```
+
+## @ControllerAdvice and @ExceptionHandler | blue
+- **`@ExceptionHandler(SomeException.class)`** in a controller handles that controller's exceptions.
+- **`@RestControllerAdvice`** (= `@ControllerAdvice` + `@ResponseBody`) applies handlers **globally** (or to selected packages or annotations).
+- Map domain exceptions to HTTP status codes in one place; controllers stay clean.
+- More specific exception types win over general ones; keep a final `Exception` handler that logs and returns a generic 500 **without leaking stack traces**.
+- Alternatives: `@ResponseStatus` on a custom exception class, or throwing **`ResponseStatusException`**.
+
+## ProblemDetail (RFC 9457) | green
+- **Problem Details for HTTP APIs** is the standard JSON error format: **`type`** (URI identifying the problem type), **`title`**, **`status`**, **`detail`**, **`instance`**, plus custom extension members. Media type **`application/problem+json`**. RFC 9457 (2023) obsoletes RFC 7807.
+- Spring 6 provides **`ProblemDetail`**, **`ErrorResponse`** and `ErrorResponseException`; **`spring.mvc.problemdetails.enabled=true`** makes Spring's own exceptions (400, 404, 405, 415...) return problem details.
+- Extend **`ResponseEntityExceptionHandler`** to customise the built-in ones (validation errors).
+```java
+@RestControllerAdvice
+public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+  @ExceptionHandler(ProductNotFoundException.class)
+  ProblemDetail notFound(ProductNotFoundException ex) {
+    ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+    pd.setTitle("Product not found");
+    pd.setType(URI.create("https://api.shop.example/problems/product-not-found"));
+    pd.setProperty("productId", ex.getProductId());
+    return pd;
+  }
+
+  @Override
+  protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+      HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+    ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
+    pd.setProperty("errors", ex.getBindingResult().getFieldErrors().stream()
+        .map(e -> Map.of("field", e.getField(), "message", String.valueOf(e.getDefaultMessage())))
+        .toList());
+    return ResponseEntity.badRequest().body(pd);
+  }
+
+  @ExceptionHandler(Exception.class)
+  ProblemDetail unexpected(Exception ex) {
+    log.error("Unhandled error", ex);
+    return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error");
+  }
+
+  private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+}
+```
+```json
+{
+  "type": "https://api.shop.example/problems/product-not-found",
+  "title": "Product not found",
+  "status": 404,
+  "detail": "Product 42 does not exist",
+  "instance": "/api/products/42",
+  "productId": 42
+}
+```
+
+## Request Processing Pipeline | amber
+- Request → **servlet filters** (security, CORS, logging) → **`DispatcherServlet`** → **`HandlerMapping`** finds the controller method → **interceptors** (`HandlerInterceptor.preHandle`) → **argument resolvers** and **`HttpMessageConverter`** (JSON via Jackson) → controller → return value handled by message converters → `postHandle` / `afterCompletion`.
+- Exceptions anywhere in the handler go through **`HandlerExceptionResolver`s** (where `@ExceptionHandler` methods live). Exceptions thrown in filters (before the DispatcherServlet) are not handled by `@ControllerAdvice`.
+- **Content negotiation** uses `Accept` and `Content-Type` to pick converters (415 Unsupported Media Type, 406 Not Acceptable).
+
+## Interview Q&A | sky | wide
+Q: How do you handle exceptions globally in Spring Boot?
+A: A @RestControllerAdvice class with @ExceptionHandler methods (often extending ResponseEntityExceptionHandler) that map exceptions to status codes and a consistent error body such as ProblemDetail.
+Q: What is ProblemDetail?
+A: Spring's representation of RFC 9457 Problem Details: a standard JSON error with type, title, status, detail and instance fields plus custom properties, served as application/problem+json.
+Q: What happens when @Valid fails on a request body?
+A: Spring throws MethodArgumentNotValidException, which becomes a 400 response; you customise the body by overriding handleMethodArgumentNotValid or adding a handler.
+Q: Why not return JPA entities from controllers?
+A: Lazy-loading exceptions or N+1 queries during serialisation, infinite recursion on bidirectional relations, leaking internal fields, and coupling the API to the database schema. Use DTOs.
+Q: Can @ControllerAdvice handle exceptions thrown in filters?
+A: No. Filters run before the DispatcherServlet; handle those errors in the filter or via the security entry points.
+Q: What is the role of DispatcherServlet?
+A: The front controller of Spring MVC: it routes requests to handler methods, resolves arguments, invokes interceptors, converts return values and delegates exceptions to resolvers.
+
+# 07 | Actuator & Observability Endpoints | Health checks, liveness and readiness, info, metrics with Micrometer, Prometheus, exposure and security | Actuator
+
+## What Actuator Provides | rose
+- **`spring-boot-starter-actuator`** adds **production endpoints** under `/actuator`: **`health`**, **`info`**, **`metrics`**, **`prometheus`** (with the Micrometer Prometheus registry), `env`, `configprops`, `beans`, `mappings`, **`loggers`** (change log levels at runtime), `threaddump`, `heapdump`, `conditions`, `scheduledtasks`, `caches`.
+- **By default only `health` is exposed over HTTP**; expose more deliberately with `management.endpoints.web.exposure.include`.
+- Sensitive endpoints (`env`, `heapdump`, `configprops`) reveal secrets or memory contents: **secure them** with Spring Security, run them on a separate **management port** (`management.server.port`), or do not expose them.
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  server:
+    port: 8081
+```
+
+## Health Checks | blue
+- `/actuator/health` aggregates **`HealthIndicator`s** (database, disk space, Redis, Kafka, mail...) into one status: **`UP`**, **`DOWN`** (HTTP 503), `OUT_OF_SERVICE`, `UNKNOWN`.
+- **Kubernetes probes**: **`/actuator/health/liveness`** (should the container be restarted?) and **`/actuator/health/readiness`** (should it receive traffic?). Enabled automatically on Kubernetes, or with `management.endpoint.health.probes.enabled=true`.
+- **Do not put external dependencies in liveness**: a database outage would restart every pod; dependencies belong in readiness (if at all).
+- Custom indicators implement `HealthIndicator`; health **groups** combine indicators for specific probes.
+```java
+@Component
+class PaymentGatewayHealth implements HealthIndicator {
+  private final PaymentClient client;
+  PaymentGatewayHealth(PaymentClient client) { this.client = client; }
+  @Override public Health health() {
+    return client.ping() ? Health.up().build() : Health.down().withDetail("gateway", "unreachable").build();
+  }
+}
+```
+
+## Info Endpoint | green
+- `/actuator/info` shows application information from **contributors**: **build** info (`spring-boot-maven-plugin` `build-info` goal), **git** info (git-commit-id plugin), `info.*` properties (`management.info.env.enabled=true`), Java and OS details.
+- Used by dashboards and incident responders to confirm **which version and commit** is running.
+
+## Metrics with Micrometer | amber
+- **Micrometer** is the metrics facade (like SLF4J for metrics) behind Actuator, with registries for **Prometheus**, Datadog, CloudWatch, OTLP and others.
+- Built-in metrics: HTTP server requests (`http.server.requests` with latency percentiles), JVM memory and GC, threads, CPU, connection pools (HikariCP), caches, executors.
+- **Custom metrics**: `Counter`, `Timer`, `Gauge`, `DistributionSummary` from an injected **`MeterRegistry`**; or the **Observation API** (`@Observed`, `ObservationRegistry`) which produces both metrics and traces.
+- Keep **tag cardinality low** (never tag by user id or order id).
+- Prometheus scrapes `/actuator/prometheus`; Grafana dashboards and alerts sit on top.
+```java
+@Service
+class CheckoutService {
+  private final Counter ordersPlaced;
+  private final Timer paymentTimer;
+  CheckoutService(MeterRegistry registry) {
+    this.ordersPlaced = Counter.builder("shop.orders.placed").tag("channel", "web").register(registry);
+    this.paymentTimer = Timer.builder("shop.payment.duration").publishPercentiles(0.5, 0.95, 0.99).register(registry);
+  }
+  void placeOrder(Order order) {
+    paymentTimer.record(() -> charge(order));
+    ordersPlaced.increment();
+  }
+  private void charge(Order order) { }
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What is Spring Boot Actuator?
+A: A module that adds production-ready endpoints for health, metrics, info, environment, loggers and diagnostics, integrated with Micrometer for metrics.
+Q: Which Actuator endpoints are exposed over HTTP by default?
+A: Only health. Others must be listed in management.endpoints.web.exposure.include and should be secured.
+Q: Liveness vs readiness?
+A: Liveness says whether the app is alive or should be restarted; readiness says whether it can accept traffic. External dependencies affect readiness, not liveness.
+Q: How do you add a custom health check?
+A: Implement HealthIndicator as a bean and return Health.up() or Health.down() with details; it is aggregated into /actuator/health.
+Q: What is Micrometer?
+A: A vendor-neutral metrics facade used by Spring Boot; you record counters, timers and gauges once and export them to Prometheus, Datadog and other systems.
+Q: How do you secure Actuator?
+A: Expose only needed endpoints, require authentication or a role for anything beyond health and info, and optionally serve them on a separate management port not reachable from the internet.
+
+# 08 | Logging | SLF4J and Logback, log levels, configuration, MDC and correlation IDs, structured logging, good practice | Logging
+
+## SLF4J and Logback | rose
+- **SLF4J** is the logging **facade** (API); **Logback** is the default **implementation** in Spring Boot (via `spring-boot-starter-logging`). Log4j2 can replace it.
+- Code depends only on SLF4J: `private static final Logger log = LoggerFactory.getLogger(OrderService.class);` (or Lombok's `@Slf4j`).
+- **Parameterised messages** `log.info("Order {} placed by {}", id, user)`: the string is only built if the level is enabled; pass the exception **as the last argument** to log its stack trace.
+- Spring Boot routes JUL, Log4j and commons-logging calls into SLF4J, so library logs end up in one place.
+```java
+log.debug("Pricing cart {} with {} items", cart.id(), cart.items().size());
+log.warn("Payment retry {} for order {}", attempt, orderId);
+log.error("Payment failed for order {}", orderId, ex);       // stack trace included
+```
+
+## Log Levels | blue
+- **TRACE < DEBUG < INFO < WARN < ERROR** (plus OFF). A logger outputs messages **at its level and above**. Spring Boot's root level defaults to **INFO**.
+- **ERROR**: a failure needing attention; **WARN**: unexpected but handled; **INFO**: important business and lifecycle events; **DEBUG**: diagnostic detail; **TRACE**: very fine-grained.
+- Configure per package: `logging.level.root=warn`, `logging.level.com.shop=debug`, `logging.level.org.hibernate.SQL=debug` (SQL statements).
+- Change levels **at runtime** with the Actuator **`/actuator/loggers`** endpoint (no restart).
+- File output: `logging.file.name`, rotation settings (`logging.logback.rollingpolicy.max-file-size`, `max-history`).
+
+## Configuration and MDC | green
+- For advanced setups use **`logback-spring.xml`** (the `-spring` variant enables **`<springProfile>`** and `<springProperty>`).
+- **MDC (Mapped Diagnostic Context)**: per-thread key-value pairs added to every log line, such as a **correlation/request id** or user id. Set in a filter, clear in `finally`.
+- With **Micrometer Tracing**, Spring Boot puts **`traceId` and `spanId` into the MDC** automatically, correlating logs across services.
+```java
+@Component
+class CorrelationIdFilter extends OncePerRequestFilter {
+  @Override
+  protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+      throws ServletException, IOException {
+    String id = Optional.ofNullable(req.getHeader("X-Correlation-Id")).orElse(UUID.randomUUID().toString());
+    MDC.put("correlationId", id);
+    res.setHeader("X-Correlation-Id", id);
+    try { chain.doFilter(req, res); }
+    finally { MDC.remove("correlationId"); }
+  }
+}
+```
+
+## Structured Logging | amber
+- **Structured (JSON) logs** are machine-parseable, so log platforms (ELK/OpenSearch, Loki, Datadog, CloudWatch) can filter by fields instead of regex.
+- **Spring Boot 3.4+ supports it natively**: `logging.structured.format.console=ecs` (Elastic Common Schema), **`logstash`** or **`gelf`**; also `logging.structured.format.file`. MDC values and key-value pairs become JSON fields.
+- Older apps use **logstash-logback-encoder**.
+- SLF4J 2 fluent API adds key-value pairs: `log.atInfo().addKeyValue("orderId", id).log("Order placed")`.
+```yaml
+logging:
+  structured:
+    format:
+      console: ecs
+```
+
+## Logging Good Practice | violet
+- **Never log secrets or personal data** (passwords, tokens, card numbers, full PII); mask them.
+- Log **once**, at the boundary where you handle the error (avoid "log and rethrow" duplicates).
+- Include **context** (ids, state) in the message, not just "error occurred".
+- Logs to **stdout** in containers; the platform collects them.
+- Avoid expensive work for disabled levels (`log.isDebugEnabled()` guard or a supplier).
+
+## Interview Q&A | sky | wide
+Q: SLF4J vs Logback?
+A: SLF4J is the logging API (facade) your code depends on; Logback is the implementation that formats and writes the logs. Spring Boot uses Logback by default.
+Q: Why use parameterised logging?
+A: The message is only formatted when the level is enabled, avoiding string-building cost, and placeholders keep messages readable.
+Q: How do you change a log level without restarting?
+A: Through the Actuator loggers endpoint (POST to /actuator/loggers/{name}) or by reloading external Logback configuration.
+Q: What is MDC?
+A: Mapped Diagnostic Context: per-thread contextual values (request id, trace id, user) automatically included in log lines, used to correlate logs of one request.
+Q: What is structured logging and how do you enable it in Spring Boot?
+A: Logging as JSON with named fields for machine processing; Spring Boot 3.4+ enables it with logging.structured.format.console set to ecs, logstash or gelf.
+Q: Why logback-spring.xml rather than logback.xml?
+A: Spring Boot processes logback-spring.xml after the environment is ready, enabling <springProfile> and <springProperty> extensions.
+
+# 09 | Testing Spring Boot Applications | Unit tests with Mockito, @SpringBootTest, test slices, @WebMvcTest, @DataJpaTest, @MockitoBean, Testcontainers | Testing
+
+## The Testing Pyramid in Spring | rose
+- **Unit tests** (most): plain JUnit 5 + **Mockito**, no Spring context: fast and focused. Constructor injection makes this trivial.
+- **Slice tests**: load only one layer (web, JPA, JSON, REST client) with **`@WebMvcTest`**, **`@DataJpaTest`**, `@JsonTest`, `@RestClientTest`.
+- **Integration tests** (fewer): **`@SpringBootTest`** loads the full context, often with **Testcontainers** for real databases and brokers.
+- `spring-boot-starter-test` includes JUnit Jupiter, Mockito, AssertJ, Hamcrest, JSONassert, JsonPath and Spring Test.
+- Spring caches application contexts between tests with the same configuration: avoid needlessly different configurations (each new one costs startup time).
+
+## Unit Tests with Mockito | blue
+```java
+@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+  @Mock OrderRepository orders;
+  @Mock PaymentClient payments;
+  @InjectMocks OrderService service;
+
+  @Test
+  void placesOrderAndCharges() {
+    when(orders.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(payments.charge(any())).thenReturn(new PaymentResult("ch_1", true));
+
+    Order result = service.place(new PlaceOrder("u1", List.of(new Line("p1", 2))));
+
+    assertThat(result.status()).isEqualTo(OrderStatus.PAID);
+    verify(payments).charge(argThat(req -> req.amount().compareTo(BigDecimal.ZERO) > 0));
+  }
+}
+```
+
+## @WebMvcTest | green
+- Loads **only the MVC layer**: the specified controller(s), `@ControllerAdvice`, filters, converters and **MockMvc**; no services or repositories.
+- Replace collaborators with **`@MockitoBean`** (Spring Framework 6.2+). **`@MockBean` is deprecated since Boot 3.4 and removed in Boot 4.**
+- **`MockMvc`** performs requests without a real server; **`MockMvcTester`** (Spring 6.2) offers AssertJ-style assertions.
+- Boot 4 moved the annotation to `org.springframework.boot.webmvc.test.autoconfigure` (per-technology test modules).
+```java
+@WebMvcTest(ProductController.class)
+class ProductControllerTest {
+  @Autowired MockMvc mvc;
+  @MockitoBean ProductService service;
+
+  @Test
+  void returnsProduct() throws Exception {
+    when(service.get(1L)).thenReturn(new ProductDto(1L, "Pen", new BigDecimal("10.00")));
+    mvc.perform(get("/api/products/1"))
+       .andExpect(status().isOk())
+       .andExpect(jsonPath("$.name").value("Pen"));
+  }
+
+  @Test
+  void rejectsInvalidProduct() throws Exception {
+    mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"\"}"))
+       .andExpect(status().isBadRequest());
+  }
+}
+```
+
+## @DataJpaTest | amber
+- Loads **JPA components only** (entities, repositories, `EntityManager`, `TestEntityManager`), configures an **embedded database** by default, and runs **each test in a transaction rolled back** at the end.
+- Use the real database engine through **`@AutoConfigureTestDatabase(replace = NONE)`** plus Testcontainers when queries use vendor-specific SQL.
+- Test **custom queries, projections and mappings**, not the methods Spring Data generates.
+```java
+@DataJpaTest
+class ProductRepositoryTest {
+  @Autowired TestEntityManager em;
+  @Autowired ProductRepository repo;
+
+  @Test
+  void findsCheapProducts() {
+    em.persist(new Product("Pen", new BigDecimal("10")));
+    em.persist(new Product("Laptop", new BigDecimal("900")));
+    assertThat(repo.findByPriceLessThan(new BigDecimal("50"))).extracting(Product::getName).containsExactly("Pen");
+  }
+}
+```
+
+## @SpringBootTest and Testcontainers | violet
+- **`@SpringBootTest`** starts the whole application context; **`webEnvironment = RANDOM_PORT`** starts a real server for HTTP tests (`TestRestTemplate`, `WebTestClient`, or `RestTestClient` in Spring 7).
+- **Testcontainers** runs real PostgreSQL, Kafka or Redis in Docker; **`@ServiceConnection`** (Boot 3.1+) wires the connection details automatically.
+- Use them for flows that cross layers: HTTP → service → database, migrations, transactions, security configuration.
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Testcontainers
+class OrderFlowIT {
+  @Container @ServiceConnection
+  static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+
+  @Autowired TestRestTemplate http;
+
+  @Test
+  void createsOrder() {
+    ResponseEntity<OrderDto> res = http.postForEntity("/api/orders", new PlaceOrder("u1", List.of()), OrderDto.class);
+    assertThat(res.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+  }
+}
+```
+
+## Interview Q&A | sky | wide
+Q: @SpringBootTest vs @WebMvcTest vs @DataJpaTest?
+A: @SpringBootTest loads the full application context; @WebMvcTest loads only the web layer with MockMvc; @DataJpaTest loads only JPA repositories with an embedded database and rollback per test.
+Q: @Mock vs @MockitoBean (or @MockBean)?
+A: @Mock creates a plain Mockito mock for unit tests; @MockitoBean (formerly @MockBean) creates a mock and registers it in the Spring context, replacing the real bean.
+Q: Why was @MockBean replaced?
+A: Spring Framework 6.2 introduced @MockitoBean/@MockitoSpyBean in its core bean-override support; Boot deprecated @MockBean in 3.4 and removed it in 4.0.
+Q: Why use Testcontainers instead of H2?
+A: Tests run against the same database engine and version as production, catching SQL dialect, migration and constraint differences that an in-memory database hides.
+Q: Do @DataJpaTest tests leave data behind?
+A: No, each test runs in a transaction that is rolled back afterwards by default.
+Q: How do you speed up Spring integration tests?
+A: Prefer unit and slice tests, reuse the same context configuration so Spring's context cache works, reuse containers, and avoid @DirtiesContext.
+
+@ Advanced
+
+# 10 | Microservices Concepts | Monolith vs microservices, decomposition patterns, single responsibility, database per service, trade-offs | Microservices
+
+## What Microservices Are | rose
+- An architecture where an application is a set of **small, independently deployable services**, each owning **one business capability** and its **data**, communicating over the network (HTTP/gRPC or messaging).
+- Characteristics: **independent deployment and scaling**, **decentralised data**, team ownership ("you build it, you run it"), technology freedom per service, **design for failure**, automated infrastructure (CI/CD, containers, observability).
+- **Conway's law**: system design mirrors the communication structure of the organisation; service boundaries usually follow team boundaries.
+
+## Monolith vs Microservices | blue
+- **Monolith**: one deployable unit; simple development, testing, transactions and debugging; scales as a whole; large codebases slow teams down and one bug can take everything down.
+- **Microservices**: independent deploys, targeted scaling, fault isolation, team autonomy; but **distributed-system complexity**: network latency and failures, **eventual consistency**, distributed transactions, harder testing and debugging, operational overhead (service discovery, tracing, many pipelines).
+- A **modular monolith** (clear module boundaries in one deployable) is often the right first step; split out services when a boundary, scaling need or team structure justifies it.
+- Migrate gradually with the **Strangler Fig pattern**: route traffic for one capability to a new service at a time until the monolith is gone.
+
+## Decomposition Patterns | green
+- **Decompose by business capability**: what the business does (Ordering, Catalogue, Payments, Shipping, Notifications).
+- **Decompose by subdomain (Domain-Driven Design)**: find **bounded contexts** where a model and its language are consistent; one service per bounded context (a "Product" means different things to Catalogue and to Shipping).
+- **Single Responsibility**: a service should have **one reason to change**: high cohesion inside, loose coupling outside. If two services must always be deployed together, they are one service.
+- Smells of wrong boundaries: chatty synchronous calls between services, shared tables, distributed transactions everywhere, a "God service".
+
+## Database per Service | amber
+- Each service **owns its data** and exposes it **only through its API or events**; no other service reads its tables.
+- Enables independent schema changes, the right database per need (polyglot persistence: PostgreSQL, MongoDB, Redis, Elasticsearch) and fault isolation.
+- Consequences: **no cross-service joins** (use API composition or replicate data through events), **no ACID transactions across services** (use Sagas, sheet 15), data duplication and eventual consistency.
+- A shared database between services creates hidden coupling and blocks independent deployment.
+
+## Supporting Infrastructure | violet
+- **API gateway** (single entry point: routing, auth, rate limiting), **service discovery**, **centralised configuration**, **resilience** (timeouts, retries, circuit breakers), **observability** (logs, metrics, distributed tracing), **messaging** for asynchronous communication, **CI/CD** and **containers/orchestration** (Kubernetes).
+- Spring Cloud provides many of these for Spring applications; on Kubernetes, the platform covers several (DNS discovery, ConfigMaps, ingress).
+
+## Interview Q&A | sky | wide
+Q: What are microservices?
+A: An architectural style where an application is composed of small, independently deployable services, each owning a business capability and its data, communicating over the network.
+Q: When should you not use microservices?
+A: For small teams or early products where boundaries are unclear: the operational and consistency costs outweigh the benefits. A well-structured modular monolith is usually better first.
+Q: How do you decide service boundaries?
+A: By business capability or DDD bounded contexts, aiming for high cohesion and loose coupling, aligned with team ownership, and checking that services can be deployed independently.
+Q: What is the database-per-service pattern and its trade-offs?
+A: Each service exclusively owns its database. It gives independence and fault isolation but removes cross-service joins and ACID transactions, requiring API composition, events and Sagas.
+Q: What is the Strangler Fig pattern?
+A: Incrementally replacing parts of a legacy system by routing specific functionality to new services until the old system can be removed.
+Q: What problems do microservices introduce?
+A: Network failures and latency, distributed data consistency, complex testing and debugging, operational overhead, versioning of APIs and the need for strong observability.
+
+# 11 | Spring Cloud: Discovery, Config & Gateway | Eureka and Consul, client-side load balancing, Config Server and refresh, Spring Cloud Gateway routes, filters and rate limiting | Spring Cloud
+
+## Service Discovery | rose
+- Instances come and go (autoscaling, deploys), so services find each other through a **service registry** instead of fixed hosts.
+- **Netflix Eureka**: a server (`@EnableEurekaServer`) and clients that **register** and send **heartbeats** (every 30 s by default); clients cache the registry. Self-preservation mode keeps registrations during network partitions.
+- **Consul** (HashiCorp): registry plus health checks and a key-value store.
+- **Client-side load balancing** with **Spring Cloud LoadBalancer** (round robin by default; Netflix Ribbon is retired): a **`@LoadBalanced`** `RestClient.Builder` or `WebClient.Builder` resolves `http://order-service/...` to an instance.
+- **On Kubernetes**, Services and DNS already provide discovery and load balancing, so Eureka is often unnecessary.
+```java
+@Configuration
+class HttpClients {
+  @Bean @LoadBalanced
+  RestClient.Builder loadBalancedBuilder() { return RestClient.builder(); }
+}
+
+@Service
+class InventoryClient {
+  private final RestClient http;
+  InventoryClient(RestClient.Builder builder) { this.http = builder.baseUrl("http://inventory-service").build(); }
+  int stock(String sku) { return http.get().uri("/api/stock/{sku}", sku).retrieve().body(Integer.class); }
+}
+```
+
+## Centralized Configuration | blue
+- **Spring Cloud Config Server** (`@EnableConfigServer`) serves configuration from a **Git repository** (or Vault, a database, the file system): files named `{application}-{profile}.yml`, endpoints like `/{application}/{profile}/{label}`.
+- Clients import it with **`spring.config.import=optional:configserver:http://config:8888`** (the old `bootstrap.yml` approach is legacy).
+- Benefits: one place to change config, versioned history in Git, per-environment profiles, encrypted values (`{cipher}...`).
+- **Refreshing at runtime**: beans annotated **`@RefreshScope`** are rebuilt after `POST /actuator/refresh`; **Spring Cloud Bus** broadcasts the refresh to all instances. `@ConfigurationProperties` beans are rebound on refresh.
+- On Kubernetes, ConfigMaps and Secrets (optionally with Spring Cloud Kubernetes) are the common alternative.
+
+## API Gateway with Spring Cloud Gateway | green
+- The **API gateway** is the single entry point for clients: **routing**, **authentication / token relay**, **rate limiting**, CORS, request/response rewriting, circuit breaking, aggregation for a client (BFF).
+- **Spring Cloud Gateway** (successor to Netflix Zuul) runs on Spring WebFlux and Reactor Netty (a Spring MVC variant also exists).
+- A **route** = id + destination **URI** (`lb://order-service` uses the load balancer) + **predicates** (`Path`, `Method`, `Host`, `Header`, `Query`, `After`) + **filters** (`StripPrefix`, `RewritePath`, `AddRequestHeader`, `Retry`, `CircuitBreaker`, `RequestRateLimiter`).
+- **Global filters** apply to all routes (authentication, correlation id, logging).
+```java
+@Bean
+RouteLocator routes(RouteLocatorBuilder builder) {
+  return builder.routes()
+      .route("orders", r -> r.path("/api/orders/**")
+          .filters(f -> f.circuitBreaker(c -> c.setName("orders").setFallbackUri("forward:/fallback/orders"))
+                         .retry(3))
+          .uri("lb://order-service"))
+      .route("catalog", r -> r.path("/api/catalog/**")
+          .filters(f -> f.stripPrefix(1))
+          .uri("lb://catalog-service"))
+      .build();
+}
+```
+
+## Rate Limiting at the Gateway | amber
+- The **`RequestRateLimiter`** filter with **`RedisRateLimiter`** implements a **token bucket**: `replenishRate` (tokens per second), `burstCapacity` (bucket size), `requestedTokens` (cost per request).
+- A **`KeyResolver`** decides what to limit by (user id from the token, API key, client IP).
+- Over the limit, the gateway returns **429 Too Many Requests**. Redis keeps the counters shared across gateway instances.
+```java
+@Bean
+KeyResolver userKeyResolver() {
+  return exchange -> exchange.getPrincipal().map(Principal::getName).defaultIfEmpty("anonymous");
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What is service discovery and why is it needed?
+A: A registry where service instances register their network location so clients can find healthy instances dynamically, since addresses change with scaling and deployments.
+Q: Client-side vs server-side load balancing?
+A: Client-side: the caller picks an instance from the registry (Spring Cloud LoadBalancer). Server-side: a load balancer or Kubernetes Service in front distributes requests.
+Q: What does Spring Cloud Config Server do?
+A: Serves externalised configuration for many services from a central, versioned backend such as Git, with profile-specific files and encryption support.
+Q: How do you refresh configuration without restarting?
+A: Mark beans with @RefreshScope and trigger /actuator/refresh, or use Spring Cloud Bus to broadcast refresh events to all instances.
+Q: What does an API gateway do?
+A: It is the single entry point that routes requests to services and centralises cross-cutting concerns: authentication, rate limiting, CORS, retries, circuit breaking and request transformation.
+Q: How does rate limiting work in Spring Cloud Gateway?
+A: The RequestRateLimiter filter with a Redis-backed token bucket per key (user, IP, API key) returns 429 when the bucket is empty.
+Q: Do you need Eureka on Kubernetes?
+A: Usually not: Kubernetes Services provide stable DNS names and load balancing across pods.
+
+# 12 | Resilience with Resilience4j | Timeouts, circuit breaker states, retry, rate limiter, bulkhead, time limiter, fallbacks | Resilience
+
+## Why Resilience Patterns | rose
+- In a distributed system **dependencies fail and slow down**. Without protection, threads pile up waiting on a slow service and the failure **cascades** through every caller.
+- First line of defence: **timeouts on every remote call** (connect and read). Then: circuit breakers, retries with backoff, bulkheads, rate limiters, fallbacks.
+- **Resilience4j** is the lightweight library used with Spring Boot (Netflix Hystrix is retired). Spring Cloud Circuit Breaker offers an abstraction over it.
+- Configure per backend instance in YAML; apply with annotations or functional decorators.
+
+## Circuit Breaker | blue
+- **CLOSED**: calls pass through; failures are recorded in a **sliding window** (count-based or time-based).
+- When the **failure rate** (or **slow-call rate**) exceeds the threshold (default 50%) after a minimum number of calls, it moves to **OPEN**: calls **fail fast** with `CallNotPermittedException` (or go to the fallback) without touching the dependency.
+- After **`waitDurationInOpenState`** it moves to **HALF_OPEN** and lets a few trial calls through: success → **CLOSED**, failure → **OPEN** again.
+- Purpose: protect the caller's resources, give the failing service time to recover, return degraded responses quickly.
+```yaml
+resilience4j:
+  circuitbreaker:
+    instances:
+      payments:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        slow-call-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+  retry:
+    instances:
+      payments:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions: java.io.IOException
+```
+```java
+@Service
+class PaymentClient {
+  @CircuitBreaker(name = "payments", fallbackMethod = "chargeFallback")
+  @Retry(name = "payments")
+  public PaymentResult charge(ChargeRequest req) { return callGateway(req); }
+
+  private PaymentResult chargeFallback(ChargeRequest req, Throwable ex) {
+    return PaymentResult.pending(req.orderId());          // queue for later instead of failing the checkout
+  }
+  private PaymentResult callGateway(ChargeRequest req) { return null; }
+}
+```
+
+## Retry, Rate Limiter, Bulkhead, Time Limiter | green
+- **Retry**: re-attempts transient failures with **exponential backoff and jitter**. Retry only **idempotent** operations (or use idempotency keys) and only retryable errors (timeouts, 503), not 400s.
+- **RateLimiter**: caps how many calls **this service makes** per period (protect a third-party API quota).
+- **Bulkhead**: limits **concurrent calls** to one dependency (semaphore or thread-pool based) so a slow dependency cannot consume every thread (like ship compartments).
+- **TimeLimiter**: bounds the duration of asynchronous calls (`CompletableFuture`).
+- **Fallback**: a degraded alternative (cached data, default value, queued work); it must be cheap and must not call the failing dependency.
+- Default aspect order when combined: **Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( call ) ) ) ) )**, so each retry attempt passes through the circuit breaker.
+
+## Designing for Failure | amber
+- Set **timeouts lower than the caller's timeout** (deadline budget) so failures do not pile up upstream.
+- **Avoid retry storms**: limit attempts, add jitter, and do not retry at every layer (gateway + service + client multiplies attempts).
+- Monitor breaker states and fallback counts through Actuator metrics.
+- Graceful degradation: show cached prices, hide recommendations, accept the order and charge later.
+
+## Interview Q&A | sky | wide
+Q: Explain the circuit breaker pattern and its states.
+A: It wraps remote calls and tracks failures. CLOSED lets calls through; when failures exceed a threshold it goes OPEN and fails fast; after a wait it goes HALF_OPEN to test with a few calls, closing on success or reopening on failure.
+Q: Retry vs circuit breaker?
+A: Retry re-attempts a call expecting a transient failure; a circuit breaker stops calling a dependency that keeps failing. They are combined: retries inside, breaker deciding whether to call at all.
+Q: What is a bulkhead?
+A: A limit on concurrent calls (or a separate thread pool) per dependency, isolating failures so one slow service cannot exhaust all threads.
+Q: Why is retrying a POST dangerous?
+A: POST is not idempotent; a retried request after a timeout may create duplicate orders or charges unless an idempotency key deduplicates it.
+Q: What makes a good fallback?
+A: A fast, dependency-free degraded response such as cached data, a default, or queuing the work, communicated honestly to the user.
+Q: Why are timeouts the first resilience measure?
+A: Without timeouts, calls to a hanging dependency hold threads indefinitely, which exhausts pools and cascades failure to callers.
+
+# 13 | Distributed Tracing | Traces and spans, context propagation, Micrometer Tracing, OpenTelemetry, Zipkin and Jaeger, sampling, log correlation | Tracing
+
+## Traces and Spans | rose
+- A **trace** follows **one request across all services**; it has a **trace id** shared by every part.
+- A **span** is one timed operation (an HTTP call, a DB query, a message publish) with a **span id**, a **parent span id**, start time, duration, tags/attributes and status.
+- Together they form a **tree** showing where time was spent and where errors occurred: essential for debugging latency in microservices.
+- **Three pillars of observability**: **logs** (events), **metrics** (aggregates), **traces** (request paths). Correlate them with the trace id.
+
+## Context Propagation | blue
+- The trace context travels between services in **HTTP headers** or message headers. The standard is **W3C Trace Context**: `traceparent: 00-<trace-id>-<span-id>-<flags>` (Spring Boot 3 default); **B3** headers are the older Zipkin format.
+- Each service continues the trace by reading the incoming header, creating child spans, and adding the header to outgoing calls.
+- Spring Boot instruments **`RestClient`, `RestTemplate`, `WebClient`** (when built from the **auto-configured builders**), Spring MVC, messaging (Kafka, RabbitMQ templates and listeners with observation enabled) and JDBC (with extra libraries) automatically.
+```text
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+             version  trace-id (16 bytes)          parent span-id   sampled
+```
+
+## Micrometer Tracing and OpenTelemetry | green
+- **Micrometer Tracing** (replacing Spring Cloud Sleuth in Boot 3) is the tracing facade; it bridges to **OpenTelemetry** (`micrometer-tracing-bridge-otel`) or **Brave**.
+- **OpenTelemetry (OTel)** is the vendor-neutral standard for traces, metrics and logs (APIs, SDKs, the **OTLP** protocol, the **Collector**).
+- **Backends**: **Zipkin**, **Jaeger** (accepts OTLP), Grafana Tempo, commercial APMs. The OTel Collector can receive, process and fan out to several.
+- The **Observation API** (`@Observed`, `Observation.createNotStarted(...)`) produces a metric **and** a span from one instrumentation point.
+- **Sampling**: `management.tracing.sampling.probability` (default **0.1**, i.e. 10%); use 1.0 in development. Tail-based sampling in the Collector keeps errors and slow traces.
+```yaml
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+```
+```java
+@Service
+class PricingService {
+  @Observed(name = "pricing.quote", contextualName = "price-quote")
+  Quote quote(Cart cart) { return compute(cart); }
+  private Quote compute(Cart cart) { return null; }
+}
+```
+
+## Log Correlation | amber
+- With tracing on the classpath, Spring Boot adds **`traceId` and `spanId` to the MDC**, so every log line of a request carries them (shown in the default log pattern and in structured JSON logs).
+- Searching logs by trace id across services reconstructs one request's story; trace UIs link spans to logs.
+- Return the trace id in error responses (or a correlation header) so support can find the request.
+
+## Interview Q&A | sky | wide
+Q: What is distributed tracing?
+A: Recording the path and timing of a request across services as a trace made of spans, linked by a trace id propagated in headers, to find latency and errors.
+Q: Trace vs span?
+A: A trace is the whole request journey; a span is a single timed operation within it, with a parent-child relationship to other spans.
+Q: How is trace context propagated?
+A: Via headers such as W3C traceparent (or B3) added to outgoing HTTP calls and messages and read by the next service.
+Q: What replaced Spring Cloud Sleuth?
+A: Micrometer Tracing in Spring Boot 3, with bridges to OpenTelemetry or Brave and exporters to Zipkin, OTLP and others.
+Q: What is sampling and why use it?
+A: Recording only a fraction of traces to limit overhead and storage; the default probability in Spring Boot is 0.1.
+Q: How do you correlate logs with traces?
+A: Micrometer Tracing puts traceId and spanId into the logging MDC, so log lines carry them and can be searched or linked from the trace UI.
+
+# 14 | Inter-Service Communication | Synchronous REST with RestClient, WebClient, HTTP interfaces and OpenFeign; asynchronous messaging; choosing | Communication
+
+## Synchronous vs Asynchronous | rose
+- **Synchronous** (REST, gRPC): the caller **waits** for the response. Simple and immediate, but creates **temporal coupling**: if the callee is down or slow, the caller is affected; long call chains add latency and failure probability.
+- **Asynchronous messaging** (Kafka, RabbitMQ): the producer **publishes an event or command** and continues; consumers process later. Decouples availability and load, supports many consumers, but brings **eventual consistency**, message ordering and duplicate handling.
+- Rule of thumb: **queries** that need an answer now → sync; **notifying other services that something happened** → async events.
+
+## RestClient and RestTemplate | blue
+- **`RestClient`** (Spring 6.1 / Boot 3.2+): modern **synchronous**, fluent HTTP client; works well with virtual threads.
+- **`RestTemplate`**: the older template API, in **maintenance mode**; still common in existing code. Prefer RestClient for new code.
+- Always configure **connect and read timeouts**, handle error statuses, and use the **auto-configured `RestClient.Builder`** (it carries observation/tracing and message converters).
+```java
+@Configuration
+class CustomerClientConfig {
+  @Bean
+  RestClient customerRestClient(RestClient.Builder builder) {
+    SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+    factory.setConnectTimeout(Duration.ofSeconds(2));
+    factory.setReadTimeout(Duration.ofSeconds(3));
+    return builder.baseUrl("http://customer-service").requestFactory(factory).build();
+  }
+}
+
+CustomerDto customer = restClient.get().uri("/api/customers/{id}", id)
+    .retrieve()
+    .onStatus(status -> status.value() == 404, (req, res) -> { throw new CustomerNotFoundException(id); })
+    .body(CustomerDto.class);
+```
+
+## WebClient | green
+- **`WebClient`** (Spring WebFlux) is **non-blocking and reactive**: returns `Mono` / `Flux`, handles many concurrent calls with few threads, supports streaming.
+- Use it in reactive applications or when fanning out many parallel calls; with virtual threads, blocking `RestClient` is often simpler in MVC apps.
+```java
+Mono<CustomerDto> customer = webClient.get().uri("/api/customers/{id}", id)
+    .retrieve().bodyToMono(CustomerDto.class)
+    .timeout(Duration.ofSeconds(3));
+Mono<OrderView> view = Mono.zip(customer, ordersMono).map(t -> new OrderView(t.getT1(), t.getT2()));  // parallel calls
+```
+
+## Declarative Clients: HTTP Interfaces and OpenFeign | amber
+- **HTTP interface clients** (Spring Framework 6): declare a Java interface with **`@HttpExchange`**, `@GetExchange`, `@PostExchange`; Spring generates the implementation over `RestClient` or `WebClient` (Spring 7 adds registration helpers such as `@ImportHttpServices`).
+- **Spring Cloud OpenFeign**: declarative clients with `@FeignClient(name = "customer-service")` and Spring MVC annotations, integrating discovery and load balancing. It is considered **feature-complete (maintenance mode)**; Spring recommends HTTP interfaces for new code.
+```java
+@HttpExchange("/api/customers")
+public interface CustomerClient {
+  @GetExchange("/{id}")
+  CustomerDto get(@PathVariable Long id);
+
+  @PostExchange
+  CustomerDto create(@RequestBody CreateCustomer request);
+}
+
+@Configuration
+class CustomerClientFactory {
+  @Bean
+  CustomerClient customerClient(RestClient.Builder builder) {
+    RestClient restClient = builder.baseUrl("http://customer-service").build();
+    return HttpServiceProxyFactory.builderFor(RestClientAdapter.create(restClient)).build()
+        .createClient(CustomerClient.class);
+  }
+}
+
+// OpenFeign equivalent (with @EnableFeignClients)
+@FeignClient(name = "customer-service", path = "/api/customers")
+interface CustomerFeignClient {
+  @GetMapping("/{id}") CustomerDto get(@PathVariable Long id);
+}
+```
+
+## Asynchronous Messaging | violet
+- **Events** ("OrderPlaced") announce facts; **commands** ("ChargePayment") ask one service to act.
+- Spring integrations: **`KafkaTemplate`** / **`@KafkaListener`**, **`RabbitTemplate`** / **`@RabbitListener`**, or **Spring Cloud Stream** (binder abstraction with functional `Consumer` / `Function` beans).
+- Requirements: **idempotent consumers** (delivery is usually at-least-once), **dead-letter queues** for poison messages, schema evolution (Avro/Protobuf/JSON Schema), ordering per key.
+- Publishing reliably together with a database change needs the **Outbox pattern** (sheet 15).
+```java
+@Service
+class OrderEvents {
+  private final KafkaTemplate<String, OrderPlaced> kafka;
+  OrderEvents(KafkaTemplate<String, OrderPlaced> kafka) { this.kafka = kafka; }
+  void publish(OrderPlaced e) { kafka.send("orders.placed", e.orderId(), e); }   // key = orderId keeps per-order ordering
+}
+
+@Component
+class InventoryListener {
+  @KafkaListener(topics = "orders.placed", groupId = "inventory")
+  void on(OrderPlaced e) { /* reserve stock, idempotently */ }
+}
+```
+
+## Interview Q&A | sky | wide
+Q: Synchronous vs asynchronous communication between services?
+A: Synchronous calls (REST, gRPC) wait for a response and couple availability; asynchronous messaging decouples services in time and load but introduces eventual consistency and message-handling concerns.
+Q: RestTemplate vs RestClient vs WebClient?
+A: RestTemplate is the older synchronous template in maintenance; RestClient is its modern fluent synchronous replacement; WebClient is the non-blocking reactive client.
+Q: What is OpenFeign and what is the modern alternative?
+A: A declarative HTTP client where you write an annotated interface and Spring Cloud generates the implementation. It is feature-complete; Spring's HTTP interface clients (@HttpExchange) are the recommended alternative.
+Q: What must every inter-service HTTP call have?
+A: Timeouts, error handling, tracing propagation, and resilience (retry for idempotent calls, circuit breaker), plus authentication between services.
+Q: Event vs command?
+A: An event states something that happened and can have many consumers; a command asks a specific service to do something and expects it to be handled once.
+Q: Why must message consumers be idempotent?
+A: Brokers typically deliver at least once, so duplicates happen after retries or rebalances; processing the same message twice must not change the outcome.
+
+# 15 | Distributed Transactions: 2PC, Saga & Outbox | Why ACID does not span services, two-phase commit and its limits, Saga choreography vs orchestration, Outbox pattern | Distributed Tx
+
+## The Problem | rose
+- With **database per service**, one business operation (place order: create order, reserve stock, charge payment) touches several databases. A local `@Transactional` cannot cover them.
+- **Dual-write problem**: updating your database **and** publishing a message (or calling another service) are two separate operations; a crash between them leaves the system inconsistent.
+- Microservices therefore favour **eventual consistency** with explicit compensation over distributed locks.
+
+## Two-Phase Commit (2PC) and Its Limits | blue
+- **2PC** (XA transactions): a **coordinator** asks all participants to **prepare** (vote), then tells everyone to **commit** or **roll back**.
+- **Limitations**: participants **hold locks while blocked** waiting for the coordinator (poor throughput and availability); the **coordinator is a single point of failure** (in-doubt transactions if it crashes after prepare); **latency** from extra round trips; tight coupling of services; **many modern stores and brokers do not support XA** (most NoSQL databases, HTTP APIs, Kafka's own transactions are not XA).
+- CAP reasoning: 2PC chooses consistency over availability during partitions. It is still used **inside one system** (multiple resources in one monolith or database cluster), rarely across microservices.
+
+## Saga Pattern | green
+- A **Saga** is a **sequence of local transactions**, one per service. Each publishes an event or replies so the next step runs. If a step fails, previously completed steps are undone with **compensating transactions** (refund payment, release stock, cancel order).
+- Compensations are **semantic undo** (business actions), not database rollbacks; intermediate states are visible (order "PENDING"), so design for that.
+- **Choreography**: no central controller; each service **listens to events and emits events** (OrderCreated → PaymentCharged → StockReserved). Simple for few steps, loosely coupled, but the flow is implicit and hard to follow, with risk of cyclic dependencies.
+- **Orchestration**: a central **orchestrator** (a service or a workflow engine such as Temporal or Camunda) **sends commands** and tracks state. The flow is explicit and easier to monitor and change, but the orchestrator adds a component and some coupling.
+- Steps and compensations must be **idempotent** and retryable; use timeouts for steps that never answer.
+```text
+Orchestrated "place order" saga
+1. Order Service      create order (PENDING)            compensation: cancel order
+2. Payment Service    charge card                       compensation: refund
+3. Inventory Service  reserve stock   -> FAILS (out of stock)
+   orchestrator runs compensations in reverse: refund payment, cancel order
+4. (on success)       order -> CONFIRMED, publish OrderConfirmed
+```
+
+## Transactional Outbox | amber
+- Solves the dual write: in the **same local transaction** that changes business data, **insert the event into an `outbox` table**. Both commit or neither does.
+- A separate **relay** publishes outbox rows to the broker: a **poller** (scheduled job reading unsent rows) or **Change Data Capture** (**Debezium** reading the database log), then marks them sent.
+- Delivery is **at-least-once** (the relay may publish twice after a crash), so consumers must be **idempotent**: store processed message ids (an **inbox** / dedup table) or make updates naturally idempotent.
+- Keep per-aggregate ordering by publishing with the aggregate id as the message key.
+```java
+@Service
+class OrderService {
+  private final OrderRepository orders;
+  private final OutboxRepository outbox;
+  private final ObjectMapper json;
+  OrderService(OrderRepository orders, OutboxRepository outbox, ObjectMapper json) {
+    this.orders = orders; this.outbox = outbox; this.json = json;
+  }
+
+  @Transactional
+  public Order place(PlaceOrder cmd) throws Exception {
+    Order order = orders.save(Order.pending(cmd));
+    outbox.save(new OutboxEvent(UUID.randomUUID(), "Order", order.getId().toString(), "OrderPlaced",
+        json.writeValueAsString(new OrderPlaced(order.getId(), order.getTotal())), Instant.now()));
+    return order;                     // order row and outbox row commit atomically
+  }
+}
+```
+
+## Consistency Toolkit | violet
+- **Idempotency keys** on APIs (client sends `Idempotency-Key`; the server stores the result and replays it for duplicates).
+- **Eventual consistency** with clear user-facing states ("Payment processing").
+- **Reconciliation jobs** to detect and fix drift.
+- **Semantic locks** (status fields) to stop conflicting operations during a saga.
+- Prefer designing boundaries so that most operations stay inside one service.
+
+## Interview Q&A | sky | wide
+Q: Why can't you use @Transactional across microservices?
+A: Each service has its own database and transaction manager; a local transaction cannot span other databases or network calls.
+Q: What are the limitations of two-phase commit?
+A: Blocking locks while waiting for the coordinator, the coordinator as a single point of failure, extra latency, tight coupling, and lack of XA support in many databases and brokers.
+Q: Explain the Saga pattern.
+A: A business transaction implemented as a series of local transactions in different services, each triggering the next, with compensating transactions to undo completed steps when a later step fails.
+Q: Choreography vs orchestration?
+A: Choreography lets services react to each other's events without a coordinator (decoupled but implicit flow); orchestration uses a central coordinator that issues commands and tracks state (explicit flow, extra component).
+Q: What problem does the Outbox pattern solve?
+A: The dual write: it saves the event in an outbox table in the same transaction as the business change, and a relay publishes it afterwards, so the database and the broker never disagree.
+Q: Why must consumers be idempotent with the Outbox pattern?
+A: The relay guarantees at-least-once delivery, so the same event can be published more than once; consumers must deduplicate or apply idempotent updates.
+Q: What is a compensating transaction?
+A: A business operation that semantically reverses a completed step, such as issuing a refund for a charge, since committed local transactions cannot be rolled back.
+
+@ Review
+
+# 16 | Rapid-Fire & Version Notes | Boot versions, tricky questions, one-liners, big Q&A | Rapid-fire
+
+## Version Notes | rose
+- **Boot 2.x**: `javax.*`, Java 8+, Spring Framework 5; open-source support has ended.
+- **Boot 3.0** (Nov 2022): **Java 17**, Spring Framework 6, **Jakarta EE** (`jakarta.*`), Micrometer Observation and Tracing (Sleuth replaced), native images via Spring AOT, `ProblemDetail`.
+- **3.1**: Testcontainers `@ServiceConnection`, Docker Compose support. **3.2**: **virtual threads**, **`RestClient`**, `JdbcClient`. **3.4**: **structured logging**, **`@MockitoBean`** (replaces deprecated `@MockBean`), `MockMvcTester`. **3.5**: last 3.x line.
+- **Boot 4.0** (Nov 2025): Spring Framework 7, Jakarta EE 11, **Jackson 3** (`tools.jackson` packages), **modular auto-configuration and starters** (e.g. `spring-boot-starter-webmvc`, per-technology test starters), **API versioning** in Spring MVC, HTTP service client registration, JSpecify null-safety, **`@MockBean` removed**. 4.1 is the current line in this project's Maven cache.
+> Name the version your project used. Most production code today is Boot 3.x.
+
+## Tricky Questions | blue
+- **"@Transactional / @Cacheable / @Async ignored"**: self-invocation or a non-public method; the proxy is bypassed.
+- **"Bean of type X could not be found"**: class outside the main application package (not scanned), missing starter, or a `@Profile` that is not active.
+- **"Two beans of type X"**: add `@Primary` or `@Qualifier`.
+- **"My singleton shows another user's data"**: mutable state in a singleton.
+- **"@Value is null"**: the object was created with `new` (not a Spring bean), or the field is static.
+- **"Exceptions from my filter are not handled by @ControllerAdvice"**: filters run before the DispatcherServlet.
+- **"Health is DOWN and Kubernetes restarts pods during a DB outage"**: database check wired into liveness instead of readiness.
+- **"Retries made the outage worse"**: retries at several layers without backoff or jitter (retry storm).
+
+## One-Line Cheat Sheet | green
+- **IoC/DI**: container creates and wires beans; **constructor injection**; `@Primary` / `@Qualifier`.
+- **@SpringBootApplication** = configuration + auto-configuration + component scan; **conditions** drive auto-config.
+- **Stereotypes**: `@Service`, `@Repository` (exception translation), `@RestController` (= `@Controller` + `@ResponseBody`).
+- **Scopes**: singleton (default, stateless!), prototype, request, session; scoped proxies.
+- **Config**: properties vs YAML, profiles, `@ConfigurationProperties`, precedence (CLI > env > files).
+- **Errors**: `@RestControllerAdvice` + `@ExceptionHandler` + **ProblemDetail (RFC 9457)**.
+- **Actuator**: health (liveness/readiness), info, metrics (Micrometer, Prometheus); only health exposed by default.
+- **Logging**: SLF4J + Logback, levels, MDC, structured JSON (3.4+).
+- **Tests**: unit + Mockito, `@WebMvcTest`, `@DataJpaTest`, `@SpringBootTest`, **`@MockitoBean`**, Testcontainers.
+- **Microservices**: capability/bounded context, **DB per service**, gateway, discovery, config, **Resilience4j**, **tracing**.
+- **Distributed tx**: avoid 2PC; **Saga** (choreography/orchestration) + **Outbox** + idempotent consumers.
+
+## How to Answer Well | teal
+- **Definition → small example → when you use it → trade-off**, then stop and let them dig.
+- Show production thinking: timeouts, idempotency, observability, security of Actuator, graceful shutdown.
+- Tie to experience: "We added a circuit breaker with a cached-price fallback around the pricing service; checkout stayed up during its outage."
+- For microservices questions, **always mention the cost** (consistency, operations, testing): it shows judgment, not just vocabulary.
+
+## Big Interview Q&A | sky | wide
+Q: Walk through what happens when a Spring Boot app starts.
+A: SpringApplication creates the environment (properties, profiles), creates the ApplicationContext, scans components and loads auto-configurations that match their conditions, instantiates singleton beans with DI and post-processors (creating proxies), starts the embedded server, then runs ApplicationRunner/CommandLineRunner beans and publishes ApplicationReadyEvent.
+Q: How would you design an order processing system with microservices?
+A: Separate Order, Payment, Inventory and Notification services each with its own database; an API gateway; synchronous reads where needed; an orchestrated or choreographed Saga for placing orders with compensations; the Outbox pattern for reliable events; Resilience4j around remote calls; tracing, metrics and centralised logging; idempotent consumers.
+Q: How do you make a REST API production-ready in Spring Boot?
+A: Validation and consistent ProblemDetail errors, security (authentication, authorisation, CORS), Actuator health/metrics with probes, structured logging with trace ids, timeouts and resilience for outbound calls, pagination, database migrations (Flyway/Liquibase), tests at several levels, and graceful shutdown.
+Q: How do services authenticate each other?
+A: OAuth 2.0 client credentials tokens validated by each resource server, or mutual TLS (often via a service mesh), plus network policies; never shared static passwords in code.
+Q: What is the difference between @Bean and @Component?
+A: @Component marks a class for component scanning (you own the class); @Bean declares a method that creates and configures an object, useful for third-party classes or conditional construction.
+Q: How do you handle configuration for 20 services across 3 environments?
+A: Externalised configuration with profiles, a central source (Config Server or Kubernetes ConfigMaps) versioned in Git, secrets in a secret manager, environment variables for overrides, and @ConfigurationProperties with validation in each service.
+Q: How do you debug a slow request across services?
+A: Find its trace by trace id in Zipkin/Jaeger/Tempo to see which span is slow, check that service's metrics (latency percentiles, pool usage) and its logs filtered by the same trace id, then reproduce and profile.
+Q: What happens if the Config Server is down at startup?
+A: Clients fail to start unless the import is marked optional or they fall back to local configuration; run Config Server with high availability, and enable retry (fail-fast with retry) in clients.

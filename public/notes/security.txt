@@ -1,0 +1,867 @@
+@ Beginner
+
+# 00 | Security Basics: Start Here | Core vocabulary, hashing vs encryption vs encoding, history of Spring Security and the OAuth, OIDC and JWT standards, adding Spring Security to an app and what happens, HTTP authentication schemes, OAuth vs OIDC vs SAML vs JWT | Start Here
+
+## Core Vocabulary | rose
+- **Authentication** answers "who are you?"; **authorization** answers "what may you do?" (sheet 01).
+- **Principal**: the authenticated user or service. **Credentials**: the proof it presents (password, token, key).
+- **Authority / permission**: something the principal is allowed to do. A **role** groups permissions (ADMIN). A **scope** is a permission granted to an OAuth token (`orders:read`).
+- **Token**: a string standing for an authenticated identity or a set of permissions. A **bearer token** grants access to whoever holds it, so it must only travel over HTTPS.
+- **Session**: server-side state for a logged-in user, identified by a **cookie** (`JSESSIONID` in Java servlet apps).
+- **Identity provider (IdP)**: the system that authenticates users and issues tokens (Keycloak, Okta, Microsoft Entra ID, Google). **SSO**: one login gives access to many applications. **MFA**: two or more independent factors (something you know, have, or are).
+- **TLS / HTTPS**: encrypts traffic and proves the server's identity. Every authentication scheme in this topic assumes it.
+
+## Hashing vs Encryption vs Encoding | blue
+- **Encoding** (Base64, URL encoding) only changes the representation for transport. **Anyone can reverse it**, so it gives **no security**; a JWT payload, for example, is merely Base64URL-encoded.
+- **Encryption** (AES, RSA) is reversible **with a key** and provides confidentiality (TLS, encrypted columns, JWE).
+- **Hashing** (SHA-256, bcrypt, Argon2) is **one-way**: the same input always gives the same digest, but the input cannot be recovered. Passwords are stored as **slow, salted hashes** (sheet 04). **HMAC** is a keyed hash that proves integrity (HS256 JWT signatures).
+- A **digital signature** (RSA, ECDSA) is created with a **private key** and verified with the matching **public key**. It proves origin and integrity (RS256 JWTs).
+```text
+"ann:s3cret"  --Base64-->  YW5uOnMzY3JldA==                        reversible by anyone: HTTP Basic is NOT encryption
+"s3cret"      --bcrypt-->  $2a$10$ + 22-char salt + 31-char hash    one-way, salted, deliberately slow
+```
+
+## History and Standards Timeline | green
+- **Spring Security** began in **2003** as **"The Acegi Security System for Spring"**, written by **Ben Alex**. It became an official Spring project and was renamed **Spring Security** with version **2.0** (2008).
+- Milestones: **5.0** (2017) added OAuth 2.0 Login, reactive (WebFlux) security and `{id}`-prefixed password storage. **5.7** (2022) deprecated `WebSecurityConfigurerAdapter`, and **6.0** (Nov 2022, with Boot 3) removed it, making `SecurityFilterChain` beans and `authorizeHttpRequests` the standard. **7.0** arrived in Nov 2025 with Boot 4. These notes use **6.5.5** (Boot 3.5.6) and **7.1.1** (Boot 4.1.1).
+- **OAuth 1.0** (2007, community-written; RFC 5849 in 2010) was followed by **OAuth 2.0**: **RFC 6749** (the framework) and **RFC 6750** (bearer tokens), both 2012. **RFC 9700** (2025) collects the security best practices, and **OAuth 2.1** (still a draft) consolidates them.
+- **OpenID Connect 1.0** (2014, OpenID Foundation) adds identity on top of OAuth 2.0.
+- **JWT** is **RFC 7519** (2015), part of the JOSE family: **JWS** (RFC 7515, signatures), **JWE** (RFC 7516, encryption), **JWK** (RFC 7517, keys) and **JWA** (RFC 7518, algorithms). **PKCE** is RFC 7636 (2015).
+- **SAML 2.0** (OASIS, 2005) is the older XML-based standard for enterprise single sign-on, still common with corporate identity providers.
+
+## Adding Spring Security: What Happens | amber
+```xml pom.xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-starter-security</artifactId>
+</dependency>
+```
+```text
+Using generated security password: 1a756987-6f3e-4449-a026-f222259cedcc
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+```
+```bash
+curl -i http://localhost:8080/hello                       # 401 with a WWW-Authenticate: Basic realm="Realm" header
+curl -u user:1a756987-6f3e-4449-a026-f222259cedcc "http://localhost:8080/hello?name=Ann"     # 200  Hello, Ann!
+# A browser instead gets a 302 redirect to /login, the generated "Please sign in" form
+```
+- With no configuration, **every endpoint requires authentication**. There is one user named **`user`** with a **random UUID password printed at each startup**, plus **form login** for browsers, **HTTP Basic** for other clients, **CSRF** protection, and **security headers** (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-cache, no-store, max-age=0, must-revalidate`, `X-XSS-Protection: 0`).
+- For development you can set a fixed user with `spring.security.user.name`, `spring.security.user.password` and `spring.security.user.roles`. The generated user backs off once you define your own `UserDetailsService` or similar authentication beans.
+- Real applications declare a `SecurityFilterChain` (sheet 05), then either a `UserDetailsService` with a `PasswordEncoder` (sheets 03 and 04) or an OAuth2 / JWT setup (sheets 08 and 11).
+- Verified on Boot 4.1.1 (Spring Security 7.1.1); Boot 3.5 behaves the same.
+
+## HTTP Authentication Schemes | violet
+- **HTTP Basic**: `Authorization: Basic base64(username:password)` on every request. Use it only over HTTPS; it suits simple tools and internal services.
+- **Session cookie**: the user logs in once (usually with a form), the server keeps a session, and the browser sends `Cookie: JSESSIONID=...` automatically. Needs CSRF protection (sheet 05).
+- **Bearer token**: `Authorization: Bearer <access token>`, often a JWT, issued by a login endpoint or an OAuth 2.0 authorization server. Used by stateless APIs, SPAs and mobile apps (sheets 07 to 11).
+- **API key**: a long random secret in a header (for example `X-API-Key`) that identifies a calling application. Simple for server-to-server access, but it carries no user identity and must be rotated by hand.
+- **Mutual TLS (mTLS)**: client certificates authenticate services to each other at the TLS layer.
+
+## OAuth 2.0 vs OIDC vs SAML vs JWT | sky
+- **OAuth 2.0** is an **authorization framework**: a client obtains a scoped **access token** to call an API on a user's behalf (sheet 09).
+- **OpenID Connect** is an **authentication layer** on top of OAuth 2.0. It adds the **ID token** and user info, enabling "Sign in with..." and SSO (sheet 10).
+- **SAML 2.0** is an older XML-based **SSO** standard that passes signed assertions through browser redirects; it is mostly found in enterprises.
+- **JWT** is a **token format**, not a protocol. OAuth and OIDC often use JWTs, and so can your own login endpoint (sheet 07).
+- **Spring Security** is the library inside your application. **Keycloak, Okta, Auth0 and Entra ID** are identity providers it integrates with, and **Spring Authorization Server** lets you build your own.
+
+## Interview Q&A | sky | wide
+Q: What is Spring Security?
+A: The Spring framework for authentication, authorization and protection against common attacks (CSRF, session fixation, clickjacking). It is implemented as a servlet filter chain and supports form login, HTTP Basic, OAuth2/OIDC login, JWT resource servers and method-level security.
+Q: Hashing vs encryption vs encoding?
+A: Encoding (Base64) only changes the representation and anyone can reverse it. Encryption is reversible with a key and provides confidentiality. Hashing is one-way and is used for password storage and integrity checks.
+Q: Is HTTP Basic authentication secure?
+A: Only over HTTPS. The credentials are merely Base64-encoded, so without TLS anyone on the network path can read them, and they are sent with every request.
+Q: Where does Spring Boot's default password come from, and what is the username?
+A: Boot generates a random UUID password at each startup and logs it ("Using generated security password: ..."); the username is user. Override them with spring.security.user.name and spring.security.user.password. The default disappears once you define your own UserDetailsService.
+Q: What is a bearer token?
+A: A token that grants access to whoever presents it in the Authorization: Bearer header, with no further proof. It should therefore be short-lived and sent only over HTTPS.
+Q: OAuth 2.0 vs OpenID Connect vs JWT?
+A: OAuth 2.0 delegates authorization through access tokens. OIDC adds authentication with an ID token. JWT is a signed token format that either of them can use.
+Q: What is SSO?
+A: Single sign-on: the user authenticates once with an identity provider and then uses several applications without logging in again, typically through OIDC or SAML.
+Q: What is MFA?
+A: Multi-factor authentication: requiring two or more independent factors, such as a password (knowledge), a phone or security key (possession), and a fingerprint (inherence).
+Q: Who created Spring Security?
+A: Ben Alex, as the Acegi Security System for Spring (2003). It was renamed Spring Security at version 2.0 in 2008.
+
+# 01 | Security Fundamentals | Authentication vs authorization, 401 vs 403, common threats, what Spring Security provides | Fundamentals
+
+## Authentication vs Authorization | rose
+- **Authentication (AuthN)**: **who are you?** Verifying identity with credentials (password, token, certificate, passkey, OTP).
+- **Authorization (AuthZ)**: **what are you allowed to do?** Checking permissions (roles, scopes, ownership rules) for an action on a resource.
+- Authentication comes first; authorization decisions use the authenticated identity and its **authorities**.
+- HTTP mapping: **401 Unauthorized** = not authenticated (missing or invalid credentials, send `WWW-Authenticate`); **403 Forbidden** = authenticated but not permitted.
+- **Principal**: the authenticated entity (user or service). **Credentials**: secret proof (password, token). **Authorities**: permissions granted to the principal.
+
+## Common Threats Spring Security Addresses | blue
+- **Credential theft and weak storage**: solved by adaptive password hashing (BCrypt, Argon2).
+- **CSRF (Cross-Site Request Forgery)**: a malicious site makes the victim's browser send an authenticated request using **cookies**; defended by CSRF tokens and SameSite cookies.
+- **Session fixation**: an attacker plants a known session id; Spring **changes the session id on login**.
+- **Clickjacking**: `X-Frame-Options` / CSP `frame-ancestors` headers.
+- **XSS**: injected scripts steal tokens or act as the user; output encoding plus headers (`Content-Security-Policy`); tokens in HttpOnly cookies are not readable by scripts.
+- **Brute force**: rate limiting, account lockout, MFA.
+- **Broken access control** (OWASP Top 10 #1): missing ownership checks ("can user A read order of user B?").
+
+## What Spring Security Provides | green
+- A **servlet filter chain** that authenticates requests and enforces authorization (sheet 02).
+- Built-in mechanisms: **form login**, **HTTP Basic**, **OAuth2 Login** (OpenID Connect), **OAuth2 Resource Server** (JWT / opaque tokens), remember-me, X.509, SAML 2.0, one-time-token and passkey support in recent versions.
+- **Password encoding**, **method security** (`@PreAuthorize`), **CSRF protection**, **security headers** (HSTS, X-Content-Type-Options, X-Frame-Options, cache control), **CORS** integration, session management.
+- With Spring Boot, adding `spring-boot-starter-security` **secures every endpoint by default** (HTTP Basic + form login with a generated password printed at startup) until you configure it.
+- Spring Security 6 (Boot 3) uses the **lambda DSL** and **`SecurityFilterChain` beans**; the old `WebSecurityConfigurerAdapter` was **removed**.
+
+## Interview Q&A | sky | wide
+Q: Authentication vs authorization?
+A: Authentication verifies identity (who you are); authorization decides what that identity may access or do.
+Q: 401 vs 403?
+A: 401 means the request is not authenticated (missing or invalid credentials); 403 means the user is authenticated but lacks permission.
+Q: What is CSRF?
+A: An attack where another site causes a logged-in user's browser to send a state-changing request that automatically includes their cookies; prevented with CSRF tokens, SameSite cookies, or by not using cookie-based authentication.
+Q: What happens when you add spring-boot-starter-security with no configuration?
+A: All endpoints require authentication, with a default user and generated password, form login and HTTP Basic enabled, CSRF protection on and security headers added.
+Q: What replaced WebSecurityConfigurerAdapter?
+A: Declaring SecurityFilterChain beans (and other beans like UserDetailsService and PasswordEncoder) configured with the lambda DSL.
+
+# 02 | The Security Filter Chain | DelegatingFilterProxy, FilterChainProxy, SecurityFilterChain, multiple chains, filter order, exception translation | Filter Chain
+
+## How Requests Enter Spring Security | rose
+- The servlet container knows only **Filters**. Spring Boot registers **`DelegatingFilterProxy`**, a standard servlet filter that **delegates to a Spring bean** named `springSecurityFilterChain` (bridging the servlet container and the ApplicationContext).
+- That bean is **`FilterChainProxy`**: it holds one or more **`SecurityFilterChain`s** and, for each request, runs **the first chain whose request matcher matches**.
+- Each `SecurityFilterChain` is an ordered list of **security filters** (authentication, CSRF, authorization...).
+- Benefits: security is configured as Spring beans, filters can use DI, and different URL spaces can have different chains.
+```text
+HTTP request
+  -> Servlet filters ... -> DelegatingFilterProxy
+        -> FilterChainProxy
+              -> SecurityFilterChain #1 (securityMatcher "/api/**")  [first match wins]
+              -> SecurityFilterChain #2 (any other request)
+                    filters: ... Csrf -> Logout -> authentication filters -> ... -> ExceptionTranslation -> Authorization
+  -> DispatcherServlet -> controller
+```
+
+## Important Filters in Order | blue
+- **`SecurityContextHolderFilter`**: loads the `SecurityContext` (for example from the HTTP session) for the request.
+- **`HeaderWriterFilter`**: adds security headers. **`CorsFilter`**: handles CORS and preflight before authentication.
+- **`CsrfFilter`**: verifies CSRF tokens on state-changing requests.
+- **`LogoutFilter`**.
+- **Authentication filters**: **`UsernamePasswordAuthenticationFilter`** (form login), **`BearerTokenAuthenticationFilter`** (OAuth2 resource server), **`BasicAuthenticationFilter`** (HTTP Basic), OAuth2 login filters.
+- `RequestCacheAwareFilter`, `SecurityContextHolderAwareRequestFilter`, **`AnonymousAuthenticationFilter`** (sets an anonymous Authentication if none).
+- **`ExceptionTranslationFilter`**: converts security exceptions into HTTP responses.
+- **`AuthorizationFilter`** (last): decides whether the request may proceed.
+- Insert your own with `http.addFilterBefore(myFilter, UsernamePasswordAuthenticationFilter.class)` (or `addFilterAfter` / `addFilterAt`).
+
+## Exception Translation | green
+- **`ExceptionTranslationFilter`** catches exceptions thrown further down the chain:
+- **`AuthenticationException`** (or an anonymous user hitting a protected resource) → **`AuthenticationEntryPoint`** starts authentication: redirect to the login page, or **401** with `WWW-Authenticate` for APIs.
+- **`AccessDeniedException`** for an authenticated user → **`AccessDeniedHandler`** → **403**.
+- Customise both to return JSON (Problem Details) for REST APIs.
+- `@ControllerAdvice` does **not** see these exceptions, because they happen in filters before the DispatcherServlet (except method-security exceptions thrown from controllers or services).
+
+## Multiple Filter Chains | amber
+- Use several `SecurityFilterChain` beans with **`securityMatcher(...)`** and **`@Order`** for different areas: stateless JWT for `/api/**`, form login and sessions for the admin UI, open access for `/actuator/health`.
+- **The first matching chain wins**: order the most specific chains first; the last chain usually matches everything.
+```java
+@Bean @Order(1)
+SecurityFilterChain api(HttpSecurity http) throws Exception {
+  http.securityMatcher("/api/**")
+      .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+      .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+      .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+      .csrf(csrf -> csrf.disable());
+  return http.build();
+}
+
+@Bean @Order(2)
+SecurityFilterChain web(HttpSecurity http) throws Exception {
+  http.authorizeHttpRequests(auth -> auth
+          .requestMatchers("/", "/login", "/css/**").permitAll()
+          .anyRequest().authenticated())
+      .formLogin(Customizer.withDefaults());
+  return http.build();
+}
+```
+
+## Interview Q&A | sky | wide
+Q: Explain the Spring Security filter chain.
+A: A DelegatingFilterProxy servlet filter delegates to the FilterChainProxy bean, which picks the first SecurityFilterChain matching the request and runs its ordered security filters (context loading, CSRF, authentication, exception translation, authorization) before the request reaches the DispatcherServlet.
+Q: What is DelegatingFilterProxy?
+A: A servlet filter registered with the container that delegates to a Spring-managed filter bean, connecting the servlet lifecycle with the Spring ApplicationContext.
+Q: How do you add a custom filter?
+A: Implement a filter (usually extending OncePerRequestFilter) and register it with http.addFilterBefore/After/At relative to a known filter class.
+Q: What does ExceptionTranslationFilter do?
+A: It turns AuthenticationException into an AuthenticationEntryPoint response (login redirect or 401) and AccessDeniedException into an AccessDeniedHandler response (403).
+Q: Can you have different security rules for API and web pages?
+A: Yes, with multiple SecurityFilterChain beans, each with a securityMatcher and @Order; the first matching chain handles the request.
+Q: Which filter makes the final authorization decision?
+A: AuthorizationFilter, at the end of the chain, using the rules from authorizeHttpRequests.
+
+# 03 | Core Interfaces: Authentication, SecurityContext, UserDetails | Authentication, SecurityContextHolder, AuthenticationManager, providers, UserDetailsService, GrantedAuthority | Core Interfaces
+
+## Authentication and SecurityContext | rose
+- **`Authentication`**: represents the principal: **`getPrincipal()`** (often a `UserDetails` or a `Jwt`), **`getCredentials()`** (password, erased after successful authentication), **`getAuthorities()`**, **`isAuthenticated()`**, `getDetails()` (IP, session).
+- Before authentication it carries the submitted credentials (an authentication **request**); after, a trusted **result** with authorities.
+- Implementations: **`UsernamePasswordAuthenticationToken`**, **`JwtAuthenticationToken`**, `AnonymousAuthenticationToken`, `OAuth2AuthenticationToken`.
+- **`SecurityContext`** holds the current `Authentication`; **`SecurityContextHolder`** stores the context for the current execution, by default in a **`ThreadLocal`** (`MODE_THREADLOCAL`; also `MODE_INHERITABLETHREADLOCAL`, `MODE_GLOBAL`).
+- Read the current user with `SecurityContextHolder.getContext().getAuthentication()`, or inject it into controllers with **`@AuthenticationPrincipal`** or an `Authentication` / `Principal` parameter.
+- Because it is thread-bound, async work needs propagation (`DelegatingSecurityContextExecutor`, Spring's context propagation for `@Async`).
+```java
+@GetMapping("/me")
+UserDto me(@AuthenticationPrincipal UserDetails user) {
+  return new UserDto(user.getUsername(), user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList());
+}
+```
+
+## AuthenticationManager and Providers | blue
+- **`AuthenticationManager.authenticate(Authentication)`** returns an authenticated `Authentication` or throws **`AuthenticationException`** (`BadCredentialsException`, `DisabledException`, `LockedException`).
+- **`ProviderManager`** (the usual implementation) delegates to a list of **`AuthenticationProvider`s**, asking each whether it `supports()` the authentication type.
+- **`DaoAuthenticationProvider`**: loads the user via **`UserDetailsService`** and checks the password with the **`PasswordEncoder`**; also checks account status (enabled, locked, expired).
+- `JwtAuthenticationProvider` validates bearer JWTs; custom providers handle LDAP, OTP, API keys and so on.
+```text
+Filter builds UsernamePasswordAuthenticationToken(username, password)
+  -> AuthenticationManager (ProviderManager)
+       -> DaoAuthenticationProvider
+            -> UserDetailsService.loadUserByUsername(username)
+            -> PasswordEncoder.matches(raw, stored hash)
+       <- authenticated token with authorities
+  -> SecurityContextHolder.getContext().setAuthentication(result)
+```
+
+## UserDetailsService and UserDetails | green
+- **`UserDetailsService.loadUserByUsername(String)`** loads a user from your store (database, LDAP); throws **`UsernameNotFoundException`** if absent.
+- **`UserDetails`**: `getUsername()`, `getPassword()` (the hash), **`getAuthorities()`**, `isEnabled()`, `isAccountNonLocked()`, `isAccountNonExpired()`, `isCredentialsNonExpired()`.
+- Built-ins: `InMemoryUserDetailsManager` (demos and tests), `JdbcUserDetailsManager`; usually you implement it with a JPA repository.
+```java
+@Service
+class JpaUserDetailsService implements UserDetailsService {
+  private final AppUserRepository users;
+  JpaUserDetailsService(AppUserRepository users) { this.users = users; }
+
+  @Override
+  public UserDetails loadUserByUsername(String email) {
+    AppUser u = users.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("Unknown user"));
+    return User.withUsername(u.getEmail())
+        .password(u.getPasswordHash())
+        .roles(u.getRoles().toArray(String[]::new))        // adds the ROLE_ prefix
+        .disabled(!u.isActive())
+        .build();
+  }
+}
+```
+
+## GrantedAuthority: Roles vs Authorities | amber
+- A **`GrantedAuthority`** is a permission string. **Roles are authorities with the `ROLE_` prefix**: `hasRole("ADMIN")` checks the authority `ROLE_ADMIN`; `hasAuthority("orders:write")` checks the exact string.
+- OAuth2 scopes become authorities prefixed **`SCOPE_`** (`SCOPE_orders:read`).
+- Model coarse **roles** (ADMIN, CUSTOMER) and fine-grained **permissions** (orders:write); role hierarchies (`RoleHierarchy`) let ADMIN imply USER.
+
+## Interview Q&A | sky | wide
+Q: What is the SecurityContextHolder?
+A: The holder of the SecurityContext (and so the current Authentication) for the current thread, using a ThreadLocal by default.
+Q: How does authentication work internally for form login?
+A: UsernamePasswordAuthenticationFilter creates an unauthenticated token, AuthenticationManager (ProviderManager) delegates to DaoAuthenticationProvider, which loads UserDetails and checks the password hash; on success the authenticated token is stored in the SecurityContext (and session).
+Q: AuthenticationManager vs AuthenticationProvider?
+A: AuthenticationManager is the entry point API; ProviderManager implements it by delegating to AuthenticationProviders, each handling one authentication type.
+Q: What does UserDetailsService do?
+A: It loads user-specific data (username, password hash, authorities, account status) by username for the authentication provider.
+Q: hasRole vs hasAuthority?
+A: hasRole("X") checks the authority "ROLE_X"; hasAuthority checks the exact authority string, such as a permission or SCOPE_ value.
+Q: How do you get the current user in a controller?
+A: Add an @AuthenticationPrincipal parameter (or Authentication/Principal), or read SecurityContextHolder.getContext().getAuthentication().
+
+# 04 | Password Hashing | PasswordEncoder, BCrypt, Argon2, DelegatingPasswordEncoder, upgrading hashes | Passwords
+
+## Why Adaptive Hashing | rose
+- Passwords must be stored as **one-way hashes**, never encrypted or plain, so a database leak does not reveal them.
+- Use **slow, salted, adaptive** algorithms designed for passwords: **Argon2id** (memory-hard, winner of the Password Hashing Competition), **bcrypt**, **scrypt**, **PBKDF2**. Their work factor makes brute force expensive and can increase over time.
+- **Fast hashes (MD5, SHA-1, SHA-256) are unsuitable**: GPUs compute billions per second. A **unique random salt per password** defeats rainbow tables (bcrypt and Argon2 generate and embed it automatically).
+- Tune the cost so one hash takes on the order of tens to hundreds of milliseconds on your servers.
+
+## PasswordEncoder | blue
+- **`PasswordEncoder.encode(raw)`** creates a salted hash; **`matches(raw, encoded)`** verifies a login attempt; `upgradeEncoding(encoded)` says whether the hash should be re-encoded with stronger settings.
+- **`BCryptPasswordEncoder`** (default strength 10; each increment doubles the work), **`Argon2PasswordEncoder`** (`defaultsForSpringSecurity_v5_8()`, needs Bouncy Castle), `SCryptPasswordEncoder`, `Pbkdf2PasswordEncoder`.
+- **`NoOpPasswordEncoder`** is for tests only (deprecated, insecure).
+```java
+@Bean
+PasswordEncoder passwordEncoder() {
+  return PasswordEncoderFactories.createDelegatingPasswordEncoder();   // bcrypt by default, understands {id} prefixes
+}
+
+@Service
+class RegistrationService {
+  private final PasswordEncoder encoder;
+  private final AppUserRepository users;
+  RegistrationService(PasswordEncoder encoder, AppUserRepository users) { this.encoder = encoder; this.users = users; }
+
+  void register(String email, String rawPassword) {
+    users.save(new AppUser(email, encoder.encode(rawPassword)));      // e.g. {bcrypt}$2a$10$...
+  }
+}
+```
+
+## DelegatingPasswordEncoder and Migration | green
+- Stores hashes with an **algorithm id prefix**: `{bcrypt}$2a$10$...`, `{argon2}...`, `{noop}plain` (tests only).
+- Verifies any supported format and **encodes new passwords with the default** algorithm, so you can **migrate algorithms gradually**: old hashes still work, and with a `UserDetailsPasswordService` Spring **re-hashes on successful login** when `upgradeEncoding` says so.
+- This avoids forcing all users to reset passwords when moving from SHA or MD5 to bcrypt or Argon2.
+
+## Interview Q&A | sky | wide
+Q: How should passwords be stored?
+A: Hashed with a slow, salted, adaptive algorithm such as Argon2id or bcrypt through a PasswordEncoder; never in plain text, encrypted, or with fast hashes.
+Q: Why is SHA-256 a bad password hash?
+A: It is designed to be fast, so attackers can test billions of guesses per second on GPUs; password hashing must be deliberately slow and salted.
+Q: What is a salt?
+A: A random value unique per password mixed into the hash so identical passwords produce different hashes and precomputed rainbow tables are useless.
+Q: What is DelegatingPasswordEncoder?
+A: A PasswordEncoder that prefixes hashes with an algorithm id, verifies hashes of any supported algorithm and encodes new ones with the current default, enabling gradual algorithm migration.
+Q: What does the bcrypt strength parameter do?
+A: It is the log2 of the number of rounds; each increment doubles the hashing time (default 10).
+
+@ Intermediate
+
+# 05 | Configuring HttpSecurity | SecurityFilterChain bean, authorizeHttpRequests, roles, sessions, CSRF, CORS, headers, form login and HTTP Basic | HttpSecurity
+
+## A Typical Configuration | rose
+- Declare a **`SecurityFilterChain` bean** built from **`HttpSecurity`** with the lambda DSL.
+- **`authorizeHttpRequests`**: rules evaluated **in order**, first match wins; end with **`anyRequest()`**.
+- Matchers: **`requestMatchers("/api/admin/**")`**, with HTTP method `requestMatchers(HttpMethod.POST, "/api/orders")`.
+- Rules: **`permitAll()`**, **`authenticated()`**, **`hasRole("ADMIN")`**, `hasAnyRole(...)`, **`hasAuthority("SCOPE_orders:write")`**, `denyAll()`, `access(...)` for custom logic.
+```java
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+
+  @Bean
+  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/actuator/health", "/api/auth/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/orders/**").hasAuthority("SCOPE_orders:write")
+            .anyRequest().authenticated())
+        .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .csrf(csrf -> csrf.disable())                               // stateless API using Authorization headers
+        .cors(Customizer.withDefaults());
+    return http.build();
+  }
+
+  @Bean
+  CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration config = new CorsConfiguration();
+    config.setAllowedOrigins(List.of("https://shop.example"));
+    config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
+    config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+    config.setAllowCredentials(true);
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/api/**", config);
+    return source;
+  }
+}
+```
+
+## Sessions vs Stateless | blue
+- **Session-based** (traditional web apps): after login the `SecurityContext` is stored in the **HTTP session**; the browser sends the **JSESSIONID** cookie. Simple and revocable (invalidate the session), but needs **CSRF protection** and sticky sessions or a shared session store (Spring Session with Redis) when scaled.
+- **Stateless token-based** (APIs, mobile, SPAs with tokens): every request carries a **bearer token**; `SessionCreationPolicy.STATELESS` means Spring never creates or uses a session.
+- Session protections: **session fixation protection** (new session id on login, default), maximum concurrent sessions, idle timeouts, secure cookie flags (`HttpOnly`, `Secure`, `SameSite`).
+
+## CSRF: When It Is Needed | green
+- CSRF is enabled by default and checks a token on **POST, PUT, PATCH, DELETE**.
+- **Needed when authentication is carried automatically by the browser**: session cookies, any cookie-based token, HTTP Basic or client certificates.
+- **Can be disabled** for **stateless APIs that authenticate with an `Authorization` header** (bearer tokens), because a cross-site page cannot set that header.
+- For SPAs using cookie sessions, keep CSRF and expose the token to JavaScript (`CookieCsrfTokenRepository.withHttpOnlyFalse()`); the SPA sends it back in the `X-XSRF-TOKEN` header (Angular does this automatically).
+- `SameSite=Lax` or `Strict` cookies add defence in depth but do not replace CSRF tokens for every case.
+
+## Form Login, HTTP Basic, Headers | amber
+- **`formLogin()`**: login page, `UsernamePasswordAuthenticationFilter`, success/failure handlers, `logout()`.
+- **`httpBasic()`**: credentials in every request (`Authorization: Basic base64(user:pass)`); only over HTTPS; fine for simple service-to-service or internal tools.
+- **Security headers** are added by default: `Cache-Control: no-cache, no-store, max-age=0, must-revalidate` (with `Pragma: no-cache`, `Expires: 0`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 0` (the legacy browser XSS filter is deliberately disabled), **HSTS** `max-age=31536000 ; includeSubDomains` (HTTPS requests only). **Content-Security-Policy** is not added by default; set it with `headers(h -> h.contentSecurityPolicy(...))`.
+- Public endpoints: prefer `permitAll()` in the chain over `WebSecurityCustomizer.ignoring()`, so headers and other protections still apply.
+
+## Interview Q&A | sky | wide
+Q: How do you configure Spring Security in Spring Boot 3?
+A: Declare a SecurityFilterChain bean built from HttpSecurity with the lambda DSL (authorizeHttpRequests, authentication mechanism, session policy, CSRF, CORS), plus beans like PasswordEncoder and UserDetailsService.
+Q: Does the order of requestMatchers matter?
+A: Yes. Rules are evaluated top to bottom and the first match decides, so specific rules go before general ones and anyRequest() comes last.
+Q: When can you disable CSRF?
+A: For stateless APIs authenticated with an Authorization header (bearer tokens) and no cookie-based authentication; keep it whenever browsers send credentials automatically.
+Q: What does SessionCreationPolicy.STATELESS do?
+A: Spring Security neither creates nor uses an HTTP session to store the SecurityContext; each request must authenticate itself, typically with a token.
+Q: How do you configure CORS with Spring Security?
+A: Provide a CorsConfigurationSource bean and enable http.cors(); the CorsFilter runs before authentication so preflight requests are answered correctly.
+Q: Session-based vs token-based authentication?
+A: Sessions keep state on the server and use a cookie (easy revocation, needs CSRF protection and shared storage to scale); tokens are self-contained or looked up per request, stateless and suited to APIs and mobile clients, but harder to revoke.
+
+# 06 | Method-Level Security | @EnableMethodSecurity, @PreAuthorize, @PostAuthorize, @Secured, @RolesAllowed, filters, proxy caveats | Method Security
+
+## Enabling Method Security | rose
+- **`@EnableMethodSecurity`** (Spring Security 6; replaces `@EnableGlobalMethodSecurity`) enables **`@PreAuthorize` / `@PostAuthorize` / `@PreFilter` / `@PostFilter`** by default; `securedEnabled = true` adds **`@Secured`**, `jsr250Enabled = true` adds **`@RolesAllowed`**.
+- Method security protects the **service layer** too, not just URLs: defence in depth and rules close to the business logic.
+- Implemented with **AOP proxies**: only calls **through the proxy** are checked (self-invocation inside the same class is not), and only on Spring beans.
+
+## @PreAuthorize and @PostAuthorize | blue
+- **`@PreAuthorize("expression")`**: evaluated **before** the method; denial throws `AccessDeniedException` (403).
+- SpEL can use `hasRole`, `hasAuthority`, **`authentication`**, **`principal`**, method arguments by name (**`#orderId`**), and **bean methods** (`@orderSecurity.isOwner(#orderId, authentication)`).
+- **`@PostAuthorize`**: evaluated **after** the method with **`returnObject`**: useful for ownership checks on the loaded entity (the method still ran, so avoid side effects).
+- **`@PreFilter` / `@PostFilter`**: filter collection arguments or results by an expression (`filterObject`); loads everything first, so prefer filtering in the query for large data.
+- Referencing parameters by name needs the `-parameters` compiler flag (Spring Boot's build plugins set it).
+```java
+@Service
+public class OrderService {
+
+  @PreAuthorize("hasRole('ADMIN') or @orderSecurity.isOwner(#orderId, authentication)")
+  public OrderDto get(Long orderId) { return null; }
+
+  @PostAuthorize("returnObject.customerEmail() == authentication.name or hasRole('ADMIN')")
+  public OrderDto findByNumber(String number) { return null; }
+
+  @PreAuthorize("hasAuthority('SCOPE_orders:write')")
+  public OrderDto place(PlaceOrder cmd) { return null; }
+
+  @Secured("ROLE_ADMIN")                    // only with @EnableMethodSecurity(securedEnabled = true); otherwise silently ignored
+  public void cancelAll() { }
+}
+
+@Component("orderSecurity")
+class OrderSecurity {
+  private final OrderRepository orders;
+  OrderSecurity(OrderRepository orders) { this.orders = orders; }
+  public boolean isOwner(Long orderId, Authentication auth) {
+    return orders.findById(orderId).map(o -> o.getCustomerEmail().equals(auth.getName())).orElse(false);
+  }
+}
+```
+
+## Choosing URL vs Method Security | green
+- **URL rules** (`authorizeHttpRequests`): coarse-grained, by path and method; cheap, central, protects whole areas.
+- **Method rules**: fine-grained, can use arguments and loaded data (ownership, tenant, state); protect services reachable from several entry points (REST, messaging, scheduled jobs).
+- Use both: URL rules as the first gate, method rules for object-level authorization (the main defence against broken access control).
+- **Testing**: `@WithMockUser(roles = "ADMIN")`, `@WithUserDetails`, or `SecurityMockMvcRequestPostProcessors.jwt()` in MockMvc tests.
+
+## Interview Q&A | sky | wide
+Q: @PreAuthorize vs @Secured vs @RolesAllowed?
+A: @PreAuthorize supports SpEL expressions (roles, authorities, arguments, bean calls); @Secured and @RolesAllowed (JSR-250) only list roles. @PreAuthorize is the most flexible.
+Q: @PreAuthorize vs @PostAuthorize?
+A: PreAuthorize checks before the method runs; PostAuthorize runs the method and checks the returned object (returnObject), useful for ownership checks on loaded data.
+Q: Why might method security be ignored?
+A: It is not enabled (@EnableMethodSecurity), the object is not a Spring bean, or the method is called from inside the same class so the proxy is bypassed.
+Q: How do you implement "users can only see their own orders"?
+A: Object-level checks: filter queries by the current user, and/or @PreAuthorize with an ownership bean (@orderSecurity.isOwner(#id, authentication)) or @PostAuthorize on returnObject.
+Q: How do you test secured methods?
+A: With @WithMockUser or @WithUserDetails on tests, or MockMvc request post-processors like jwt() and user(), asserting 403/401 for unauthorised cases.
+
+# 07 | JWT Fundamentals | Structure, claims, signing algorithms, JWS vs JWE, validation steps, pitfalls | JWT
+
+## JWT Structure | rose
+- A **JSON Web Token** (RFC 7519) is a compact, URL-safe token: **`header.payload.signature`**, each part **Base64URL-encoded**.
+- **Header**: metadata, mainly **`alg`** (signing algorithm), `typ` ("JWT"), and **`kid`** (key id, to pick the right key from a key set).
+- **Payload**: **claims** (statements about the subject).
+- **Signature**: computed over `base64url(header) + "." + base64url(payload)` with a key; proves **integrity and origin**.
+- A signed JWT (**JWS**) is **not encrypted**: anyone can decode and read the payload. Never put secrets or sensitive personal data in it. **JWE** (RFC 7516) encrypts the content when confidentiality is required.
+```text
+eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0 . eyJzdWIiOiJ1c2VyLTQyIiwiZXhwIjoxNzYwNDQ0MDAwfQ . <signature>
+{ "alg": "RS256", "kid": "k1" }        { "sub": "user-42", "exp": 1760444000 }
+```
+
+## Claims | blue
+- **Registered claims**: **`iss`** (issuer), **`sub`** (subject: user id), **`aud`** (audience: which API the token is for), **`exp`** (expiry, seconds since epoch), **`nbf`** (not before), **`iat`** (issued at), **`jti`** (unique token id, used for revocation lists and replay detection).
+- **Public / private claims**: `scope` or `scp`, `roles`, `email`, `tenant_id`. Keep tokens **small** (they travel on every request).
+- Authorization data in the token is a **snapshot** until expiry: role changes apply only to new tokens.
+```json
+{
+  "iss": "https://auth.shop.example",
+  "sub": "user-42",
+  "aud": "orders-api",
+  "exp": 1760444000,
+  "iat": 1760443100,
+  "jti": "6f1c9a2e-7b0d-4e55-9a1f-2c3d4e5f6a7b",
+  "scope": "orders:read orders:write",
+  "roles": ["CUSTOMER"]
+}
+```
+
+## Signing Algorithms | green
+- **Symmetric (HMAC)**: **HS256** / HS384 / HS512 use **one shared secret** to sign and verify. Simple, fast; but **every verifier can also forge tokens**, so suitable only when issuer and verifier are the same service. The secret must be long and random (at least 256 bits for HS256).
+- **Asymmetric**: **RS256** (RSA), **PS256** (RSA-PSS), **ES256** (ECDSA P-256), **EdDSA**: the issuer signs with a **private key**; resource servers verify with the **public key**, typically fetched from a **JWKS** endpoint (`/.well-known/jwks.json`). Verifiers cannot forge tokens; keys can rotate using `kid`.
+- Use asymmetric algorithms whenever tokens are issued by an authorization server and consumed by several services.
+
+## Validating a JWT | amber
+- 1) Parse and check the structure; 2) **select the key** (by `kid`) and **verify the signature with an algorithm you expect** (never trust the token's `alg` blindly); 3) check **`exp`** and **`nbf`** (allow small clock skew); 4) check **`iss`** is your issuer; 5) check **`aud`** contains your API; 6) then map claims to authorities.
+- **Classic attacks**: **`alg: none`** (unsigned token accepted by a careless library); **algorithm confusion** (an RS256 public key used as an HS256 secret); weak HS secrets brute-forced offline; missing `aud` check lets a token for another API be replayed.
+- Spring Security's `JwtDecoder` (Nimbus) does signature, `exp`/`nbf` and `iss` validation for you; add audience validation explicitly.
+
+## Stateless Tokens: Pros and Cons | violet
+- **Pros**: no server-side session lookup, horizontally scalable, works across services and domains, carries identity and scopes to downstream services.
+- **Cons**: **hard to revoke before expiry**, size overhead per request, stale permissions until expiry, key management.
+- Mitigations: **short-lived access tokens** (5-15 minutes) plus **refresh tokens** (sheet 08), revocation lists by `jti` for high-risk cases, or **opaque tokens with introspection** when instant revocation matters.
+
+## Interview Q&A | sky | wide
+Q: What is a JWT made of?
+A: Three Base64URL-encoded parts separated by dots: a header (algorithm, key id), a payload of claims, and a signature over the header and payload.
+Q: Is a JWT encrypted?
+A: A normal signed JWT (JWS) is only encoded and signed, so anyone can read it; JWE is the encrypted variant.
+Q: HS256 vs RS256?
+A: HS256 uses one shared secret for signing and verifying, so every verifier could forge tokens; RS256 signs with a private key and verifies with a public key, so many services can verify without being able to issue.
+Q: What claims should be validated?
+A: The signature with an expected algorithm and key, exp and nbf, iss, and aud, before trusting any other claim.
+Q: What is the alg none attack?
+A: A token with alg set to none and no signature; vulnerable libraries accepted it as valid. Always pin allowed algorithms.
+Q: What is the jti claim for?
+A: A unique identifier of the token, used to detect replays and to revoke specific tokens via a denylist.
+Q: Why should JWTs be short-lived?
+A: They cannot easily be revoked once issued, so a short expiry limits the damage if one is stolen; refresh tokens provide longer sessions.
+
+# 08 | JWT Authentication Flow, Refresh Tokens & Revocation | Login to token issuance, storage, bearer injection, validation filter, refresh rotation, revocation strategies | Token Lifecycle
+
+## The End-to-End Flow | rose
+- **1. Login**: the client sends credentials (or completes an OAuth2/OIDC flow); the server authenticates them.
+- **2. Issue tokens**: a short-lived **access token** (JWT, minutes) and a long-lived **refresh token** (opaque random string or JWT, days), the latter stored server-side (hashed) for rotation and revocation.
+- **3. Store tokens on the client**: see the storage card below.
+- **4. Send the access token** on each API call: `Authorization: Bearer <token>` (an HTTP interceptor in Angular, a fetch wrapper in React).
+- **5. Validate on the server**: a filter (Spring's `BearerTokenAuthenticationFilter` with a `JwtDecoder`) verifies the token and sets the `SecurityContext`; authorization rules then apply.
+- **6. Refresh**: when the access token expires (401), the client calls the refresh endpoint to get a new pair, then retries the request.
+```text
+Client                          Auth endpoint / API
+  | POST /api/auth/login  {email, password} ---> verify password
+  | <--- 200 {access_token (15 min), refresh_token (7 days)}
+  | GET /api/orders  Authorization: Bearer <access> ---> filter verifies signature, exp, iss, aud
+  | <--- 200 orders
+  | ... access token expires ...
+  | GET /api/orders ---> 401
+  | POST /api/auth/refresh {refresh_token} ---> validate, ROTATE: revoke old, issue new pair
+  | <--- 200 {new access, new refresh}
+```
+
+## Issuing and Validating with Spring Security | blue
+- Spring's **`JwtEncoder`** (Nimbus) issues tokens and the **resource server** support validates them, so no third-party JWT library or hand-written filter is required.
+- For self-issued tokens with one service, an HMAC key works; for multiple services use RSA/EC keys and publish the public key (JWKS).
+```java
+@Configuration
+class JwtConfig {
+  @Bean
+  SecretKey jwtKey(@Value("${app.jwt.secret}") String base64Secret) {          // 256-bit+ random secret
+    return new SecretKeySpec(Base64.getDecoder().decode(base64Secret), "HmacSHA256");
+  }
+  @Bean
+  JwtEncoder jwtEncoder(SecretKey key) { return new NimbusJwtEncoder(new ImmutableSecret<>(key)); }
+
+  @Bean
+  JwtDecoder jwtDecoder(SecretKey key) {
+    NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+    decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer("https://shop.example"));
+    return decoder;
+  }
+}
+
+@Service
+class TokenService {
+  private final JwtEncoder encoder;
+  TokenService(JwtEncoder encoder) { this.encoder = encoder; }
+
+  String accessToken(Authentication auth) {
+    Instant now = Instant.now();
+    JwtClaimsSet claims = JwtClaimsSet.builder()
+        .issuer("https://shop.example")
+        .subject(auth.getName())
+        .issuedAt(now)
+        .expiresAt(now.plus(15, ChronoUnit.MINUTES))
+        .claim("scope", auth.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.joining(" ")))
+        .build();
+    JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+    return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+  }
+}
+```
+
+## Where to Store Tokens in the Browser | green
+- **In memory** (a JavaScript variable): never written to storage, so it is harder to steal than localStorage (although a running XSS script can still use it) and it is lost on page reload; pair it with a refresh token in an HttpOnly cookie to restore the session.
+- **HttpOnly, Secure, SameSite cookie**: **not readable by JavaScript** (limits XSS token theft) and sent automatically, which reintroduces **CSRF** concerns (use SameSite and CSRF tokens).
+- **localStorage / sessionStorage**: simple, but **any XSS can read the token**; widely used, widely discouraged for sensitive apps.
+- **Backend-for-Frontend (BFF)**: the browser holds only a session cookie to its own backend, which keeps the OAuth tokens server-side and attaches them to API calls. Recommended current practice for SPAs handling sensitive data.
+- Mobile apps: the platform's secure storage (Keychain, Android Keystore).
+
+## Refresh Token Rotation and Revocation | amber
+- **Rotation**: every refresh **invalidates the used refresh token** and issues a new one. **Reuse detection**: if an already-used refresh token is presented again (it was stolen), **revoke the whole token family** and force re-login.
+- Store refresh tokens **hashed** with user, device, expiry and family id; bind them to the client where possible.
+- **Revoking access tokens**: (a) keep them **short-lived** and revoke refresh tokens on logout or password change; (b) a **denylist of `jti`s** checked on each request (cache it, e.g. Redis, until the token's expiry); (c) a **token version** per user stored in the database and embedded in tokens (bump it to invalidate all); (d) **opaque tokens with introspection** for immediate central revocation.
+- On **password change or compromise**: revoke all refresh tokens and bump the token version.
+
+## Interview Q&A | sky | wide
+Q: Walk me through JWT authentication in a Spring Boot API.
+A: The client logs in and receives a short-lived access token and a refresh token; it sends the access token as a Bearer header; Spring Security's BearerTokenAuthenticationFilter with a JwtDecoder validates signature, expiry and issuer, builds a JwtAuthenticationToken with authorities and stores it in the SecurityContext; authorization rules then apply; on expiry the client uses the refresh endpoint.
+Q: Why use both access and refresh tokens?
+A: Short-lived access tokens limit damage if stolen and avoid per-request lookups; long-lived refresh tokens, stored and revocable on the server, let users stay signed in without re-entering credentials.
+Q: What is refresh token rotation?
+A: Issuing a new refresh token on every refresh and invalidating the old one; reuse of an old token signals theft and revokes the whole family.
+Q: How do you revoke a JWT before it expires?
+A: Keep access tokens short, revoke refresh tokens, and if immediate revocation is required, check a jti denylist or a per-user token version on each request, or switch to opaque tokens with introspection.
+Q: Where should a SPA store tokens?
+A: Prefer a BFF that keeps tokens server-side with an HttpOnly session cookie; otherwise keep the access token in memory and the refresh token in an HttpOnly, Secure, SameSite cookie. Avoid localStorage for sensitive applications because XSS can read it.
+Q: What happens on logout with JWTs?
+A: The client discards tokens and the server revokes the refresh token (and, if needed, denylists the current access token's jti until it expires).
+
+@ Advanced
+
+# 09 | OAuth 2.0: Roles & Grant Types | Roles, Authorization Code with PKCE, Client Credentials, Refresh Token, deprecated grants, scopes | OAuth 2.0
+
+## What OAuth 2.0 Is | rose
+- **OAuth 2.0** (RFC 6749) is an **authorization framework**: it lets a **client application obtain limited access** to a user's resources on another service **without receiving the user's password**, using **access tokens** with **scopes**.
+- It is about **delegated authorization**, not authentication; **OpenID Connect** adds authentication on top (sheet 10).
+- Current best practice is captured in the **OAuth 2.0 Security Best Current Practice (RFC 9700)** and the **OAuth 2.1** draft, which consolidates it.
+
+## The Four Roles | blue
+- **Resource Owner**: the user who owns the data and grants access.
+- **Client**: the application requesting access (web app, SPA, mobile app, backend service). **Confidential** clients can keep a secret (server-side apps); **public** clients cannot (SPAs, mobile apps).
+- **Authorization Server**: authenticates the resource owner, obtains consent and **issues tokens** (Keycloak, Okta/Auth0, Entra ID, Cognito, Google, Spring Authorization Server).
+- **Resource Server**: the API that **accepts access tokens** and serves protected resources (your Spring Boot API).
+
+## Authorization Code Flow with PKCE | green
+- The recommended flow for **all clients that act for a user**, including SPAs and mobile apps.
+- **PKCE (Proof Key for Code Exchange, RFC 7636)**: the client creates a random **`code_verifier`**, sends **`code_challenge = BASE64URL(SHA-256(code_verifier))`** with `code_challenge_method=S256` in the authorization request, and later proves possession by sending the verifier when exchanging the code. A stolen authorization code is useless without the verifier.
+- Use **`state`** to prevent CSRF on the redirect and register **exact redirect URIs**.
+```text
+1. Client -> browser redirect to Authorization Server:
+     GET /authorize?response_type=code&client_id=shop-spa&redirect_uri=https://shop.example/callback
+         &scope=openid%20orders:read&state=xyz&code_challenge=E9Melhoa...&code_challenge_method=S256
+2. User logs in and consents at the Authorization Server
+3. AS -> redirect back: https://shop.example/callback?code=SplxlOBe&state=xyz
+4. Client -> POST /token  grant_type=authorization_code&code=SplxlOBe&redirect_uri=...&client_id=shop-spa
+                          &code_verifier=dBjftJeZ4CVP...        (confidential clients also authenticate)
+5. AS -> { access_token, refresh_token, id_token (OIDC), expires_in, token_type: "Bearer" }
+6. Client -> API with Authorization: Bearer <access_token>
+```
+
+## Client Credentials and Refresh Token Grants | amber
+- **Client Credentials**: **machine-to-machine** access with **no user**. The service authenticates with its own `client_id` + secret (or a private key / mTLS) and receives a token with the service's scopes. Typical for microservice-to-microservice calls and batch jobs.
+- **Refresh Token**: exchange a refresh token for a new access token (and, with rotation, a new refresh token) without user interaction.
+- **Deprecated grants**: **Implicit** (tokens returned in the URL fragment, leak-prone) and **Resource Owner Password Credentials** (the client sees the user's password) are **removed in OAuth 2.1**; use Authorization Code + PKCE instead.
+- Others: **Device Authorization Grant** (TVs, CLIs), Token Exchange (RFC 8693) for delegation chains.
+```text
+POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: Basic base64(inventory-service:secret)
+
+grant_type=client_credentials&scope=orders:read
+```
+
+## Scopes and Tokens | violet
+- **Scopes** limit what a token can do (`orders:read`, `profile`); the user consents to them; resource servers enforce them (`SCOPE_orders:read` authority in Spring).
+- **Access tokens** can be **JWTs** (self-contained, validated locally) or **opaque** (random strings validated by calling the AS **introspection** endpoint, RFC 7662).
+- **Audience** restricts a token to the intended API; resource servers must check it.
+
+## Interview Q&A | sky | wide
+Q: What is OAuth 2.0?
+A: An authorization framework letting a client obtain limited, scoped access to a resource on behalf of a user (or itself) via tokens from an authorization server, without sharing the user's credentials.
+Q: Name the OAuth 2.0 roles.
+A: Resource owner, client, authorization server and resource server.
+Q: Which grant type should a SPA use?
+A: Authorization Code with PKCE (ideally via a backend-for-frontend); the Implicit grant is deprecated.
+Q: What problem does PKCE solve?
+A: Interception of the authorization code: only the client holding the original code_verifier can exchange the code for tokens, so public clients without secrets are protected.
+Q: When do you use Client Credentials?
+A: For service-to-service calls where no user is involved; the service authenticates as itself and receives a token with its own scopes.
+Q: Why is the password grant deprecated?
+A: The client handles the user's raw password, defeating OAuth's purpose of not sharing credentials and blocking MFA and federation; OAuth 2.1 removes it.
+Q: JWT vs opaque access tokens?
+A: JWTs are self-contained and validated locally (fast, hard to revoke); opaque tokens are references validated by introspection at the authorization server (central control and instant revocation, extra network call).
+
+# 10 | OpenID Connect | Identity layer on OAuth 2.0, ID token vs access token, UserInfo, discovery and JWKS, OAuth2 Login in Spring | OIDC
+
+## OIDC on Top of OAuth 2.0 | rose
+- **OpenID Connect (OIDC)** adds **authentication** (who the user is) to OAuth 2.0's authorization. The client requests the **`openid`** scope (plus `profile`, `email`...).
+- The authorization server (now an **OpenID Provider**) returns an **ID Token** in addition to the access token.
+- Enables **single sign-on** and "Sign in with Google / Microsoft / company IdP".
+- Standard endpoints: authorization, token, **UserInfo** (`/userinfo` returns profile claims using the access token), **JWKS** (public keys), and **discovery** at **`/.well-known/openid-configuration`** (lists all endpoints, supported algorithms and scopes).
+
+## ID Token vs Access Token | blue
+- **ID Token**: always a **JWT**, intended for the **client** (`aud` = the client id), proving the **user authenticated**: `iss`, `sub`, `aud`, `exp`, `iat`, `auth_time`, **`nonce`** (binds the token to the login request, preventing replay), plus profile claims. The client validates it and creates the user session.
+- **Access Token**: intended for the **resource server (API)**, carries **scopes / permissions**; format may be JWT or opaque.
+- **Never send the ID token to APIs as an access token**, and never use an access token to log a user into the client.
+```json
+{
+  "iss": "https://login.example.com",
+  "sub": "248289761001",
+  "aud": "shop-web",
+  "exp": 1760446700,
+  "iat": 1760443100,
+  "nonce": "n-0S6_WzA2Mj",
+  "email": "ann@example.com",
+  "email_verified": true,
+  "name": "Ann Lee"
+}
+```
+
+## OAuth2 Login with Spring Security | green
+- **`spring-boot-starter-oauth2-client`** + **`http.oauth2Login()`** implements the Authorization Code flow (with PKCE) for server-side web apps: redirect to the provider, handle the callback, validate the ID token, create the session.
+- Configure providers with `spring.security.oauth2.client.registration.*` (Google, GitHub, Okta built in; any OIDC provider via `issuer-uri` discovery).
+- The authenticated principal is an **`OidcUser`** (or `OAuth2User`); `OAuth2AuthorizedClientService` keeps tokens to call APIs on the user's behalf.
+- **Spring Authorization Server** lets you build your own OAuth 2.1 / OIDC provider.
+```yaml
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid, profile, email
+```
+```java
+@Bean
+SecurityFilterChain web(HttpSecurity http) throws Exception {
+  http.authorizeHttpRequests(a -> a.requestMatchers("/", "/error").permitAll().anyRequest().authenticated())
+      .oauth2Login(Customizer.withDefaults())
+      .logout(l -> l.logoutSuccessUrl("/"));
+  return http.build();
+}
+```
+
+## Interview Q&A | sky | wide
+Q: OAuth 2.0 vs OpenID Connect?
+A: OAuth 2.0 handles delegated authorization (access tokens for APIs); OIDC adds an identity layer that authenticates the user, returning an ID token and standard user claims.
+Q: ID token vs access token?
+A: The ID token is a JWT for the client describing the authenticated user (audience is the client); the access token is for the resource server and carries scopes. Do not use one in place of the other.
+Q: What is the nonce in OIDC?
+A: A random value the client sends in the authorization request and checks in the ID token, tying the token to that login and preventing replay.
+Q: What is the discovery document?
+A: The JSON at /.well-known/openid-configuration listing the provider's endpoints, JWKS URI, supported scopes, claims and algorithms, letting clients configure themselves from the issuer URI.
+Q: How do you add "Login with Google" to Spring Boot?
+A: Add spring-boot-starter-oauth2-client, configure the google registration with client id, secret and scopes, and enable http.oauth2Login().
+
+# 11 | Spring Boot as an OAuth2 Resource Server | issuer-uri and JWKS, automatic validation, audience, mapping scopes and roles to authorities, opaque tokens, testing | Resource Server
+
+## Configuration | rose
+- Add **`spring-boot-starter-oauth2-resource-server`** and set **`spring.security.oauth2.resourceserver.jwt.issuer-uri`**: at startup Spring reads the issuer's **discovery document**, finds the **JWKS URI**, and validates incoming bearer tokens. (`jwk-set-uri` can be set directly instead.)
+- Enable it in the chain with **`.oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()))`**.
+- For every request, **`BearerTokenAuthenticationFilter`** extracts the token, **`JwtDecoder`** (Nimbus) **verifies the signature** with the cached public keys (refetched on unknown `kid`, which enables key rotation), and validates **`exp`/`nbf`** and **`iss`**. The result is a **`JwtAuthenticationToken`**.
+- **Missing token** → **401** with `WWW-Authenticate: Bearer`; **invalid or expired token** → **401** with `WWW-Authenticate: Bearer error="invalid_token", error_description="..."`; **valid token, insufficient scope** → **403** with `WWW-Authenticate: Bearer error="insufficient_scope"` (RFC 6750 error codes).
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://login.example.com/realms/shop
+```
+
+## Audience Validation | blue
+- The default validators do **not** check the **audience**; add it so a token issued for another API cannot be replayed against yours (Spring Boot also offers an `audiences` property for this).
+```java
+@Bean
+JwtDecoder jwtDecoder(@Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer) {
+  NimbusJwtDecoder decoder = JwtDecoders.fromIssuerLocation(issuer);
+  OAuth2TokenValidator<Jwt> audience = new JwtClaimValidator<List<String>>(JwtClaimNames.AUD,
+      aud -> aud != null && aud.contains("orders-api"));
+  decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefaultWithIssuer(issuer), audience));
+  return decoder;
+}
+```
+
+## Mapping Claims to Authorities | green
+- By default **`JwtAuthenticationConverter`** turns the **`scope` / `scp`** claim into authorities prefixed **`SCOPE_`** (`SCOPE_orders:read`), used with `hasAuthority("SCOPE_orders:read")`.
+- Providers often put **roles** in custom claims (`roles`, Keycloak's `realm_access.roles`); map them with a custom converter so `hasRole("ADMIN")` works.
+- Read claims in controllers via **`@AuthenticationPrincipal Jwt jwt`** (`jwt.getSubject()`, `jwt.getClaimAsString("email")`).
+```java
+@Bean
+JwtAuthenticationConverter jwtAuthenticationConverter() {
+  JwtGrantedAuthoritiesConverter roles = new JwtGrantedAuthoritiesConverter();
+  roles.setAuthoritiesClaimName("roles");
+  roles.setAuthorityPrefix("ROLE_");
+  JwtGrantedAuthoritiesConverter scopes = new JwtGrantedAuthoritiesConverter();   // SCOPE_ from "scope"
+  JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+  converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+    Collection<GrantedAuthority> all = new ArrayList<>(scopes.convert(jwt));
+    all.addAll(roles.convert(jwt));
+    return all;
+  });
+  return converter;
+}
+
+@GetMapping("/api/me")
+Map<String, Object> me(@AuthenticationPrincipal Jwt jwt) {
+  return Map.of("sub", jwt.getSubject(), "email", String.valueOf(jwt.getClaimAsString("email")));
+}
+```
+
+## Opaque Tokens and Testing | amber
+- **Opaque tokens**: `.oauth2ResourceServer(o -> o.opaqueToken(...))` with `introspection-uri`, client id and secret; every request (or cache miss) calls the authorization server's **introspection endpoint**, allowing immediate revocation at the cost of latency.
+- **Testing**: MockMvc with **`SecurityMockMvcRequestPostProcessors.jwt()`** builds a `JwtAuthenticationToken` without a real token: `.with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_orders:read")))`; `@WithMockUser` for simple role tests.
+- **Service-to-service calls**: the calling service obtains a client-credentials token (`OAuth2AuthorizedClientManager` with `spring-boot-starter-oauth2-client`) and sends it as a bearer token; the receiving service validates it as a resource server.
+```java
+@WebMvcTest(OrderController.class)
+@Import(SecurityConfig.class)
+class OrderControllerSecurityTest {
+  @Autowired MockMvc mvc;
+  @MockitoBean OrderService service;
+  @MockitoBean JwtDecoder jwtDecoder;
+
+  @Test
+  void requiresScope() throws Exception {
+    mvc.perform(post("/api/orders").with(jwt()).contentType(MediaType.APPLICATION_JSON).content("{}"))
+       .andExpect(status().isForbidden());
+    mvc.perform(get("/api/orders/1")).andExpect(status().isUnauthorized());
+  }
+}
+```
+
+## Interview Q&A | sky | wide
+Q: How do you configure Spring Boot as an OAuth2 resource server?
+A: Add spring-boot-starter-oauth2-resource-server, set spring.security.oauth2.resourceserver.jwt.issuer-uri (or jwk-set-uri), and enable http.oauth2ResourceServer(o -> o.jwt(...)); Spring then validates bearer JWTs with the issuer's public keys.
+Q: What does issuer-uri do?
+A: Spring fetches the issuer's discovery document to find the JWKS endpoint and validates that tokens' iss matches, enabling signature verification and key rotation automatically.
+Q: What does Spring validate in a JWT by default?
+A: The signature (via JWKS or a configured key), exp and nbf with clock skew, and iss when configured with an issuer; audience requires an extra validator or property.
+Q: How are scopes mapped to authorities?
+A: JwtAuthenticationConverter turns scope/scp claim values into authorities prefixed SCOPE_; customise it to map roles from other claims.
+Q: How do you test endpoints protected by JWT?
+A: Use MockMvc with the jwt() request post-processor (setting scopes or authorities) and assert 401/403/200, mocking the JwtDecoder in slice tests.
+Q: How does a resource server handle key rotation?
+A: It caches the JWKS and refetches it when a token has an unknown kid, so new signing keys are picked up without restarts.
+
+@ Review
+
+# 12 | Rapid-Fire & Scenarios | Tricky questions, one-liners, design scenarios, big Q&A | Rapid-fire
+
+## Tricky Questions | rose
+- **"403 on every POST but GET works"**: CSRF protection is on and the client sends no token (or the API should be stateless with CSRF disabled).
+- **"CORS preflight fails with 401"**: CORS not configured in Spring Security, so the OPTIONS request hits authentication; enable `http.cors()`.
+- **"App fails to start after `.hasRole("ROLE_ADMIN")`"**: `hasRole` prepends `ROLE_` itself, and in `authorizeHttpRequests` Spring Security 6 rejects a role that already starts with it (`IllegalArgumentException: ROLE_ADMIN should not start with ROLE_`). SpEL `@PreAuthorize("hasRole('ROLE_ADMIN')")` tolerates the prefix. Write `hasRole("ADMIN")` or `hasAuthority("ROLE_ADMIN")`.
+- **"@Secured has no effect"**: `@EnableMethodSecurity` enables only the pre/post annotations; add `securedEnabled = true`.
+- **"@PreAuthorize ignored"**: method security not enabled, not a Spring bean, or self-invocation.
+- **"Token valid on one service, rejected on another"**: different issuer/audience configuration or clock skew.
+- **"User still has access after role removal"**: permissions cached in an unexpired JWT; shorten lifetime or revoke.
+- **"My exception handler doesn't catch AccessDeniedException from filters"**: handle it with `AccessDeniedHandler` / `AuthenticationEntryPoint`.
+
+## One-Line Cheat Sheet | blue
+- **AuthN** = who, **AuthZ** = what; **401** vs **403**.
+- **DelegatingFilterProxy → FilterChainProxy → SecurityFilterChain** (first match) → filters → **AuthorizationFilter** last.
+- **Authentication**, **SecurityContext(Holder)** (ThreadLocal), **AuthenticationManager/ProviderManager → AuthenticationProvider**, **UserDetailsService/UserDetails**.
+- **PasswordEncoder**: bcrypt / Argon2, **DelegatingPasswordEncoder** `{id}` prefixes.
+- **HttpSecurity**: `authorizeHttpRequests` order matters; `STATELESS`; disable CSRF only for header-token APIs; `cors()`.
+- **Method security**: `@EnableMethodSecurity`, `@PreAuthorize` (SpEL, `#arg`, beans), `@PostAuthorize` (`returnObject`), `@Secured`.
+- **JWT**: header.payload.signature, signed not encrypted; validate signature, exp, iss, aud; HS256 vs RS256.
+- **Tokens**: short access + rotating refresh; revoke via refresh revocation, jti denylist, token versions, introspection.
+- **OAuth 2.0**: 4 roles; **Auth Code + PKCE**, **Client Credentials**, Refresh; Implicit and Password deprecated.
+- **OIDC**: `openid` scope, **ID token** (client) vs **access token** (API), discovery, JWKS, UserInfo.
+- **Resource server**: `issuer-uri`, `oauth2ResourceServer().jwt()`, `SCOPE_` authorities, add audience check.
+
+## How to Answer Well | teal
+- **Define → draw the flow → name the Spring component → trade-off.**
+- For any token question, mention **expiry, revocation and storage**; for any browser question, mention **XSS and CSRF**.
+- Tie to experience: "We moved from HS256 tokens shared by six services to RS256 from Keycloak with JWKS, so services could verify but not mint tokens."
+
+## Big Interview Q&A | sky | wide
+Q: Design authentication for a SPA plus microservices.
+A: An identity provider (Keycloak, Auth0, Entra ID) with Authorization Code + PKCE, ideally through a BFF that holds tokens and gives the browser an HttpOnly session cookie; the gateway or BFF forwards access tokens; each microservice is a resource server validating JWTs (issuer, audience, scopes); service-to-service calls use client credentials; refresh tokens rotate.
+Q: How does Spring Security authenticate a JWT request internally?
+A: BearerTokenAuthenticationFilter extracts the token, AuthenticationManager uses JwtAuthenticationProvider with a JwtDecoder to verify signature and claims, JwtAuthenticationConverter maps claims to authorities, the JwtAuthenticationToken goes into the SecurityContext, and AuthorizationFilter applies the rules.
+Q: Session cookie vs JWT for a monolithic web app?
+A: Session cookies are simpler and instantly revocable, with CSRF protection and HttpOnly cookies; JWTs add complexity mainly justified for stateless APIs, mobile clients and multiple services.
+Q: How do you protect an API from broken access control?
+A: Deny by default, enforce authorization on every endpoint and at the object level (ownership checks in queries or @PreAuthorize), never trust client-supplied ids or roles, and test unauthorised access paths.
+Q: How would you implement role-based plus permission-based access?
+A: Map roles and permissions to GrantedAuthorities (ROLE_ prefix for roles, plain or SCOPE_ for permissions), use URL rules for coarse access and @PreAuthorize with hasAuthority and ownership beans for fine-grained checks, optionally with a RoleHierarchy.
+Q: What security headers does Spring Security add by default?
+A: Cache-Control/Pragma/Expires to prevent caching of secured responses, X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Strict-Transport-Security on HTTPS, and X-XSS-Protection disabled (0); CSP must be configured explicitly.
+Q: How do you secure Actuator endpoints?
+A: Expose only what is needed, permit health (and info) publicly, require an admin role or separate management port for others, and keep sensitive endpoints like env and heapdump off in production.

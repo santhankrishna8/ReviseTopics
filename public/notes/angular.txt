@@ -1,0 +1,1547 @@
+@ Beginner
+# 00 | Angular Basics: Start Here | History, AngularJS vs Angular, SPA, features, installing the CLI, creating and running a project, project structure, first component, Angular vs React vs Vue | Start Here
+
+## History: AngularJS to Modern Angular | rose
+- **AngularJS (1.x)** was created by **Miško Hevery** and Adam Abrons and developed at **Google**, first released in **2010**. Written in JavaScript, it used **two-way binding** through `$scope` and a **digest cycle**, controllers and `ng-` directives in an MVC/MVVM style. It reached **end of life on 31 December 2021**.
+- **Angular 2 (September 2016)** was a **complete rewrite in TypeScript**, built around **components**, with no upgrade path except gradual migration. From then on the name is just **"Angular"**.
+- Version 3 was **skipped** (the router package was already at 3.x), so 2 was followed by **Angular 4** (2017). Since then a **major release roughly every six months**, with semantic versioning and `ng update` migrations.
+- Milestones: **Ivy** rendering engine by default (v9, 2020); **standalone components** (stable in v15) and **signals** (v16); **v17 (2023)** made standalone the default for new projects and introduced built-in control flow (`@if`, `@for`), `@defer` and the **angular.dev** docs site; later versions made apps **zoneless** and **OnPush by default**. This project uses **Angular 22**.
+- Angular is maintained by a team at Google and is open source (MIT licence).
+
+## What Angular Gives You | blue
+- A **framework**, not just a library: everything a large single-page app needs, designed to work together.
+- **Component-based UI** with HTML templates and data binding (sheet 03); **TypeScript** everywhere.
+- **Dependency injection** for services (sheet 06), a **router** with lazy loading and guards (sheet 07), **forms** (sheet 08), **HttpClient** with interceptors (sheet 10).
+- **Reactivity** with **signals** and **RxJS** (sheets 11 to 13); **change detection** (sheet 14).
+- **Tooling**: the **CLI** (generate, serve, build, test, update), AOT compilation, strict type-checking of templates, built-in **SSR and hydration** (sheet 16), i18n, and the **Angular Material** component library.
+- **SPA (Single-Page Application)**: the server sends one HTML page (`index.html`) plus JavaScript; the router then swaps views in the browser without full page reloads.
+
+## Install and Create a Project | green
+```bash
+node --version                       # needs a supported Node.js LTS version
+npm install -g @angular/cli          # installs the global "ng" command
+ng version                           # Angular CLI, Node and package versions
+ng new shop-app                      # asks a few questions (stylesheet format, SSR...), then creates and installs
+cd shop-app
+ng serve --open                      # dev server with live reload at http://localhost:4200
+ng generate component product-card   # short form: ng g c product-card (also: service, pipe, directive, guard)
+ng build                             # production build into dist/shop-app
+ng test                              # unit tests (Vitest for new projects)
+```
+- `npm start` runs `ng serve` (it is the `start` script in `package.json`). The default dev port is **4200**; change it with `ng serve --port 4300`.
+- `npx @angular/cli@latest new shop-app` creates a project without a global install.
+
+## Project Structure | amber
+```text
+shop-app/
+  angular.json          workspace configuration: build, serve and test targets, budgets, assets
+  package.json          dependencies and npm scripts (start, build, test)
+  tsconfig.json         TypeScript settings (strict, plus strict template checking)
+  public/               static files copied as-is (favicon, images)
+  src/
+    index.html          the single HTML page; <app-root> is where the app renders
+    main.ts             entry point: bootstrapApplication(App, appConfig)
+    styles.css          global styles
+    app/
+      app.ts            the root component (class App, selector app-root)
+      app.html          its template
+      app.css           its styles (scoped to this component)
+      app.spec.ts       its unit test
+      app.config.ts     application-wide providers (router, HttpClient, error listeners...)
+      app.routes.ts     the route table, when routing is enabled
+```
+- Start-up flow: the browser loads `index.html` → the bundle runs **`main.ts`** → `bootstrapApplication` creates the root component **`App`** and renders it into **`<app-root>`** → child components render inside it.
+- Recent style guides drop the `.component` / `.service` suffixes (`product-card.ts`, not `product-card.component.ts`).
+
+## Your First Component | violet
+```ts product-card.ts
+import { Component, input, output, signal } from '@angular/core';
+
+@Component({
+  selector: 'app-product-card',
+  template: `
+    <h3>{{ name() }}</h3>
+    <p>In cart: {{ qty() }}</p>
+    <button (click)="add()">Add to cart</button>
+  `,
+  styles: `h3 { margin: 0; }`,
+})
+export class ProductCard {
+  name = input.required<string>();     // data in from the parent
+  added = output<number>();            // event out to the parent
+  qty = signal(0);                     // local state
+
+  add() {
+    this.qty.update(q => q + 1);
+    this.added.emit(this.qty());
+  }
+}
+```
+```ts app.ts
+import { Component } from '@angular/core';
+import { ProductCard } from './product-card';
+
+@Component({
+  selector: 'app-root',
+  imports: [ProductCard],              // standalone: import what the template uses
+  template: `
+    <h1>Shop</h1>
+    <app-product-card name="Keyboard" (added)="onAdded($event)" />
+    <p>Last added quantity: {{ last }}</p>
+  `,
+})
+export class App {
+  last = 0;
+  onAdded(qty: number) { this.last = qty; }
+}
+```
+- A **component** = a TypeScript **class** + the **`@Component` decorator** (metadata: `selector`, `template` or `templateUrl`, `styles`, `imports`).
+- The **selector** is the custom HTML tag that places the component. **`{{ }}`** displays values, **`(event)`** listens to events, **`[property]`** binds values (sheet 03).
+- `input()` / `output()` are the parent-child API (sheet 05); `signal()` holds reactive state (sheet 13).
+
+## Angular vs React vs Vue | sky
+- **Angular**: a complete, opinionated framework from Google. TypeScript-first, DI, router, forms and HTTP included, strong CLI and conventions; ideal for large teams and enterprise apps. Steeper learning curve.
+- **React**: a UI **library** from Meta. JSX, very flexible; you choose the router, state and data tools, or use a framework such as Next.js. The biggest ecosystem and job market.
+- **Vue**: a progressive framework created by **Evan You** (2014). HTML-based templates with fine-grained reactivity and a gentle learning curve; Nuxt is its full-stack framework.
+- **AngularJS vs Angular**: JavaScript vs TypeScript; controllers and `$scope` vs components; digest-cycle dirty checking vs compiled templates with signals and targeted change detection; `ng-repeat` vs `@for`; no CLI vs a full CLI; end of life vs actively developed.
+
+## Interview Q&A | sky | wide
+Q: What is Angular?
+A: A TypeScript-based framework from Google for building single-page applications, including components, templates, dependency injection, routing, forms, HTTP and a CLI.
+Q: What is the difference between AngularJS and Angular?
+A: AngularJS (1.x) is the original JavaScript framework built on scopes and the digest cycle, now end of life. Angular (2+) is a TypeScript rewrite built on components, with a compiler, DI hierarchy, CLI and signals.
+Q: What is a single-page application?
+A: A web app that loads one HTML page and updates views in the browser with JavaScript as the user navigates, instead of requesting a new page from the server each time.
+Q: What is the Angular CLI?
+A: The command-line tool (`ng`) to create projects, generate code, serve with live reload, build, test, add libraries and run version migrations.
+Q: What does ng serve do?
+A: It compiles the app in development mode, starts a local dev server (port 4200 by default) and reloads the browser when files change.
+Q: What is a component?
+A: A class decorated with @Component that combines a template, styles and logic, and is used in other templates through its selector.
+Q: What does main.ts do?
+A: It is the entry point: it calls bootstrapApplication with the root component and the application configuration (providers).
+Q: What is angular.json?
+A: The workspace configuration file: it defines build, serve and test targets, output paths, assets, styles and size budgets for each project.
+Q: Why does Angular use TypeScript?
+A: Static types catch errors early, power the template type-checker and IDE tooling, and support decorators and dependency injection metadata.
+Q: What is a decorator?
+A: A function prefixed with @ that attaches metadata or behaviour to a class or member, such as @Component, @Injectable or @Directive.
+Q: Angular or React?
+A: Angular for a complete, consistent structure with built-in tooling in large teams; React for flexibility and a huge ecosystem, picking libraries or a framework like Next.js.
+
+
+# 01 | Angular Architecture & How It Works | Framework pieces, components and metadata, bootstrapping, AOT and Ivy, CLI | Architecture
+
+## What Angular Is | rose
+- **Angular** is a full, opinionated **TypeScript framework** from Google: components, templates, **dependency injection**, router, forms, HttpClient, animations, i18n, testing and a **CLI** in one coherent package.
+- **Release cadence**: a major version about **every 6 months**; each major gets **18 months of support** (6 months active, 12 months LTS). Upgrades are automated with **`ng update`** migrations.
+- **Angular (2+) is not AngularJS** (1.x, JavaScript, scopes and digest cycle, end of life in 2021).
+- Core building blocks: **components** (UI), **directives** (behaviour on elements), **pipes** (value formatting), **services** (logic and state, provided through DI), and the **router**.
+- Modern Angular is **standalone-first, signal-based and zoneless by default** for new apps (verified on v22: no zone.js dependency in a new project).
+
+## Components, Templates and Metadata | blue
+- A **component** = a TypeScript class + an HTML **template** + **styles** + **metadata** supplied by the **`@Component`** decorator.
+- Key metadata: **`selector`** (the custom element name), **`template` / `templateUrl`**, **`styles` / `styleUrl`**, **`imports`** (other components, directives and pipes the template uses), `providers`, **`changeDetection`**, `host` (bindings on the host element), `encapsulation`.
+- **View encapsulation**: `Emulated` (default: styles scoped by generated attributes), `ShadowDom` (native shadow root), `None` (global styles).
+- Components form a **tree**; data flows down through inputs and up through outputs.
+```ts
+import { Component, ChangeDetectionStrategy, input, output, computed } from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
+
+@Component({
+  selector: 'app-product-card',
+  imports: [CurrencyPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <h3>{{ product().name }}</h3>
+    <p>{{ product().price | currency: 'INR' }}</p>
+    @if (lowStock()) { <span class="badge">Only {{ product().stock }} left</span> }
+    <button type="button" (click)="added.emit(product().id)">Add to cart</button>
+  `,
+  styles: `:host { display: block; } .badge { color: #b42318; }`,
+})
+export class ProductCard {
+  readonly product = input.required<{ id: number; name: string; price: number; stock: number }>();
+  readonly added = output<number>();
+  protected readonly lowStock = computed(() => this.product().stock < 5);
+}
+```
+
+## Bootstrapping a Standalone App | green
+- **`main.ts`** calls **`bootstrapApplication(AppComponent, appConfig)`**: no root NgModule is needed.
+- **`app.config.ts`** lists **providers**: `provideRouter(routes)`, `provideHttpClient(...)`, `provideClientHydration()` for SSR, and change detection configuration.
+- **Zoneless** apps rely on signals, template events and the async pipe to schedule change detection. Older apps opt in to zone.js with `provideZoneChangeDetection()`.
+- The root component's selector (`<app-root>`) in `index.html` is where the app mounts.
+```ts
+// main.ts
+bootstrapApplication(App, appConfig).catch(err => console.error(err));
+
+// app.config.ts
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideRouter(routes, withComponentInputBinding()),
+    provideHttpClient(withInterceptors([authInterceptor])),
+  ],
+};
+```
+
+## Compilation: AOT and Ivy | amber
+- **AOT (Ahead-of-Time) compilation** turns templates into JavaScript instructions **at build time** (default since v9): faster startup, template errors caught at build, no compiler shipped to the browser, safer (no runtime template evaluation).
+- **Ivy** is the compiler and runtime (default since v9; the old View Engine was removed in v13). It compiles each component **locally** into instructions, which enables **tree shaking**, smaller bundles and faster rebuilds.
+- **Template type checking**: `strictTemplates` in `angularCompilerOptions` type-checks bindings, inputs and pipes like TypeScript code.
+- The build system (**`@angular/build:application`**) uses **esbuild** for builds and **Vite** for the dev server.
+- Decorators still rely on `experimentalDecorators` in tsconfig; the Angular compiler processes them.
+
+## The CLI and Project Layout | violet
+- **`ng new`**, **`ng serve`**, **`ng generate component|service|pipe|directive|guard`**, **`ng build`** (production by default), **`ng test`** (**Vitest** is the default runner for new projects), **`ng update`**, **`ng add`** (install and configure a library).
+- Key files: **`angular.json`** (build targets, budgets, assets, styles), `tsconfig.json`, `src/main.ts`, `src/app/app.config.ts`, `src/app/app.routes.ts`, `src/index.html`, `public/` (static assets).
+- The current style guide drops the `.component` / `.service` file suffixes (`user-profile.ts`) and recommends feature-based folders.
+- **Environment-specific config**: `fileReplacements` per build configuration, or runtime config fetched at startup.
+
+## Interview Q&A | sky | wide
+Q: What is Angular and how does it differ from AngularJS?
+A: Angular is a TypeScript, component-based framework with DI, a router, forms, HttpClient and a CLI. AngularJS (1.x) was a JavaScript MVC framework built on scopes and a digest cycle, now end-of-life.
+Q: What is a component made of?
+A: A class with state and logic, a template, styles, and @Component metadata such as selector, imports, changeDetection and providers.
+Q: What is AOT and why is it the default?
+A: Ahead-of-Time compilation converts templates to JavaScript at build time, giving faster startup, smaller bundles without the compiler, earlier template errors and better security.
+Q: What is Ivy?
+A: Angular's compiler and rendering engine since v9. It compiles each component into efficient instructions independently, enabling tree shaking, smaller bundles and faster builds.
+Q: How is a standalone app bootstrapped?
+A: `bootstrapApplication(RootComponent, { providers: [...] })` in main.ts, with provide functions such as provideRouter and provideHttpClient instead of a root NgModule.
+Q: What does view encapsulation do?
+A: It scopes component styles: Emulated (default) rewrites selectors with unique attributes, ShadowDom uses a real shadow root, None makes styles global.
+Q: How often does Angular release and how long is a version supported?
+A: A major release roughly every six months, each supported for 18 months (6 active plus 12 long-term support).
+
+# 02 | NgModules vs Standalone Components | NgModule metadata, standalone by default, providers, lazy loading, migration | Modules & Standalone
+
+## NgModules | rose
+- An **`@NgModule`** groups components, directives and pipes into a **compilation context** and configures providers.
+- **`declarations`**: components, directives, pipes that belong to this module (each declared in exactly one module).
+- **`imports`**: other modules whose exported declarables this module's templates use.
+- **`exports`**: what importing modules can use. **`providers`**: services registered in the module's injector. **`bootstrap`**: the root component (root module only).
+- Classic patterns: **AppModule**, **feature modules** (lazy-loaded), **SharedModule** (common components and pipes), **CoreModule** (singleton services), **`forRoot()` / `forChild()`** (e.g. `RouterModule.forRoot(routes)` once, `forChild` in features).
+```ts
+@NgModule({
+  declarations: [OrdersPage, OrderRow],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule.forChild(ORDER_ROUTES)],
+  exports: [OrderRow],
+  providers: [OrderService],
+})
+export class OrdersModule {}
+```
+
+## Standalone Components | blue
+- **Standalone components, directives and pipes** declare their own dependencies in **`imports`**: no NgModule required. **`standalone: true` is the default since v19**.
+- Benefits: less boilerplate, clearer dependencies per component, simpler **lazy loading per component**, better tree shaking, easier testing.
+- Application-wide setup uses **`provide*` functions** (`provideRouter`, `provideHttpClient`, `provideAnimations`...) in `bootstrapApplication`.
+- Standalone components can **import existing NgModules** (e.g. a third-party module); use **`importProvidersFrom(SomeModule)`** to pull providers from a module into the environment.
+```ts
+@Component({
+  selector: 'app-orders',
+  imports: [OrderRow, DatePipe, RouterLink],   // exactly what the template uses
+  templateUrl: './orders.html',
+})
+export class Orders {}
+
+// routes: lazy-load one component, or a whole route file
+export const routes: Routes = [
+  { path: 'orders', loadComponent: () => import('./orders/orders').then(m => m.Orders) },
+  { path: 'admin', loadChildren: () => import('./admin/admin.routes').then(m => m.ADMIN_ROUTES) },
+];
+```
+
+## Providers in a Standalone World | green
+- **`providedIn: 'root'`** services need no registration at all (tree-shakable singletons).
+- **Route-level providers** (`providers` on a route) create an **environment injector for that route subtree**, which replaces "providers in a lazy module".
+- **Component `providers`** create a new instance per component instance (scoped state).
+- `ENVIRONMENT_INITIALIZER` / **`provideAppInitializer()`** runs setup code at startup (load config before rendering).
+
+## Migrating and Coexisting | amber
+- **`ng generate @angular/core:standalone`** migrates in steps: convert declarations to standalone, remove unnecessary modules, bootstrap with `bootstrapApplication`.
+- Mixed codebases work: NgModules can import standalone components; standalone components can import NgModules.
+- Libraries may still ship NgModules for backward compatibility; you import them the same way.
+- Interview angle: explain both, say new code is standalone, and show you can maintain module-based code.
+
+## Interview Q&A | sky | wide
+Q: What is an NgModule and what are its main properties?
+A: A class decorated with @NgModule that defines a compilation context: declarations (its components, directives, pipes), imports (modules it depends on), exports (what it shares), providers (services) and bootstrap (the root component).
+Q: What are standalone components?
+A: Components that list their template dependencies in their own `imports` array and need no NgModule. They are the default since Angular 19.
+Q: Why did Angular move to standalone?
+A: Less boilerplate, clearer dependency graphs, simpler lazy loading per component and better tree shaking. NgModules added an indirection that confused many teams.
+Q: What is the forRoot/forChild pattern?
+A: forRoot registers a module's providers once at the app root (singletons such as the router service); forChild configures the module for feature modules without re-providing those singletons.
+Q: How do you lazy-load a standalone component?
+A: In a route: `loadComponent: () => import('./page').then(m => m.Page)`, or loadChildren pointing to a routes array.
+Q: Can standalone components use NgModules?
+A: Yes, add the module to the component's imports; use importProvidersFrom to add a module's providers to an environment injector.
+
+# 03 | Templates & Data Binding | Interpolation, property, attribute, class and style bindings, events, two-way binding, template variables, @let | Data Binding
+
+## Interpolation and Property Binding | rose
+- **Interpolation `{{ expr }}`** renders text. Values are **escaped**, so it is safe against XSS.
+- **Property binding `[prop]="expr"`** sets a **DOM property** (not an HTML attribute): `[disabled]="isSaving()"`, `[src]="avatarUrl"`, or a component input `[product]="p"`.
+- **Attribute binding `[attr.name]`** for attributes with no matching property: `[attr.aria-label]`, `[attr.colspan]`, `[attr.data-id]`. Binding `null` removes the attribute.
+- **Class binding**: `[class.active]="isActive"`, or `[class]="{ active: a, disabled: b }"`. **Style binding**: `[style.width.px]="w"`, `[style.--accent]="color"`.
+- Template expressions should be **cheap and side-effect free**: they run on every check of the view. Prefer signals, `computed()` or pure pipes over method calls doing work.
+- Newer versions allow template literals, `**` and `in` in expressions; assignments and `new` are not allowed.
+```html
+<img [src]="user().avatar" [alt]="user().name + ' avatar'">
+<button [disabled]="form.invalid || saving()" [attr.aria-busy]="saving()">Save</button>
+<li [class.active]="item.id === selectedId()" [style.--level]="item.depth">{{ item.label }}</li>
+```
+
+## Event Binding | blue
+- **`(event)="handler($event)"`** listens to DOM events or component outputs.
+- **Key event filters**: `(keydown.enter)`, `(keyup.escape)`, `(keydown.shift.tab)`.
+- `$event` is the DOM event (or the emitted output value). Pass only what the handler needs: `(input)="search(($any($event.target)).value)"` is often cleaner as a template reference variable.
+- In zoneless apps, **a template event listener marks the component for change detection**.
+```html
+<input #q (keydown.enter)="search(q.value)" (input)="query.set(q.value)">
+<app-product-card [product]="p" (added)="cart.add($event)" />
+```
+
+## Two-Way Binding | green
+- **Banana in a box `[( )]`** = property binding plus an event named `xChange`.
+- **`[(ngModel)]`** (from `FormsModule`) binds form inputs in template-driven forms.
+- For your own components, **`model()`** creates a two-way bindable signal: parent writes `[(value)]="signal"`.
+- Two-way binding to a **signal** passes the signal itself: `[(value)]="quantity"` (no parentheses).
+```ts
+@Component({
+  selector: 'app-stepper',
+  template: `<button (click)="value.set(value() - 1)">-</button> {{ value() }} <button (click)="value.set(value() + 1)">+</button>`,
+})
+export class Stepper { readonly value = model(1); }
+
+// parent template: <app-stepper [(value)]="quantity" />   where quantity = signal(1)
+```
+
+## Template Variables, @let and Safe Navigation | amber
+- **Template reference variable `#ref`**: refers to a DOM element, a component instance or a directive (`#f="ngForm"`).
+- **`@let name = expr;`** declares a read-only local variable in the template (avoids repeating expressions and async pipes).
+- **`?.`** safe navigation and **`??`** work in templates; **`!`** asserts non-null; `$any()` escapes type checking (avoid).
+- **`<ng-container>`** groups without adding a DOM element; **`<ng-template>`** defines a fragment that is not rendered until instantiated.
+```html
+@let user = user$ | async;
+@let total = cart.items().length;
+<p>{{ user?.name ?? 'Guest' }} has {{ total }} items</p>
+```
+
+## Template Security | violet
+- Angular treats all values as **untrusted** and **sanitizes** them by context: HTML (`[innerHTML]` strips scripts and dangerous attributes), styles, URLs (`javascript:` URLs blocked), resource URLs (iframe and script src require trust).
+- **`DomSanitizer.bypassSecurityTrustHtml/Url/ResourceUrl`** disables that protection: only for content you fully control.
+- Never build templates from user strings; AOT means templates are compiled, not evaluated at runtime.
+- Built-in **XSRF** support in HttpClient reads the `XSRF-TOKEN` cookie and sends an `X-XSRF-TOKEN` header for mutating same-origin requests.
+
+## Interview Q&A | sky | wide
+Q: Property binding vs attribute binding?
+A: Property binding sets a DOM property (`[value]`, `[disabled]`); attribute binding (`[attr.x]`) sets an HTML attribute, needed for attributes with no property such as aria-* and colspan.
+Q: What are the four kinds of data binding?
+A: Interpolation and property binding (component to view), event binding (view to component), and two-way binding combining both.
+Q: How does two-way binding work?
+A: `[(x)]` is sugar for `[x]="v"` plus `(xChange)="v = $event"`. ngModel implements it for form controls, and model() creates it for your own components.
+Q: Why avoid calling methods in templates?
+A: They run on every change detection check of that view; expensive methods slow the app. Use computed signals or pure pipes, which recalculate only when inputs change.
+Q: How does Angular prevent XSS?
+A: It escapes interpolation and sanitizes values bound to innerHTML, styles and URLs according to context; bypassing requires explicit DomSanitizer calls.
+Q: What is `@let`?
+A: Template syntax to declare a read-only variable from an expression, for example `@let user = user$ | async;`, reused in the rest of the template.
+Q: `ng-container` vs `ng-template`?
+A: ng-container groups elements without rendering a wrapper; ng-template defines a fragment that renders only when something instantiates it (control flow, ngTemplateOutlet).
+
+# 04 | Directives & Control Flow | @if, @for, @switch, @defer, structural and attribute directives, custom directives, content projection | Directives
+
+## Built-in Control Flow | rose
+- **`@if (cond) { } @else if { } @else { }`**, with **`as`** to alias the value: `@if (user(); as u)`.
+- **`@for (item of items(); track item.id) { } @empty { }`**: **`track` is mandatory** and tells Angular which DOM nodes to reuse. Implicit variables: `$index`, `$first`, `$last`, `$even`, `$odd`, `$count`.
+- **`@switch (expr) { @case (v) { } @default { } }`**.
+- Introduced in v17 and stable since v18: **no imports needed**, better type narrowing, faster diffing than `*ngFor`.
+- **Track by a stable unique key** (an id); `track $index` re-renders when items are inserted or reordered and loses DOM state.
+```html
+@if (orders().length) {
+  <ul>
+    @for (o of orders(); track o.id; let i = $index, last = $last) {
+      <li [class.last]="last">{{ i + 1 }}. {{ o.number }}: {{ o.total | currency }}</li>
+    }
+  </ul>
+} @else {
+  <p>No orders yet.</p>
+}
+
+@switch (status()) {
+  @case ('paid') { <app-receipt /> }
+  @case ('failed') { <app-retry /> }
+  @default { <app-spinner /> }
+}
+```
+
+## Legacy Structural Directives | blue
+- **Structural directives** change DOM structure; the **`*` microsyntax** desugars to an `<ng-template>`: `*ngIf="cond"` becomes `<ng-template [ngIf]="cond">`.
+- **`*ngIf`** (with `else` template and `as`), **`*ngFor`** (with **`trackBy`** function), **`[ngSwitch]` / `*ngSwitchCase`**.
+- **`NgIf`, `NgFor` and `NgSwitch` are deprecated since v20** (verified in v22 typings): migrate with **`ng generate @angular/core:control-flow`**.
+- Interviewers still ask about them because most existing codebases use them.
+```html
+<div *ngIf="user$ | async as user; else loading">{{ user.name }}</div>
+<ng-template #loading><app-spinner /></ng-template>
+
+<li *ngFor="let o of orders; trackBy: trackById; let i = index">{{ o.number }}</li>
+```
+
+## Deferrable Views: @defer | green
+- **`@defer`** lazy-loads a block's components, directives and pipes in a **separate chunk**, rendered when a trigger fires.
+- Triggers: **`on idle`** (default), **`on viewport`**, **`on interaction`**, **`on hover`**, **`on immediate`**, **`on timer(2s)`**, or **`when condition`**. Add **`prefetch on ...`** to download earlier than rendering.
+- Sub-blocks: **`@placeholder`** (shown before loading; `minimum` time), **`@loading`** (`after`, `minimum` to avoid flicker), **`@error`**.
+- Dependencies must be **standalone** and not referenced elsewhere in the same file, otherwise they are bundled eagerly.
+- With SSR, `@defer` blocks are the unit of **incremental hydration** (`hydrate on viewport`).
+```html
+@defer (on viewport; prefetch on idle) {
+  <app-reviews [productId]="id()" />
+} @placeholder (minimum 300ms) {
+  <div class="skeleton" style="height: 240px"></div>
+} @loading (after 150ms; minimum 400ms) {
+  <app-spinner />
+} @error {
+  <p>Could not load reviews.</p>
+}
+```
+
+## Attribute and Custom Directives | amber
+- **Attribute directives** change appearance or behaviour of an element: **`NgClass`**, **`NgStyle`** (plain `[class]` / `[style]` bindings are now preferred), `NgModel`.
+- Custom directive: `@Directive({ selector: '[appHighlight]' })`. Use the **`host`** metadata for host bindings and listeners (preferred over `@HostBinding` / `@HostListener`).
+- **`hostDirectives`** (directive composition API) applies directives to a component's host from inside the component.
+- Structural directive of your own: inject **`TemplateRef`** and **`ViewContainerRef`**, then `createEmbeddedView` / `clear`.
+```ts
+@Directive({
+  selector: '[appHighlight]',
+  host: {
+    '[style.backgroundColor]': 'active() ? color() : null',
+    '(mouseenter)': 'active.set(true)',
+    '(mouseleave)': 'active.set(false)',
+  },
+})
+export class Highlight {
+  readonly color = input('#fff3c4', { alias: 'appHighlight' });
+  protected readonly active = signal(false);
+}
+// <p appHighlight="#e8f4ee">Hover me</p>
+```
+
+## Content Projection and Templates | violet
+- **`<ng-content>`** projects content passed between a component's tags; **`select="[slot=header]"`** creates named slots; default (fallback) content inside `<ng-content>` is shown when nothing is projected.
+- Projected content is **instantiated by the parent** even if the child does not render it (use `ng-template` for lazy content).
+- **`ngTemplateOutlet`** renders a `TemplateRef` with a context (customisable rows, empty states).
+```html
+<!-- card.html -->
+<header><ng-content select="[card-title]">Untitled</ng-content></header>
+<section><ng-content /></section>
+
+<!-- usage -->
+<app-card><h3 card-title>Orders</h3><p>3 pending</p></app-card>
+
+<ng-container *ngTemplateOutlet="rowTpl; context: { $implicit: order }" />
+```
+
+## Interview Q&A | sky | wide
+Q: Structural vs attribute directives?
+A: Structural directives add, remove or repeat DOM (control flow, *ngIf, *ngFor); attribute directives change the appearance or behaviour of an existing element (NgClass, custom highlight).
+Q: Why is `track` required in `@for`?
+A: It identifies items so Angular can reuse and move existing DOM nodes instead of destroying and recreating them, which keeps performance and DOM state (focus, inputs) intact.
+Q: What is `@defer`?
+A: A template block that lazy-loads its dependencies into a separate chunk and renders them on a trigger such as idle, viewport or interaction, with placeholder, loading and error states.
+Q: What does the `*` in `*ngIf` mean?
+A: It is microsyntax for wrapping the host element in an ng-template that the directive renders conditionally.
+Q: Are *ngIf and *ngFor still recommended?
+A: No. They are deprecated since v20 in favour of the built-in @if, @for and @switch, which need no imports and perform better.
+Q: How do you create multiple content slots?
+A: Use several ng-content elements with select attributes (CSS selectors such as attributes or element names).
+Q: `@HostBinding` vs the `host` property?
+A: Both bind to the host element; the style guide prefers the `host` metadata object because it is declarative, type-checked and works well with signals.
+
+@ Intermediate
+
+# 05 | Component Communication | input, output, model, @Input/@Output, EventEmitter, view and content queries, shared services | Communication
+
+## Parent to Child: Inputs | rose
+- **Signal inputs**: **`input<T>(default)`**, **`input.required<T>()`**, with options `alias` and **`transform`** (`booleanAttribute`, `numberAttribute`). Read as a signal: `this.name()`.
+- Derive with **`computed()`** and react with **`effect()`** instead of `ngOnChanges`.
+- **Decorator inputs**: **`@Input()`**, `@Input({ required: true })`, `@Input({ transform })`; changes arrive in **`ngOnChanges(changes: SimpleChanges)`** or a setter.
+- Inputs are **one-way**: the child must not mutate the parent's object (immutability keeps OnPush correct).
+- **`withComponentInputBinding()`** lets the router set inputs from route params, query params and resolved data.
+```ts
+@Component({ selector: 'app-user-badge', template: `<span [class.compact]="compact()">{{ initials() }}</span>` })
+export class UserBadge {
+  readonly user = input.required<User>();
+  readonly compact = input(false, { transform: booleanAttribute });   // <app-user-badge compact />
+  protected readonly initials = computed(() => this.user().name.split(' ').map(p => p[0]).join(''));
+}
+
+@Component({ selector: 'app-legacy-badge', template: `{{ user.name }}` })
+export class LegacyBadge implements OnChanges {
+  @Input({ required: true }) user!: User;
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['user'] && !changes['user'].firstChange) this.refresh();
+  }
+}
+```
+
+## Child to Parent: Outputs | blue
+- **`output<T>()`** returns an `OutputEmitterRef`; call **`.emit(value)`**. Parent listens with `(name)="handler($event)"`.
+- **Decorator outputs**: **`@Output() saved = new EventEmitter<Order>()`**. `EventEmitter` extends RxJS `Subject`; do not use it in services (use a Subject or signal).
+- **`outputFromObservable(obs$)`** turns an observable into an output; `outputToObservable` the reverse.
+- Name outputs as events (`saved`, `selectionChange`), not `onSaved`.
+```ts
+@Component({ selector: 'app-order-form', templateUrl: './order-form.html' })
+export class OrderForm {
+  readonly saved = output<Order>();
+  readonly cancelled = output<void>();
+  submit(order: Order) { this.saved.emit(order); }
+}
+// <app-order-form (saved)="onSaved($event)" (cancelled)="close()" />
+```
+
+## Two-Way with model() | green
+- **`model<T>()`** is a writable input: the child can `set()` it and the parent binds **`[(value)]`**.
+- It emits an implicit **`valueChange`** output, so `[(value)]` works like `[value]` plus `(valueChange)`.
+- Use it for controls that own a value (toggle, rating, date picker). Use input plus output when the parent must decide whether to accept the change.
+
+## Queries: viewChild and contentChild | amber
+- **View queries** find elements or components in the component's **own template**: **`viewChild()`**, `viewChild.required()`, **`viewChildren()`** (signal-based), or `@ViewChild` / `@ViewChildren`.
+- **Content queries** find **projected content** (`<ng-content>`): **`contentChild()`**, **`contentChildren()`**, or `@ContentChild` / `@ContentChildren`.
+- Decorator results are available in **`ngAfterViewInit`** / **`ngAfterContentInit`** (`static: true` resolves before `ngOnInit` for elements not inside control flow). Signal queries update automatically.
+- Query by template variable name (`'input'`), component type, or directive; use `read: ElementRef` to get a different token.
+```ts
+export class SearchBox {
+  private readonly input = viewChild.required<ElementRef<HTMLInputElement>>('q');
+  focus() { this.input().nativeElement.focus(); }
+}
+
+export class Tabs {
+  readonly tabs = contentChildren(Tab);                 // <app-tabs><app-tab>...</app-tab></app-tabs>
+  readonly active = signal(0);
+}
+```
+
+## Unrelated Components and State | violet
+- **Shared service** with signals (or a `BehaviorSubject`) provided in root or at a common ancestor: components inject it and read or update state.
+- Keep state **private and writable inside the service**, expose **read-only** views (`asReadonly()`, `asObservable()`), and mutate through methods.
+- Larger apps: **NgRx Store** (Redux pattern: actions, reducers, selectors, effects), **NgRx SignalStore**, or a simple signal-based store per feature.
+- Avoid reaching into other components with `ViewChild` across the tree; communicate through inputs, outputs and services.
+```ts
+@Injectable({ providedIn: 'root' })
+export class CartStore {
+  private readonly _items = signal<CartItem[]>([]);
+  readonly items = this._items.asReadonly();
+  readonly count = computed(() => this._items().reduce((n, i) => n + i.qty, 0));
+  add(item: CartItem) { this._items.update(list => [...list, item]); }   // immutable update
+}
+```
+
+## Interview Q&A | sky | wide
+Q: How do parent and child components communicate?
+A: Parent to child through inputs; child to parent through outputs; two-way through model(); the parent can also query a child with viewChild; unrelated components share state through a service.
+Q: `input()` vs `@Input()`?
+A: input() returns a read-only signal, works with computed and effect, and supports required and transforms without ngOnChanges. @Input is the decorator form that sets a property and needs ngOnChanges or setters to react.
+Q: What is EventEmitter?
+A: An Angular class extending RxJS Subject used with @Output to emit events. In new code use output(); in services use Subject or signals.
+Q: viewChild vs contentChild?
+A: viewChild queries elements in the component's own template; contentChild queries content projected into it from the parent.
+Q: When are @ViewChild results available?
+A: In ngAfterViewInit (or ngOnInit with static: true when the element is not inside control flow). Signal queries are always current.
+Q: How do sibling components share data?
+A: Through a shared service holding signals or a BehaviorSubject, or by lifting the state to a common parent and passing it down.
+Q: What does `model()` do?
+A: Creates a writable signal input with an implicit change output, enabling `[(prop)]` two-way binding.
+
+# 06 | Services & Dependency Injection | @Injectable, inject(), providers, hierarchical injectors, tokens, resolution modifiers | Services & DI
+
+## Services and Dependency Injection | rose
+- A **service** holds logic or state that does not belong in a component: data access, business rules, caching, shared state.
+- **Dependency Injection (DI)**: a class **declares** what it needs and an **injector creates and supplies** it. Benefits: loose coupling, **testability** (swap with mocks), single instances, configuration.
+- **`@Injectable({ providedIn: 'root' })`**: one app-wide singleton, **tree-shakable** (dropped if unused).
+- **`inject(Token)`** (preferred) or constructor parameters get dependencies. `inject()` works only in an **injection context**: constructors, field initialisers, provider factories, route guards and resolvers, or `runInInjectionContext`.
+```ts
+@Injectable({ providedIn: 'root' })
+export class OrderService {
+  private readonly http = inject(HttpClient);
+  private readonly config = inject(APP_CONFIG);
+  list() { return this.http.get<Order[]>(`${this.config.apiUrl}/orders`); }
+}
+```
+
+## Providers and Tokens | blue
+- A **provider** tells an injector **how** to create a value for a **token**:
+- **`useClass`** (instantiate a class, possibly a different one), **`useValue`** (a constant), **`useFactory`** (a function, can call `inject()`), **`useExisting`** (alias another token).
+- **`InjectionToken<T>`** for non-class dependencies (config objects, feature flags, functions). Interfaces cannot be tokens because they vanish at runtime.
+- **`multi: true`** collects several providers under one token (HTTP interceptors via DI, initializers, validators).
+```ts
+export interface AppConfig { apiUrl: string; retries: number }
+export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');
+
+providers: [
+  { provide: APP_CONFIG, useValue: { apiUrl: '/api', retries: 2 } },
+  { provide: Logger, useClass: environment.production ? RemoteLogger : ConsoleLogger },
+  { provide: Clock, useFactory: () => new Clock(inject(APP_CONFIG).retries) },
+  { provide: OldPaymentApi, useExisting: PaymentApi },
+]
+```
+
+## Hierarchical Injectors | green
+- **Environment injectors**: the **root** injector (`providedIn: 'root'`, `bootstrapApplication` providers) and **child environment injectors** created by **lazy-loaded routes** with `providers`. Above root sit the platform injector and the null injector.
+- **Element injectors**: created by **`providers` on components and directives**, following the **DOM / component tree**.
+- **Resolution**: Angular first walks **up the element injector tree** from the requesting component, then the **environment injectors**; if nothing provides the token, it throws **`NullInjectorError: No provider for X`**.
+- Consequence: providing a service in a component's `providers` gives **each instance of that component its own service instance** shared with its children (scoped state such as a wizard or editor).
+- **`viewProviders`** are visible to the component's view but **not** to content projected into it.
+
+## Resolution Modifiers and Lifetime | amber
+- Options on `inject()`: **`{ optional: true }`** (null if missing), **`{ self: true }`** (only this element injector), **`{ skipSelf: true }`** (start from the parent), **`{ host: true }`** (stop at the host component).
+- Decorator equivalents: `@Optional()`, `@Self()`, `@SkipSelf()`, `@Host()`.
+- Service **lifetime** follows its injector: root services live for the app, component-provided services are destroyed with the component (`ngOnDestroy` / `DestroyRef` work in services).
+- Avoid accidental duplicates: providing a root service again in a lazy route or component creates a **second instance** with separate state.
+```ts
+export class ChildPanel {
+  private readonly parentForm = inject(FormGroupDirective, { optional: true, skipSelf: true });
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What is dependency injection in Angular?
+A: A design pattern where classes request dependencies from an injector rather than creating them, which Angular resolves through a hierarchy of injectors using registered providers.
+Q: What does `providedIn: 'root'` do?
+A: Registers the service in the root environment injector as an application-wide singleton and makes it tree-shakable.
+Q: `inject()` vs constructor injection?
+A: Both resolve dependencies. inject() works in field initialisers and functions (guards, interceptors, factories), plays well with inheritance, and is the modern default; it must run in an injection context.
+Q: Explain hierarchical injectors.
+A: Element injectors follow the component tree (component and directive providers); environment injectors cover root and lazy routes. Lookup walks up element injectors, then environment injectors, ending in NullInjectorError.
+Q: What happens if you provide a service in a component?
+A: Each instance of that component gets its own service instance, shared by its descendants and destroyed with the component.
+Q: What is an InjectionToken for?
+A: Providing values that are not classes, such as configuration objects or functions, with type safety, since interfaces do not exist at runtime.
+Q: useClass vs useValue vs useFactory vs useExisting?
+A: useClass instantiates a class, useValue supplies a constant, useFactory computes the value with a function, useExisting aliases another token to the same instance.
+
+# 07 | Routing & Navigation | Routes, links, params and query params, lazy loading, guards, resolvers, router input binding | Routing
+
+## Router Setup | rose
+- Define a **`Routes`** array and register it with **`provideRouter(routes, ...features)`** (or `RouterModule.forRoot(routes)` in module apps).
+- Render matched components in **`<router-outlet>`**; nested routes use `children` and a child outlet.
+- Navigate with **`routerLink`** (and **`routerLinkActive`** for active styles, `ariaCurrentWhenActive`) or programmatically with **`Router.navigate(['/users', id], { queryParams })`** / `navigateByUrl`.
+- **`pathMatch: 'full'`** for empty-path redirects; **`'**'`** wildcard for not-found pages (keep it last: first match wins in order).
+- Features: **`withComponentInputBinding()`**, `withPreloading(PreloadAllModules)`, `withInMemoryScrolling({ scrollPositionRestoration: 'enabled' })`, `withViewTransitions()`, `withHashLocation()`. Route **`title`** sets the document title.
+```ts
+export const routes: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'products' },
+  { path: 'products', title: 'Products', loadComponent: () => import('./products/list').then(m => m.ProductList) },
+  { path: 'products/:id', loadComponent: () => import('./products/detail').then(m => m.ProductDetail),
+    resolve: { product: productResolver } },
+  { path: 'account', canActivate: [authGuard], loadChildren: () => import('./account/routes').then(m => m.ACCOUNT_ROUTES) },
+  { path: '**', loadComponent: () => import('./not-found').then(m => m.NotFound) },
+];
+```
+
+## Route Params and Query Params | blue
+- **Route params** (`/products/:id`) identify a resource; **query params** (`?page=2&sort=price`) hold optional state such as filters and paging; **fragments** (`#reviews`).
+- Read them through **`ActivatedRoute`**: `paramMap` / `queryParamMap` **observables**, or the `snapshot`.
+- **Component reuse gotcha**: navigating from `/products/1` to `/products/2` **reuses the same component instance**, so code that reads the snapshot once in `ngOnInit` shows stale data. Use the observable, `toSignal`, or **router input binding**.
+- With **`withComponentInputBinding()`**, params, query params and resolver data arrive as **inputs** (`id = input<string>()`), and update on reuse.
+```ts
+export class ProductDetail {
+  readonly id = input.required<string>();                        // from :id via input binding
+  protected readonly product = httpResource<Product>(() => `/api/products/${this.id()}`);
+}
+
+// Observable style
+private route = inject(ActivatedRoute);
+product$ = this.route.paramMap.pipe(switchMap(p => this.api.get(p.get('id')!)));
+
+this.router.navigate(['/products'], { queryParams: { page: 2 }, queryParamsHandling: 'merge' });
+```
+
+## Lazy Loading and Preloading | green
+- **`loadComponent`** lazy-loads one standalone component; **`loadChildren`** lazy-loads a routes array (or an NgModule in older apps). Each becomes a **separate chunk** loaded on first navigation.
+- Lazy routes with `providers` get their own **environment injector** (route-scoped services).
+- **Preloading** strategies fetch lazy chunks in the background after startup: `PreloadAllModules`, or a custom strategy (e.g. preload routes flagged in `data`).
+- Combine with `@defer` inside pages for below-the-fold widgets.
+
+## Guards and Resolvers | amber
+- **Functional guards** (recommended): **`CanActivateFn`**, **`CanActivateChildFn`**, **`CanDeactivateFn<T>`** (unsaved changes), **`CanMatchFn`** (decide whether a route config matches at all, e.g. role-based variants; replaces the deprecated `CanLoad`).
+- A guard returns **`boolean`**, a **`UrlTree`** or **`RedirectCommand`** (redirect), or an Observable / Promise of those. Use `inject()` inside.
+- Class-based guards implementing `CanActivate` still work; functional guards are simpler and composable.
+- **Resolvers** (`ResolveFn<T>`) fetch data **before** activation; the page waits. Good for small critical data; for large data prefer showing the page with a loading state.
+- Guards are a **UX layer, not security**: the server must still authorise every request.
+```ts
+export const authGuard: CanActivateFn = (route, state) => {
+  const auth = inject(AuthService);
+  return auth.isLoggedIn() ? true : inject(Router).createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
+};
+
+export const unsavedChangesGuard: CanDeactivateFn<{ hasChanges(): boolean }> =
+  (component) => !component.hasChanges() || confirm('Discard unsaved changes?');
+
+export const productResolver: ResolveFn<Product> = (route) => inject(ProductApi).get(route.paramMap.get('id')!);
+```
+
+## Router Events and Navigation Lifecycle | violet
+- Events: `NavigationStart` → `RoutesRecognized` → `GuardsCheckStart/End` → `ResolveStart/End` → **`NavigationEnd`** (or `NavigationCancel` / **`NavigationError`**).
+- Use them for loading bars, analytics page views, and **moving focus to the new page heading** (accessibility).
+- `Router.events.pipe(filter(e => e instanceof NavigationEnd))`.
+- **Location strategies**: path (HTML5 history, needs the server to fall back to `index.html` for deep links) vs **hash** (`#/path`, works on any static host).
+
+## Interview Q&A | sky | wide
+Q: How do you lazy-load a feature?
+A: Use loadComponent or loadChildren with a dynamic import in the route; the bundler splits it into a chunk that loads on first navigation. Preloading strategies can fetch it in the background.
+Q: Route params vs query params?
+A: Route params are part of the path and identify a resource (/users/42); query params are optional key-value state like filters and paging (?page=2).
+Q: Why does my detail page not update when the id changes?
+A: The router reuses the component instance for the same route, so reading the snapshot once is stale. Subscribe to paramMap, use toSignal, or bind the param as an input.
+Q: What guards exist?
+A: CanActivate, CanActivateChild, CanDeactivate, CanMatch (and deprecated CanLoad), written as functions or classes, returning boolean, UrlTree/RedirectCommand, or async versions.
+Q: CanActivate vs CanMatch?
+A: CanActivate runs after the route matched and blocks activation; CanMatch decides whether the route matches at all, so the router can try other routes and the lazy chunk is not loaded.
+Q: Are route guards security?
+A: No. They only control client navigation; APIs must enforce authorisation on the server.
+Q: What is a resolver?
+A: A function that loads data before a route activates and exposes it as route data or inputs; the navigation waits until it completes.
+Q: Path vs hash location strategy?
+A: Path uses clean URLs via the History API and needs a server fallback to index.html; hash uses #-based URLs that never hit the server.
+
+# 08 | Forms | Template-driven vs reactive, typed forms, validators, FormArray, ControlValueAccessor, signal forms | Forms
+
+## Template-Driven Forms | rose
+- Import **`FormsModule`**; bind controls with **`[(ngModel)]`** and a `name`; Angular builds the form model **implicitly** from the template.
+- Validation via HTML attributes (`required`, `minlength`, `email`, `pattern`); access state with template variables: `#email="ngModel"`, `#f="ngForm"`.
+- **Asynchronous model** (updates happen in a later tick), harder to unit test, logic lives in the template.
+- Good for **small, simple forms** (login, search, settings).
+```html
+<form #f="ngForm" (ngSubmit)="save(f.value)">
+  <input name="email" type="email" [(ngModel)]="model.email" required email #email="ngModel">
+  @if (email.invalid && email.touched) { <p class="error">Valid email required</p> }
+  <button [disabled]="f.invalid">Save</button>
+</form>
+```
+
+## Reactive Forms | blue
+- Import **`ReactiveFormsModule`**; build the model **explicitly in TypeScript** with **`FormControl`**, **`FormGroup`**, **`FormArray`**, usually via **`FormBuilder`** / **`NonNullableFormBuilder`**.
+- **Synchronous, immutable-style model**, easy to unit test, dynamic forms, observable streams **`valueChanges`** / `statusChanges`.
+- **Typed forms** (v14+): `FormControl<string | null>`; `nonNullable: true` makes `reset()` return to the initial value instead of null.
+- API: **`setValue`** (must provide all fields) vs **`patchValue`** (partial), `reset`, `disable` / `enable`, **`getRawValue()`** (includes disabled controls; `value` excludes them), **`markAllAsTouched()`** on submit, `updateOn: 'blur'`.
+```ts
+export class Signup {
+  private readonly fb = inject(NonNullableFormBuilder);
+  readonly form = this.fb.group({
+    name: ['', [Validators.required, Validators.maxLength(60)]],
+    email: ['', [Validators.required, Validators.email], [uniqueEmail()]],   // async validator
+    password: ['', [Validators.required, Validators.minLength(8)]],
+    confirm: [''],
+    phones: this.fb.array([this.fb.control('')]),
+  }, { validators: matchFields('password', 'confirm') });
+
+  get phones() { return this.form.controls.phones; }
+  addPhone() { this.phones.push(this.fb.control('')); }
+
+  submit() {
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    const value = this.form.getRawValue();            // fully typed
+  }
+}
+```
+```html
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <input formControlName="email">
+  @if (form.controls.email.hasError('email')) { <p>Invalid email</p> }
+  <div formArrayName="phones">
+    @for (c of phones.controls; track $index) { <input [formControlName]="$index"> }
+  </div>
+  <button type="button" (click)="addPhone()">Add phone</button>
+</form>
+```
+
+## Validators | green
+- Built-in: **`Validators.required`**, `requiredTrue`, `min`, `max`, **`minLength`**, `maxLength`, **`pattern`**, **`email`**, `compose`.
+- **Custom validator**: a **`ValidatorFn`** `(control) => ValidationErrors | null` (null means valid).
+- **Cross-field validator** on the **group** (password confirmation, date ranges).
+- **Async validator** (`AsyncValidatorFn`) returns an Observable or Promise (server checks such as "email taken"); runs only after sync validators pass; status is `PENDING` meanwhile.
+- Show errors when the control is **`touched`** or **`dirty`** (or the form was submitted), not on page load.
+```ts
+export function matchFields(a: string, b: string): ValidatorFn {
+  return (group) => group.get(a)?.value === group.get(b)?.value ? null : { mismatch: true };
+}
+
+export function uniqueEmail(): AsyncValidatorFn {
+  const api = inject(UserApi);
+  return (control) => timer(300).pipe(                       // debounce
+    switchMap(() => api.emailExists(control.value)),
+    map(exists => (exists ? { emailTaken: true } : null)));
+}
+```
+
+## Custom Form Controls: ControlValueAccessor | amber
+- **`ControlValueAccessor`** connects any component to the forms API so it works with `formControlName` and `ngModel`.
+- Implement **`writeValue`** (model → view), **`registerOnChange`** (view → model), **`registerOnTouched`**, optional `setDisabledState`; register with the **`NG_VALUE_ACCESSOR`** multi provider.
+```ts
+@Component({
+  selector: 'app-rating',
+  providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => Rating), multi: true }],
+  template: `@for (s of [1,2,3,4,5]; track s) {
+    <button type="button" [disabled]="disabled" (click)="select(s)">{{ s <= value ? '★' : '☆' }}</button> }`,
+})
+export class Rating implements ControlValueAccessor {
+  value = 0; disabled = false;
+  private onChange = (v: number) => {}; private onTouched = () => {};
+  writeValue(v: number) { this.value = v ?? 0; }
+  registerOnChange(fn: (v: number) => void) { this.onChange = fn; }
+  registerOnTouched(fn: () => void) { this.onTouched = fn; }
+  setDisabledState(d: boolean) { this.disabled = d; }
+  select(v: number) { this.value = v; this.onChange(v); this.onTouched(); }
+}
+```
+
+## Signal Forms | violet
+- **Signal Forms** (`@angular/forms/signals`; the `form()` API is public in v22): the model is a **`signal`**, and **`form(model, schema)`** returns a field tree whose state is exposed as signals.
+- Validation rules are declared in a schema function: **`required`**, **`email`**, `min`, `max`, **`minLength`**, `maxLength`, `pattern`, custom **`validate`**, server checks with **`validateAsync`**, plus `disabled`, `hidden`, `readonly`.
+- Bind inputs with the **`[formField]`** directive; read field state with signals: `value()`, `valid()`, `invalid()`, `errors()`, `touched()`, `dirty()`, `pending()`. `submit(form, action)` handles submission state.
+- Mention it as the newest option; reactive forms remain the most common in existing codebases.
+```ts
+import { form, FormField, required, email, minLength } from '@angular/forms/signals';
+
+@Component({
+  selector: 'app-login',
+  imports: [FormField],
+  template: `
+    <input type="email" [formField]="loginForm.email">
+    @if (loginForm.email().touched() && loginForm.email().invalid()) { <p>Enter a valid email</p> }
+    <input type="password" [formField]="loginForm.password">
+    <button [disabled]="loginForm().invalid()">Sign in</button>`,
+})
+export class Login {
+  readonly model = signal({ email: '', password: '' });
+  readonly loginForm = form(this.model, (p) => {
+    required(p.email);
+    email(p.email);
+    minLength(p.password, 8);
+  });
+}
+```
+
+## Interview Q&A | sky | wide
+Q: Template-driven vs reactive forms?
+A: Template-driven forms build the model implicitly from ngModel directives in the template: quick for simple forms but asynchronous and harder to test. Reactive forms define FormControl/FormGroup in code: synchronous, explicit, typed, testable and suited to complex or dynamic forms.
+Q: `setValue` vs `patchValue`?
+A: setValue requires a value for every control and throws otherwise; patchValue updates only the controls provided.
+Q: `value` vs `getRawValue()`?
+A: value omits disabled controls; getRawValue includes them.
+Q: How do you write a custom validator?
+A: A function returning ValidatorFn: it receives an AbstractControl and returns null when valid or an errors object such as `{ mismatch: true }`. Apply it at control or group level.
+Q: How do async validators work?
+A: They return an Observable or Promise of errors or null, run after sync validators pass, put the control in PENDING state, and should debounce to limit server calls.
+Q: What is ControlValueAccessor?
+A: An interface that bridges a custom component and Angular forms: writeValue, registerOnChange, registerOnTouched and setDisabledState, registered with NG_VALUE_ACCESSOR.
+Q: What is a FormArray used for?
+A: A dynamic list of controls or groups, such as multiple phone numbers or order lines, that can be added or removed at runtime.
+Q: What are Signal Forms?
+A: The signal-based forms API: a model signal plus `form(model, schema)` producing fields whose value and validation state are signals, bound with the [formField] directive.
+
+# 09 | Pipes | Built-in pipes, custom pipes, pure vs impure, async pipe, alternatives | Pipes
+
+## Built-in Pipes | rose
+- **`date`** (`'dd MMM yyyy'`, `'shortTime'`, timezone parameter), **`currency`** (`'INR'`, display, digits), **`number`** / `decimal` (`'1.0-2'`), **`percent`**, `uppercase`, `lowercase`, **`titlecase`**, **`json`** (debugging), **`slice`**, **`keyvalue`** (iterate object entries), **`async`**, `i18nPlural`, `i18nSelect`.
+- Formatting pipes are **locale-aware** (`LOCALE_ID`, register locale data); set app-wide defaults with **`DEFAULT_CURRENCY_CODE`** and `DATE_PIPE_DEFAULT_OPTIONS`.
+- Chain pipes and pass arguments with colons.
+```html
+<p>{{ order.createdAt | date: 'd MMM y, h:mm a' }}</p>
+<p>{{ order.total | currency: 'INR' : 'symbol' : '1.0-0' }}</p>
+<p>{{ ratio | percent: '1.0-1' }}</p>
+@for (entry of settings | keyvalue; track entry.key) { <li>{{ entry.key }}: {{ entry.value }}</li> }
+```
+
+## Custom Pipes | blue
+- **`@Pipe({ name })`** + **`PipeTransform.transform(value, ...args)`**. Pipes are standalone by default; add them to the component's `imports`.
+- Keep pipes **pure and side-effect free**; inject services if needed (`inject()` works).
+```ts
+@Pipe({ name: 'truncate' })
+export class TruncatePipe implements PipeTransform {
+  transform(value: string | null | undefined, max = 40, suffix = '…'): string {
+    if (!value) return '';
+    return value.length > max ? value.slice(0, max).trimEnd() + suffix : value;
+  }
+}
+// {{ product.description | truncate: 80 }}
+```
+
+## Pure vs Impure Pipes | green
+- **Pure (default)**: Angular re-runs `transform` only when an **input changes by reference** (or primitive value). Results are effectively memoised per binding, so they are cheap.
+- Consequence: **mutating an array or object in place does not re-run a pure pipe** (`items.push(x)` keeps the same reference). Use immutable updates.
+- **Impure (`pure: false`)**: runs on **every change detection** check. Needed only for stateful pipes that track mutations or external state (`async` is impure). Expensive if the work is heavy.
+- **Methods in templates** behave like impure pipes (called every check); **`computed()`** signals are the modern memoised alternative.
+
+## The async Pipe | amber
+- **`| async`** subscribes to an **Observable** or **Promise**, returns the latest value, **marks the view for check** on each emission (works with OnPush and zoneless), and **unsubscribes automatically** when the view is destroyed.
+- Pair with **`@if (obs$ | async; as value)`** or `@let`.
+- Avoid several `| async` on the same cold HTTP observable (each subscribes and sends a request): use one `@let`, `shareReplay`, or convert with `toSignal`.
+```html
+@if (user$ | async; as user) {
+  <h2>{{ user.name }}</h2>
+} @else {
+  <app-spinner />
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What is a pipe?
+A: A template function that transforms a value for display, such as date, currency or a custom truncate, written with the | operator.
+Q: Pure vs impure pipe?
+A: A pure pipe re-executes only when its input reference or primitive value changes; an impure pipe runs on every change detection cycle. Pipes are pure by default.
+Q: Why does my pure pipe not update after `array.push()`?
+A: The array reference did not change, so Angular skips the pure pipe. Create a new array (`[...items, x]`) or use signals.
+Q: What does the async pipe do?
+A: Subscribes to an Observable or Promise, renders the latest value, triggers change detection on emissions, and unsubscribes on destroy.
+Q: Pipe vs method call in a template?
+A: A pure pipe is memoised by input; a method runs on every check of the view. Prefer pure pipes or computed signals for derived values.
+Q: How do you create a custom pipe?
+A: A class decorated with @Pipe({ name }) implementing PipeTransform.transform(value, ...args), imported into the components that use it.
+
+# 10 | HttpClient & Interceptors | provideHttpClient, typed requests, errors and retries, functional interceptors, httpResource, testing | HTTP
+
+## Setup and Requests | rose
+- Register with **`provideHttpClient(...features)`**: `withInterceptors([...])`, `withInterceptorsFromDi()` (class-based interceptors), `withXsrfConfiguration()`, `withJsonpSupport()`.
+- In v22 the **Fetch-based backend is the default** (`withFetch()` is deprecated as unnecessary). **`HttpClientModule` is deprecated** in favour of `provideHttpClient`.
+- Methods **`get<T>`**, `post`, `put`, `patch`, `delete`, `request`; options: **`HttpParams`**, **`HttpHeaders`**, `observe: 'response'` (full response with headers/status), `responseType: 'blob' | 'text'`, `reportProgress`, `withCredentials`, `context`.
+- HttpClient returns **cold Observables**: **nothing is sent until you subscribe**, and **each subscription sends a new request**. They complete after one response, so no unsubscribe leak for a single request (but unsubscribing cancels an in-flight request).
+- The generic type **`get<User>()` is a compile-time assertion**, not runtime validation.
+```ts
+@Injectable({ providedIn: 'root' })
+export class ProductApi {
+  private readonly http = inject(HttpClient);
+  search(q: string, page = 1) {
+    const params = new HttpParams().set('q', q).set('page', page);
+    return this.http.get<Page<Product>>('/api/products', { params });
+  }
+  create(p: NewProduct) { return this.http.post<Product>('/api/products', p); }
+  download(id: string) { return this.http.get(`/api/invoices/${id}`, { responseType: 'blob' }); }
+}
+```
+
+## Error Handling and Retries | blue
+- Failures arrive as **`HttpErrorResponse`**: `status` (**0 means network error, CORS or aborted**), `error` (server body or a ProgressEvent), `message`.
+- Handle with **`catchError`**: map to a user-facing message, return a fallback with `of(...)`, or rethrow with `throwError(() => err)`.
+- **`retry({ count: 2, delay: 1000 })`** for transient failures, only for **idempotent** requests (GET, PUT), never blindly for POST payments.
+- Centralise logging, 401 handling and toast messages in an **error interceptor**; keep component-specific handling local.
+```ts
+this.api.search(q).pipe(
+  retry({ count: 2, delay: (_, attempt) => timer(500 * 2 ** attempt) }),   // exponential backoff
+  catchError((err: HttpErrorResponse) => {
+    this.error.set(err.status === 0 ? 'You appear to be offline' : `Search failed (${err.status})`);
+    return of(EMPTY_PAGE);
+  }),
+);
+```
+
+## Interceptors | green
+- **Functional interceptors** (`HttpInterceptorFn`): `(req, next) => next(modifiedReq)`; requests are **immutable**, so use **`req.clone({...})`**.
+- Run **in the order provided** for requests and in **reverse order** for responses.
+- Use cases: **auth header**, **refresh token on 401** (queue requests during refresh), base URL, **error handling**, **loading indicator**, caching, logging and timing, retry.
+- **`HttpContext` tokens** pass per-request flags (skip auth, skip global error toast).
+```ts
+export const SKIP_AUTH = new HttpContextToken<boolean>(() => false);
+
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  if (req.context.get(SKIP_AUTH)) return next(req);
+  const token = inject(AuthService).accessToken();
+  return next(token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req);
+};
+
+export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  const router = inject(Router);
+  return next(req).pipe(catchError((err: HttpErrorResponse) => {
+    if (err.status === 401) router.navigate(['/login']);
+    return throwError(() => err);
+  }));
+};
+
+provideHttpClient(withInterceptors([authInterceptor, errorInterceptor]));
+```
+
+## Signal-Based Fetching: httpResource | amber
+- **`httpResource()`** (public API in v22) performs a GET whenever the **signals it reads change**, and exposes **`value()`**, **`isLoading()`**, **`error()`**, `status()`, `hasValue()`, `reload()`. Superseded requests are cancelled.
+- **`resource()`** does the same for any async loader (Promise based); **`rxResource()`** for Observable-based loaders.
+- Use for **reading** data that depends on state (route id, filters). Use HttpClient methods for **mutations** (POST/PUT/DELETE).
+```ts
+export class ProductDetail {
+  readonly id = input.required<string>();
+  readonly product = httpResource<Product>(() => `/api/products/${this.id()}`);
+}
+// template
+// @if (product.isLoading()) { <app-spinner /> }
+// @else if (product.error()) { <p>Could not load.</p> }
+// @else if (product.hasValue()) { <h1>{{ product.value().name }}</h1> }
+```
+
+## Testing HTTP | violet
+- Provide **`provideHttpClient()`** and **`provideHttpClientTesting()`**, inject **`HttpTestingController`**.
+- **`expectOne(url)`** → `req.flush(body)` or `req.flush(msg, { status: 500, statusText: 'Server Error' })`; finish with **`verify()`** to assert no unexpected requests.
+```ts
+it('loads products', () => {
+  TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+  const api = TestBed.inject(ProductApi);
+  const http = TestBed.inject(HttpTestingController);
+  let result: Page<Product> | undefined;
+  api.search('pen').subscribe(r => (result = r));
+  http.expectOne(r => r.url === '/api/products' && r.params.get('q') === 'pen').flush({ items: [], total: 0 });
+  expect(result?.total).toBe(0);
+  http.verify();
+});
+```
+
+## Interview Q&A | sky | wide
+Q: Why do Angular HTTP calls not fire?
+A: HttpClient returns cold Observables; the request is sent only when something subscribes (subscribe, async pipe, toSignal).
+Q: Do you need to unsubscribe from HttpClient calls?
+A: They complete after one response, so there is no leak, but unsubscribing (or switchMap) cancels in-flight requests you no longer need.
+Q: What is an HTTP interceptor?
+A: A function (or class) in the request pipeline that can modify requests and responses: attach auth headers, handle errors globally, show loaders, cache or log.
+Q: Why must you clone the request in an interceptor?
+A: HttpRequest objects are immutable so they can be retried and shared safely; clone({ setHeaders }) creates a modified copy.
+Q: In what order do interceptors run?
+A: In the order listed for the outgoing request and in reverse order for the incoming response.
+Q: What does status 0 mean in HttpErrorResponse?
+A: The request never got a valid response: network failure, CORS rejection, or the request was aborted.
+Q: What is httpResource?
+A: A signal-based API that fetches data reactively from signals it reads and exposes value, loading and error state as signals, cancelling superseded requests.
+Q: How do you implement token refresh on 401?
+A: In an interceptor, catch 401, call the refresh endpoint once (share it among concurrent requests), then retry the original request with the new token; on refresh failure, log out.
+
+@ Advanced
+
+# 11 | RxJS Fundamentals | Observables vs Promises, subscriptions, cold vs hot, Subjects, unsubscribing | RxJS Basics
+
+## Observables | rose
+- An **Observable** is a **lazy stream** that can emit **zero or more values over time**, then **complete** or **error**.
+- **Observer**: `{ next, error, complete }`. **`subscribe()`** starts execution and returns a **Subscription**; `unsubscribe()` runs the teardown logic.
+- Creation functions: **`of`**, **`from`** (arrays, promises, iterables), **`fromEvent`**, **`interval`**, **`timer`**, `defer`, `EMPTY`, `throwError`, `new Observable(subscriber => ...)`.
+- Angular uses them for HttpClient, router events, form `valueChanges`, `EventEmitter`.
+```ts
+const ticks$ = new Observable<number>(subscriber => {
+  let n = 0;
+  const id = setInterval(() => subscriber.next(n++), 1000);
+  return () => clearInterval(id);                 // teardown on unsubscribe
+});
+const sub = ticks$.subscribe({ next: v => console.log(v), error: console.error, complete: () => console.log('done') });
+sub.unsubscribe();
+```
+
+## Observable vs Promise | blue
+- **Eagerness**: a Promise starts **immediately** when created; an Observable is **lazy** (runs on subscribe).
+- **Values**: Promise resolves **once**; Observable can emit **many** values.
+- **Cancellation**: Observables are **cancellable** (unsubscribe aborts HTTP, timers); Promises cannot be cancelled (AbortController aside).
+- **Timing**: Promise callbacks are always async (microtasks); Observables can emit **synchronously**.
+- **Composition**: Observables have **operators** (map, switchMap, retry, debounce); Promises have then/catch and combinators.
+- **Multicast**: each Promise is shared by all `then` callers; a cold Observable runs **separately for each subscriber**.
+- Convert: `firstValueFrom(obs$)` / `lastValueFrom(obs$)`, `from(promise)`.
+
+## Cold vs Hot | green
+- **Cold**: the producer is created **per subscriber** (HttpClient, `of`, `interval`): two subscriptions = two HTTP requests.
+- **Hot**: the producer exists independently and is **shared** (DOM events, Subjects, WebSocket): late subscribers miss earlier values.
+- **Multicasting** a cold source: **`share()`** (shared while subscribed) and **`shareReplay({ bufferSize: 1, refCount: true })`** (also replays the latest value to late subscribers; `refCount: true` lets it unsubscribe from the source when nobody listens).
+```ts
+readonly config$ = this.http.get<Config>('/api/config').pipe(shareReplay({ bufferSize: 1, refCount: false }));
+// cached: every subscriber gets the same response, only one request is sent
+```
+
+## Subjects | amber
+- A **Subject** is both an Observable and an Observer: you push values with `next()` and it **multicasts** to all subscribers.
+- **`Subject`**: no initial value; subscribers get only **future** values.
+- **`BehaviorSubject(initial)`**: **requires an initial value**, keeps the **current value** (`.value`), and gives it **immediately to new subscribers**. Classic for state.
+- **`ReplaySubject(bufferSize, windowTime)`**: replays the last N values (or values within a time window) to new subscribers.
+- **`AsyncSubject`**: emits only the **last value, on complete**.
+- Expose read-only streams with **`asObservable()`**; keep `next()` private to the service.
+```ts
+@Injectable({ providedIn: 'root' })
+export class SessionStore {
+  private readonly user$$ = new BehaviorSubject<User | null>(null);
+  readonly user$ = this.user$$.asObservable();
+  get snapshot() { return this.user$$.value; }
+  login(u: User) { this.user$$.next(u); }
+  logout() { this.user$$.next(null); }
+}
+```
+
+## Unsubscribing and Leaks | violet
+- Long-lived streams (`interval`, `fromEvent`, store selectors, `valueChanges`) **keep running after the component is destroyed** unless unsubscribed: memory leaks and duplicate side effects.
+- Options: **`async` pipe** (automatic), **`takeUntilDestroyed()`** (Angular 16+, uses `DestroyRef`; call in an injection context or pass a DestroyRef), **`toSignal()`** (automatic), `take(1)` / `first()` for one value, or store the Subscription and unsubscribe in `ngOnDestroy`.
+- HTTP observables complete on their own, but unsubscribing still cancels requests that are no longer needed.
+```ts
+@Component({ selector: 'app-ticker', template: `{{ count() }}` })
+export class Ticker {
+  private readonly destroyRef = inject(DestroyRef);
+  constructor() {
+    interval(1000).pipe(takeUntilDestroyed()).subscribe(n => this.count.set(n));
+  }
+  later() {
+    fromEvent(window, 'resize').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.measure());
+  }
+  readonly count = signal(0);
+}
+```
+
+## Interview Q&A | sky | wide
+Q: Observable vs Promise?
+A: Observables are lazy, can emit many values, are cancellable and composable with operators; Promises are eager, resolve once, cannot be cancelled and are always asynchronous.
+Q: Cold vs hot observable?
+A: A cold observable creates its producer for each subscriber (each HTTP subscription sends a request); a hot observable shares one producer among subscribers (events, Subjects).
+Q: Subject vs BehaviorSubject vs ReplaySubject?
+A: Subject emits only future values; BehaviorSubject needs an initial value and gives the current value to new subscribers; ReplaySubject replays a configurable number of past values.
+Q: How do you avoid memory leaks with subscriptions?
+A: Prefer the async pipe or toSignal; otherwise use takeUntilDestroyed, take(1), or unsubscribe in ngOnDestroy.
+Q: What does shareReplay do?
+A: Multicasts a source to all subscribers and replays the last N values to late subscribers, commonly used to cache an HTTP response.
+Q: How do you convert between Observables and Promises?
+A: firstValueFrom/lastValueFrom turn an Observable into a Promise; from(promise) turns a Promise into an Observable.
+Q: Why expose `asObservable()` from a service?
+A: So consumers can subscribe but cannot call next(), keeping state changes inside the service.
+
+# 12 | RxJS Operators | map, filter, tap, switchMap, mergeMap, concatMap, exhaustMap, catchError, debounceTime, combination operators | RxJS Operators
+
+## Transformation and Filtering | rose
+- Operators are pure functions chained with **`pipe()`**; each returns a new Observable.
+- **`map`** transforms values; **`filter`** drops values; **`tap`** performs side effects (logging) without changing values; **`scan`** accumulates over time (running totals, reducers); `reduce` emits once on complete.
+- **`distinctUntilChanged()`** skips consecutive duplicates; **`take(n)`**, **`first()`**, `takeWhile`, `skip`; **`startWith`**; **`finalize`** runs on complete, error or unsubscribe.
+```ts
+this.form.controls.qty.valueChanges.pipe(
+  map(v => Number(v) || 0),
+  filter(v => v >= 0),
+  distinctUntilChanged(),
+  tap(v => console.debug('qty', v)),
+).subscribe(v => this.qty.set(v));
+```
+
+## Higher-Order Mapping: the Big Four | blue
+- They map each value to an **inner Observable** (usually an HTTP call) and flatten the results; they differ in **what happens when a new value arrives while an inner one is still running**.
+- **`switchMap`**: **cancels the previous** inner and switches to the new one. Use for **search-as-you-type, route params, autocomplete** (only the latest matters).
+- **`mergeMap`** (`flatMap`): runs inners **in parallel**, results in completion order; optional concurrency limit. Use for **independent operations** (upload many files, delete selected items).
+- **`concatMap`**: **queues** inners and runs them **one at a time in order**. Use when **order matters** (sequential saves, ordered writes).
+- **`exhaustMap`**: **ignores new values while an inner is running**. Use for **login or submit buttons**, refresh-token calls (prevent duplicates).
+```ts
+// Typeahead
+results$ = this.query$.pipe(
+  debounceTime(300),
+  map(q => q.trim()),
+  distinctUntilChanged(),
+  filter(q => q.length >= 2),
+  switchMap(q => this.api.search(q).pipe(catchError(() => of([])))),   // inner catch keeps the stream alive
+);
+
+// Save button: ignore double clicks while saving
+this.saveClicks$.pipe(exhaustMap(() => this.api.save(this.form.getRawValue()))).subscribe();
+
+// Upload files 3 at a time
+from(files).pipe(mergeMap(f => this.api.upload(f), 3)).subscribe();
+```
+
+## Time-Based Operators | green
+- **`debounceTime(ms)`**: emit only after the source is **silent** for ms (search inputs, autosave).
+- **`throttleTime(ms)`**: emit the first value, then ignore for ms (scroll, resize, button spam).
+- **`auditTime(ms)`**: emit the **latest** value at the end of each window.
+- **`delay`**, **`timeout`** (error if no value in time), `sampleTime`, **`bufferTime`**.
+
+## Error Handling | amber
+- An error **terminates** the stream: subscribers get `error` and no further values.
+- **`catchError(err => fallback$)`**: replace the error with another Observable (`of(default)`, `EMPTY`) or rethrow with `throwError(() => err)`.
+- **Placement matters**: catching on the **outer** stream ends it (typeahead stops working after one failure); catch **inside the inner** `switchMap` to keep the outer stream alive.
+- **`retry({ count, delay })`** resubscribes on error (re-sends the HTTP request); `finalize` for cleanup such as hiding a spinner.
+
+## Combination Operators | violet
+- **`combineLatest([a$, b$])`**: emits whenever any source emits, **after every source has emitted at least once**; gives the latest of each (filters plus data).
+- **`forkJoin([a$, b$])`**: waits until **all complete**, emits **once** with the last values: **parallel HTTP calls** (it emits nothing if any source completes without a value, and errors if any errors).
+- **`withLatestFrom(b$)`**: when the source emits, attach b's latest value (source drives).
+- **`merge`**: interleave emissions; **`concat`**: one after another; **`zip`**: pairs by index; **`race`**: first to emit wins.
+```ts
+dashboard$ = forkJoin({ user: this.api.me(), orders: this.api.orders(), stats: this.api.stats() });
+
+vm$ = combineLatest([this.filters$, this.products$]).pipe(
+  map(([f, products]) => products.filter(p => p.category === f.category && p.price <= f.maxPrice)),
+);
+```
+
+## Interview Q&A | sky | wide
+Q: switchMap vs mergeMap vs concatMap vs exhaustMap?
+A: switchMap cancels the previous inner observable (search); mergeMap runs all in parallel (independent requests); concatMap queues them in order (sequential saves); exhaustMap ignores new values while one is running (login button).
+Q: Which operator for a search box and why?
+A: debounceTime and distinctUntilChanged to limit requests, then switchMap so outdated requests are cancelled and only the latest results show.
+Q: combineLatest vs forkJoin?
+A: combineLatest emits every time any source emits once all have emitted (live combinations); forkJoin emits once when all sources complete (parallel one-shot requests).
+Q: Why did my stream stop after an HTTP error?
+A: An error terminates the observable. Put catchError inside the inner switchMap observable so the outer stream continues.
+Q: debounceTime vs throttleTime?
+A: debounceTime waits for silence before emitting the last value; throttleTime emits the first value and ignores others during the window.
+Q: What is tap for?
+A: Side effects such as logging or setting a loading flag without changing the emitted values.
+Q: How do you make several HTTP calls in parallel and wait for all?
+A: forkJoin with an array or object of the request observables.
+
+# 13 | Signals | signal, computed, effect, linkedSignal, resource, signal-based components, RxJS interop | Signals
+
+## Signals Basics | rose
+- A **signal** is a **reactive value container**: reading it (`count()`) inside a reactive context **registers a dependency**, and writing it notifies dependents.
+- **`signal(initial)`** creates a writable signal: **`set(v)`**, **`update(fn)`**; **`asReadonly()`** exposes a read-only version.
+- Signals use **equality** (`Object.is` by default) to skip notifications when the value did not change: **mutating an object in place does not notify**; update immutably.
+- Benefits: **fine-grained change detection** (only views that read a changed signal are refreshed), **glitch-free** derived values, synchronous reads, no subscriptions to manage.
+```ts
+const count = signal(0);
+count.set(5);
+count.update(c => c + 1);
+const todos = signal<Todo[]>([]);
+todos.update(list => [...list, { id: 1, title: 'Revise RxJS', done: false }]);   // new array
+```
+
+## computed() | blue
+- **`computed(() => ...)`** derives a **read-only** signal from others.
+- **Lazy** (calculated on first read) and **memoised** (recomputed only when a dependency changes).
+- **Dynamic dependency tracking**: only signals actually read in the last run are dependencies (branches matter).
+- Must be **pure**: no side effects, no writing to signals.
+```ts
+readonly items = signal<CartItem[]>([]);
+readonly subtotal = computed(() => this.items().reduce((s, i) => s + i.price * i.qty, 0));
+readonly shipping = computed(() => (this.subtotal() > 999 ? 0 : 49));
+readonly total = computed(() => this.subtotal() + this.shipping());
+```
+
+## effect() | green
+- **`effect(() => ...)`** runs **side effects** when the signals it reads change: syncing to `localStorage`, logging, analytics, calling non-Angular APIs (charts, maps).
+- Runs **at least once**, scheduled **asynchronously** as part of change detection; must be created in an **injection context**; destroyed with its component (or via the returned ref).
+- **`onCleanup`** callback for cancelling timers or subscriptions before the next run.
+- **`untracked(() => ...)`** reads signals without creating dependencies.
+- **Do not use effects to copy one signal into another**: that is `computed()` or `linkedSignal()`. `afterRenderEffect` is for work that must read the DOM after rendering.
+```ts
+constructor() {
+  effect((onCleanup) => {
+    const theme = this.theme();
+    localStorage.setItem('theme', theme);
+    const id = setTimeout(() => this.analytics.track('theme', theme), 500);
+    onCleanup(() => clearTimeout(id));
+  });
+}
+```
+
+## linkedSignal and Resources | amber
+- **`linkedSignal()`** (stable since v20): a **writable** signal whose value is **reset from a source** whenever the source changes, e.g. the selected item resets when the list changes but the user can still change the selection.
+- **`resource({ params, loader })`**, **`rxResource`** and **`httpResource`** (public API in v22): load async data reactively from signals, exposing `value()`, `isLoading()`, `error()`, `status()`, `reload()`, and aborting stale loads.
+```ts
+readonly options = input.required<ShippingOption[]>();
+readonly selected = linkedSignal(() => this.options()[0]);      // resets when options change
+
+readonly userId = input.required<string>();
+readonly user = resource({
+  params: () => ({ id: this.userId() }),
+  loader: ({ params, abortSignal }) => fetch(`/api/users/${params.id}`, { signal: abortSignal }).then(r => r.json()),
+});
+```
+
+## Signal-Based Components and RxJS Interop | violet
+- Component APIs are signals: **`input()`**, **`model()`**, **`output()`**, **`viewChild()`** / `contentChildren()`. Templates read signals by calling them: `{{ total() }}`.
+- With signals plus OnPush (the default in v22), Angular updates only the views whose signals changed; this is what makes **zoneless** change detection possible.
+- **`toSignal(obs$, { initialValue })`** subscribes and unsubscribes automatically (use `requireSync` for synchronous sources); **`toObservable(sig)`** turns a signal into an Observable (emits asynchronously).
+- **Signals for state, RxJS for events and async orchestration** (debounce, cancellation, retries, websockets). They complement each other.
+```ts
+readonly query = signal('');
+readonly results = toSignal(
+  toObservable(this.query).pipe(debounceTime(300), distinctUntilChanged(), switchMap(q => this.api.search(q))),
+  { initialValue: [] },
+);
+```
+
+## Interview Q&A | sky | wide
+Q: What are signals?
+A: Reactive primitives that hold a value and track who reads them, so Angular knows exactly which computations and views to update when the value changes.
+Q: signal vs computed vs effect?
+A: signal is writable state; computed is a read-only, lazily evaluated, memoised derivation; effect runs side effects when the signals it reads change.
+Q: Why should you not set signals inside an effect?
+A: It creates hidden data flow, extra change detection cycles and possible loops. Derive values with computed or linkedSignal instead.
+Q: Signals vs RxJS?
+A: Signals model synchronous state and derived values with automatic dependency tracking; RxJS models streams of events over time with powerful operators. Use toSignal and toObservable to bridge them.
+Q: Why did my signal not update the view after mutating an array?
+A: Signals compare with Object.is; pushing into the same array keeps the same reference, so no change is detected. Update immutably.
+Q: What is linkedSignal?
+A: A writable signal derived from a source that resets to a computed value whenever the source changes, while still allowing local overrides.
+Q: How do signals enable zoneless Angular?
+A: Signal writes tell Angular precisely which views are dirty, so it no longer needs zone.js to guess when async work may have changed state.
+
+# 14 | Change Detection & Zoneless | How CD works, OnPush (default in v22) vs Eager, ChangeDetectorRef, NgZone, zone.js vs zoneless | Change Detection
+
+## What Change Detection Does | rose
+- **Change detection (CD)** keeps the DOM in sync with component state: it walks the **component tree from the root**, evaluates template bindings and updates the DOM where values changed.
+- In **development mode** Angular runs a second check and throws **`ExpressionChangedAfterItHasBeenCheckedError`** if a binding changed during the check (usually state modified in `ngAfterViewInit` or a getter that returns new objects).
+- CD is **unidirectional**: data flows parent → child in one pass; children must not change parent state during CD.
+
+## Scheduling: zone.js vs Zoneless | blue
+- **zone.js** (classic): monkey-patches async APIs (events, timers, XHR, promises) and runs CD for the whole app **after every async task**. Easy, but runs CD more often than needed and adds bundle size and stack-trace noise.
+- **Zoneless** (stable since v20.2 via `provideZonelessChangeDetection()`, the default for new projects): CD is scheduled only by **signal changes read in templates**, **`markForCheck()`** (including the async pipe), **template event listeners**, `ComponentRef.setInput`, and view attach/detach.
+- Zoneless gotchas: updating a plain field inside `setTimeout` or a third-party callback does **not** refresh the view; use signals or `markForCheck()`.
+- Existing apps opt into zone-based CD with `provideZoneChangeDetection({ eventCoalescing: true })`.
+
+## OnPush vs Eager | green
+- **OnPush is the default strategy in Angular 22**; the old `Default` strategy is now called **`Eager`** (`ChangeDetectionStrategy.Default` is a deprecated alias). Most existing code and articles still describe the old default.
+- **Eager** (old Default): the component is checked **every time** CD reaches it.
+- **OnPush**: the component (and its subtree) is checked only when it is **marked dirty**: an **input reference changes**, an **event handled in its template**, a **signal read in its template changes**, **`markForCheck()`** (or the async pipe) is called.
+- Consequence: **mutating an object passed as an input does not update an OnPush child**. Use **immutable updates** or signals.
+- OnPush plus signals gives the best performance and is required for efficient zoneless apps.
+```ts
+// Parent
+this.user.name = 'Bo';                         // OnPush child NOT updated (same reference)
+this.user = { ...this.user, name: 'Bo' };      // child updated (new reference)
+this.userSig.update(u => ({ ...u, name: 'Bo' }));   // signal: precise update
+```
+
+## ChangeDetectorRef | amber
+- **`markForCheck()`**: marks this view and its ancestors as dirty so they are checked in the **next** CD run (the async pipe does this).
+- **`detectChanges()`**: runs CD **synchronously now** for this view and its children.
+- **`detach()` / `reattach()`**: remove a view from CD entirely (manual control for very hot views such as live charts).
+- `checkNoChanges()`: dev-only verification.
+- With signals, you rarely need ChangeDetectorRef in new code.
+```ts
+export class LegacyWidget {
+  private readonly cdr = inject(ChangeDetectorRef);
+  data?: Data;
+  ngOnInit() {
+    thirdPartyLib.onUpdate(d => { this.data = d; this.cdr.markForCheck(); });   // outside Angular's knowledge
+  }
+}
+```
+
+## NgZone | violet
+- In zone-based apps, **`NgZone.runOutsideAngular(() => ...)`** runs code (scroll listeners, animation loops, polling) **without triggering CD** on every event; re-enter with **`zone.run(() => ...)`** when the UI must update.
+- `onStable` / `onMicrotaskEmpty` events signal when the app settles (testing, SSR stability).
+- In zoneless apps NgZone is effectively a no-op; use signals and explicit scheduling instead.
+```ts
+constructor() {
+  const zone = inject(NgZone);
+  zone.runOutsideAngular(() => {
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY;
+      if (y > 400 !== this.showTop()) zone.run(() => this.showTop.set(y > 400));
+    }, { passive: true });
+  });
+}
+```
+
+## Interview Q&A | sky | wide
+Q: How does Angular change detection work?
+A: Angular walks the component tree from the root, re-evaluates template bindings and updates changed DOM. Runs are scheduled by zone.js after async events in older apps, or by signals, events and markForCheck in zoneless apps.
+Q: What is OnPush?
+A: A strategy where a component is checked only when marked dirty: new input references, events in its template, signals it reads, or markForCheck. In Angular 22 it is the default; the always-check strategy is now called Eager.
+Q: markForCheck vs detectChanges?
+A: markForCheck flags the view and ancestors for the next CD run; detectChanges runs CD immediately on this view and its children.
+Q: Why does my OnPush component not update?
+A: The parent mutated an input object instead of replacing it, or state changed outside Angular (third-party callback, setTimeout in zoneless) without a signal or markForCheck.
+Q: What is ExpressionChangedAfterItHasBeenCheckedError?
+A: A dev-mode error raised when a binding's value changes during the verification pass, usually because state was modified in a lifecycle hook after the view was checked.
+Q: What is zone.js and why go zoneless?
+A: zone.js patches async APIs to trigger app-wide change detection after every task. Zoneless removes that overhead and bundle size, giving precise updates driven by signals and making debugging easier.
+Q: What does runOutsideAngular do?
+A: Runs code without zone.js triggering change detection, for frequent events such as scroll or animation frames; zone.run re-enters when the view must update.
+
+# 15 | Lifecycle Hooks | Constructor vs ngOnInit, hook order, content vs view hooks, DestroyRef, render hooks | Lifecycle
+
+## The Hook Sequence | rose
+- **constructor**: DI only; **inputs are not set yet**.
+- **`ngOnChanges(changes)`**: before `ngOnInit` and whenever a **decorator `@Input`** changes (`SimpleChanges` has previous/current/firstChange). Not called for signal inputs.
+- **`ngOnInit`**: once, after the first inputs are set: initialisation and data loading.
+- **`ngDoCheck`**: on every CD run for this component: custom change detection (expensive, rarely needed).
+- **`ngAfterContentInit`** (once) / **`ngAfterContentChecked`**: projected content and content queries are ready / checked.
+- **`ngAfterViewInit`** (once) / **`ngAfterViewChecked`**: the component's view and view queries are ready / checked.
+- **`ngOnDestroy`**: cleanup before removal (unsubscribe, clear timers, detach listeners).
+- Order on creation: constructor → OnChanges → OnInit → DoCheck → AfterContentInit → AfterContentChecked → AfterViewInit → AfterViewChecked; on later checks: OnChanges (if inputs changed) → DoCheck → AfterContentChecked → AfterViewChecked.
+
+## Constructor vs ngOnInit | blue
+- **Constructor**: a TypeScript feature; Angular uses it for **dependency injection**. Keep it light.
+- **`ngOnInit`**: an Angular hook called after inputs are bound, so **input values are available**; put initialisation logic and data fetching here (or derive from signals).
+- In signal-based components, many hooks disappear: `computed()` replaces derived state in `ngOnChanges`, `effect()` replaces reacting to changes, signal queries replace waiting for `ngAfterViewInit`.
+
+## Cleanup with DestroyRef | green
+- **`inject(DestroyRef).onDestroy(() => ...)`** registers cleanup from anywhere in an injection context (components, directives, services, functions).
+- **`takeUntilDestroyed()`** completes Observables on destroy.
+- Effects and `toSignal` subscriptions clean up automatically with their owner.
+```ts
+export class LiveChart {
+  constructor() {
+    const socket = new WebSocket('wss://example.com/prices');
+    inject(DestroyRef).onDestroy(() => socket.close());
+  }
+}
+```
+
+## Render Hooks: afterNextRender and afterEveryRender | amber
+- **`afterNextRender(() => ...)`**: runs **once after the next render**, in the **browser only** (never on the server): initialise DOM-dependent libraries (charts, maps, focus).
+- **`afterEveryRender(() => ...)`**: after every render (measure layout, sync third-party widgets). Use sparingly.
+- Both accept phases (`earlyRead`, `write`, `mixedReadWrite`, `read`) to batch DOM reads and writes and avoid layout thrashing.
+- **`afterRenderEffect`**: an effect that runs after rendering, for DOM work reacting to signals.
+```ts
+export class MapView {
+  private readonly el = viewChild.required<ElementRef<HTMLDivElement>>('map');
+  private readonly destroyRef = inject(DestroyRef);       // inject here: the callback below is not an injection context
+  constructor() {
+    afterNextRender(() => {
+      const map = createMap(this.el().nativeElement);      // safe: browser only, DOM ready
+      this.destroyRef.onDestroy(() => map.remove());
+    });
+  }
+}
+```
+
+## Common Mistakes | violet
+- Reading **`@ViewChild` in `ngOnInit`** (undefined unless `static: true`).
+- Changing bound state in **`ngAfterViewInit`** (ExpressionChanged error); schedule it or derive it.
+- Heavy work in **`ngDoCheck`** or `ngAfterViewChecked` (runs on every CD).
+- Forgetting cleanup in **`ngOnDestroy`** (subscriptions, intervals, global listeners).
+- Using browser APIs (`window`, `document`, `localStorage`) in constructors in **SSR** apps: use `afterNextRender` or `isPlatformBrowser`.
+
+## Interview Q&A | sky | wide
+Q: List the lifecycle hooks in order.
+A: ngOnChanges, ngOnInit, ngDoCheck, ngAfterContentInit, ngAfterContentChecked, ngAfterViewInit, ngAfterViewChecked, ngOnDestroy (after the constructor).
+Q: Constructor vs ngOnInit?
+A: The constructor is for dependency injection and runs before inputs are set; ngOnInit runs once after the first input binding and is where initialisation logic belongs.
+Q: When is ngOnChanges called?
+A: Before ngOnInit and whenever a decorator-based input's reference changes, with a SimpleChanges map; it is not called for signal inputs.
+Q: AfterContent vs AfterView?
+A: AfterContent hooks fire when projected content (ng-content) and content queries are ready; AfterView hooks fire when the component's own view and view queries are ready.
+Q: Where do you clean up subscriptions?
+A: ngOnDestroy, or better DestroyRef.onDestroy and takeUntilDestroyed; async pipe and toSignal clean up automatically.
+Q: What is afterNextRender used for?
+A: Running browser-only DOM code once after rendering, such as initialising a chart library, which is also SSR-safe because it never runs on the server.
+
+# 16 | Performance, SSR & Hydration | Bundle size, lazy loading, runtime performance, NgOptimizedImage, SSR, SSG, hydration | Performance & SSR
+
+## Bundle Size | rose
+- **Lazy-load routes** (`loadComponent`, `loadChildren`) and **`@defer`** heavy widgets (charts, editors, maps).
+- **Standalone components** and `providedIn: 'root'` services are tree-shakable; avoid barrel files that pull in everything.
+- **Budgets** in `angular.json` fail or warn the build when bundles grow (`initial`, `anyComponentStyle`).
+- Analyse with **`ng build --stats-json`** and a bundle analyser (esbuild metafile); replace heavy libraries (moment → date-fns or Intl, full lodash → per-function imports).
+- Production builds already do AOT, minification, tree shaking and dead-code elimination.
+
+## Runtime Performance | blue
+- **OnPush + signals** (the v22 default), immutable data.
+- **`track`** by id in `@for`; **virtual scrolling** (`@angular/cdk/scrolling`) for long lists.
+- No heavy work in templates: **pure pipes** or **`computed()`** instead of methods.
+- In zone apps, run frequent events with **`runOutsideAngular`**; debounce and throttle input-driven work.
+- Move CPU-heavy work to **Web Workers** (`ng generate web-worker`).
+- Profile with **Angular DevTools** (component tree, change detection profiler, signal graph) and Chrome Performance.
+
+## NgOptimizedImage | green
+- **`ngSrc`** instead of `src` enforces best practices: **required `width`/`height`** (or `fill`) to prevent layout shift, **lazy loading by default**, **`priority`** for the LCP image (sets `fetchpriority="high"`, eager loading, preload hint), automatic **`srcset`** with an image loader (CDN), warnings for oversized images and missing preconnect.
+```html
+<img ngSrc="/products/{{ p.id }}.jpg" width="400" height="300" [alt]="p.name">
+<img ngSrc="hero.jpg" width="1600" height="900" priority alt="Summer sale">
+```
+
+## Server-Side Rendering and Prerendering | amber
+- **SSR** renders HTML on the server per request: better **SEO**, link previews, and **faster first contentful paint / LCP**. Add with **`ng new --ssr`** or **`ng add @angular/ssr`** (Angular Universal became `@angular/ssr` in v17).
+- **Prerendering (SSG)** renders routes **at build time** into static HTML: ideal for marketing pages and docs.
+- **Route-level render modes** (server routes): `RenderMode.Server`, **`RenderMode.Prerender`**, `RenderMode.Client` per route.
+- Pitfalls: **no `window`, `document`, `localStorage` on the server**: guard with `afterNextRender`, `isPlatformBrowser(inject(PLATFORM_ID))`, or inject `DOCUMENT`. Avoid long timers that keep the server from becoming stable.
+- **HttpClient transfer cache** (enabled by `provideClientHydration`) serialises server responses into the HTML so the browser does not repeat the same GET requests.
+```ts
+export const serverRoutes: ServerRoute[] = [
+  { path: '', renderMode: RenderMode.Prerender },
+  { path: 'products/:id', renderMode: RenderMode.Server },
+  { path: 'account/**', renderMode: RenderMode.Client },
+];
+```
+
+## Hydration | violet
+- **Hydration** reuses the server-rendered DOM instead of destroying and re-rendering it (**non-destructive**, since v16): no flicker, better LCP and CLS. Enable with **`provideClientHydration()`**.
+- **Event replay** (`withEventReplay()`) records clicks that happen before hydration finishes and replays them afterwards.
+- **Incremental hydration**: `@defer` blocks stay as static server HTML and hydrate later on a trigger (`@defer (hydrate on viewport)`), so less JavaScript runs up front. **Enabled by default with `provideClientHydration` in v22** (`withIncrementalHydration()` is now deprecated as unnecessary).
+- Hydration requires the server and client DOM to match: direct DOM manipulation or invalid HTML causes **hydration mismatch** errors; opt a component out with **`ngSkipHydration`** as a last resort.
+```html
+@defer (hydrate on viewport) {
+  <app-reviews [productId]="id()" />
+} @placeholder {
+  <div class="skeleton"></div>
+}
+```
+
+## Interview Q&A | sky | wide
+Q: How do you improve Angular application performance?
+A: Lazy-load routes and @defer heavy parts, keep bundles in budget, use OnPush with signals and immutable data, track items in @for, avoid template methods, virtualise long lists, optimise images with NgOptimizedImage, and add SSR or prerendering for faster first paint.
+Q: What is SSR and why use it?
+A: Rendering the app's HTML on the server so users and crawlers get content immediately: better SEO, link previews and LCP. The client then hydrates it.
+Q: What is hydration?
+A: The process where the client-side app attaches to server-rendered DOM, reusing nodes and adding event listeners instead of re-rendering from scratch.
+Q: What is incremental hydration?
+A: Server-rendered @defer blocks stay as static HTML and hydrate only when a trigger fires (viewport, interaction), reducing the JavaScript run up front. It is on by default with provideClientHydration in v22.
+Q: SSR vs SSG (prerendering)?
+A: SSR renders on each request (dynamic, personalised data); prerendering renders at build time into static files (fast, cacheable, for content that changes rarely).
+Q: What breaks when code runs on the server?
+A: Browser-only APIs such as window, document and localStorage. Use afterNextRender, isPlatformBrowser or injected abstractions.
+Q: What does NgOptimizedImage enforce?
+A: Explicit dimensions, lazy loading by default, priority for the LCP image, responsive srcset generation and warnings for common image performance mistakes.
+
+@ Review
+
+# 17 | Versions & Rapid-Fire | Version timeline, tricky questions, one-liners, big Q&A | Rapid-fire
+
+## Version Timeline (know the milestones) | rose
+- **v9**: Ivy and AOT by default. **v13**: View Engine removed. **v14**: standalone (preview), **typed forms**, `inject()`.
+- **v15**: standalone stable, **functional guards and interceptors**, directive composition, NgOptimizedImage stable.
+- **v16**: **signals** (preview), required inputs, `takeUntilDestroyed`/`DestroyRef`, non-destructive hydration (preview), router input binding.
+- **v17**: **@if / @for / @switch**, **@defer**, esbuild + Vite builder by default, `@angular/ssr`, signal inputs (17.1), `model()` and signal queries (17.2), `output()` (17.3).
+- **v18**: control flow and `@defer` stable, zoneless (experimental), `RedirectCommand`, `@let` (18.1).
+- **v19**: **standalone by default**, signal inputs/queries/model stable, `linkedSignal` and `resource` (experimental), incremental hydration (preview), route render modes.
+- **v20**: `effect`, `linkedSignal`, `toSignal` stable; incremental hydration stable; **`*ngIf`/`*ngFor`/`*ngSwitch` deprecated**; zoneless stable in 20.2; new style guide without file suffixes.
+- **v21**: new projects **zoneless**, **Vitest** as the default test runner, Signal Forms (experimental).
+- **v22** (installed in this project): **OnPush is the default** (`Default` renamed `Eager`), `resource`/`httpResource`/`rxResource` public, **Signal Forms `form()` public**, Fetch backend default, incremental hydration on by default.
+> Name the version your project uses and two features you actually applied.
+
+## Tricky Questions | blue
+- **"Why does `@Input` object mutation not show?"** OnPush (default in v22) needs a new reference or a signal.
+- **"Why two HTTP requests?"** Two subscriptions to a cold observable (two `| async` pipes); share it or use `@let` / `toSignal`.
+- **"Service has two instances"**: provided both in root and in a component or lazy route.
+- **"NullInjectorError: No provider for HttpClient"**: missing `provideHttpClient()`.
+- **"ExpressionChangedAfterItHasBeenChecked"**: state changed during the verification pass (ngAfterViewInit, getters creating new objects).
+- **"Typeahead stops working after one error"**: `catchError` on the outer stream; move it inside `switchMap`.
+- **"Detail page shows old data when id changes"**: component reuse; use paramMap, toSignal or input binding.
+- **"window is not defined"**: browser API used during SSR.
+
+## One-Line Cheat Sheet | green
+- **Component** = class + template + styles + `@Component` metadata; **standalone** by default.
+- **Bindings**: `{{ }}`, `[prop]`, `[attr.x]`, `(event)`, `[(x)]`; `@let`.
+- **Control flow**: `@if`, `@for` (track!), `@switch`, `@defer`; `*ngIf` deprecated.
+- **Communication**: `input()`, `output()`, `model()`, `viewChild()`, services.
+- **DI**: `providedIn: 'root'`, `inject()`, element vs environment injectors, `InjectionToken`.
+- **Router**: lazy `loadComponent`, functional guards, `CanMatch`, resolvers, input binding.
+- **Forms**: template-driven vs reactive (typed), validators, CVA, Signal Forms.
+- **HTTP**: cold observables, functional interceptors (clone!), `httpResource`.
+- **RxJS**: switch/merge/concat/exhaust; combineLatest vs forkJoin; `takeUntilDestroyed`.
+- **Signals**: signal, computed, effect, linkedSignal; immutable updates.
+- **CD**: OnPush default (v22), Eager, zoneless, `markForCheck` vs `detectChanges`.
+- **Perf/SSR**: lazy + defer, NgOptimizedImage, SSR/SSG, hydration + event replay + incremental.
+
+## How to Answer Well | teal
+- **Definition → small example → when you use it → trade-off**; then stop.
+- Show you know **both eras**: "In older code we used `*ngIf` and `@Input`; new code uses `@if`, `input()` and signals." Interviewers maintain legacy apps.
+- Mention **version-specific facts carefully** and say which version you used.
+- Tie to experience: "Switching the product list to OnPush with signals cut change detection time in the profiler from 18 ms to 3 ms."
+- For RxJS questions, **name the operator and the failure it prevents** (race conditions, duplicate submits, leaks).
+
+## Big Interview Q&A | sky | wide
+Q: Explain the Angular architecture in one minute.
+A: An Angular app is a tree of components (template, class, styles) composed with directives and pipes, wired with dependency injection to services, navigated by the router, compiled ahead of time by Ivy, and kept in sync with the DOM by change detection driven by signals (or zone.js in older apps).
+Q: What is the difference between a component and a directive?
+A: A component is a directive with a template that renders its own view; a directive adds behaviour or structure to an existing element without its own template.
+Q: How would you structure a large Angular application?
+A: Feature-based folders with lazy-loaded routes, standalone components, a core area for app-wide singletons (auth, interceptors), shared UI components, state in signal services or NgRx per feature, strict TypeScript and templates, and budgets plus lint rules in CI.
+Q: How do you secure an Angular app?
+A: Rely on built-in sanitisation and never bypass it for user data, keep tokens in HttpOnly cookies or memory, use interceptors for auth headers, guard routes for UX but enforce authorisation on the server, enable XSRF protection and a Content Security Policy.
+Q: NgRx or services with signals?
+A: Services with signals cover most apps with less boilerplate; NgRx (Store or SignalStore) fits large teams needing strict unidirectional flow, devtools time travel and standardised side-effect handling.
+Q: How does Angular know when to update the view?
+A: Zoneless apps update when signals read by templates change, when template events fire, or when markForCheck is called; zone-based apps run change detection after every async task patched by zone.js.
+Q: What would you check if an Angular page is slow?
+A: Bundle size and lazy loading, change detection frequency (DevTools profiler), large lists without track or virtual scroll, expensive template expressions, unsubscribed streams, unoptimised images, and missing SSR for content pages.
+Q: What is the role of TypeScript in Angular?
+A: Angular is written in and for TypeScript: decorators provide metadata, types power DI tokens, typed forms and strict template type checking, catching errors at build time.
+Q: How do you upgrade an Angular application?
+A: One major version at a time with `ng update @angular/core @angular/cli`, which runs automatic migrations; follow update.angular.dev, update third-party libraries, then run tests and fix deprecations.
+Q: What testing tools do you use in Angular?
+A: TestBed with component harnesses for unit and integration tests (Vitest by default in new projects, Karma/Jasmine in older ones), HttpTestingController for HTTP, and Playwright or Cypress for end-to-end tests.

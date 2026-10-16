@@ -1,0 +1,1930 @@
+@ Beginner
+# 00 | Java Basics: Start Here | History, features, editions, first program, input and output, arrays, methods and loops, packages, Java vs C++ and Python | Start Here
+
+## What Java Is and Where It Came From | rose
+- **Java** is a general-purpose, **class-based, object-oriented**, **statically and strongly typed** language. Source code compiles to **bytecode** that runs on the **JVM** (sheet 01).
+- Created by **James Gosling** and his team at **Sun Microsystems** in the Green Project (1991). It was first called **Oak** and was released as **Java 1.0 in 1996** with the slogan **"Write Once, Run Anywhere" (WORA)**.
+- **Oracle** acquired Sun in **2010**. **OpenJDK** is the open-source reference implementation; JDK builds come from Oracle, Eclipse Temurin, Amazon Corretto, Microsoft, Azul and others.
+- **Release train**: since Java 10 (2018), a feature release every **six months** (March and September), and a **Long-Term Support (LTS)** release every two years: **8, 11, 17, 21, 25**.
+- **Platforms**: **Java SE** (Standard Edition: the language and core libraries), **Jakarta EE** (formerly Java EE / J2EE: enterprise APIs such as Servlets, JPA and CDI; moved to the Eclipse Foundation, packages renamed from `javax.*` to `jakarta.*`), **Java ME** (Micro Edition for small devices, now legacy).
+- Used for backend services (Spring Boot), Android apps (alongside Kotlin), big-data tools that run on the JVM (Kafka, Hadoop, Spark), banking and trading systems, and enterprise software.
+
+## Features of Java | blue
+- **Simple**: no pointer arithmetic, no operator overloading, no multiple class inheritance, automatic memory management.
+- **Object-oriented**: code is organised in classes and objects (encapsulation, inheritance, polymorphism, abstraction).
+- **Platform independent**: bytecode runs on any OS that has a JVM.
+- **Robust**: strong type checking at compile time, exception handling, garbage collection, no manual `free`.
+- **Secure**: no direct memory access, the bytecode verifier checks code before it runs, strong access control.
+- **Multithreaded**: threads and concurrency utilities are built into the language and libraries.
+- **High performance**: the JIT compiler turns hot bytecode into optimised native code.
+- **Distributed and dynamic**: rich networking APIs; classes are loaded at runtime and can be inspected with reflection.
+- **Is Java 100% object-oriented?** No: the eight **primitive types** (`int`, `double`, `boolean`, ...) are not objects (wrapper classes exist for them), and `static` members belong to classes, not objects.
+
+## Your First Program | green
+```java Hello.java
+public class Hello {                                   // the file name must match the public class: Hello.java
+    public static void main(String[] args) {           // the entry point the JVM calls
+        System.out.println("Hello, Java!");            // print a line
+    }
+}
+```
+```bash
+javac Hello.java      # compile: creates Hello.class (bytecode)
+java Hello            # run it on the JVM: Hello, Java!
+java Hello.java       # Java 11+: compile in memory and run a single file
+jshell                # interactive REPL (Java 9+) for trying snippets
+```
+- Word by word: `public` (visible to the JVM), `class Hello` (all code lives inside classes), `static` (callable without creating an object), `void` (returns nothing), `main` (the name the launcher looks for), `String[] args` (command-line arguments), `System.out` (the standard output stream), `println` (print, then a newline).
+- Rules: at most **one public top-level class per file**, named like the file; Java is **case-sensitive**; statements end with `;`; blocks use `{ }`.
+- Comments: `// one line`, `/* several lines */`, `/** Javadoc */` (the `javadoc` tool turns these into HTML API docs).
+- Naming conventions: classes and interfaces `PascalCase`, methods and variables `camelCase`, constants `UPPER_SNAKE_CASE`, packages `lowercase` reversed domain names (`com.shop.orders`).
+- For small programs, Java 25 also accepts a compact form: `void main() { IO.println("Hi"); }` (sheet 01).
+
+## Input and Output | amber
+```java Greeter.java
+import java.util.Scanner;
+
+public class Greeter {
+    public static void main(String[] args) {
+        Scanner in = new Scanner(System.in);           // read from the keyboard
+        System.out.print("Name: ");                    // print without a newline
+        String name = in.nextLine();                   // the whole line
+        System.out.print("Age: ");
+        int age = in.nextInt();                        // InputMismatchException if not a number
+        System.out.printf("Hi %s, next year you'll be %d%n", name, age + 1);
+        System.out.println(String.format("[%-6s|%6.2f]", "pi", Math.PI));   // [pi    |  3.14]
+        in.close();
+    }
+}
+// input: Ann, 30   →   Hi Ann, next year you'll be 31
+```
+- `print` (no newline), `println` (adds a newline), `printf` / `String.format` with format specifiers: `%d` integer, `%f` decimal (`%.2f` = 2 places), `%s` string, `%c` char, `%b` boolean, `%n` newline; a width such as `%6s`, and `-` to left-align.
+- **Scanner**: `nextLine()` (whole line), `next()` (one word), `nextInt()`, `nextDouble()`, `hasNextInt()` (check before reading).
+- **Trap**: `nextInt()` leaves the newline in the buffer, so a `nextLine()` right after it returns an empty string. Call one extra `nextLine()` first.
+- For large inputs (competitive programming) `BufferedReader` is much faster than Scanner. Error messages go to `System.err`.
+- **Command-line arguments**: `java Greeter Ann 30` gives `args[0] = "Ann"` and `args[1] = "30"`; they are always strings, so convert with `Integer.parseInt(args[1])`.
+
+## Arrays | violet
+```java ArraysDemo.java
+import java.util.Arrays;
+
+public class ArraysDemo {
+    public static void main(String[] args) {
+        int[] marks = new int[3];                       // fixed size 3, every element starts at 0
+        marks[0] = 90;
+        int[] primes = {2, 3, 5, 7};                    // array initialiser
+        String[] names = new String[2];                 // reference elements start as null
+        System.out.println(marks.length + " " + primes[3] + " " + names[0]);   // 3 7 null
+
+        for (int i = 0; i < primes.length; i++) System.out.print(primes[i] + " ");   // 2 3 5 7
+        for (int p : primes) System.out.print(p * p + " ");                         // 4 9 25 49
+        System.out.println();
+
+        int[][] grid = {{1, 2, 3}, {4, 5, 6}};          // a 2D array is an array of arrays
+        System.out.println(grid[1][2] + " " + grid.length + "x" + grid[0].length);  // 6 2x3
+
+        int[] nums = {5, 1, 4};
+        Arrays.sort(nums);
+        System.out.println(Arrays.toString(nums));                     // [1, 4, 5]
+        System.out.println(Arrays.binarySearch(nums, 4));              // 1 (array must be sorted)
+        int[] copy = Arrays.copyOf(nums, 5);
+        System.out.println(Arrays.toString(copy) + " " + Arrays.equals(nums, copy));   // [1, 4, 5, 0, 0] false
+        // primes[4] = 11;   // compiles, but throws ArrayIndexOutOfBoundsException at runtime
+    }
+}
+```
+- An array is an **object** with a **fixed size**, **zero-based** indexes and a **`length` field**. Compare: `String` has a `length()` method, collections have `size()`.
+- **Default values**: `0` for numbers, `0.0`, `false`, `'\u0000'` for char, `null` for references. (Local variables have **no** default: using one before assigning it is a compile error.)
+- Printing an array directly shows something like `[I@1b6d3586` (type code and hash). Use `Arrays.toString` (or `Arrays.deepToString` for 2D arrays).
+- `==` compares array **references**; compare contents with `Arrays.equals`. Need a growable list? Use `ArrayList` (sheet 07).
+
+## Methods and Loops | rose
+```java Calc.java
+public class Calc {
+    static int add(int a, int b) { return a + b; }                  // static: call as Calc.add(2, 3)
+    static double add(double a, double b) { return a + b; }         // overloading: same name, different parameters
+    static int sum(int... values) {                                 // varargs: zero or more ints
+        int total = 0;
+        for (int v : values) total += v;
+        return total;
+    }
+
+    int counter = 0;                                                // instance field
+    void increment() { counter++; }                                 // instance method: needs an object
+
+    public static void main(String[] args) {
+        System.out.println(add(2, 3) + " " + add(2.5, 1.0) + " " + sum() + " " + sum(1, 2, 3));   // 5 3.5 0 6
+        Calc c = new Calc();
+        c.increment();
+        System.out.println(c.counter);                              // 1
+
+        int i = 0;
+        do { i++; } while (i < 0);                                  // do-while runs at least once: i becomes 1
+        outer:
+        for (int r = 0; r < 3; r++) {
+            for (int k = 0; k < 3; k++) {
+                if (k == 1) continue;                               // skip to the next k
+                if (r == 2) break outer;                            // leave both loops
+                System.out.print(r + "" + k + " ");                 // 00 02 10 12
+            }
+        }
+        System.out.println("| i=" + i);                             // | i=1
+    }
+}
+```
+- A method has **modifiers, a return type, a name, parameters and a body**. The name plus parameter types form its **signature**; overloads differ in parameters (not just the return type).
+- **Static** methods belong to the class; **instance** methods operate on an object's fields.
+- Java is always **pass-by-value**: for objects, the reference is copied (sheet 02).
+- Loops: `for`, enhanced `for` (for-each), `while`, `do-while` (body runs at least once). `break` leaves a loop, `continue` skips to the next iteration, and a **label** (`outer:`) lets them act on an outer loop.
+
+## Packages and Imports | blue
+```java OrderService.java
+package com.shop.orders;                     // first statement; the folder must be com/shop/orders/
+
+import java.util.List;                       // one class
+import java.time.*;                          // every class in a package (no runtime cost)
+import static java.lang.Math.max;            // static import: call max(a, b) without "Math."
+
+public class OrderService {
+    public int biggest(List<Integer> amounts) {
+        int best = 0;
+        for (int a : amounts) best = max(best, a);
+        return best;
+    }
+}
+```
+- A **package** groups related classes and is a namespace: `com.shop.orders.OrderService` is the **fully qualified name**.
+- **`java.lang` is imported automatically** (`String`, `Math`, `System`, wrapper classes).
+- Imports only shorten names; they don't copy code, so `import java.util.*` costs nothing at runtime. Two classes with the same simple name (`java.util.Date` and `java.sql.Date`) need a fully qualified name for one of them.
+- Package-private (no modifier) members are visible only inside the same package (sheet 04).
+
+## Java vs C++ vs Python | green
+- **Java vs C++**: Java compiles to bytecode for the JVM, C++ to native code per platform. Java has a **garbage collector**; C++ uses manual or RAII-based memory management. Java has **references but no pointer arithmetic**. Java allows **one superclass plus many interfaces**; C++ allows multiple inheritance. Java has **no operator overloading** (except `+` on String) and no header files, and all code lives inside classes.
+- **Java vs Python**: Java is **statically typed** (errors at compile time), Python **dynamically typed**. Java uses braces, Python indentation. JIT-compiled Java is usually much faster for CPU-heavy work than CPython. Java threads run truly in parallel, while standard CPython threads are limited by the GIL. Java is more verbose but suits large, long-lived systems; Python suits scripting, data science and fast prototyping.
+- **Java vs JavaScript**: unrelated languages. The name was a 1995 marketing decision.
+
+## Interview Q&A | sky | wide
+Q: What are the main features of Java?
+A: Simple, object-oriented, platform independent through bytecode and the JVM, robust (strong typing, exceptions, garbage collection), secure, multithreaded, high performance through the JIT, and dynamic (runtime class loading, reflection).
+Q: Why is Java not purely object-oriented?
+A: It has primitive types that are not objects, and static members that belong to classes rather than instances.
+Q: Can a .java file contain more than one class?
+A: Yes, but only one top-level class can be public, and it must have the same name as the file.
+Q: Can you overload main?
+A: Yes. You can declare other `main` methods with different parameters, but the launcher only calls `public static void main(String[] args)` (or, from Java 25, an instance `void main()`).
+Q: What happens if main is not static?
+A: Before Java 25 the launcher refused to start ("main method is not static"). Since Java 25, instance main methods are allowed: the launcher creates an object with the no-argument constructor and calls it.
+Q: What are the default values of array elements and local variables?
+A: Array elements and fields get defaults (0, false, null). Local variables get none and must be assigned before use, or the code doesn't compile.
+Q: length vs length() vs size()?
+A: `length` is the field of an array, `length()` is a String method, and `size()` is the method of collections such as ArrayList.
+Q: print vs println vs printf?
+A: print writes text without a newline, println adds a newline, and printf writes formatted text using specifiers such as %d and %s.
+Q: Why doesn't Java have pointers?
+A: To make programs safer and simpler. References can't be incremented or pointed at arbitrary memory, and the garbage collector manages memory.
+Q: What is the difference between Java SE and Jakarta EE?
+A: Java SE is the core language and standard library. Jakarta EE (formerly Java EE) adds enterprise APIs such as Servlets, JPA and CDI on top of it.
+Q: Is Java pass-by-value or pass-by-reference?
+A: Always pass-by-value. For objects the value passed is a copy of the reference, so a method can change the object's state but not make the caller's variable point to a new object.
+
+# 01 | JVM, JRE, JDK & How Java Runs | Bytecode, class loading, JIT, runtime memory areas | JVM Basics
+
+## JDK vs JRE vs JVM | rose
+- **JVM (Java Virtual Machine)**: an abstract machine that **loads, verifies and executes bytecode**. It is platform-specific. The bytecode is not.
+- **JRE (Java Runtime Environment)**: the JVM plus the **core class libraries** needed to run programs.
+- **JDK (Java Development Kit)**: the JRE plus **developer tools**: `javac`, `java`, `jar`, `javadoc`, `jshell`, `jdb`, `jcmd`, `jlink`.
+- Oracle stopped shipping a separate JRE with Java 11. Some vendors (for example Eclipse Temurin) still publish JRE builds, but the modern approach is to ship a runtime trimmed with **`jlink`** (or a container image built from a JDK).
+- **WORA (Write Once, Run Anywhere)**: `javac` produces **platform-neutral bytecode** (`.class`). Each OS has its own JVM that runs it.
+- **HotSpot** is the standard JVM (OpenJDK). Others: **OpenJ9**, **GraalVM**.
+> One-liner: "JDK = JRE + tools. JRE = JVM + libraries. The JVM runs bytecode, which is why Java is portable."
+
+## From Source to Running Code | blue
+- `javac Hello.java` compiles to **bytecode** in `Hello.class`. `java Hello` starts a JVM and runs `main`.
+- Since Java 11 you can run a single file directly: `java Hello.java`.
+- Execution: the **interpreter** starts running bytecode immediately. Hot methods get compiled to native code by the **JIT (Just-In-Time) compiler**.
+- **Tiered compilation**: **C1** (client compiler, fast, light optimisation) first, then **C2** (server compiler, aggressive optimisation) for very hot code.
+- JIT optimisations: **method inlining**, **escape analysis** (allocate on stack or remove allocation), loop unrolling, dead-code elimination, **deoptimisation** when assumptions break.
+- **AOT (Ahead-Of-Time)**: **GraalVM native-image** compiles to a native binary. Fast startup and low memory, but no runtime JIT and limited reflection.
+```bash
+javac -d out src/com/app/Main.java    # compile to out/
+java -cp out com.app.Main             # run with classpath
+javap -c -cp out com.app.Main         # disassemble bytecode
+java Main.java                        # single-file source launch (Java 11+)
+```
+
+## Class Loading | green
+- Classes load **lazily**, on first active use (creating an instance, calling a static method, reading a non-constant static field).
+- Three phases: **Loading** (find bytes, create `Class` object), **Linking** (**verify** bytecode, **prepare** static fields with defaults, **resolve** symbolic references), **Initialization** (run static initialisers and `static {}` blocks, top to bottom).
+- Built-in loaders: **Bootstrap** (core `java.*`, written in native code), **Platform** (called Extension before Java 9), **Application / System** (your classpath).
+- **Parent delegation model**: a loader asks its **parent first**. This stops your code from replacing `java.lang.String` and keeps core classes unique.
+- Same class name loaded by two loaders = **two different classes** (cause of `ClassCastException: X cannot be cast to X` in app servers).
+- Errors: **`ClassNotFoundException`** (checked, dynamic load like `Class.forName` failed) vs **`NoClassDefFoundError`** (class was present at compile time but is missing or failed to initialise at runtime).
+
+## Runtime Memory Areas | amber
+- **Heap** (shared by all threads): all **objects and arrays**. Managed by the **GC**. Split into **Young (Eden + 2 Survivor)** and **Old** generations in most collectors.
+- **Stack** (one per thread): **frames** holding local variables, primitive values, **object references**, operand stack. Freed when the method returns. Too deep = **`StackOverflowError`**.
+- **Metaspace** (Java 8+, native memory): **class metadata**. Replaced **PermGen**. Can still overflow: `OutOfMemoryError: Metaspace`.
+- **PC register** (per thread): address of the current instruction. **Native method stack**: for JNI calls.
+- **Code cache**: JIT-compiled native code.
+- **String pool** lives **on the heap** (moved out of PermGen in Java 7).
+```java
+void demo() {
+  int x = 5;                       // x lives in the stack frame
+  User u = new User("Ann");        // reference u on the stack, object on the heap
+}                                  // frame popped, the User object becomes eligible for GC
+```
+
+## main, Classpath, Modules | violet
+- Entry point: `public static void main(String[] args)`. `public` so the JVM can call it, `static` so no instance is needed.
+- Java 25 finalised **compact source files and instance main methods**: `void main() { IO.println("hi"); }` works for small programs.
+- **Classpath**: where the app loader looks for classes (`-cp`). **Packages** map to directories.
+- **JPMS (Java Platform Module System, Java 9)**: `module-info.java` with `requires` and `exports`. Gives **strong encapsulation** and lets `jlink` build small runtimes.
+- **JAR**: a zip of classes plus `META-INF/MANIFEST.MF` (`Main-Class`). Spring Boot builds a "fat JAR" with dependencies inside.
+```java module-info.java
+module com.shop.orders {
+  requires java.sql;
+  requires com.shop.common;
+  exports com.shop.orders.api;          // only this package is visible to other modules
+}
+```
+
+## Interview Q&A | sky | wide
+Q: Why is Java platform independent?
+A: `javac` compiles to bytecode, not machine code. Any OS with a JVM can run that bytecode. The JVM itself is platform-specific.
+Q: Is Java compiled or interpreted?
+A: Both. Source is compiled to bytecode. The JVM interprets bytecode at first and the JIT compiles hot paths to native code at runtime.
+Q: What is the JIT compiler?
+A: Part of the JVM that compiles frequently executed bytecode to optimised native code at runtime, using profiling data (inlining, escape analysis). Tiered: C1 then C2.
+Q: Explain the parent delegation model.
+A: A class loader first delegates loading to its parent, up to Bootstrap. Only if the parent cannot find the class does the child load it. This protects core classes and avoids duplicates.
+Q: `ClassNotFoundException` vs `NoClassDefFoundError`?
+A: The first is a checked exception when loading by name at runtime fails. The second is an error when a class that existed at compile time is missing or failed static initialisation at runtime.
+Q: Where are objects, references and primitives stored?
+A: Objects and arrays on the heap. Local primitives and local references in the thread's stack frame. Fields live inside their object on the heap. Static fields live with the class data on the heap.
+Q: What replaced PermGen?
+A: Metaspace in Java 8. It uses native memory and grows automatically unless capped by `-XX:MaxMetaspaceSize`.
+Q: Why is `main` static?
+A: So the JVM can call it without creating an object of the class first.
+
+# 02 | Data Types, Operators & Control Flow | Primitives, wrappers, casting, pass-by-value, switch | Types & Flow
+
+## Primitive Types | rose
+- 8 primitives: **`byte`** (8-bit), **`short`** (16), **`int`** (32), **`long`** (64), **`float`** (32), **`double`** (64), **`char`** (16-bit unsigned UTF-16 code unit), **`boolean`**.
+- Defaults (fields only): `0`, `0.0`, `'\u0000'`, `false`, `null` for references. **Local variables have no default** and must be assigned before use.
+- Literals: `10L`, `3.14f`, `0x1F`, `0b1010`, `1_000_000`.
+- **Integer overflow wraps silently**: `Integer.MAX_VALUE + 1 == Integer.MIN_VALUE`. Use `Math.addExact` to detect it.
+- **Floating point is inexact**: `0.1 + 0.2 != 0.3`. Use **`BigDecimal`** (with the `String` constructor) for money.
+```java
+int big = Integer.MAX_VALUE + 1;              // -2147483648
+Math.addExact(Integer.MAX_VALUE, 1);          // throws ArithmeticException
+
+new BigDecimal("0.1").add(new BigDecimal("0.2"));   // 0.3 exactly
+new BigDecimal(0.1);                          // 0.1000000000000000055511... (avoid)
+```
+
+## Casting and Promotion | blue
+- **Widening** (implicit, safe): `byte → short → int → long → float → double`, and `char → int`.
+- **Narrowing** (explicit cast, may lose data): `(int) 3.99 == 3` (truncates), `(byte) 200 == -56`.
+- **Numeric promotion**: in arithmetic, `byte`, `short` and `char` are promoted to **`int`** first.
+- **Compound assignment** (`+=`, `-=`) includes a hidden cast. Plain `=` does not.
+- Integer division truncates toward zero: `7 / 2 == 3`, `-7 / 2 == -3`. `%` keeps the sign of the left operand.
+```java
+byte b = 10;
+// b = b + 1;          // compile error: b + 1 is int
+b += 1;                // OK: compiles to b = (byte)(b + 1)
+
+char c = 'A';
+System.out.println(c + 1);          // 66   (int)
+System.out.println((char)(c + 1));  // B
+long ms = 24 * 60 * 60 * 1000 * 1000;    // overflow! int math happens first
+long ok = 24L * 60 * 60 * 1000 * 1000;   // correct
+```
+
+## Wrappers and Autoboxing | green
+- Each primitive has a wrapper: `Integer`, `Long`, `Double`, `Character`, `Boolean`... Needed for **collections and generics**.
+- **Autoboxing**: `int → Integer` automatically (`Integer.valueOf`). **Unboxing**: `Integer → int` (`intValue()`).
+- **Integer cache**: `Integer.valueOf` returns cached objects for **-128 to 127**. So `==` on boxed values "works" for small numbers and fails for larger ones. **Always use `equals`**.
+- **Unboxing `null` throws `NullPointerException`**.
+- Boxing in hot loops creates garbage. Prefer primitives or `IntStream`.
+```java
+Integer a = 127, b = 127;
+System.out.println(a == b);        // true  (cached)
+Integer c = 128, d = 128;
+System.out.println(c == d);        // false (different objects)
+System.out.println(c.equals(d));   // true
+
+Integer n = null;
+int x = n;                         // NullPointerException
+```
+
+## Operators and Control Flow | amber
+- **`==`** compares primitive values or **reference identity**. **`equals()`** compares logical equality.
+- **Short-circuit** `&&` and `||` skip the right side. `&` and `|` always evaluate both.
+- `i++` returns the old value, `++i` the new value. **Ternary** `cond ? a : b`.
+- Bitwise: `&`, `|`, `^`, `~`, `<<`, `>>` (sign-preserving), `>>>` (unsigned, fills with 0).
+- Loops: `for`, enhanced `for-each`, `while`, `do-while` (runs at least once). **Labelled break** exits outer loops.
+- Classic **`switch` statement** (colon labels) **falls through** to the next case without `break`. It accepts `byte`, `short`, `char`, `int` and their wrappers, **`String`** (Java 7), **enums**, and any reference type with **pattern labels** (Java 21). Not `long`, `float`, `double` or `boolean` (except via patterns).
+- **Switch expressions** (Java 14): arrow labels, no fall-through, return a value, `yield` for blocks.
+```java
+String type = switch (day) {
+  case SATURDAY, SUNDAY -> "Weekend";
+  case MONDAY -> {
+    log("start");
+    yield "Weekday";
+  }
+  default -> "Weekday";
+};
+
+outer:
+for (int i = 0; i < 3; i++)
+  for (int j = 0; j < 3; j++)
+    if (i * j == 2) break outer;
+```
+
+## Pass-by-Value and var | violet
+- **Java is always pass-by-value.** For objects, the value passed is a **copy of the reference**.
+- So a method **can mutate** the object it receives, but **cannot make the caller's variable point elsewhere**.
+- **`var`** (Java 10): local variable **type inference**. Still statically typed. Not for fields, parameters or return types. Needs an initialiser.
+- `final` local variables cannot be reassigned. "Effectively final" means never reassigned (needed for lambdas).
+```java
+void change(StringBuilder sb, int n) {
+  sb.append("!");         // visible to the caller
+  sb = new StringBuilder("new");   // only changes the local copy
+  n = 99;                 // caller's int unaffected
+}
+
+var list = new ArrayList<String>();   // ArrayList<String>
+var x = 10;                           // int
+// var y;                             // error: needs initialiser
+```
+
+## Interview Q&A | sky | wide
+Q: Is Java pass-by-value or pass-by-reference?
+A: Always pass-by-value. For objects the value is a copy of the reference, so you can mutate the object but not rebind the caller's variable.
+Q: Why does `Integer a = 128, b = 128; a == b` give false?
+A: `==` compares references. `Integer.valueOf` caches only -128 to 127, so 128 creates two separate objects. Use `equals`.
+Q: Why does `b = b + 1` fail for a `byte` but `b += 1` compiles?
+A: Arithmetic promotes `byte` to `int`, so `b + 1` is an `int` that needs an explicit cast. Compound assignment includes an implicit narrowing cast.
+Q: How do you handle money in Java?
+A: `BigDecimal` constructed from a `String`, with an explicit `RoundingMode`, or store minor units (cents) in a `long`. Never `double`.
+Q: `==` vs `equals()`?
+A: `==` checks identity for objects (same reference) and value for primitives. `equals` checks logical equality as defined by the class.
+Q: What is `>>>`?
+A: Unsigned right shift. It fills the left bits with zeros, unlike `>>` which copies the sign bit.
+Q: Is `var` dynamic typing?
+A: No. The compiler infers a fixed static type at compile time. It only removes the need to write the type.
+Q: What is the size of `boolean`?
+A: Not precisely specified by the JVM spec. Usually one byte in arrays and an `int` slot on the stack.
+
+# 03 | OOP Pillars | Encapsulation, inheritance, polymorphism, abstraction | OOP
+
+## Encapsulation | rose
+- **Bundle data with the methods that operate on it** and **hide internal state** behind a controlled interface.
+- `private` fields plus `public` methods that **validate** changes. Callers cannot put the object in an invalid state.
+- Benefits: invariants protected, implementation can change without breaking callers, easier testing.
+- Getters and setters for every field is not real encapsulation. Expose **behaviour** (`account.withdraw(50)`) rather than raw state.
+```java
+public class Account {
+  private BigDecimal balance = BigDecimal.ZERO;
+
+  public void withdraw(BigDecimal amount) {
+    if (amount.signum() <= 0) throw new IllegalArgumentException("amount must be positive");
+    if (balance.compareTo(amount) < 0) throw new IllegalStateException("insufficient funds");
+    balance = balance.subtract(amount);
+  }
+  public BigDecimal getBalance() { return balance; }
+}
+```
+
+## Inheritance | blue
+- **`extends`** creates an **IS-A** relationship. The subclass reuses and extends the parent.
+- Java supports **single inheritance of classes** (avoids the diamond problem with state) but **multiple inheritance of interfaces**.
+- Constructors are **not inherited**. The first line of every constructor calls `super(...)` (implicitly `super()` if omitted).
+- `private` members are not visible to subclasses. `protected` ones are.
+- **`final` class** cannot be extended (`String`, `Integer`). **`final` method** cannot be overridden.
+- **Composition over inheritance**: inheritance couples the subclass to parent internals (fragile base class). Prefer **HAS-A** when the relationship is not truly IS-A.
+
+## Polymorphism | green
+- **One interface, many forms.** A parent reference can point to a child object and the **child's override runs**.
+- **Compile-time (static) polymorphism = method overloading**: same name, different parameter list. Chosen by the compiler from **declared types**.
+- **Runtime (dynamic) polymorphism = method overriding**: chosen at runtime from the **actual object type** (dynamic dispatch via the vtable).
+- **Fields are not polymorphic** and **static methods are hidden, not overridden**. Both resolve by the declared type.
+```java
+class Animal { String name = "animal"; void speak() { System.out.println("..."); } static void info() { System.out.println("Animal"); } }
+class Dog extends Animal { String name = "dog"; @Override void speak() { System.out.println("Woof"); } static void info() { System.out.println("Dog"); } }
+
+Animal a = new Dog();
+a.speak();               // Woof     (runtime type)
+System.out.println(a.name);   // animal  (fields use declared type)
+a.info();                // Animal   (static: declared type, method hiding)
+```
+
+## Overloading vs Overriding Rules | amber
+- **Overloading**: same name, **different parameter types, count or order**. Return type alone is **not** enough. Can change access and exceptions freely.
+- **Overriding** rules:
+- Same name and parameter list. Return type same or a **subtype (covariant return)**.
+- Access **cannot be more restrictive** (`protected` can become `public`, not `private`).
+- Cannot throw **new or broader checked exceptions** (fewer, narrower or unchecked is fine).
+- `private`, `static` and `final` methods **cannot be overridden**.
+- Use **`@Override`**: the compiler catches typos and signature mismatches.
+- Overload resolution order: **exact match → widening → boxing → varargs**.
+```java
+void f(long x)    { System.out.println("long"); }
+void f(Integer x) { System.out.println("Integer"); }
+void f(int... x)  { System.out.println("varargs"); }
+
+f(5);   // "long" : widening beats boxing, boxing beats varargs
+```
+
+## Abstraction: Abstract Class vs Interface | violet
+- **Abstraction**: expose **what** something does, hide **how**.
+- **Abstract class**: can have **state (fields), constructors**, concrete and abstract methods. A class can extend **one**.
+- **Interface**: a contract. Fields are implicitly `public static final`. Since Java 8: **`default`** and **`static`** methods. Since Java 9: **`private`** methods. A class can implement **many**.
+- Default-method diamond: if two interfaces give the same default, the class **must override** and may call `A.super.m()`.
+- Choose an **interface for capabilities** (`Comparable`, `Runnable`) and an **abstract class for shared base state** among closely related classes (Template Method pattern).
+- **Functional interface** = exactly one abstract method (usable with lambdas).
+```java
+interface Walker  { default String move() { return "walk"; } }
+interface Swimmer { default String move() { return "swim"; } }
+class Duck implements Walker, Swimmer {
+  @Override public String move() { return Walker.super.move() + "+" + Swimmer.super.move(); }
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What are the four pillars of OOP?
+A: Encapsulation (hide state behind methods), Inheritance (reuse via IS-A), Polymorphism (one call, behaviour depends on the object), Abstraction (expose what, hide how).
+Q: Why does Java not support multiple inheritance of classes?
+A: To avoid the diamond problem with conflicting state and implementations. Interfaces give multiple inheritance of type, and conflicts in default methods must be resolved explicitly.
+Q: Can you override a static method?
+A: No. A subclass static method with the same signature hides the parent's. Which one runs depends on the declared type, not the object.
+Q: Can you override a private method?
+A: No. It is not visible to the subclass. A method with the same name in the child is a new, unrelated method.
+Q: Abstract class vs interface since Java 8?
+A: Interfaces can now have default, static and private methods but still no instance state or constructors. Abstract classes can hold state and constructors. A class extends one class but implements many interfaces.
+Q: Can an abstract class have a constructor?
+A: Yes. It runs when a subclass is created, usually to initialise shared fields. You still cannot instantiate the abstract class directly.
+Q: What is covariant return type?
+A: An overriding method may return a subtype of the parent method's return type, for example `Dog clone()` overriding `Animal clone()`.
+Q: Composition vs inheritance?
+A: Inheritance is IS-A and couples you to the parent's implementation. Composition is HAS-A: hold a reference and delegate. It is more flexible and easier to test, so prefer it unless there is a true IS-A relationship.
+
+# 04 | Classes, Objects & Keywords | Constructors, this/super, static, final, nested classes, Object methods | Classes
+
+## Constructors and Initialisation Order | rose
+- A constructor has the **class name and no return type**. If you write none, the compiler adds a **default no-arg constructor**.
+- **Constructor chaining**: `this(...)` calls another constructor of the same class, `super(...)` calls the parent. Must be the **first statement** (Java 25 allows statements before them that do not touch `this`).
+- **Initialisation order** when you do `new Child()`:
+- 1) Parent static blocks, 2) Child static blocks (once, on class load), 3) Parent instance initialisers and constructor, 4) Child instance initialisers and constructor.
+- Calling an **overridable method from a constructor** is dangerous: the child override runs before the child's fields are initialised.
+```java
+class Parent {
+  static { System.out.println("1 parent static"); }
+  { System.out.println("3 parent instance"); }
+  Parent() { System.out.println("4 parent ctor"); }
+}
+class Child extends Parent {
+  static { System.out.println("2 child static"); }
+  { System.out.println("5 child instance"); }
+  Child() { System.out.println("6 child ctor"); }
+}
+```
+
+## this, super, static, final | blue
+- **`this`**: the current object. Disambiguates fields from parameters, passes the current object, calls `this(...)`.
+- **`super`**: the parent part. `super.method()` calls the parent's version. `super(...)` calls the parent constructor.
+- **`static`**: belongs to the **class**, not instances. One copy shared by all. Static methods **cannot use `this`** or instance members directly.
+- **`final`**: variable assigned once, method cannot be overridden, class cannot be extended.
+- A **`final` reference** cannot be repointed, but the **object it points to can still change** (`final List` can be added to).
+- **`static final`** constants are often **inlined at compile time** (changing them needs recompiling dependants).
+
+## Access Modifiers | green
+- **`public`**: everywhere.
+- **`protected`**: same package **plus subclasses** (even in other packages, via inheritance).
+- **default (package-private, no keyword)**: same package only.
+- **`private`**: same class only (nested classes of the same top-level class can access each other's private members).
+- Top-level classes can only be `public` or package-private.
+- Rule: **start with the most restrictive** and open up only when needed.
+
+## Nested Classes | amber
+- **Static nested class**: no link to an outer instance. Like a top-level class scoped inside another (Builder pattern).
+- **Inner (non-static) class**: holds an implicit reference to the **outer instance**. Can cause **memory leaks** if the inner object outlives the outer.
+- **Local class**: declared inside a method. **Anonymous class**: one-off implementation, often replaced by lambdas.
+- Lambdas vs anonymous classes: in a lambda `this` is the enclosing instance. In an anonymous class `this` is the anonymous object.
+```java
+public class Pizza {
+  private final String size; private final List<String> toppings;
+  private Pizza(Builder b) { size = b.size; toppings = List.copyOf(b.toppings); }
+
+  public static class Builder {                 // static nested
+    private String size = "M"; private final List<String> toppings = new ArrayList<>();
+    public Builder size(String s) { size = s; return this; }
+    public Builder add(String t) { toppings.add(t); return this; }
+    public Pizza build() { return new Pizza(this); }
+  }
+}
+Pizza p = new Pizza.Builder().size("L").add("olive").build();
+```
+
+## java.lang.Object Methods | violet
+- Every class extends **`Object`**. Key methods: `equals`, `hashCode`, `toString`, `getClass`, `clone`, `wait`, `notify`, `notifyAll` (`finalize` is deprecated for removal).
+- Default `equals` is identity (`==`). Default `toString` is `ClassName@hexHash`.
+- **Override `equals` and `hashCode` together** (see sheet 08).
+- **`clone()`** is shallow by default, needs `Cloneable`, and is widely considered broken. Prefer **copy constructors** or static factories.
+- **Shallow copy** copies references. **Deep copy** copies the objects they point to as well.
+
+## Immutable Classes | teal
+- Recipe: class **`final`**, all fields **`private final`**, **no setters**, **defensive copies** of mutable inputs and outputs, no `this` escape in the constructor.
+- Benefits: **thread-safe without locks**, safe as **HashMap keys**, cacheable, easy to reason about.
+- Examples: `String`, wrappers, `LocalDate`, `BigDecimal`, `List.of(...)`. **Records** give most of this for free.
+```java
+public final class Money {
+  private final BigDecimal amount;
+  private final List<String> tags;
+  public Money(BigDecimal amount, List<String> tags) {
+    this.amount = amount;
+    this.tags = List.copyOf(tags);              // defensive, unmodifiable copy
+  }
+  public Money plus(Money o) { return new Money(amount.add(o.amount), tags); }  // returns a new object
+  public List<String> tags() { return tags; }   // already unmodifiable
+}
+```
+
+## Interview Q&A | sky | wide
+Q: Can a constructor be private? Why?
+A: Yes. Used for singletons, static factory methods, utility classes (no instances) and builders.
+Q: Can a constructor be `final`, `static` or `abstract`?
+A: No. Constructors are not inherited, so `final` and `abstract` make no sense, and they always work on an instance, so not `static`.
+Q: What is the difference between a static nested class and an inner class?
+A: A static nested class has no reference to an outer instance. An inner class is tied to an outer instance and can access its fields, which also keeps the outer object alive.
+Q: How do you make a class immutable?
+A: Make the class final, fields private final, no setters, deep or defensive copies of mutable fields in and out, and initialise everything in the constructor.
+Q: Why is `String` immutable?
+A: Security (class names, URLs, file paths cannot change after checks), safe sharing via the string pool, cached hash code for fast HashMap keys, and thread safety.
+Q: Can we access a non-static variable from a static method?
+A: Not directly, because there is no `this`. You need an object reference.
+Q: What does `final` on a reference variable guarantee?
+A: The variable cannot point to a different object. The object's own state can still change.
+Q: Shallow vs deep copy?
+A: Shallow copies field values, so nested objects are shared. Deep copies recursively, so the copy is fully independent.
+
+# 05 | Strings | Immutability, pool, StringBuilder, common methods | Strings
+
+## String Immutability and the Pool | rose
+- **`String` is immutable**: every "modification" returns a **new object**.
+- **String constant pool**: string **literals** are interned so identical literals share one object.
+- `new String("a")` always creates a **new heap object** (and the literal `"a"` in the pool if not already there).
+- **`intern()`** returns the pooled instance.
+- **Compile-time constants are folded**: `"a" + "b"` becomes `"ab"` at compile time. Concatenation with a non-final variable happens at runtime and creates a new object.
+- Since Java 9: **compact strings** store Latin-1 text as 1 byte per char.
+```java
+String a = "java";
+String b = "java";
+String c = new String("java");
+a == b;              // true  (same pooled literal)
+a == c;              // false (c is a new object)
+a.equals(c);         // true
+a == c.intern();     // true
+
+final String x = "ja";  String y = "ja";
+(x + "va") == a;     // true  (constant folded)
+(y + "va") == a;     // false (runtime concatenation)
+```
+
+## String vs StringBuilder vs StringBuffer | blue
+- **`String`**: immutable, thread-safe by nature.
+- **`StringBuilder`**: mutable, **not synchronised**, fastest. Use for building strings in loops.
+- **`StringBuffer`**: mutable, **synchronised** (legacy). Rarely needed.
+- `+` in a **loop** creates a new string each iteration (O(n²)). Use `StringBuilder` or `String.join` / `Collectors.joining`.
+- Since Java 9, simple `a + b + c` compiles to `invokedynamic` (`StringConcatFactory`), so single-expression `+` is fine.
+```java
+StringBuilder sb = new StringBuilder();
+for (String w : words) sb.append(w).append(',');
+if (!sb.isEmpty()) sb.setLength(sb.length() - 1);   // drop trailing comma
+sb.reverse(); sb.insert(0, "["); sb.deleteCharAt(0);
+
+String csv = String.join(",", words);
+```
+
+## Must-Know Methods | green
+- `length()`, `charAt(i)`, `substring(begin, end)` (end exclusive), `indexOf`, `lastIndexOf`, `contains`, `startsWith`, `endsWith`.
+- `equals`, **`equalsIgnoreCase`**, `compareTo` (lexicographic), `isEmpty`, **`isBlank`** (11), **`strip`** (11, Unicode-aware) vs `trim`.
+- `split(regex)` (regex: escape `.` and `|`), `replace` (literal) vs `replaceAll` (regex), `toUpperCase`, `toCharArray`, `chars()`.
+- Java 11+: `repeat(n)`, `lines()`. Java 12: `indent`, `transform`. Java 15: `formatted`.
+- `String.valueOf(x)` is null-safe ("null"), `x.toString()` throws NPE on null.
+- Compare with the literal first to avoid NPE: `"yes".equals(input)`.
+```java
+"a.b.c".split("\\.");           // [a, b, c]
+"a,b,,".split(",");             // [a, b]  trailing empties removed
+"  hi  ".strip();               // "hi"
+"ab".repeat(3);                 // "ababab"
+"Hello %s, you are %d".formatted("Ann", 30);
+```
+
+## Text Blocks and Formatting | amber
+- **Text blocks** (Java 15): multi-line strings with `"""`. Incidental indentation is removed. Great for JSON, SQL, HTML.
+- `\` at line end joins lines. `\s` keeps a trailing space.
+- `String.format` / `formatted`: `%s`, `%d`, `%.2f`, `%n`, `%-10s` (left align), `%05d` (zero pad).
+```java
+String json = """
+    {
+      "name": "%s",
+      "age": %d
+    }
+    """.formatted(name, age);
+
+String sql = """
+    SELECT id, name
+    FROM users
+    WHERE active = true
+    """;
+```
+
+## Classic String Coding Problems | violet
+- **Reverse**: `new StringBuilder(s).reverse().toString()`.
+- **Palindrome**: two pointers from both ends.
+- **Anagram**: sort both char arrays, or count with `int[26]`.
+- **Character frequency**: `Map<Character, Long>` via `groupingBy(identity(), counting())`.
+- **First non-repeating char**: `LinkedHashMap` counts, then first with count 1.
+```java
+boolean isPalindrome(String s) {
+  int i = 0, j = s.length() - 1;
+  while (i < j) if (s.charAt(i++) != s.charAt(j--)) return false;
+  return true;
+}
+boolean isAnagram(String a, String b) {
+  if (a.length() != b.length()) return false;
+  int[] count = new int[26];
+  for (int i = 0; i < a.length(); i++) { count[a.charAt(i) - 'a']++; count[b.charAt(i) - 'a']--; }
+  for (int c : count) if (c != 0) return false;
+  return true;
+}
+Map<Character, Long> freq = s.chars().mapToObj(c -> (char) c)
+    .collect(Collectors.groupingBy(Function.identity(), LinkedHashMap::new, Collectors.counting()));
+```
+
+## Interview Q&A | sky | wide
+Q: How many objects does `new String("hello")` create?
+A: Up to two: the literal "hello" in the pool (if not already there) and a new String object on the heap.
+Q: Why is `String` final and immutable?
+A: So it can be safely shared from the pool, cached in hash-based collections (hash is computed once), used safely across threads, and trusted for security-sensitive values.
+Q: `StringBuilder` vs `StringBuffer`?
+A: Same API. `StringBuffer` synchronises every method (thread-safe, slower). `StringBuilder` does not and is the default choice.
+Q: Why store passwords in `char[]` rather than `String`?
+A: A `char[]` can be wiped after use. A `String` is immutable and may stay in memory (and the pool) until GC, and can leak into logs.
+Q: `trim()` vs `strip()`?
+A: `trim` removes characters with code point up to space (ASCII). `strip` removes all Unicode whitespace.
+Q: `replace` vs `replaceAll`?
+A: Both replace all occurrences. `replace` treats the target literally. `replaceAll` treats it as a regex.
+Q: Where is the string pool?
+A: On the heap since Java 7 (it was in PermGen before), so pooled strings can be garbage collected.
+Q: How does `compareTo` work on strings?
+A: Lexicographic comparison of UTF-16 code units. Returns negative, zero or positive. Uppercase letters sort before lowercase.
+
+
+@ Intermediate
+# 06 | Exception Handling | Hierarchy, checked vs unchecked, try-with-resources, custom exceptions | Exceptions
+
+## Exception Hierarchy | rose
+- **`Throwable`** is the root, with two branches: **`Error`** and **`Exception`**.
+- **`Error`**: serious JVM problems you should not catch: `OutOfMemoryError`, `StackOverflowError`, `NoClassDefFoundError`.
+- **Checked exceptions** (subclasses of `Exception` but not `RuntimeException`): **must be caught or declared** with `throws`. `IOException`, `SQLException`, `InterruptedException`.
+- **Unchecked exceptions** (`RuntimeException` and subclasses): programming errors, no compile-time requirement. `NullPointerException`, `IllegalArgumentException`, `IllegalStateException`, `IndexOutOfBoundsException`, `ClassCastException`, `ArithmeticException`, `ConcurrentModificationException`.
+- Checked = **recoverable conditions** the caller should consider. Unchecked = **bugs or contract violations**.
+- Modern frameworks (Spring) favour unchecked exceptions and wrap checked ones.
+
+## try / catch / finally | blue
+- `catch` blocks are checked **top to bottom**: put **more specific types first** or the code will not compile.
+- **Multi-catch**: `catch (IOException | SQLException e)` (the variable is effectively final).
+- **`finally` always runs** (after return, after exceptions) except on `System.exit`, JVM crash or a killed thread.
+- **A `return` in `finally` overrides** the try's return value and **swallows exceptions**. Never do it.
+- **`throw`** raises an exception. **`throws`** declares it in the method signature.
+```java
+int f() {
+  try { return 1; }
+  finally { return 2; }      // returns 2 (bad practice)
+}
+
+int g() {
+  int x = 1;
+  try { return x; }          // the value 1 is saved
+  finally { x = 99; }        // returns 1: changing x here does not affect the saved value
+}
+```
+
+## try-with-resources | green
+- Java 7: resources declared in `try (...)` are **closed automatically** in **reverse order**, even on exceptions.
+- Resources must implement **`AutoCloseable`** (or `Closeable`).
+- If both the body and `close()` throw, the body's exception wins and the close exception is attached as **suppressed** (`e.getSuppressed()`).
+- Java 9: you can use an effectively final variable declared outside: `try (conn) { ... }`.
+```java
+try (Connection conn = ds.getConnection();
+     PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?")) {
+  ps.setLong(1, id);
+  try (ResultSet rs = ps.executeQuery()) {
+    if (rs.next()) return rs.getString("name");
+  }
+} catch (SQLException e) {
+  throw new DataAccessException("Failed to load user " + id, e);   // keep the cause
+}
+```
+
+## Custom Exceptions | amber
+- Extend **`RuntimeException`** (unchecked) for most business errors, or `Exception` if callers must handle it.
+- Provide constructors with **message** and **cause**. Add useful fields (error code, entity id).
+- **Exception chaining**: always pass the original exception as the **cause** so the stack trace is kept.
+- Name them by what went wrong: `OrderNotFoundException`, `InsufficientFundsException`.
+```java
+public class OrderNotFoundException extends RuntimeException {
+  private final long orderId;
+  public OrderNotFoundException(long orderId) {
+    super("Order not found: " + orderId);
+    this.orderId = orderId;
+  }
+  public long getOrderId() { return orderId; }
+}
+// Spring: map it to 404 in a @RestControllerAdvice @ExceptionHandler
+```
+
+## Best Practices | violet
+- **Never swallow** exceptions (`catch (Exception e) {}`). At minimum log with context, or rethrow.
+- Do not catch `Exception` / `Throwable` broadly except at **system boundaries** (controller advice, main loop).
+- **Fail fast**: validate arguments early (`Objects.requireNonNull`, `IllegalArgumentException`).
+- Do not use exceptions for **normal control flow**. Creating stack traces is expensive.
+- When catching **`InterruptedException`**, restore the flag: `Thread.currentThread().interrupt()`.
+- Log **or** rethrow, not both (avoids duplicate log noise).
+- Clean up with **try-with-resources**, not `finally` with manual `close()`.
+- **Helpful NullPointerExceptions** (Java 14+) tell you exactly which reference was null.
+
+## Interview Q&A | sky | wide
+Q: Checked vs unchecked exceptions?
+A: Checked exceptions extend `Exception` (not `RuntimeException`) and must be caught or declared. Unchecked extend `RuntimeException`, signal programming errors and need no declaration.
+Q: `Error` vs `Exception`?
+A: `Error` indicates serious problems the application usually cannot recover from, like `OutOfMemoryError`. `Exception` covers conditions an application might handle.
+Q: Does `finally` always execute?
+A: Yes, except when the JVM exits (`System.exit`), crashes, or the thread is killed. It runs even after `return` in try or catch.
+Q: `final` vs `finally` vs `finalize`?
+A: `final` is a modifier (no reassign, override or extend). `finally` is a block that always runs after try/catch. `finalize` was a GC callback and is deprecated for removal. Use `Cleaner` or try-with-resources instead.
+Q: What are suppressed exceptions?
+A: In try-with-resources, if the body throws and then `close()` also throws, the close exception is added to the primary exception's suppressed list rather than replacing it.
+Q: Can we have try without catch?
+A: Yes, `try-finally` or try-with-resources without catch are both valid.
+Q: Can an overriding method throw a broader checked exception?
+A: No. It can throw the same, narrower, fewer, or unchecked exceptions only.
+Q: `throw` vs `throws`?
+A: `throw` actually raises an exception instance. `throws` in a method signature declares which checked exceptions the method may propagate.
+
+# 07 | Collections Framework | List, Set, Queue, Map, complexity, sorting, iteration | Collections
+
+## The Hierarchy | rose
+- **`Iterable` → `Collection`** → `List`, `Set`, `Queue` (and `Deque`). **`Map` is separate** (not a `Collection`).
+- Java 21 added **`SequencedCollection`** / **`SequencedMap`**: `getFirst()`, `getLast()`, `reversed()` for ordered types.
+- **`Collections`** (utility class: `sort`, `unmodifiableList`, `synchronizedList`) vs **`Collection`** (interface).
+- Pick by needs: **ordered with duplicates → `List`**, **unique → `Set`**, **FIFO/priority → `Queue`**, **key lookup → `Map`**.
+- **Program to the interface**: `List<String> names = new ArrayList<>();`
+
+## List Implementations | blue
+- **`ArrayList`**: backed by a **dynamic array**. `get(i)` O(1). Add at end amortised O(1). Insert or remove in the middle O(n). Grows by **1.5x**. Default capacity 10 (allocated on first add).
+- **`LinkedList`**: **doubly linked list**, also a `Deque`. Add or remove at ends O(1). `get(i)` O(n). More memory per element and poor cache locality, so it is **rarely faster in practice**.
+- **`Vector`** / **`Stack`**: legacy, synchronised. Use `ArrayList` and **`ArrayDeque`** instead.
+- **`CopyOnWriteArrayList`**: copies the array on every write. Thread-safe, great for **read-mostly** listener lists.
+- Removing while iterating: use **`Iterator.remove()`** or **`removeIf`**, not `list.remove` inside a for-each.
+```java
+List<Integer> nums = new ArrayList<>(List.of(1, 2, 3, 4));
+nums.removeIf(n -> n % 2 == 0);         // [1, 3]
+
+nums.remove(1);                         // removes index 1, not the value 1
+nums.remove(Integer.valueOf(1));        // removes the value 1
+```
+
+## Set and Queue Implementations | green
+- **`HashSet`**: backed by a `HashMap`. O(1) average, **no order**, allows one `null`.
+- **`LinkedHashSet`**: keeps **insertion order**.
+- **`TreeSet`**: **sorted** (red-black tree, `NavigableSet`). O(log n). `first`, `ceiling`, `floor`, `headSet`. No `null`.
+- **`ArrayDeque`**: resizable array deque. Use as a **stack** (`push/pop`) and **queue** (`offer/poll`). Faster than `Stack` and `LinkedList`.
+- **`PriorityQueue`**: **binary heap**. `offer`/`poll` O(log n), `peek` O(1). **Min-heap by default**. Iteration order is **not sorted**.
+- Queue methods: `add/remove/element` **throw** on failure. `offer/poll/peek` **return special values** (`false`/`null`).
+```java
+Deque<Integer> stack = new ArrayDeque<>();
+stack.push(1); stack.push(2); stack.pop();          // 2
+
+Queue<Integer> maxHeap = new PriorityQueue<>(Comparator.reverseOrder());
+maxHeap.addAll(List.of(3, 1, 5)); maxHeap.poll();   // 5
+```
+
+## Map Implementations | amber
+- **`HashMap`**: O(1) average, no order, **one `null` key** and many `null` values. Not thread-safe.
+- **`LinkedHashMap`**: insertion order (or **access order** with `accessOrder=true`, basis for an **LRU cache**).
+- **`TreeMap`**: **sorted by key** (red-black tree), O(log n), `NavigableMap` (`floorKey`, `ceilingEntry`, `headMap`).
+- **`ConcurrentHashMap`**: thread-safe, high concurrency, **no `null` keys or values**.
+- **`Hashtable`**: legacy, fully synchronised, no nulls. **`EnumMap`**: compact array-based map for enum keys. **`WeakHashMap`**: entries removed when the key is no longer strongly referenced. **`IdentityHashMap`**: uses `==`.
+- Java 8 helpers: `getOrDefault`, `putIfAbsent`, **`computeIfAbsent`**, `merge`, `forEach`.
+```java
+Map<String, List<String>> byDept = new HashMap<>();
+byDept.computeIfAbsent("eng", k -> new ArrayList<>()).add("Ann");
+
+Map<String, Integer> counts = new HashMap<>();
+for (String w : words) counts.merge(w, 1, Integer::sum);
+
+class Lru<K, V> extends LinkedHashMap<K, V> {
+  private final int cap;
+  Lru(int cap) { super(16, 0.75f, true); this.cap = cap; }      // access order
+  @Override protected boolean removeEldestEntry(Map.Entry<K, V> e) { return size() > cap; }
+}
+```
+
+## Sorting, Iteration and Immutability | violet
+- **`Comparable<T>`**: natural order, `compareTo` inside the class (one ordering).
+- **`Comparator<T>`**: external, many orderings. Build with `Comparator.comparing(...).thenComparing(...).reversed()`.
+- `compareTo` should be **consistent with `equals`** (TreeSet uses compareTo to detect duplicates).
+- **Fail-fast iterators** (`ArrayList`, `HashMap`) throw `ConcurrentModificationException` when the collection is structurally modified during iteration (checked via `modCount`). Best-effort, not guaranteed.
+- **Fail-safe / weakly consistent** (`CopyOnWriteArrayList`, `ConcurrentHashMap`) iterate over a snapshot or tolerate changes.
+- **`List.of` / `Set.of` / `Map.of`** (Java 9): **immutable**, **no nulls**. **`Arrays.asList`**: fixed size, backed by the array (set works, add throws). **`Collections.unmodifiableList`**: read-only **view** (changes to the original show through). **`List.copyOf`**: immutable copy.
+```java
+people.sort(Comparator.comparing(Person::dept)
+                      .thenComparing(Person::salary, Comparator.reverseOrder())
+                      .thenComparing(Person::name));
+```
+
+## Complexity Cheat Sheet | teal | wide
+- **ArrayList**: get O(1), add-end O(1)*, insert/remove middle O(n), contains O(n).
+- **LinkedList**: get O(n), add/remove at ends O(1), contains O(n).
+- **HashMap / HashSet**: get, put, remove, contains O(1) average, O(log n) worst per bucket since Java 8 (treeified), O(n) worst before.
+- **TreeMap / TreeSet**: get, put, remove, contains O(log n).
+- **PriorityQueue**: offer, poll O(log n), peek O(1), remove(Object) O(n).
+- **ArrayDeque**: push, pop, offer, poll O(1)*.
+> * = amortised: occasional resize copies the whole array.
+
+## Interview Q&A | sky | wide
+Q: `ArrayList` vs `LinkedList`?
+A: ArrayList has O(1) random access and better cache locality. LinkedList has O(1) insert and remove at the ends or through an iterator, but O(n) access. ArrayList is the right default in almost all cases.
+Q: `HashMap` vs `Hashtable` vs `ConcurrentHashMap`?
+A: HashMap is unsynchronised and allows a null key. Hashtable is legacy, locks the whole table and disallows nulls. ConcurrentHashMap is thread-safe with fine-grained locking and CAS, and disallows nulls.
+Q: `HashSet` vs `TreeSet` vs `LinkedHashSet`?
+A: HashSet: O(1), no order. LinkedHashSet: O(1), insertion order. TreeSet: O(log n), sorted order.
+Q: Comparable vs Comparator?
+A: Comparable defines one natural ordering inside the class via `compareTo`. Comparator defines external orderings and can be composed. Use Comparator for multiple sort orders or classes you do not own.
+Q: What is fail-fast?
+A: Iterators that detect structural modification during iteration (via `modCount`) and throw `ConcurrentModificationException`.
+Q: How do you remove elements while iterating?
+A: Use `Iterator.remove()`, `removeIf`, or collect then remove. Calling `list.remove` inside a for-each throws ConcurrentModificationException.
+Q: `List.of` vs `Arrays.asList` vs `unmodifiableList`?
+A: `List.of` is immutable and rejects nulls. `Arrays.asList` is a fixed-size view over an array (set allowed, add and remove not). `unmodifiableList` is a read-only view over a list that may still change underneath.
+Q: Why use `ArrayDeque` instead of `Stack`?
+A: `Stack` extends `Vector`, so every call is synchronised and it exposes index access that breaks stack semantics. `ArrayDeque` is faster and has a clean deque API.
+
+# 08 | HashMap Internals & equals/hashCode | Buckets, hashing, collisions, treeify, resize, ConcurrentHashMap | HashMap Internals
+
+## How put() Works | rose
+- A HashMap is an **array of buckets** (`Node<K,V>[] table`). Each node holds `hash`, `key`, `value`, `next`.
+- **Step 1**: compute `hash = key.hashCode() ^ (h >>> 16)`. Mixing the high bits into the low bits spreads keys better.
+- **Step 2**: bucket **index = `(n - 1) & hash`** where `n` is the table size (always a **power of two**, so this equals `hash % n` but is faster).
+- **Step 3**: if the bucket is empty, place the node. Otherwise walk the bucket: if a node has the **same hash and `equals` key**, **replace the value**. Otherwise **append** to the bucket (a **collision**).
+- **`get()`**: same hash and index, then compare with `equals` along the bucket.
+- **`null` key** always goes to **bucket 0** (its hash is 0).
+```java
+static final int hash(Object key) {
+  int h;
+  return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+}
+int index = (table.length - 1) & hash;
+```
+
+## Collisions, Treeify, Resize | blue
+- **Collision**: different keys land in the same bucket. Stored as a **linked list** (Java 8 appends at the **tail**; Java 7 inserted at the head, which could create a loop during concurrent resize).
+- **Treeify (Java 8)**: when one bucket has **8+ nodes** (`TREEIFY_THRESHOLD`) **and** the table has **64+ buckets** (`MIN_TREEIFY_CAPACITY`), the list becomes a **red-black tree**: worst case **O(log n)** instead of O(n). If the table is smaller than 64, it **resizes** instead. Untreeify at **6**.
+- **Default capacity 16**, **load factor 0.75**, **threshold = capacity × load factor** (12).
+- **Resize**: when size exceeds the threshold, capacity **doubles** and entries are redistributed. Each node either **stays at index `i` or moves to `i + oldCap`** (one bit check), so no full rehash is needed.
+- **Pre-size** if you know the count: `new HashMap<>(expected * 4 / 3 + 1)` or `HashMap.newHashMap(expected)` (Java 19).
+- Load factor trade-off: lower means fewer collisions and more memory. Higher means less memory and longer chains.
+
+## equals() and hashCode() Contract | green
+- **If `a.equals(b)` then `a.hashCode() == b.hashCode()`.** The reverse is not required (collisions are allowed).
+- **`equals`** must be **reflexive, symmetric, transitive, consistent**, and `x.equals(null)` is `false`.
+- `hashCode` must be **consistent** while the fields used in `equals` do not change.
+- **Override both or neither.** Overriding only `equals` breaks HashMap and HashSet: equal objects land in different buckets.
+- Use the **same fields** in both. Records and IDE or Lombok generation do this for you.
+```java
+public final class Point {
+  private final int x, y;
+  public Point(int x, int y) { this.x = x; this.y = y; }
+  @Override public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof Point p)) return false;
+    return x == p.x && y == p.y;
+  }
+  @Override public int hashCode() { return Objects.hash(x, y); }
+}
+// or simply: record Point(int x, int y) {}
+```
+
+## Mutable Keys and Other Pitfalls | amber
+- If you **mutate a key** after inserting it, its hash changes and **`get` cannot find it** (it sits in the old bucket). Use **immutable keys** (`String`, records, wrappers).
+- A bad `hashCode` (for example returning a constant) puts everything in one bucket: O(n) before Java 8, O(log n) after treeify (only if keys are `Comparable`, otherwise still slow).
+- **HashMap is not thread-safe**: concurrent puts can lose entries or corrupt the structure. Use `ConcurrentHashMap`.
+- `HashSet.add(e)` is `map.put(e, PRESENT)` and returns whether the key was new.
+- Iteration order of `HashMap` is **unspecified** and can change after resize. Use `LinkedHashMap` or `TreeMap` when order matters.
+```java
+List<Integer> key = new ArrayList<>(List.of(1));
+Map<List<Integer>, String> m = new HashMap<>();
+m.put(key, "v");
+key.add(2);                  // hash changes
+m.get(key);                  // null : entry is "lost"
+```
+
+## ConcurrentHashMap Internals | violet
+- **Java 7**: split into **segments** (default 16), each a lock. Up to 16 writers in parallel.
+- **Java 8+**: no segments. **CAS** to insert into an **empty bucket**, **`synchronized` on the first node of the bucket** for collisions. Reads are **lock-free** (volatile reads).
+- Also treeifies long buckets. Resizing is done **cooperatively** by multiple threads.
+- **No `null` keys or values**: `get` returning `null` must unambiguously mean "absent" in a concurrent setting.
+- Iterators are **weakly consistent**: never throw `ConcurrentModificationException`, may or may not reflect concurrent updates.
+- `size()` is an estimate under contention. Use **atomic compound operations**: `putIfAbsent`, `computeIfAbsent`, `merge`, `compute`.
+```java
+ConcurrentHashMap<String, LongAdder> hits = new ConcurrentHashMap<>();
+hits.computeIfAbsent(url, k -> new LongAdder()).increment();   // thread-safe counter
+
+// WRONG: check-then-act race even on a concurrent map
+if (!map.containsKey(k)) map.put(k, v);
+// RIGHT
+map.putIfAbsent(k, v);
+```
+
+## Interview Q&A | sky | wide
+Q: How does HashMap work internally?
+A: It hashes the key (`hashCode` with high bits mixed in), finds the bucket with `(n-1) & hash`, then stores or updates a node there. Collisions chain in a list that becomes a red-black tree at 8 nodes when capacity is at least 64. It doubles capacity when size exceeds capacity times 0.75.
+Q: What happens if two keys have the same hashCode?
+A: They go to the same bucket. `equals` decides whether it is the same key (replace value) or a different key (append to the chain).
+Q: Why must the capacity be a power of two?
+A: So `(n-1) & hash` can replace the slower modulo and so resize can split each bucket with a single bit check.
+Q: What if you override `equals` but not `hashCode`?
+A: Equal objects may get different hash codes, land in different buckets, and a HashSet can then contain "duplicates" or a HashMap `get` can miss.
+Q: Why is `String` a good HashMap key?
+A: It is immutable, final, has a well-distributed hash, and caches the hash code after the first computation.
+Q: Why does ConcurrentHashMap not allow null?
+A: In a concurrent map you cannot tell "key maps to null" from "key absent" without a separate, racy `containsKey` call. Banning null removes the ambiguity.
+Q: What is the time complexity of HashMap operations?
+A: O(1) on average. Worst case O(log n) per bucket in Java 8+ thanks to treeification, O(n) before Java 8.
+Q: How is HashMap different in Java 7 and Java 8?
+A: Java 8 added treeification, tail insertion instead of head insertion, a simpler hash function and the split-based resize.
+
+# 09 | Generics | Type safety, bounds, wildcards, PECS, type erasure | Generics
+
+## Why Generics | rose
+- **Compile-time type safety**: errors move from runtime `ClassCastException` to compile errors.
+- **No casts** needed when reading. **Reusable** algorithms and containers.
+- Type parameters: **class** `class Box<T>`, **interface** `interface Repo<T, ID>`, **method** `static <T> T first(List<T> l)`.
+- Conventions: `T` type, `E` element, `K` key, `V` value, `R` result, `N` number.
+- **Diamond** `<>` (Java 7): `Map<String, List<Integer>> m = new HashMap<>();`
+```java
+public class Box<T> {
+  private T value;
+  public void set(T value) { this.value = value; }
+  public T get() { return value; }
+}
+public static <T extends Comparable<T>> T max(List<T> list) {
+  T best = list.get(0);
+  for (T t : list) if (t.compareTo(best) > 0) best = t;
+  return best;
+}
+```
+
+## Bounded Types and Wildcards | blue
+- **Upper bound** `<T extends Number>`: T is Number or a subclass. Lets you call Number methods. Multiple bounds: `<T extends Number & Comparable<T>>` (class first).
+- **Unbounded wildcard** `List<?>`: a list of some unknown type. You can read `Object`, you cannot add (except `null`).
+- **`? extends T`** (upper-bounded): you can **read** as T, cannot add. A **producer**.
+- **`? super T`** (lower-bounded): you can **add** T, reading gives only `Object`. A **consumer**.
+- **PECS: Producer Extends, Consumer Super.**
+```java
+double sum(List<? extends Number> nums) {        // producer: we read
+  double s = 0; for (Number n : nums) s += n.doubleValue(); return s;
+}
+void fill(List<? super Integer> out) {           // consumer: we write
+  out.add(1); out.add(2);
+}
+sum(List.of(1, 2.5, 3L));                        // List<Integer>, List<Double> all work
+fill(new ArrayList<Number>());                   // and List<Object>
+
+// Collections.copy signature shows PECS:
+// static <T> void copy(List<? super T> dest, List<? extends T> src)
+```
+
+## Invariance vs Covariance | green
+- **Generics are invariant**: `List<Dog>` is **not** a `List<Animal>`, even though `Dog` is an `Animal`. Otherwise you could add a `Cat` to a list of dogs.
+- **Arrays are covariant**: `Dog[]` **is** an `Animal[]`. That compiles but fails at runtime with **`ArrayStoreException`**.
+- Wildcards give controlled variance: `List<? extends Animal>` accepts `List<Dog>`.
+```java
+Object[] arr = new String[1];
+arr[0] = 42;                       // compiles, ArrayStoreException at runtime
+
+List<Object> objs = new ArrayList<String>();   // compile error (good)
+```
+
+## Type Erasure | amber
+- Generics are a **compile-time** feature. The compiler checks types, inserts casts, then **erases** type parameters: `T` becomes `Object` (or its bound), `List<String>` becomes `List`.
+- Kept for **backward compatibility** with pre-Java 5 bytecode.
+- **Consequences** (you cannot):
+- `new T()` or `new T[10]`: pass a `Class<T>` or `Supplier<T>` instead.
+- `obj instanceof List<String>` (only `List<?>`). Use **primitives** as type arguments (`List<int>`).
+- Overload `m(List<String>)` and `m(List<Integer>)`: both erase to `m(List)`.
+- Declare **static fields of type T**, or catch or throw generic exception types.
+- The compiler generates **bridge methods** to keep polymorphism working after erasure.
+- **Raw types** (`List` without `<>`) disable checks. Avoid them. They exist only for legacy code.
+```java
+<T> T create(Supplier<T> factory) { return factory.get(); }
+User u = create(User::new);
+
+<T> T parse(String json, Class<T> type) { return mapper.readValue(json, type); }
+```
+
+## Generics in Practice | violet
+- Spring Data: `interface UserRepo extends JpaRepository<User, Long>`.
+- Typed results: `ResponseEntity<List<UserDto>>`, `Optional<User>`, `CompletableFuture<Order>`.
+- Jackson needs **`TypeReference`** for nested generic types because of erasure: `new TypeReference<List<User>>() {}` (the anonymous subclass keeps the type in its signature).
+- Recursive bound: `<T extends Comparable<? super T>>` lets `Comparable` be implemented by a superclass.
+- **Heap pollution** with generic varargs: mark safe methods with `@SafeVarargs`.
+
+## Interview Q&A | sky | wide
+Q: What is type erasure?
+A: The compiler removes generic type information after checking it, replacing type parameters with their bounds or Object and inserting casts. At runtime `List<String>` and `List<Integer>` are the same class.
+Q: Explain PECS.
+A: Producer Extends, Consumer Super. Use `? extends T` when a structure only gives you Ts to read, and `? super T` when it only accepts Ts to write.
+Q: Is `List<Integer>` a subtype of `List<Number>`?
+A: No, generics are invariant. Use `List<? extends Number>` to accept both.
+Q: Why can you not create a generic array?
+A: Arrays check element types at runtime, but erased generics have no runtime type, so the array could not enforce type safety.
+Q: `List<?>` vs `List<Object>`?
+A: `List<Object>` accepts adding any object but only `List<Object>` arguments. `List<?>` accepts a list of any type but you cannot add to it.
+Q: Can you use primitives with generics?
+A: No. Type arguments must be reference types, so use wrappers (`List<Integer>`) or specialised streams like `IntStream`. Project Valhalla aims to change this in future.
+Q: How do you get the runtime class of T?
+A: You cannot directly. Pass a `Class<T>` token, or capture it with a subclass trick like `TypeReference`.
+Q: What is a bounded type parameter?
+A: A type parameter restricted with `extends`, such as `<T extends Number>`, so you can call methods of the bound on T.
+
+# 10 | Lambdas, Functional Interfaces & Optional | Java 8 functional style | Lambdas & Optional
+
+## Lambdas | rose
+- A **lambda** is an anonymous function: `(params) -> expression` or `(params) -> { statements; }`.
+- It can be used anywhere a **functional interface** is expected (an interface with **exactly one abstract method**).
+- Lambdas can capture local variables only if they are **effectively final** (captured by value, avoids data races).
+- In a lambda, **`this`** refers to the **enclosing instance** (unlike anonymous classes).
+- Compiled with **`invokedynamic`** (via `LambdaMetafactory`), not as separate anonymous class files.
+```java
+Runnable r = () -> System.out.println("run");
+Comparator<String> byLen = (a, b) -> Integer.compare(a.length(), b.length());
+BiFunction<Integer, Integer, Integer> add = (a, b) -> a + b;
+
+int base = 10;
+Function<Integer, Integer> plusBase = x -> x + base;   // base must be effectively final
+// base++;                                             // would make the lambda not compile
+```
+
+## Built-in Functional Interfaces | blue
+- **`Function<T, R>`**: `R apply(T)`. Compose with `andThen`, `compose`.
+- **`Predicate<T>`**: `boolean test(T)`. Combine with `and`, `or`, `negate`, `Predicate.not`.
+- **`Consumer<T>`**: `void accept(T)`. **`Supplier<T>`**: `T get()`.
+- **`UnaryOperator<T>`** (T to T), **`BinaryOperator<T>`** ((T, T) to T), **`BiFunction<T, U, R>`**, **`BiConsumer`**, **`BiPredicate`**.
+- **Primitive specialisations** avoid boxing: `IntPredicate`, `ToIntFunction`, `IntUnaryOperator`, `IntSupplier`...
+- Older ones: `Runnable`, `Callable<V>`, `Comparator<T>`.
+- **`@FunctionalInterface`** makes the compiler verify there is exactly one abstract method (default and static methods do not count).
+```java
+Predicate<String> notBlank = Predicate.not(String::isBlank);
+Function<String, String> trim = String::trim;
+Function<String, Integer> lenAfterTrim = trim.andThen(String::length);
+
+@FunctionalInterface
+interface Validator<T> { boolean validate(T t); }
+```
+
+## Method References | green
+- Shorthand for a lambda that just calls an existing method. Four kinds:
+- **Static**: `Integer::parseInt` = `s -> Integer.parseInt(s)`.
+- **Bound instance** (specific object): `System.out::println` = `x -> System.out.println(x)`.
+- **Unbound instance** (arbitrary object of a type): `String::toUpperCase` = `s -> s.toUpperCase()`.
+- **Constructor**: `ArrayList::new` = `() -> new ArrayList<>()`, `User::new`.
+```java
+List<Integer> ids = strings.stream().map(Integer::parseInt).toList();
+names.forEach(System.out::println);
+Supplier<List<String>> make = ArrayList::new;
+Function<String, User> toUser = User::new;     // calls User(String)
+```
+
+## Optional | amber
+- **`Optional<T>`** is a container that may or may not hold a value. It makes "**might be absent**" explicit in return types.
+- Create: `Optional.of(x)` (NPE if null), **`Optional.ofNullable(x)`**, `Optional.empty()`.
+- Use: `map`, `flatMap`, `filter`, `ifPresent`, `ifPresentOrElse`, `or`, `stream`.
+- Get out: **`orElse(default)`** (always evaluates the default), **`orElseGet(supplier)`** (lazy), **`orElseThrow()`**.
+- **Avoid** `get()` without checking, `Optional` as **fields**, **method parameters** or in **collections**, and `Optional` of collections (return an empty list).
+```java
+public Optional<User> findByEmail(String email) { ... }
+
+String city = repo.findByEmail(email)
+    .map(User::getAddress)
+    .map(Address::getCity)
+    .orElse("Unknown");
+
+User u = repo.findById(id).orElseThrow(() -> new UserNotFoundException(id));
+
+repo.findById(id).orElse(createDefault());       // createDefault() ALWAYS runs
+repo.findById(id).orElseGet(this::createDefault); // runs only if empty
+```
+
+## Functional Style Tips | violet
+- Prefer **pure functions** (no side effects) inside lambdas, especially in streams.
+- Keep lambdas **short**. Extract a named method and use a method reference when it grows.
+- Checked exceptions do not fit standard functional interfaces. Wrap them or write a small helper interface.
+- **Higher-order functions**: methods that take or return functions (`Comparator.comparing`, `Function.andThen`).
+- **Currying / partial application** is possible: `Function<Integer, Function<Integer, Integer>> add = a -> b -> a + b;`
+
+## Interview Q&A | sky | wide
+Q: What is a functional interface?
+A: An interface with exactly one abstract method, so it can be implemented by a lambda or method reference. Examples: `Runnable`, `Comparator`, `Function`, `Predicate`.
+Q: Why must captured variables be effectively final?
+A: Lambdas capture the value, not the variable. Allowing changes would create confusing behaviour and data races when the lambda runs later or on another thread.
+Q: `orElse` vs `orElseGet`?
+A: `orElse` evaluates its argument every time, even when a value is present. `orElseGet` takes a supplier and calls it only when the Optional is empty.
+Q: `map` vs `flatMap` in Optional?
+A: `map` wraps the function result in an Optional. `flatMap` is for functions that already return an Optional, so you do not get `Optional<Optional<T>>`.
+Q: Lambda vs anonymous class?
+A: A lambda only implements functional interfaces, has no own `this` (uses the enclosing one), and is compiled via `invokedynamic`. An anonymous class can implement any interface or extend a class and has its own `this` and state.
+Q: Can a functional interface have default methods?
+A: Yes, any number of default and static methods. Only one abstract method is allowed.
+Q: Where should you not use Optional?
+A: Fields, method parameters, collections, and serialisable DTOs. It is designed for return values.
+Q: Name the four kinds of method references.
+A: Static (`Math::abs`), bound instance (`obj::method`), unbound instance (`String::length`), constructor (`User::new`).
+
+# 11 | Streams API | Pipelines, collectors, parallel streams, coding questions | Streams
+
+## Stream Basics | rose
+- A **stream** is a **pipeline of operations over a data source**. It does **not store** data and **does not modify** the source.
+- Pipeline: **source → intermediate operations (lazy) → terminal operation (triggers execution)**.
+- **Lazy**: nothing happens until a terminal operation. Elements flow **one by one** through the whole pipeline (vertical processing).
+- **Single use**: a stream cannot be reused after a terminal operation (`IllegalStateException`).
+- Sources: `collection.stream()`, `Arrays.stream`, `Stream.of`, `IntStream.range`, `Stream.iterate`, `Stream.generate`, `Files.lines`.
+```java
+List<String> result = employees.stream()
+    .filter(e -> e.salary() > 50_000)              // intermediate
+    .sorted(Comparator.comparing(Employee::name))  // intermediate (stateful)
+    .map(Employee::name)                           // intermediate
+    .limit(5)                                      // short-circuit
+    .toList();                                     // terminal (Java 16, unmodifiable)
+```
+
+## Intermediate vs Terminal | blue
+- **Intermediate** (return a Stream): `filter`, `map`, **`flatMap`**, `distinct`, `sorted`, `peek`, `limit`, `skip`, `takeWhile`, `dropWhile` (9), `mapToInt`, `boxed`, `mapMulti` (16).
+- **Stateless** (`filter`, `map`) vs **stateful** (`sorted`, `distinct`: need to see more elements).
+- **Terminal**: `collect`, `toList`, `forEach`, `reduce`, `count`, `min`, `max`, **`anyMatch` / `allMatch` / `noneMatch`**, `findFirst`, `findAny`, `toArray`.
+- **Short-circuiting**: `limit`, `findFirst`, `anyMatch` can stop early (work on infinite streams).
+- **`map` vs `flatMap`**: map is one-to-one. flatMap is one-to-many and **flattens** nested streams.
+- **Primitive streams** (`IntStream`, `LongStream`, `DoubleStream`) avoid boxing and have `sum`, `average`, `summaryStatistics`.
+```java
+List<String> words = sentences.stream()
+    .flatMap(s -> Arrays.stream(s.split("\\s+")))
+    .map(String::toLowerCase)
+    .distinct()
+    .toList();
+
+int total = orders.stream().mapToInt(Order::qty).sum();
+Optional<Integer> product = nums.stream().reduce((a, b) -> a * b);
+int sum = nums.stream().reduce(0, Integer::sum);
+```
+
+## Collectors | green
+- `toList()`, `toSet()`, **`toMap(keyFn, valueFn, mergeFn)`**: without a merge function, duplicate keys throw `IllegalStateException`.
+- **`groupingBy(classifier, downstream)`**: `counting()`, `summingInt`, `averagingDouble`, `mapping`, `maxBy`, `toSet()`.
+- **`partitioningBy(predicate)`**: always two groups, `true` and `false`.
+- `joining(", ", "[", "]")`, `summarizingInt`, `collectingAndThen`, `teeing` (12), `reducing`.
+```java
+Map<String, Long> countByDept = emps.stream()
+    .collect(Collectors.groupingBy(Employee::dept, Collectors.counting()));
+
+Map<String, Double> avgSalary = emps.stream()
+    .collect(Collectors.groupingBy(Employee::dept, Collectors.averagingDouble(Employee::salary)));
+
+Map<String, List<String>> namesByDept = emps.stream()
+    .collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
+             Collectors.mapping(Employee::name, Collectors.toList())));
+
+Map<Boolean, List<Employee>> seniorSplit = emps.stream()
+    .collect(Collectors.partitioningBy(e -> e.years() >= 5));
+
+Map<Long, Employee> byId = emps.stream()
+    .collect(Collectors.toMap(Employee::id, Function.identity(), (a, b) -> a));
+```
+
+## Parallel Streams and Pitfalls | amber
+- `parallelStream()` / `.parallel()` splits work using the **common `ForkJoinPool`** (threads = CPU cores - 1).
+- Good for **large, CPU-bound, stateless** work on easily splittable sources (`ArrayList`, arrays, `IntStream.range`).
+- Bad for small data, I/O (blocks the shared pool for everyone), `LinkedList` or `Stream.iterate` sources, and **shared mutable state**.
+- **Order**: `forEach` in parallel is unordered. Use `forEachOrdered` if order matters (slower).
+- **Do not mutate external state** in lambdas: use `collect`, not `list.add` inside `forEach`.
+- **`peek`** is for debugging only. It may not run if the pipeline can skip elements.
+- Streams are not always faster than loops. Use them for **readability**.
+```java
+List<Integer> out = new ArrayList<>();
+nums.parallelStream().forEach(out::add);          // WRONG: race condition, lost elements
+List<Integer> safe = nums.parallelStream().toList();   // RIGHT
+```
+
+## Stream Coding Questions | violet
+```java
+// 1. Second highest salary
+Optional<Integer> second = salaries.stream().distinct()
+    .sorted(Comparator.reverseOrder()).skip(1).findFirst();
+
+// 2. Duplicates in a list
+Set<Integer> seen = new HashSet<>();
+Set<Integer> dups = nums.stream().filter(n -> !seen.add(n)).collect(Collectors.toSet());
+
+// 3. First non-repeated character
+Character first = s.chars().mapToObj(c -> (char) c)
+    .collect(Collectors.groupingBy(Function.identity(), LinkedHashMap::new, Collectors.counting()))
+    .entrySet().stream().filter(e -> e.getValue() == 1)
+    .map(Map.Entry::getKey).findFirst().orElse(null);
+
+// 4. Highest-paid employee per department
+Map<String, Optional<Employee>> top = emps.stream()
+    .collect(Collectors.groupingBy(Employee::dept,
+             Collectors.maxBy(Comparator.comparingDouble(Employee::salary))));
+
+// 5. Word frequency, sorted by count descending
+Map<String, Long> freq = Arrays.stream(text.toLowerCase().split("\\W+"))
+    .collect(Collectors.groupingBy(w -> w, Collectors.counting()));
+freq.entrySet().stream().sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+    .limit(3).forEach(System.out::println);
+
+// 6. Sum of squares of even numbers
+int sumSq = nums.stream().filter(n -> n % 2 == 0).mapToInt(n -> n * n).sum();
+
+// 7. Join names, comma separated
+String joined = emps.stream().map(Employee::name).collect(Collectors.joining(", "));
+```
+
+## Interview Q&A | sky | wide
+Q: Intermediate vs terminal operations?
+A: Intermediate operations return a new stream and are lazy. Terminal operations produce a result or side effect and trigger processing of the whole pipeline.
+Q: `map` vs `flatMap`?
+A: `map` transforms each element into exactly one element. `flatMap` transforms each element into a stream and flattens all those streams into one.
+Q: Why are streams lazy?
+A: So operations can be fused into a single pass and short-circuited, which avoids unneeded work and allows infinite streams.
+Q: Collection vs Stream?
+A: A collection stores data and can be iterated many times. A stream is a one-shot computation pipeline over a source that stores nothing.
+Q: When should you avoid parallel streams?
+A: Small data, I/O-bound or blocking work, order-sensitive work, shared mutable state, or sources that split poorly. They share the common ForkJoinPool with the whole JVM.
+Q: `findFirst` vs `findAny`?
+A: `findFirst` respects encounter order. `findAny` may return any element and is faster in parallel streams.
+Q: What happens on duplicate keys in `toMap`?
+A: It throws `IllegalStateException` unless you pass a merge function as the third argument.
+Q: `Stream.toList()` vs `collect(Collectors.toList())`?
+A: `toList()` (Java 16) returns an unmodifiable list. `Collectors.toList()` returns a mutable list in practice (no guarantee by spec).
+
+# 12 | Modern Java: 8 to 25 | Date/Time, records, sealed classes, pattern matching, version map | Modern Java
+
+## Date and Time API (java.time) | rose
+- Java 8 replaced the mutable, not thread-safe `Date` and `Calendar` with **immutable, thread-safe** types.
+- **`LocalDate`** (date), **`LocalTime`**, **`LocalDateTime`** (no zone), **`ZonedDateTime`** (with zone), **`Instant`** (UTC timestamp, machine time), **`OffsetDateTime`**.
+- **`Duration`** (time-based: hours, seconds) vs **`Period`** (date-based: years, months, days).
+- **`DateTimeFormatter`** is thread-safe (unlike `SimpleDateFormat`). `ChronoUnit.DAYS.between(a, b)`.
+- Store **`Instant` or UTC** in databases. Convert to a zone only for display.
+```java
+LocalDate today = LocalDate.now();
+LocalDate due = today.plusDays(30).with(TemporalAdjusters.lastDayOfMonth());
+long days = ChronoUnit.DAYS.between(today, due);
+
+ZonedDateTime ist = Instant.now().atZone(ZoneId.of("Asia/Kolkata"));
+String s = ist.format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"));
+LocalDate parsed = LocalDate.parse("2026-10-14");
+```
+
+## Records (Java 16) | blue
+- **`record`** is a concise, **immutable data carrier**. The compiler generates a **canonical constructor**, **accessors** (`name()`, not `getName()`), `equals`, `hashCode`, `toString`.
+- Fields are **private final**. Records are **implicitly final** and **cannot extend** other classes (they extend `Record`), but they **can implement interfaces**.
+- **Compact constructor** for validation. You can add static fields, static and instance methods.
+- Ideal for **DTOs, API responses, value objects, map keys, multiple return values**.
+- Shallow immutability: a `List` component should be copied with `List.copyOf`.
+```java
+public record Money(BigDecimal amount, String currency) {
+  public Money {                                  // compact constructor
+    Objects.requireNonNull(currency);
+    if (amount.signum() < 0) throw new IllegalArgumentException("negative");
+  }
+  public Money plus(Money o) { return new Money(amount.add(o.amount), currency); }
+}
+var m = new Money(new BigDecimal("10.00"), "INR");
+m.amount();   // accessor
+```
+
+## Sealed Classes (Java 17) | green
+- **`sealed`** restricts **which classes may extend or implement** a type, using **`permits`**.
+- Each permitted subclass must be **`final`**, **`sealed`**, or **`non-sealed`**.
+- Gives a **closed hierarchy**: the compiler knows all subtypes, so `switch` can be **exhaustive** without `default`.
+- Good for **domain modelling**: payment types, API results, shapes, expression trees (algebraic data types).
+```java
+public sealed interface Shape permits Circle, Rect, Square {}
+public record Circle(double r) implements Shape {}
+public record Rect(double w, double h) implements Shape {}
+public final class Square implements Shape { final double side; Square(double s) { side = s; } }
+```
+
+## Pattern Matching | amber
+- **`instanceof` pattern** (Java 16): test and bind in one step: `if (obj instanceof String s)`.
+- **Switch pattern matching** (Java 21): match on types, with **guards** (`when`) and **`case null`**.
+- **Record patterns** (Java 21): **deconstruct** records inside patterns, including nested ones.
+- **Unnamed variables** `_` (Java 22) for parts you do not need.
+- With sealed types, **no `default` is needed** and adding a new subtype breaks compilation until handled.
+```java
+double area(Shape s) {
+  return switch (s) {
+    case Circle c -> Math.PI * c.r() * c.r();
+    case Rect(double w, double h) when w == h -> w * w;    // record pattern + guard
+    case Rect(double w, double h) -> w * h;
+    case Square sq -> sq.side * sq.side;
+  };                                                         // exhaustive, no default
+}
+
+if (obj instanceof String str && !str.isBlank()) System.out.println(str.length());
+```
+
+## Version Map (know the LTS highlights) | violet
+- **Java 8 (LTS)**: lambdas, streams, `Optional`, `java.time`, default methods, Metaspace, `CompletableFuture`.
+- **Java 9**: modules (JPMS), `List.of` factories, `jshell`, private interface methods, G1 default GC, compact strings.
+- **Java 10**: `var`. **Java 11 (LTS)**: `HttpClient`, `String` helpers (`isBlank`, `strip`, `repeat`, `lines`), single-file launch.
+- **Java 14**: switch expressions, helpful NPE messages. **Java 15**: text blocks. **Java 16**: records, `instanceof` patterns, `Stream.toList()`.
+- **Java 17 (LTS)**: sealed classes, strong encapsulation of JDK internals. Minimum for **Spring Boot 3**.
+- **Java 21 (LTS)**: **virtual threads**, pattern matching for switch, record patterns, **sequenced collections**, generational ZGC.
+- **Java 22-24**: unnamed variables `_`, FFM API (foreign memory and functions), stream gatherers (24), **virtual threads no longer pin on `synchronized`** (24).
+- **Java 25 (LTS, Sept 2025)**: **scoped values** final, flexible constructor bodies, compact source files and instance `main`, module import declarations, compact object headers.
+> Name 2-3 features from the version your project uses and a real use case. Newer releases arrive every March and September.
+
+## Interview Q&A | sky | wide
+Q: Why was `java.time` introduced?
+A: `Date` and `Calendar` are mutable, not thread-safe, have confusing APIs (0-based months) and poor time zone support. `java.time` types are immutable, thread-safe and clear.
+Q: What is a record and when would you not use one?
+A: An immutable, transparent data carrier with generated constructor, accessors, equals, hashCode and toString. Not for JPA entities (they need a no-arg constructor, mutability and proxies) or classes needing inheritance.
+Q: Can a record have extra methods or fields?
+A: Methods and static fields, yes. Extra instance fields, no: the state is exactly the components.
+Q: What are sealed classes for?
+A: To restrict a hierarchy to known subtypes so the domain is explicit and switches can be checked for exhaustiveness.
+Q: What is pattern matching for switch?
+A: A switch that matches on types and record structure with guards, binding variables directly, replacing chains of `instanceof` and casts.
+Q: `Duration` vs `Period`?
+A: Duration measures time in seconds and nanos (for hours, minutes). Period measures in years, months and days (calendar-based).
+Q: What Java version does your project use and why?
+A: Answer honestly. Typical: Java 17 or 21 for Spring Boot 3, chosen because they are LTS releases with long vendor support.
+Q: What are default methods for?
+A: To add methods to interfaces without breaking existing implementations. That is how `Collection.stream()` and `forEach` were added in Java 8.
+
+
+@ Advanced
+# 13 | Multithreading Fundamentals | Threads, lifecycle, synchronized, volatile, wait/notify, deadlock | Threads
+
+## Creating Threads | rose
+- **Process** = separate memory space. **Thread** = lightweight unit of execution **sharing the heap** of its process, with its own **stack**.
+- Ways: extend **`Thread`**, implement **`Runnable`** (no result), implement **`Callable<V>`** (returns a value and can throw checked exceptions, run via an `ExecutorService`).
+- Prefer **`Runnable` / `Callable` + executor** over extending `Thread` (composition, reusable threads).
+- **`start()`** creates a new thread that runs `run()`. Calling **`run()` directly** just runs it on the **current thread**.
+- **Daemon threads** (`setDaemon(true)`) do not keep the JVM alive (GC, background housekeeping).
+```java
+Thread t = new Thread(() -> System.out.println("on " + Thread.currentThread().getName()));
+t.start();
+t.join();          // wait for t to finish
+
+Callable<Integer> task = () -> 42;
+try (ExecutorService ex = Executors.newFixedThreadPool(2)) {   // AutoCloseable since Java 19
+  Future<Integer> f = ex.submit(task);
+  System.out.println(f.get());
+}
+```
+
+## Thread Lifecycle | blue
+- **NEW**: created, `start()` not yet called.
+- **RUNNABLE**: running or ready to run (the OS scheduler decides).
+- **BLOCKED**: waiting to acquire a **monitor lock** (`synchronized`).
+- **WAITING**: waiting indefinitely: `wait()`, `join()`, `LockSupport.park()`.
+- **TIMED_WAITING**: `sleep(ms)`, `wait(ms)`, `join(ms)`.
+- **TERMINATED**: `run()` finished.
+- **`sleep`** keeps any locks held. **`wait`** releases the monitor. `yield` only hints to the scheduler.
+- **Interruption** is cooperative: `t.interrupt()` sets a flag. Blocking methods throw `InterruptedException`. Check `Thread.currentThread().isInterrupted()` in loops.
+- `stop()`, `suspend()`, `resume()` are deprecated and unsafe.
+
+## synchronized and Monitors | green
+- Every object has an **intrinsic lock (monitor)**. **`synchronized`** gives **mutual exclusion** and **visibility** (happens-before on unlock/lock).
+- **Synchronized instance method** locks `this`. **Static synchronized method** locks the **`Class` object**. **Synchronized block** locks any chosen object (finer-grained).
+- Locks are **reentrant**: a thread holding a lock can enter again.
+- **Race condition**: result depends on thread timing. `count++` is **read-modify-write** (3 steps) and not atomic.
+```java
+class Counter {
+  private int count;
+  private final Object lock = new Object();
+  public void increment() {
+    synchronized (lock) { count++; }       // atomic and visible
+  }
+  public int get() { synchronized (lock) { return count; } }
+}
+// Better for a simple counter: AtomicInteger or LongAdder
+```
+
+## volatile and the Java Memory Model | amber
+- Without synchronisation, threads may see **stale values** (CPU caches, compiler reordering).
+- **`volatile`** guarantees **visibility** (reads see the latest write) and **prevents reordering** around it. It does **not** make compound actions atomic.
+- Use `volatile` for **flags** and **safe publication**, not for counters.
+- **Happens-before** rules: unlock before a later lock of the same monitor, volatile write before later read, `Thread.start()` before actions in the thread, actions in a thread before another thread's `join()` returns.
+- **Atomic classes** (`AtomicInteger`, `AtomicLong`, `AtomicReference`) use **CAS (compare-and-swap)**: lock-free and atomic. **`LongAdder`** scales better under high contention.
+```java
+class Worker implements Runnable {
+  private volatile boolean running = true;     // without volatile, the loop may never see false
+  public void stop() { running = false; }
+  public void run() { while (running) { doWork(); } }
+}
+AtomicInteger hits = new AtomicInteger();
+hits.incrementAndGet();
+hits.updateAndGet(x -> Math.max(x, 100));
+```
+
+## wait/notify, Deadlock and Friends | violet
+- **`wait()` / `notify()` / `notifyAll()`**: must be called **while holding the object's monitor** (inside `synchronized`), otherwise `IllegalMonitorStateException`.
+- Always call `wait()` **in a `while` loop** checking the condition (protects against **spurious wakeups**). Prefer `notifyAll`.
+- Modern code uses **`BlockingQueue`** or `Condition` instead (sheet 14).
+- **Deadlock**: two threads each hold a lock the other needs. Four conditions: mutual exclusion, hold and wait, no preemption, **circular wait**.
+- **Prevent**: acquire locks in a **consistent global order**, use `tryLock` with timeout, keep critical sections small.
+- **Livelock**: threads keep reacting to each other without progress. **Starvation**: a thread never gets CPU or a lock.
+- Detect deadlocks with **`jstack`** or a thread dump ("Found one Java-level deadlock").
+```java
+// Deadlock: T1 locks A then B, T2 locks B then A
+synchronized (a) { synchronized (b) { ... } }   // thread 1
+synchronized (b) { synchronized (a) { ... } }   // thread 2
+// Fix: everyone locks in the same order (e.g. by account id)
+```
+
+## Interview Q&A | sky | wide
+Q: `start()` vs `run()`?
+A: `start()` creates a new thread that then calls `run()`. Calling `run()` directly executes it on the current thread like any normal method.
+Q: `Runnable` vs `Callable`?
+A: Runnable's `run()` returns nothing and cannot throw checked exceptions. Callable's `call()` returns a value and can throw checked exceptions. Callable is submitted to an executor and gives a Future.
+Q: `sleep()` vs `wait()`?
+A: `sleep` is a static Thread method that pauses without releasing locks. `wait` is an Object method that must be called inside synchronized, releases the monitor and waits for notify or a timeout.
+Q: What does `volatile` do?
+A: Guarantees visibility of writes across threads and prevents instruction reordering around the variable. It does not make operations like `count++` atomic.
+Q: `synchronized` method vs block?
+A: A method locks the whole method on `this` (or the Class for static). A block locks only the critical section on a chosen object, giving finer control and less contention.
+Q: How do you avoid deadlock?
+A: Lock ordering, timeouts with `tryLock`, fewer and smaller lock scopes, and higher-level concurrency utilities instead of nested locks.
+Q: What is a race condition?
+A: When correctness depends on the interleaving of threads, for example two threads doing `count++` and losing an update.
+Q: Why call `wait()` in a loop?
+A: Because of spurious wakeups and because another thread may have changed the condition between notify and reacquiring the lock.
+
+# 14 | java.util.concurrent | Executors, thread pools, CompletableFuture, locks, synchronizers | Concurrency Utils
+
+## Executors and Thread Pools | rose
+- **Thread pools** reuse threads, bounding resource use and avoiding creation cost.
+- **`ThreadPoolExecutor`** parameters: **`corePoolSize`**, **`maximumPoolSize`**, `keepAliveTime`, **`workQueue`**, `threadFactory`, **`RejectedExecutionHandler`**.
+- Task flow: core threads first → then **queue** → when the queue is full, extra threads up to max → when everything is full, **reject**.
+- Rejection policies: **`AbortPolicy`** (default, throws), **`CallerRunsPolicy`** (back-pressure: caller runs it), `DiscardPolicy`, `DiscardOldestPolicy`.
+- Factory methods: `newFixedThreadPool(n)` (**unbounded queue: OOM risk**), `newCachedThreadPool()` (**unbounded threads**), `newSingleThreadExecutor()`, `newScheduledThreadPool(n)`, **`newVirtualThreadPerTaskExecutor()`** (21).
+- Sizing: **CPU-bound ≈ number of cores**. **I/O-bound ≈ cores × (1 + wait time / compute time)**.
+- Always **`shutdown()`** (graceful) then `awaitTermination`. `shutdownNow()` interrupts running tasks.
+```java
+ExecutorService pool = new ThreadPoolExecutor(
+    4, 8, 60, TimeUnit.SECONDS,
+    new ArrayBlockingQueue<>(100),                        // bounded queue
+    Thread.ofPlatform().name("worker-", 0).factory(),
+    new ThreadPoolExecutor.CallerRunsPolicy());
+
+Future<Report> f = pool.submit(() -> buildReport());
+Report r = f.get(5, TimeUnit.SECONDS);                    // blocks, with timeout
+pool.shutdown();
+```
+
+## CompletableFuture | blue
+- **`Future`** only lets you block with `get()`. **`CompletableFuture`** (Java 8) supports **non-blocking composition**.
+- Start: `supplyAsync(supplier)` (returns a value), `runAsync(runnable)`. Default executor is the **common ForkJoinPool**: pass your own for I/O.
+- Transform: **`thenApply`** (map), **`thenCompose`** (flatMap, for a function returning a CF), **`thenCombine`** (merge two independent results), `thenAccept`, `thenRun`.
+- Combine many: **`allOf`** (wait for all), `anyOf`.
+- Errors: **`exceptionally`** (fallback), **`handle`** (result or error), `whenComplete` (side effect). Timeouts: `orTimeout`, `completeOnTimeout` (9).
+- Methods without `Async` run on the thread that completed the previous stage. `...Async` variants use an executor.
+```java
+CompletableFuture<User> user = CompletableFuture.supplyAsync(() -> userApi.get(id), ioPool);
+CompletableFuture<List<Order>> orders = CompletableFuture.supplyAsync(() -> orderApi.list(id), ioPool);
+
+CompletableFuture<Dashboard> dash = user
+    .thenCombine(orders, Dashboard::new)                // run in parallel, combine
+    .orTimeout(2, TimeUnit.SECONDS)
+    .exceptionally(ex -> Dashboard.empty());
+
+List<CompletableFuture<Price>> calls = shops.stream()
+    .map(s -> CompletableFuture.supplyAsync(() -> s.price(item), ioPool)).toList();
+CompletableFuture.allOf(calls.toArray(CompletableFuture[]::new)).join();
+List<Price> prices = calls.stream().map(CompletableFuture::join).toList();
+```
+
+## Explicit Locks | green
+- **`ReentrantLock`**: like `synchronized` but with **`tryLock()`** (with timeout), **interruptible** locking, **fairness** option, and multiple **`Condition`**s.
+- Always **unlock in `finally`**.
+- **`ReentrantReadWriteLock`**: many readers **or** one writer. Good for read-heavy data.
+- **`StampedLock`** (8): adds **optimistic reads** (validate the stamp afterwards). Not reentrant.
+- Use `synchronized` for simple cases (less error-prone). Use `Lock` when you need its extra features.
+```java
+private final ReentrantLock lock = new ReentrantLock();
+void transfer(Account to, BigDecimal amt) throws InterruptedException {
+  if (lock.tryLock(1, TimeUnit.SECONDS)) {
+    try { /* critical section */ }
+    finally { lock.unlock(); }
+  } else {
+    throw new IllegalStateException("busy, try again");
+  }
+}
+```
+
+## Synchronizers and Concurrent Collections | amber
+- **`CountDownLatch`**: wait until **N events** happen. **One-time use** (cannot reset). Example: start the app after 3 services are ready.
+- **`CyclicBarrier`**: N threads **wait for each other** at a barrier, **reusable**, optional barrier action.
+- **`Semaphore`**: limits **concurrent access** to N permits (connection limits, rate limiting).
+- **`Phaser`**: flexible, reusable barrier with dynamic parties. **`Exchanger`**: two threads swap objects.
+- **`BlockingQueue`** (`ArrayBlockingQueue`, `LinkedBlockingQueue`, `PriorityBlockingQueue`, `SynchronousQueue`, `DelayQueue`): `put` blocks when full, `take` blocks when empty. The classic **producer-consumer** tool.
+- Concurrent collections: `ConcurrentHashMap`, `CopyOnWriteArrayList`, `ConcurrentLinkedQueue`, `ConcurrentSkipListMap` (sorted, concurrent).
+```java
+BlockingQueue<Job> queue = new ArrayBlockingQueue<>(100);
+// producer
+queue.put(job);                       // blocks if full
+// consumer
+while (!Thread.currentThread().isInterrupted()) {
+  Job j = queue.take();               // blocks if empty
+  process(j);
+}
+
+CountDownLatch ready = new CountDownLatch(3);
+// each service: ready.countDown();
+ready.await();                        // main waits for all 3
+```
+
+## Fork/Join and ThreadLocal | violet
+- **`ForkJoinPool`**: for **divide-and-conquer** tasks (`RecursiveTask<V>` returns a value, `RecursiveAction` does not).
+- **Work stealing**: idle threads steal tasks from the tail of busy threads' deques, which keeps all cores busy.
+- The **common pool** backs parallel streams and default `CompletableFuture` async methods.
+- **`ThreadLocal<T>`**: a separate value per thread (user context, `SimpleDateFormat`, DB transaction). **Always `remove()`** in pooled threads, or values leak between requests and cause memory leaks.
+- With virtual threads, prefer **`ScopedValue`** (Java 25) for immutable per-request context.
+```java
+class SumTask extends RecursiveTask<Long> {
+  final int[] a; final int lo, hi;
+  SumTask(int[] a, int lo, int hi) { this.a = a; this.lo = lo; this.hi = hi; }
+  protected Long compute() {
+    if (hi - lo <= 1_000) { long s = 0; for (int i = lo; i < hi; i++) s += a[i]; return s; }
+    int mid = (lo + hi) >>> 1;
+    SumTask left = new SumTask(a, lo, mid);
+    left.fork();                                    // run asynchronously
+    return new SumTask(a, mid, hi).compute() + left.join();
+  }
+}
+long total = ForkJoinPool.commonPool().invoke(new SumTask(arr, 0, arr.length));
+```
+
+## Interview Q&A | sky | wide
+Q: Explain how ThreadPoolExecutor handles a new task.
+A: If fewer than core threads run, start a new thread. Otherwise queue the task. If the queue is full and threads are below max, start a new thread. Otherwise apply the rejection policy.
+Q: Why avoid `Executors.newFixedThreadPool` in production?
+A: It uses an unbounded `LinkedBlockingQueue`, so a burst can queue tasks until the heap runs out. Build a `ThreadPoolExecutor` with a bounded queue and a rejection policy.
+Q: `Future` vs `CompletableFuture`?
+A: Future only supports blocking `get` and cancel. CompletableFuture supports chaining, combining, error handling and manual completion without blocking.
+Q: `thenApply` vs `thenCompose`?
+A: `thenApply` maps the result with a normal function. `thenCompose` is for a function that returns another CompletableFuture, flattening it (like flatMap).
+Q: `CountDownLatch` vs `CyclicBarrier`?
+A: A latch lets threads wait for a count to reach zero and cannot be reset. A barrier makes a fixed number of threads wait for each other and can be reused.
+Q: `synchronized` vs `ReentrantLock`?
+A: Both are reentrant mutual exclusion. ReentrantLock adds tryLock with timeout, interruptible waits, fairness and multiple conditions, but you must unlock in finally.
+Q: What is a ThreadLocal memory leak?
+A: In thread pools, threads live forever. If you never call `remove()`, the value stays attached to the thread, leaking memory and leaking data into the next request.
+Q: How do you implement producer-consumer?
+A: With a `BlockingQueue`: producers `put`, consumers `take`. The queue handles waiting and signalling.
+
+# 15 | Virtual Threads & Structured Concurrency | Project Loom, pinning, scoped values | Virtual Threads
+
+## What Virtual Threads Are | rose
+- **Platform threads** wrap OS threads: about **1 MB stack**, expensive to create, a few thousand per JVM.
+- **Virtual threads** (Java 21, Project Loom) are **lightweight threads managed by the JVM**. Millions are possible.
+- They run on a small pool of **carrier threads** (a ForkJoinPool sized to CPU cores). When a virtual thread **blocks on I/O**, it **unmounts** and the carrier runs another one.
+- Result: simple **blocking, thread-per-request code** that scales like async/reactive code.
+- They help **I/O-bound** workloads (HTTP calls, DB queries). They do **not** make CPU-bound work faster.
+```java
+try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+  IntStream.range(0, 10_000).forEach(i ->
+      executor.submit(() -> {
+        Thread.sleep(Duration.ofSeconds(1));      // blocking is cheap now
+        return i;
+      }));
+}                                                  // close() waits for all tasks
+
+Thread.startVirtualThread(() -> System.out.println("hi"));
+Thread vt = Thread.ofVirtual().name("vt-", 0).start(task);
+```
+
+## Rules of Use | blue
+- **Do not pool virtual threads**. Create one per task. They are cheap.
+- **Limit concurrency with a `Semaphore`**, not with pool size (for example to protect a DB with 20 connections).
+- **Pinning**: a virtual thread that cannot unmount blocks its carrier. Causes: blocking inside **native code**, and before **Java 24** blocking inside **`synchronized`**. On Java 21 prefer `ReentrantLock` around blocking I/O.
+- Avoid large **`ThreadLocal`** caches (millions of threads means millions of copies). Use `ScopedValue`.
+- Spring Boot 3.2+: **`spring.threads.virtual.enabled=true`** runs request handling on virtual threads.
+- Diagnose pinning with JFR event `jdk.VirtualThreadPinned`.
+
+## Structured Concurrency and Scoped Values | green
+- **Structured concurrency** (preview, `StructuredTaskScope`): treat a group of subtasks as **one unit**. If one fails, the others are **cancelled**, and none outlive the scope. Avoids leaked threads.
+- **Scoped values** (`ScopedValue`, final in **Java 25**): immutable, inheritable per-scope data. A cheaper, safer alternative to `ThreadLocal` for request context.
+```java
+static final ScopedValue<String> USER = ScopedValue.newInstance();
+
+ScopedValue.where(USER, "ann").run(() -> handleRequest());
+// anywhere inside handleRequest(): USER.get() returns "ann"
+```
+
+## Virtual vs Reactive vs Platform | amber
+- **Platform threads + pool**: simple, limited by thread count.
+- **Reactive (WebFlux, RxJava)**: non-blocking, high throughput, but **harder to read, debug and test** (callback or operator chains, lost stack traces).
+- **Virtual threads**: same throughput benefits for I/O-bound work with **ordinary blocking code** and normal stack traces.
+- Reactive still wins for **streaming and back-pressure** scenarios.
+
+## Interview Q&A | sky | wide
+Q: What are virtual threads?
+A: JVM-managed lightweight threads (Java 21) that are scheduled onto a few carrier OS threads. When they block on I/O they unmount, so you can run millions with simple blocking code.
+Q: Do virtual threads make code faster?
+A: They increase throughput for I/O-bound workloads by allowing far more concurrent tasks. They do not speed up CPU-bound work or individual requests.
+Q: What is pinning?
+A: When a virtual thread cannot unmount from its carrier while blocked, for example inside native code or (before Java 24) inside a synchronized block, so it ties up the carrier thread.
+Q: Should you pool virtual threads?
+A: No. Create one per task. Use semaphores to limit access to scarce resources.
+Q: Why prefer ScopedValue over ThreadLocal?
+A: Scoped values are immutable, bounded to a scope (automatically cleaned up) and cheap to inherit by child threads, which matters with millions of virtual threads.
+Q: How do you enable virtual threads in Spring Boot?
+A: Set `spring.threads.virtual.enabled=true` (Spring Boot 3.2+ on Java 21+).
+
+# 16 | JVM Memory, GC & Troubleshooting | Heap generations, collectors, references, leaks, tools | Memory & GC
+
+## Heap Generations | rose
+- **Weak generational hypothesis**: most objects **die young**. So the heap is split.
+- **Young generation**: **Eden** (new objects) + two **Survivor** spaces (S0, S1). **Minor GC** copies live objects from Eden and one survivor to the other survivor. Fast.
+- Objects surviving enough minor GCs (age up to the **tenuring threshold**, max 15) are **promoted** to the **Old generation**. Very large objects may go straight to Old.
+- **Major / Full GC**: collects Old (Full GC: whole heap plus Metaspace), usually with longer pauses.
+- **Stop-the-world (STW)**: all application threads paused during some GC phases. Modern collectors keep pauses short with **concurrent** phases.
+
+## How GC Decides What Is Garbage | blue
+- An object is garbage when it is **not reachable** from any **GC root**.
+- **GC roots**: local variables in active stack frames, active threads, static fields, JNI references.
+- **Mark**: trace from the roots and mark reachable objects. **Sweep**: free unmarked memory. **Compact**: move objects together to avoid fragmentation. **Copy**: move live objects to a new area (young gen).
+- Java uses **reachability, not reference counting**, so **cycles are collected** fine.
+- `System.gc()` is only a **hint**. Never rely on it.
+
+## Garbage Collectors | green
+- **Serial GC**: single thread. Small heaps, client apps, containers with 1 CPU.
+- **Parallel GC**: multi-threaded, **throughput**-oriented, longer pauses. Good for batch jobs.
+- **G1 GC** (default since Java 9): heap split into equal **regions**. Collects regions with the most garbage first. Targets a **pause goal** (`-XX:MaxGCPauseMillis`, default 200 ms). Balanced default.
+- **ZGC**: **concurrent**, **sub-millisecond pauses** independent of heap size (up to terabytes). **Generational** by default since Java 23.
+- **Shenandoah**: concurrent compaction, low pause (Red Hat).
+- Choosing: start with **G1**. Use **ZGC** for latency-critical services or very large heaps. **Parallel** for throughput batch work.
+```bash
+java -Xms2g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=100 \
+     -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/dumps \
+     -Xlog:gc*:file=gc.log -jar app.jar
+java -XX:+UseZGC -Xmx16g -jar app.jar
+java -XX:MaxRAMPercentage=75 -jar app.jar     # containers: size the heap from the memory limit
+```
+
+## Reference Types and Memory Leaks | amber
+- **Strong** (normal): never collected while reachable.
+- **Soft** (`SoftReference`): cleared **only when memory is low**. Memory-sensitive caches.
+- **Weak** (`WeakReference`, `WeakHashMap`): cleared at the **next GC** once no strong refs remain. Canonicalising maps, listeners.
+- **Phantom** (`PhantomReference`, `Cleaner`): for **post-mortem cleanup** of native resources. `get()` always returns null.
+- **Common leaks**: ever-growing **static collections / caches**, **unclosed resources** (streams, connections), **listeners** never removed, **`ThreadLocal`** in pools, **inner classes** holding outer instances, mutable keys in a HashMap, large session state.
+- Yes, **Java can leak memory**: GC frees unreachable objects, but a leak is objects that are reachable and no longer needed.
+
+## Errors and Diagnostic Tools | violet
+- **`OutOfMemoryError: Java heap space`** (leak or heap too small), **`GC overhead limit exceeded`** (GC running constantly with little gain), **`Metaspace`** (too many classes, classloader leaks), **`unable to create native thread`**, **`Direct buffer memory`**.
+- **`StackOverflowError`**: infinite or very deep recursion. Increase `-Xss` only after fixing the logic.
+- Tools: **`jps`** (list JVMs), **`jstack <pid>`** (thread dump: deadlocks, stuck threads), **`jmap -dump:live,format=b,file=heap.hprof <pid>`** (heap dump), **`jstat -gc`** (GC stats), **`jcmd`** (all-in-one: `jcmd <pid> GC.heap_dump`, `Thread.print`, `VM.flags`).
+- **JFR (Java Flight Recorder)** + **JMC (Mission Control)**: low-overhead production profiling. **VisualVM**, **Eclipse MAT** (find leak suspects and dominator trees), async-profiler.
+- High CPU recipe: `top -H` to find the hot thread id, convert to hex, find it in the `jstack` output.
+```bash
+jcmd <pid> Thread.print > threads.txt
+jcmd <pid> GC.heap_dump /tmp/heap.hprof
+jcmd <pid> JFR.start duration=60s filename=rec.jfr
+jstat -gcutil <pid> 1000          # GC utilisation every second
+```
+
+## Interview Q&A | sky | wide
+Q: Explain the JVM heap structure.
+A: Young generation (Eden plus two survivor spaces) for new objects, and Old generation for long-lived ones. Minor GCs clean young, promoted survivors move to old, major or full GCs clean old. Class metadata lives in Metaspace outside the heap.
+Q: How does garbage collection work?
+A: The GC marks every object reachable from GC roots (stack references, statics, threads), then reclaims the rest, and compacts or copies to reduce fragmentation.
+Q: Which GC would you choose?
+A: G1 by default. ZGC for low latency or very large heaps. Parallel for throughput-focused batch jobs. Serial for tiny heaps or single-CPU containers.
+Q: Can Java have memory leaks?
+A: Yes, when objects stay reachable but are no longer needed: static caches, unremoved listeners, ThreadLocals, unclosed resources.
+Q: How would you debug an OutOfMemoryError?
+A: Enable `HeapDumpOnOutOfMemoryError`, analyse the dump in Eclipse MAT for the largest retained objects and their GC root paths, check GC logs, then fix the leak or right-size the heap.
+Q: Soft vs weak references?
+A: Soft references are cleared only under memory pressure (good for caches). Weak references are cleared at the next GC once no strong references remain.
+Q: `-Xms` vs `-Xmx` vs `-Xss`?
+A: Initial heap size, maximum heap size, and thread stack size. Setting Xms equal to Xmx avoids resize pauses in servers.
+Q: How do you find a deadlock or stuck thread in production?
+A: Take thread dumps with `jstack` or `jcmd Thread.print` a few seconds apart and look for BLOCKED threads and the "Found one Java-level deadlock" section.
+
+# 17 | Reflection, Annotations & Proxies | How frameworks like Spring and Hibernate work | Reflection
+
+## Reflection API | rose
+- **Reflection** inspects and manipulates classes, fields, methods and constructors **at runtime**.
+- Entry: `obj.getClass()`, `Foo.class`, `Class.forName("com.x.Foo")`.
+- `getDeclaredFields()` (all fields of this class, including private) vs `getFields()` (public, including inherited).
+- `setAccessible(true)` bypasses access checks. Since **Java 16-17** this is blocked for JDK internals unless the module is opened (`--add-opens`).
+- Used by **Spring DI, Hibernate, Jackson, JUnit, Mockito**.
+- Costs: **slower** than direct calls, **breaks encapsulation**, **no compile-time checks**. `MethodHandle` is a faster modern alternative.
+```java
+Class<?> cls = Class.forName("com.app.User");
+Object user = cls.getDeclaredConstructor(String.class).newInstance("Ann");
+
+Field f = cls.getDeclaredField("name");
+f.setAccessible(true);
+System.out.println(f.get(user));
+
+Method m = cls.getMethod("greet", String.class);
+Object result = m.invoke(user, "hi");
+```
+
+## Annotations | blue
+- **Metadata** attached to code. Read by the **compiler** (`@Override`, `@SuppressWarnings`, `@FunctionalInterface`, `@Deprecated`), by **annotation processors** at build time (Lombok, MapStruct), or by **reflection at runtime** (Spring, JPA).
+- **Meta-annotations**: **`@Retention`** (`SOURCE`, `CLASS` default, **`RUNTIME`** for reflection), **`@Target`** (`TYPE`, `METHOD`, `FIELD`, `PARAMETER`...), `@Inherited`, `@Documented`, `@Repeatable`.
+- Elements can be primitives, `String`, `Class`, enums, other annotations, or arrays of these. `value` is the default element.
+```java
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface Timed { String value() default ""; }
+
+class Service { @Timed("load") public void load() { /* ... */ } }
+
+for (Method m : Service.class.getDeclaredMethods()) {
+  Timed t = m.getAnnotation(Timed.class);
+  if (t != null) System.out.println("timed: " + t.value());
+}
+```
+
+## Dynamic Proxies | green
+- A **proxy** stands in front of an object to add behaviour (logging, transactions, security, caching, lazy loading) without changing it.
+- **JDK dynamic proxy** (`java.lang.reflect.Proxy`): works only for **interfaces**. Calls go through an `InvocationHandler`.
+- **CGLIB / ByteBuddy**: generate a **subclass** at runtime, so they work for classes (but not `final` classes or methods).
+- **Spring AOP** uses these for `@Transactional`, `@Cacheable`, `@Async`. **Hibernate** uses them for lazy-loaded entities.
+- **Self-invocation pitfall**: calling `this.otherMethod()` inside the bean **bypasses the proxy**, so `@Transactional` on `otherMethod` is ignored.
+```java
+interface Greeter { String greet(String n); }
+Greeter real = n -> "Hello " + n;
+
+Greeter proxy = (Greeter) Proxy.newProxyInstance(
+    Greeter.class.getClassLoader(), new Class<?>[]{ Greeter.class },
+    (p, method, args) -> {
+      long t = System.nanoTime();
+      try { return method.invoke(real, args); }
+      finally { System.out.println(method.getName() + " took " + (System.nanoTime() - t) + "ns"); }
+    });
+proxy.greet("Ann");
+```
+
+## Serialization | amber
+- **`Serializable`** (marker interface) lets the JVM turn objects into bytes (`ObjectOutputStream`).
+- **`serialVersionUID`**: version id. If it does not match on deserialisation you get `InvalidClassException`. Declare it explicitly.
+- **`transient`** fields are skipped. Static fields are not serialised.
+- **Java native serialisation is a security risk** (deserialisation gadget attacks). Prefer **JSON (Jackson)**, Protobuf or Avro. Use deserialisation filters if you must.
+- `Externalizable` gives full manual control.
+
+## Interview Q&A | sky | wide
+Q: What is reflection and where is it used?
+A: Runtime inspection and invocation of classes, methods and fields. Frameworks like Spring, Hibernate, Jackson and JUnit use it to create beans, map entities, serialise objects and find tests.
+Q: Disadvantages of reflection?
+A: Slower, breaks encapsulation, bypasses compile-time checks, and is restricted by the module system for JDK internals.
+Q: What does `@Retention(RUNTIME)` mean?
+A: The annotation is kept in the class file and is available through reflection at runtime. SOURCE is discarded by the compiler, CLASS is in the class file but not visible to reflection.
+Q: JDK proxy vs CGLIB?
+A: JDK proxies implement interfaces only. CGLIB creates a runtime subclass, so it works with concrete classes but not final classes or methods. Spring uses CGLIB by default in Spring Boot.
+Q: Why does `@Transactional` not work when calling a method from the same class?
+A: Spring applies it through a proxy. An internal `this.method()` call does not go through the proxy, so no transaction is started.
+Q: What is `serialVersionUID`?
+A: A version number for a serialisable class. Deserialisation fails if the stream's UID does not match the class's UID.
+Q: What is `transient`?
+A: A field modifier that excludes the field from Java serialisation. It gets its default value after deserialisation.
+Q: How would you create a custom annotation that logs method time?
+A: Define `@Timed` with RUNTIME retention and METHOD target, then use an aspect (Spring AOP `@Around`) or a proxy that checks for the annotation and measures time around `proceed()`.
+
+
+@ Review
+# 18 | Rapid-Fire & Tricky Java | Singletons, design in Java, gotchas, one-liners, big Q&A | Rapid-fire
+
+## Singleton Done Right | rose
+- **Eager**: `private static final INSTANCE = new X()`. Simple, thread-safe, created at class load.
+- **Lazy holder (Bill Pugh)**: nested static class creates the instance on first access. Thread-safe via class initialisation, no locks.
+- **Double-checked locking**: needs **`volatile`**, otherwise another thread may see a half-constructed object.
+- **Enum singleton**: thread-safe, **serialisation-safe** and **reflection-safe**. Joshua Bloch's recommendation.
+- In Spring, beans are singletons per container: you rarely hand-write these.
+```java
+public class Config {
+  private Config() {}
+  private static class Holder { static final Config INSTANCE = new Config(); }
+  public static Config get() { return Holder.INSTANCE; }
+}
+
+public class Registry {
+  private static volatile Registry instance;
+  public static Registry get() {
+    if (instance == null) {
+      synchronized (Registry.class) {
+        if (instance == null) instance = new Registry();
+      }
+    }
+    return instance;
+  }
+}
+
+public enum Cache { INSTANCE; public void put(String k, Object v) { } }
+```
+
+## Tricky Snippets | blue
+```java
+System.out.println(1 + 2 + "3");          // "33"  (left to right: 3 then "3")
+System.out.println("1" + 2 + 3);          // "123"
+System.out.println('a' + 'b');            // 195   (char arithmetic)
+System.out.println(0.1 + 0.2 == 0.3);     // false
+System.out.println(Math.min(Double.MIN_VALUE, 0.0));   // 0.0 (MIN_VALUE is the smallest POSITIVE)
+System.out.println(10 / 0.0);             // Infinity (no exception for doubles)
+// System.out.println(10 / 0);            // ArithmeticException
+System.out.println(Double.NaN == Double.NaN);          // false
+
+String s = null;
+System.out.println(s + "x");              // "nullx"
+System.out.println("abc".substring(3));   // ""  (no exception)
+
+List<Integer> list = new ArrayList<>(List.of(1, 2, 3));
+for (Integer i : list) if (i == 2) list.remove(i);     // no exception! removing the 2nd-to-last element
+                                                       // makes hasNext() false, so the loop just ends
+for (Integer i : list) if (i == 1) list.remove(i);     // ConcurrentModificationException
+```
+
+## Gotchas to Mention | green
+- **`Arrays.asList(int[])`** gives `List<int[]>` with one element. Use `IntStream` or `Integer[]`.
+- **`Collections.sort` on `List.of(...)`** throws `UnsupportedOperationException` (immutable).
+- **`HashMap` iteration order** is not insertion order.
+- **`equals` without `hashCode`** breaks hash collections.
+- **`substring`, `replace`, `toUpperCase`** return new strings: `s.toUpperCase();` alone does nothing.
+- **`switch` on a `null` String** throws NPE (unless you use `case null` in Java 21).
+- **Integer cache** makes `==` work by accident for small numbers.
+- **Static mutable state** and `SimpleDateFormat` are not thread-safe.
+- **Catching `InterruptedException` and ignoring it** loses the interrupt.
+- **`finally` with `return`** swallows exceptions.
+
+## One-Line Cheat Sheet | amber
+- **JDK ⊃ JRE ⊃ JVM**. Bytecode is portable, the JVM is not.
+- **Heap** = objects (shared). **Stack** = frames and locals (per thread). **Metaspace** = class metadata.
+- **Pass-by-value**, always (references are copied).
+- **Overloading** = compile time. **Overriding** = runtime.
+- **`String`** immutable, **`StringBuilder`** fast, **`StringBuffer`** synchronised.
+- **Checked** = must handle. **Unchecked** = programming bugs.
+- **HashMap**: hash → `(n-1)&hash` → bucket → list → tree at 8 (cap ≥ 64), resize at 0.75.
+- **equals ⇒ same hashCode**, not the reverse.
+- **PECS**: producer extends, consumer super. **Erasure**: generics vanish at runtime.
+- **Streams**: lazy, single-use, intermediate vs terminal.
+- **volatile** = visibility, not atomicity. **synchronized** = both. **Atomic*** = lock-free CAS.
+- **Virtual threads** for I/O-bound concurrency. **G1** default GC, **ZGC** for low latency.
+
+## Design Principles in Java | violet
+- **SOLID**: Single responsibility, Open/closed, Liskov substitution, Interface segregation, Dependency inversion (sheet in System Design goes deeper).
+- **Favour immutability**, **composition over inheritance**, **program to interfaces**.
+- **Fail fast**, validate inputs, use `Optional` for absent return values, never return `null` collections.
+- **Effective Java** favourites: static factories over constructors, builders for many parameters, minimise mutability, prefer `List` over arrays, use `EnumMap` and `EnumSet`, override `toString`.
+- Common patterns in the JDK: **Builder** (`StringBuilder`, `HttpRequest.newBuilder`), **Factory** (`List.of`, `Calendar.getInstance`), **Iterator**, **Observer** (listeners), **Decorator** (`BufferedInputStream`), **Strategy** (`Comparator`), **Template Method** (`AbstractList`), **Proxy** (Spring AOP).
+
+## How to Answer Well | teal
+- **Definition → tiny example → when you use it → trade-off.** Keep each answer under a minute, then let them dig.
+- For internals questions (HashMap, GC, thread pools), **walk through the steps in order** and name the numbers (16, 0.75, 8, 64).
+- Mention the **version**: "Since Java 8...", "In Java 21 we have virtual threads...". It shows you are current.
+- Tie answers to your projects: "We used `CompletableFuture.allOf` to call three services in parallel and cut latency from 900 ms to 350 ms."
+- For coding rounds, state complexity and edge cases (`null`, empty, duplicates, overflow) before you are asked.
+
+## Big Interview Q&A | sky | wide
+Q: What are the main features of Java?
+A: Platform independent (bytecode + JVM), object-oriented, strongly and statically typed, automatic memory management (GC), multithreading built in, rich standard library, secure (bytecode verifier, no pointers), and backward compatible.
+Q: Why is Java not 100% object-oriented?
+A: It has primitive types that are not objects, and static members that do not belong to objects.
+Q: What happens when you write `new User()`?
+A: The class is loaded and initialised if needed, memory is allocated on the heap (often from a thread-local allocation buffer), fields get default values, initialisers and the constructor chain run from Object down, and the reference is returned.
+Q: How would you make a class thread-safe?
+A: Make it immutable if possible. Otherwise confine state, guard shared mutable state with synchronized or locks, use atomic classes or concurrent collections, and avoid publishing `this` during construction.
+Q: How do you find the most frequent element in a list?
+A: `list.stream().collect(groupingBy(identity(), counting())).entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey)`. O(n) time, O(n) space.
+Q: Explain `hashCode` and `equals` in one breath.
+A: `hashCode` picks the bucket and `equals` finds the exact key within it, so equal objects must share a hash code or hash collections break.
+Q: Difference between `Comparable` and `Comparator` in one sentence?
+A: Comparable is the class's own natural order (`compareTo`). Comparator is an external, pluggable order (`compare`) you can build and combine.
+Q: What is the diamond problem and how does Java handle it?
+A: Ambiguity when a class inherits the same member from two parents. Java forbids multiple class inheritance and forces explicit overrides when two interfaces provide the same default method.
+Q: What is `CompletableFuture` used for in your projects?
+A: Running independent remote calls in parallel and combining results (`thenCombine`, `allOf`), with timeouts and fallbacks (`orTimeout`, `exceptionally`) on a dedicated I/O executor.
+Q: What would you check if a Java service suddenly uses 100% CPU?
+A: Find the hot threads (`top -H`), match them in thread dumps, look for infinite loops, excessive GC (GC logs, `jstat`), lock spinning or regex backtracking, then profile with JFR or async-profiler.
+Q: Why use Java 17 or 21 over Java 8?
+A: LTS support, records, sealed classes, pattern matching, text blocks, better GCs (G1 improvements, ZGC), virtual threads in 21, better container awareness, and Spring Boot 3 requires 17+.
+Q: How do Java 8 default methods and abstract classes differ now?
+A: Interfaces can carry behaviour but not instance state or constructors. Abstract classes can hold state, constructors and protected members. Use interfaces for capabilities and abstract classes for shared base implementation.

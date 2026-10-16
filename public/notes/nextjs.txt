@@ -1,0 +1,741 @@
+@ Beginner
+# 00 | Next.js Basics: Start Here | History and versions, why Next.js, creating a project, project structure, first layout and page, dev vs production commands, Next.js vs React | Start Here
+
+## History and Versions | rose
+- **Next.js** was created by **Guillermo Rauch** and his company **ZEIT** (renamed **Vercel** in 2020) and released in **October 2016**, to make server-rendered React apps easy: routing by files, server rendering by default, zero configuration.
+- Milestones: **9.3** (2020) `getStaticProps` / `getServerSideProps` for static generation and SSR; **9.5** (2020) **Incremental Static Regeneration**; **12** (2021) middleware and the Rust-based SWC compiler; **13** (October 2022) the **App Router** (beta) built on React Server Components; **13.4** (May 2023) App Router stable; **14** (2023) **Server Actions** stable; **15** (October 2024) React 19 support and less aggressive caching defaults; **16** (October 2025) **Turbopack** as the default bundler, Cache Components, and `middleware` renamed **`proxy`**.
+- It is open source (MIT) and can be hosted anywhere Node.js runs, not only on Vercel.
+
+## Why Next.js? | blue
+- **Faster first load and better SEO**: pages arrive as server-rendered HTML instead of an empty `<div>` waiting for JavaScript (sheet 01).
+- **Routing built in**: folders and files define routes (sheet 02), with layouts, loading and error states.
+- **Full-stack in one project**: Server Components fetch data directly, **route handlers** build APIs (sheet 06), **Server Actions** handle form submissions (sheet 05).
+- **Rendering choices per route**: static, dynamic (SSR), incremental regeneration or client-side.
+- **Optimisations included**: image resizing, font loading, script loading and metadata for SEO (sheet 07), code splitting per route, and a production build pipeline.
+
+## Create and Run a Project | green
+```bash
+npx create-next-app@latest my-shop   # answers a few prompts (TypeScript, linting, Tailwind, App Router...)
+cd my-shop
+npm run dev                          # next dev: development server with fast refresh at http://localhost:3000
+npm run build                        # next build: optimised production build (and type checking)
+npm start                            # next start: serve the production build
+```
+- **`next dev`** compiles routes on demand and shows errors in an overlay; it is not for production.
+- **`next build`** prerenders static routes, bundles each route separately and prints which routes are static and which are dynamic. **`next start`** runs the built app on a Node.js server. A site with no server features can also be exported as static files (`output: 'export'`).
+- The default port is **3000** (`next dev -p 4000` changes it).
+
+## Project Structure | amber
+```text
+my-shop/
+  app/                       the App Router: folders are URL segments
+    layout.tsx               root layout: <html> and <body>, wraps every page (required)
+    page.tsx                 the "/" route
+    globals.css              global styles, imported by the root layout
+    about/
+      page.tsx               the "/about" route
+    products/
+      [id]/page.tsx          a dynamic route: "/products/42"
+    api/
+      hello/route.ts         a route handler: GET /api/hello
+  public/                    static files served from "/" (public/logo.png → /logo.png)
+  next.config.ts             Next.js configuration
+  package.json               scripts: dev, build, start, lint
+  tsconfig.json              TypeScript settings with the "@/..." import alias
+```
+- **A folder becomes a route segment only when it contains a `page.tsx`** (or `route.ts`); other files can sit next to it safely.
+- The older **Pages Router** (`pages/index.tsx`, `pages/about.tsx`) is still supported; new projects use `app/` (sheet 02).
+
+## Your First Layout and Page | violet
+```tsx app/layout.tsx
+import type { Metadata } from 'next';
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: 'My Shop',
+  description: 'A demo store built with Next.js',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+```tsx app/page.tsx
+import Link from 'next/link';
+
+type Product = { id: number; name: string };
+
+export default async function HomePage() {
+  const res = await fetch('https://api.example.com/products');   // runs on the server
+  const products: Product[] = await res.json();
+
+  return (
+    <main>
+      <h1>Products</h1>
+      <ul>
+        {products.map(p => (
+          <li key={p.id}>
+            <Link href={`/products/${p.id}`}>{p.name}</Link>
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+```
+- Every file in `app/` is a **Server Component** by default: it can be `async`, fetch data and read secrets, and its code is not sent to the browser. Add **`'use client'`** at the top of a file for interactivity (state, effects, event handlers; sheet 04).
+- **`<Link>`** navigates on the client without a full reload and prefetches routes (sheet 03).
+- `metadata` sets the page title and meta tags for SEO (sheet 07).
+
+## Next.js vs React (and Others) | sky
+- **React** is the UI library: components, state and rendering, by default in the browser (CSR). **Next.js** is a **framework on top of React** that adds routing, server rendering and static generation, Server Components, API routes, Server Actions, image and font optimisation, and the build pipeline.
+- Choose plain **React + Vite** for a client-only app such as an internal dashboard behind a login, where SEO doesn't matter. Choose **Next.js** for public sites that need SEO and fast first loads, and for full-stack apps.
+- Alternatives: **React Router** in framework mode (formerly Remix), **Astro** (content sites), **Nuxt** (the Vue equivalent of Next.js), **Angular** with SSR.
+
+## Interview Q&A | sky | wide
+Q: What is Next.js?
+A: A React framework by Vercel for full-stack web apps: file-based routing, server and static rendering, React Server Components, API route handlers, Server Actions and built-in optimisations.
+Q: What is the difference between React and Next.js?
+A: React is a library for building UI components. Next.js is a framework built on React that adds routing, rendering strategies, data fetching, backend endpoints and production tooling.
+Q: Why is Next.js better for SEO than a plain React SPA?
+A: Pages are rendered to HTML on the server or at build time, so crawlers and users get content immediately instead of an empty page that depends on JavaScript.
+Q: Is Next.js frontend or backend?
+A: Both: it renders the frontend and runs server code (Server Components, route handlers, Server Actions, proxy) in the same project.
+Q: How do you create and run a Next.js app?
+A: `npx create-next-app@latest`, then `npm run dev` for development (port 3000), `npm run build` and `npm start` for production.
+Q: What do next build and next start do?
+A: next build creates the optimised production build, prerendering static pages; next start serves that build with a Node.js server.
+Q: Which files are essential in the App Router?
+A: The root `app/layout.tsx` (required, with html and body) and a `page.tsx` per route; optional special files include loading.tsx, error.tsx, not-found.tsx and route.ts.
+Q: Do you need Vercel to deploy Next.js?
+A: No. You can run `next start` on any Node.js server, use Docker, other platforms, or a static export when no server features are used.
+Q: Who created Next.js and when?
+A: Guillermo Rauch's company ZEIT, now Vercel, in October 2016.
+
+
+# 01 | Next.js & Rendering Strategies | What Next.js adds, CSR vs SSR vs SSG vs ISR, streaming, choosing a strategy | Rendering
+
+## What Next.js Is | rose
+- **Next.js** (Vercel) is a **full-stack React framework**: file-based **routing**, **server rendering and static generation**, **React Server Components**, data fetching and caching, **API endpoints** (route handlers), **Server Actions**, image/font/script optimisation, and a build pipeline (**Turbopack**; the default bundler in Next.js 16).
+- React alone renders UI in the browser; Next.js decides **where and when** each page renders (server, build time, client) and ships the result.
+- Two routers: the **App Router** (`app/`, React Server Components, the recommended default since 13.4) and the older **Pages Router** (`pages/`, still supported).
+- Deploys to Vercel, any Node.js server (`next start`), Docker, or as a static export (`output: 'export'`) when no server features are used.
+
+## CSR vs SSR vs SSG vs ISR | blue
+- **CSR (Client-Side Rendering)**: the server sends a nearly empty HTML shell plus JavaScript; the browser fetches data and renders. Cheap hosting, rich interactivity; **slow first paint and weak SEO**.
+- **SSR (Server-Side Rendering)**: HTML is generated **on every request** with fresh data. Good SEO and first paint for **personalised or always-fresh** pages; costs server time per request (TTFB).
+- **SSG (Static Site Generation)**: HTML is generated **at build time** and served from a CDN. **Fastest**, cheapest, very cacheable; data is only as fresh as the last build.
+- **ISR (Incremental Static Regeneration)**: static pages that **regenerate in the background** after a time interval (`revalidate`) or **on demand** (`revalidatePath` / `revalidateTag`); visitors get the cached page while a new one is built (**stale-while-revalidate**).
+- In every server strategy the browser then **hydrates** the HTML so it becomes interactive.
+```text
+Strategy   HTML generated          Data freshness           Typical use
+CSR        in the browser          live (client fetch)      dashboards behind login
+SSR        per request             live                     account pages, search results
+SSG        at build                build time               docs, marketing, blog
+ISR        build + background      every N s or on demand   product pages, news
+```
+
+## Rendering in the App Router | green
+- Routes are **static by default** (prerendered at build) and become **dynamic** automatically when they use **request-time APIs**: `cookies()`, `headers()`, `searchParams`, `connection()`, or uncached data (`fetch` with `cache: 'no-store'`).
+- **Streaming**: the server sends the page shell first and streams slower parts as they resolve, using React **Suspense** boundaries and `loading.tsx`. Users see content sooner.
+- **Server Components** render on the server and send no JavaScript for themselves; **Client Components** hydrate in the browser (sheet 04).
+- **Next.js 16 Cache Components** (`cacheComponents: true` with the `"use cache"` directive) make caching explicit: everything is dynamic unless marked cached, and static shells can be combined with dynamic holes (partial prerendering).
+- Inspect the result in `next build` output: routes are marked static (prerendered) or dynamic (server-rendered on demand).
+
+## Choosing a Strategy | amber
+- **Public content that rarely changes** (docs, landing pages): SSG.
+- **Public content that changes periodically** (catalogue, blog with comments count): ISR with time-based or on-demand revalidation.
+- **Per-user or per-request data** (cart, account, search results): SSR (dynamic rendering), with static shells where possible.
+- **Highly interactive app behind login** where SEO does not matter: mostly client components inside a server-rendered layout.
+- Mix strategies **per route** (and per component with Suspense) in the same app.
+
+## Interview Q&A | sky | wide
+Q: What is Next.js and why use it over plain React?
+A: A React framework adding file-based routing, server rendering, static generation, Server Components, data caching, API routes, Server Actions and built-in optimisations, giving better performance and SEO without assembling these yourself.
+Q: CSR vs SSR vs SSG?
+A: CSR renders in the browser after downloading JavaScript; SSR renders HTML on the server per request; SSG renders HTML once at build time and serves it from a CDN.
+Q: What is ISR?
+A: Incremental Static Regeneration: statically generated pages that are regenerated in the background after a revalidate interval or on demand, serving the cached version meanwhile.
+Q: When does an App Router route become dynamic?
+A: When it uses request-time information such as cookies(), headers(), searchParams or uncached fetches; otherwise it is prerendered statically.
+Q: What is streaming?
+A: Sending HTML in chunks: the shell renders immediately and Suspense boundaries stream in their content as data resolves.
+Q: What is hydration?
+A: Attaching React's event handlers and state to server-rendered HTML so it becomes interactive in the browser.
+
+# 02 | App Router: Files & Routing | app directory, page, layout, template, loading, error, not-found, dynamic segments, route groups, Pages Router | App Router
+
+## File Conventions | rose
+- Each **folder** in `app/` is a **route segment**; a route becomes public only when the folder has a **`page.tsx`**.
+- **`layout.tsx`**: UI shared by a segment and its children; **persists across navigations** (keeps state, does not re-render on child navigation). The **root layout** (`app/layout.tsx`) is required and must render `<html>` and `<body>`.
+- **`template.tsx`**: like a layout but **re-mounts on every navigation** (enter animations, per-page effects).
+- **`loading.tsx`**: instant loading UI; Next.js wraps the page in a **Suspense** boundary with it as the fallback.
+- **`error.tsx`**: error boundary for the segment; must be a **Client Component** (`'use client'`), receives `error` and a `reset` function. **`global-error.tsx`** catches errors in the root layout.
+- **`not-found.tsx`**: rendered for `notFound()` calls and unmatched URLs. Also **`route.ts`** (API endpoint, sheet 06), **`default.tsx`** (parallel route fallback).
+```text
+app/
+  layout.tsx            root layout: <html><body>{children}</body></html>
+  page.tsx              "/"
+  loading.tsx
+  error.tsx             'use client'
+  not-found.tsx
+  (marketing)/          route group: not part of the URL
+    about/page.tsx      "/about"
+  blog/
+    layout.tsx          shared by /blog and /blog/[slug]
+    page.tsx            "/blog"
+    [slug]/page.tsx     "/blog/hello-world"
+  docs/[...path]/page.tsx       "/docs/a/b/c" (catch-all)
+  api/orders/route.ts           GET/POST /api/orders
+  _components/Header.tsx        private folder: never routable
+```
+
+## Dynamic Segments and Params | blue
+- **`[slug]`** dynamic segment, **`[...path]`** catch-all (one or more), **`[[...path]]`** optional catch-all (zero or more).
+- Pages and layouts receive **`params`** and pages receive **`searchParams`**; **since Next.js 15 both are Promises**, so `await` them (or `use()` them in client components).
+- **`generateStaticParams()`** returns the list of params to **prerender at build time** (SSG for dynamic routes); `export const dynamicParams = false` returns 404 for params not in the list.
+- Call **`notFound()`** to render the nearest `not-found.tsx`.
+```tsx
+// app/blog/[slug]/page.tsx
+import { notFound } from 'next/navigation';
+
+export async function generateStaticParams() {
+  const posts = await getAllPosts();
+  return posts.map(p => ({ slug: p.slug }));
+}
+
+export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = await getPost(slug);
+  if (!post) notFound();
+  return <article><h1>{post.title}</h1><div>{post.body}</div></article>;
+}
+```
+
+## Layouts, Groups and Advanced Routing | green
+- **Nested layouts** compose automatically: `app/layout` wraps `app/dashboard/layout` wraps the page.
+- **Route groups `(name)`** organise routes or give different layouts to sections **without affecting the URL** (e.g. `(shop)` and `(admin)` with separate root layouts).
+- **Private folders `_name`** hold components and utilities that must not become routes.
+- **Parallel routes** (`@slot` folders) render several pages in one layout (dashboards, split views); **intercepting routes** (`(.)photo/[id]`) show a route in a modal while keeping the URL shareable.
+- **Colocation**: component files inside `app/` are safe as long as they are not named `page` or `route`.
+
+## Pages Router (for comparison) | amber
+- Files in **`pages/`** map to routes: `pages/index.tsx` is "/", `pages/blog/[slug].tsx` is "/blog/:slug".
+- Data functions per page: **`getServerSideProps`** (SSR on every request), **`getStaticProps`** (SSG at build, with `revalidate` for ISR) + **`getStaticPaths`** (which dynamic paths to prerender, `fallback`), legacy `getInitialProps`.
+- **`_app.tsx`** (global layout and providers), **`_document.tsx`** (custom `<html>`/`<body>`), **`pages/api/*`** API routes.
+- No Server Components, no nested layouts by default; navigation hooks come from **`next/router`** (App Router uses **`next/navigation`**).
+```tsx
+// pages/products/[id].tsx
+export async function getStaticPaths() {
+  return { paths: [{ params: { id: '1' } }], fallback: 'blocking' };
+}
+export async function getStaticProps({ params }) {
+  const product = await fetchProduct(params.id);
+  return product ? { props: { product }, revalidate: 60 } : { notFound: true };
+}
+export default function ProductPage({ product }) { return <h1>{product.name}</h1>; }
+```
+
+## Interview Q&A | sky | wide
+Q: layout.tsx vs template.tsx?
+A: A layout persists across navigation between its child routes, preserving state; a template creates a new instance on every navigation, re-running effects and resetting state.
+Q: What does loading.tsx do?
+A: It defines instant loading UI; Next.js wraps the segment's page in a Suspense boundary using it as the fallback while server content streams.
+Q: Why must error.tsx be a Client Component?
+A: Error boundaries are a client-side React feature (they need state and the reset function), so the file needs 'use client'.
+Q: What is a route group?
+A: A folder in parentheses that organises routes or assigns layouts without adding a URL segment.
+Q: How do you prerender dynamic routes?
+A: Export generateStaticParams returning the params to build; in the Pages Router use getStaticPaths with getStaticProps.
+Q: App Router vs Pages Router?
+A: The App Router uses the app directory with Server Components, nested layouts, streaming and the new caching model; the Pages Router uses pages with getServerSideProps/getStaticProps and client-rendered components. New projects use the App Router.
+Q: Why must I await params in Next.js 15?
+A: Request-specific APIs (params, searchParams, cookies, headers) became asynchronous so Next.js can prerender more of the page and only wait for them where used.
+
+# 03 | Navigation | Link and prefetching, useRouter, usePathname, useSearchParams, redirects, client router cache | Navigation
+
+## The Link Component | rose
+- **`<Link href="/blog/hello">`** (from `next/link`) renders an `<a>` and performs **client-side navigation**: no full page reload, layouts keep their state, only the changed segments re-render.
+- **Prefetching**: in production, links **in the viewport are prefetched** automatically. Static routes are prefetched fully; dynamic routes are prefetched up to the nearest `loading.tsx` boundary. Control with `prefetch={false}`.
+- Options: `replace` (no new history entry), `scroll={false}` (keep scroll position), `href` as an object `{ pathname, query }`.
+- Use a plain `<a>` for external links.
+```tsx
+import Link from 'next/link';
+
+<nav>
+  <Link href="/">Home</Link>
+  <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+  <Link href={{ pathname: '/search', query: { q: 'shoes' } }} replace>Search shoes</Link>
+</nav>
+```
+
+## Navigation Hooks (Client Components) | blue
+- Import from **`next/navigation`** in the App Router (not `next/router`, which is the Pages Router API).
+- **`useRouter()`**: `push(href)`, `replace(href)`, `back()`, `forward()`, **`refresh()`** (re-fetch server components for the current route without losing client state), `prefetch(href)`.
+- **`usePathname()`**: current path ("/blog/hello"); use it for active link styling.
+- **`useSearchParams()`**: read-only `URLSearchParams`; a page using it in a statically rendered route should wrap the component in **`<Suspense>`** so the rest of the page can prerender.
+- **`useParams()`**: dynamic route params in client components.
+```tsx
+'use client';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+
+export function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const active = pathname === href || pathname.startsWith(href + '/');
+  return <Link href={href} aria-current={active ? 'page' : undefined} className={active ? 'active' : ''}>{children}</Link>;
+}
+
+export function SortSelect() {
+  const router = useRouter();
+  const params = useSearchParams();
+  return (
+    <select value={params.get('sort') ?? 'new'}
+            onChange={e => { const p = new URLSearchParams(params); p.set('sort', e.target.value); router.push(`?${p}`); }}>
+      <option value="new">Newest</option><option value="price">Price</option>
+    </select>
+  );
+}
+```
+
+## Redirects | green
+- **`redirect('/login')`** (from `next/navigation`) in Server Components, Server Actions and route handlers: temporary redirect (307, or 303 after a Server Action). **`permanentRedirect()`** for 308.
+- **`notFound()`** renders the not-found UI with a 404 status.
+- Config-level **`redirects()`** in `next.config` for static rules (old URLs), and request-time redirects in **proxy** (formerly middleware, sheet 06).
+- In Client Components, use `router.push` / `replace` for navigation after user actions.
+```tsx
+// app/account/page.tsx (Server Component)
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+
+export default async function AccountPage() {
+  const session = (await cookies()).get('session');
+  if (!session) redirect('/login?next=/account');
+  return <Account session={session.value} />;
+}
+```
+
+## Client Router Cache | amber
+- The browser keeps the **React Server Component payload** of visited and prefetched route segments in memory, making back/forward and repeated navigation instant.
+- Since **Next.js 15**, page segments are **not reused from this cache by default** (stale time 0 for dynamic pages); layouts and loading states are still reused. Configure with `experimental.staleTimes`.
+- After a mutation, refresh data with **`router.refresh()`** (client) or **`revalidatePath` / `revalidateTag`** in a Server Action, which also updates the client cache.
+
+## Interview Q&A | sky | wide
+Q: Why use Link instead of an `<a>` tag?
+A: Link performs client-side navigation without reloading the page, preserves layout state, and prefetches routes in the viewport for near-instant navigation.
+Q: next/router vs next/navigation?
+A: next/router is the Pages Router API; the App Router uses next/navigation hooks (useRouter, usePathname, useSearchParams, useParams).
+Q: What does router.refresh() do?
+A: It re-requests the current route's Server Components from the server and merges the result without losing client state such as input values or scroll position.
+Q: How do you redirect in a Server Component?
+A: Call redirect() from next/navigation; it throws a special error that Next.js turns into a redirect response.
+Q: How does prefetching work?
+A: In production, Link prefetches routes when they enter the viewport: static routes fully, dynamic routes up to the nearest loading boundary, so navigation feels instant.
+Q: How do you highlight the active link?
+A: In a Client Component, compare usePathname() with the link href and set aria-current and a class.
+
+@ Intermediate
+
+# 04 | Server & Client Components | React Server Components, 'use client', boundaries, serialisation, composition, security | Server vs Client
+
+## Server Components (the default) | rose
+- In the App Router **every component is a Server Component unless marked otherwise**.
+- They **run only on the server** (at build or request time): can be **`async`**, **read databases, files and secrets directly**, and their code is **never sent to the browser** (zero client JavaScript for them).
+- Their output is the **RSC payload**: a serialised description of the rendered tree that the client merges into the page.
+- They **cannot** use state, effects, event handlers, refs, context or browser APIs.
+```tsx
+// app/orders/page.tsx  (Server Component)
+import { db } from '@/lib/db';
+import { OrderFilters } from './order-filters';     // client component
+
+export default async function OrdersPage() {
+  const orders = await db.order.findMany({ orderBy: { createdAt: 'desc' }, take: 20 });   // direct DB access
+  return (
+    <>
+      <h1>Orders</h1>
+      <OrderFilters />
+      <ul>{orders.map(o => <li key={o.id}>{o.number}</li>)}</ul>
+    </>
+  );
+}
+```
+
+## Client Components | blue
+- Add **`'use client'`** at the **top of a file** to make it (and everything it imports) part of the **client bundle**: the directive marks a **boundary** between server and client module graphs.
+- Client Components are **still prerendered to HTML on the server**, then **hydrated** in the browser; "client" means "also runs in the browser", not "only".
+- Use them for **interactivity**: `useState`, `useEffect`, event handlers, browser APIs (`localStorage`, `window`), context providers, many third-party UI libraries.
+- **Push `'use client'` down to leaves** (a button, a filter panel) to keep most of the tree on the server and the bundle small.
+```tsx
+'use client';
+import { useState } from 'react';
+
+export function LikeButton({ initialLikes }: { initialLikes: number }) {
+  const [likes, setLikes] = useState(initialLikes);
+  return <button onClick={() => setLikes(l => l + 1)}>♥ {likes}</button>;
+}
+```
+
+## Boundaries and Composition | green
+- **Props from Server to Client Components must be serialisable**: primitives, plain objects, arrays, Dates, Maps/Sets, Promises, JSX; **not functions** (except Server Actions) or class instances.
+- A **Client Component cannot import a Server Component**, but it **can render one passed as `children` or props**: the server renders it and the client places it.
+- **Context providers** are client components: create a `providers.tsx` with `'use client'` and wrap `children` in the root layout.
+- **`import 'server-only'`** in modules that must never reach the client (database clients, secrets); `client-only` for the reverse.
+- Only environment variables prefixed **`NEXT_PUBLIC_`** are exposed to client code.
+```tsx
+// app/layout.tsx (server)
+import { Providers } from './providers';
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return <html lang="en"><body><Providers>{children}</Providers></body></html>;
+}
+
+// app/providers.tsx
+'use client';
+export function Providers({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient());
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
+
+// Server component passed through a client component
+<ClientTabs overview={<ServerOverview id={id} />} />
+```
+
+## Choosing Server or Client | amber
+- **Server**: fetching data, accessing backend resources and secrets, large dependencies (markdown, syntax highlighting), static content, SEO-critical markup.
+- **Client**: state and effects, event listeners, browser-only APIs, custom hooks that use state, interactive widgets.
+- Typical page: a **server page** fetches data and renders mostly server markup, with **small client islands** for interactivity.
+- Benefits of Server Components: **smaller bundles**, **no client-server waterfalls** (data fetched next to the source), **secrets stay on the server**, better caching.
+
+## Interview Q&A | sky | wide
+Q: What are React Server Components?
+A: Components that render only on the server, can be async and access data directly, and send their rendered output (not their code) to the client, reducing JavaScript shipped to the browser.
+Q: What does 'use client' do?
+A: It marks a module as a client boundary: that file and its imports are bundled for the browser, rendered to HTML on the server and hydrated on the client.
+Q: Are Client Components rendered only in the browser?
+A: No. They are prerendered on the server to HTML and then hydrated; they additionally run in the browser.
+Q: Can a Client Component render a Server Component?
+A: Not by importing it, but yes when the Server Component is passed in as children or another prop from a server parent.
+Q: Why must props crossing the boundary be serialisable?
+A: Server output is sent over the network as an RSC payload; functions and class instances cannot be serialised (Server Actions are the exception, sent as references).
+Q: How do you keep secrets out of the browser?
+A: Access them only in Server Components, route handlers or Server Actions, mark modules with 'server-only', and expose only NEXT_PUBLIC_ variables intentionally.
+
+# 05 | Data Fetching & Caching | fetch in Server Components, cache options, revalidation, ISR, Server Actions, caching layers | Data & Caching
+
+## Fetching on the Server | rose
+- In Server Components, **`await` data directly**: `fetch`, an ORM, or any async function.
+- **Parallelise independent requests** with `Promise.all` to avoid **waterfalls**; stream slow parts behind **Suspense**.
+- **Request memoisation**: identical `fetch` calls (same URL and options) during one render are **deduplicated**; wrap non-fetch functions with React **`cache()`** to dedupe them too.
+```tsx
+export default async function Dashboard() {
+  const [user, orders] = await Promise.all([getUser(), getOrders()]);   // parallel, not sequential
+  return (
+    <>
+      <Header user={user} />
+      <OrderTable orders={orders} />
+      <Suspense fallback={<p>Loading recommendations…</p>}>
+        <Recommendations userId={user.id} />                              {/* streams in later */}
+      </Suspense>
+    </>
+  );
+}
+```
+
+## fetch Cache Options | blue
+- **Next.js 15+ default**: `fetch` responses are **not cached in the Data Cache**. In development data is fetched on every request; in `next build`, a route that uses no request-time APIs is still **prerendered**, so its data is fetched once at build.
+- **`cache: 'force-cache'`**: store in the persistent **Data Cache** and reuse across requests and deployments until revalidated.
+- **`cache: 'no-store'`**: always fetch; makes the route **dynamic**.
+- **`next: { revalidate: 60 }`**: cache, then refresh at most every 60 s (**ISR** for data).
+- **`next: { tags: ['products'] }`**: label cached data for **on-demand** invalidation with `revalidateTag('products')`.
+- Before Next.js 15, `fetch` defaulted to `force-cache`; know both behaviours.
+```tsx
+await fetch('https://api.example.com/categories', { cache: 'force-cache' });            // static data
+await fetch(`https://api.example.com/products/${id}`, { next: { revalidate: 300, tags: ['products'] } });
+await fetch('https://api.example.com/cart', { cache: 'no-store', headers: { cookie } }); // per user
+```
+
+## Route Segment Config and ISR | green
+- Exports in a page or layout control the whole segment: **`export const revalidate = 60`** (time-based ISR), **`export const dynamic = 'force-dynamic' | 'force-static' | 'error' | 'auto'`**, `export const dynamicParams = true`.
+- **On-demand revalidation** after a change (CMS webhook, admin edit): **`revalidatePath('/blog')`** or **`revalidateTag('posts')`** from a Server Action or route handler.
+- ISR is **stale-while-revalidate**: the first request after expiry still gets the old page while a new one is generated in the background.
+- **Next.js 16 Cache Components**: enable `cacheComponents`, mark cached functions or components with **`"use cache"`**, tune lifetime with **`cacheLife()`** and tags with **`cacheTag()`**; `updateTag()` in Server Actions gives read-your-own-writes.
+```tsx
+// app/blog/page.tsx
+export const revalidate = 3600;          // regenerate at most once an hour
+
+// app/api/revalidate/route.ts
+import { revalidateTag } from 'next/cache';
+export async function POST(req: Request) {
+  if (req.headers.get('x-secret') !== process.env.REVALIDATE_SECRET) return new Response('Forbidden', { status: 403 });
+  revalidateTag('posts');
+  return Response.json({ revalidated: true });
+}
+```
+
+## Server Actions | amber
+- Async functions marked **`'use server'`** that **run on the server** but can be called from forms and Client Components. Next.js turns each into an endpoint called with **POST**.
+- Use for **mutations**: form submissions, likes, updates. Combine with **`revalidatePath` / `revalidateTag`** to refresh cached data and **`redirect()`** after success.
+- Work **without JavaScript** when used as a `<form action>` (progressive enhancement); pair with **`useActionState`** for errors and pending state.
+- **They are public endpoints**: always **validate input** (Zod) and **check authentication and authorisation** inside the action.
+```tsx
+// app/products/actions.ts
+'use server';
+import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+
+const Product = z.object({ name: z.string().min(2), price: z.coerce.number().positive() });
+
+export async function createProduct(prevState: unknown, formData: FormData) {
+  const session = await auth();
+  if (!session?.user.isAdmin) return { error: 'Not allowed' };
+  const parsed = Product.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  await db.product.create({ data: parsed.data });
+  revalidatePath('/products');
+  redirect('/products');
+}
+```
+
+## The Caching Layers | violet
+- **Request memoisation** (server, one render): dedupes identical fetches in a single request.
+- **Data Cache** (server, persistent): cached fetch results across requests and deployments; controlled by `cache`, `revalidate`, tags.
+- **Full Route Cache** (server, persistent): rendered HTML and RSC payload of **static** routes, built at build time or by ISR.
+- **Router Cache** (client, in memory): RSC payloads of visited and prefetched segments for instant navigation.
+- Invalidation: `revalidatePath`, `revalidateTag` (Data and Full Route caches, plus the Router Cache when called from a Server Action), `router.refresh()` (Router Cache), redeploy (Full Route Cache).
+
+## Interview Q&A | sky | wide
+Q: How do you fetch data in the App Router?
+A: In Server Components, await fetch or a database call directly; parallelise with Promise.all, stream slow parts with Suspense, and use client-side libraries only for client-driven data.
+Q: What changed about fetch caching in Next.js 15?
+A: fetch is no longer cached by default; you opt in with cache: 'force-cache' or next.revalidate, while routes without request-time APIs are still prerendered at build.
+Q: revalidatePath vs revalidateTag?
+A: revalidatePath invalidates cached data and pages for a specific route; revalidateTag invalidates every cached fetch labelled with that tag wherever it is used.
+Q: What are Server Actions and what must you remember about security?
+A: Server-side functions callable from forms and client components for mutations; they are exposed as POST endpoints, so validate inputs and check authorisation inside every action.
+Q: What is a request waterfall and how do you avoid it?
+A: Sequential awaits where each request waits for the previous; start independent requests together with Promise.all and use Suspense to stream slower data.
+Q: Name Next.js's caching layers.
+A: Request memoisation, the Data Cache, the Full Route Cache on the server, and the client-side Router Cache.
+Q: How does ISR serve users during regeneration?
+A: Stale-while-revalidate: users get the cached page immediately, the regeneration happens in the background, and later requests get the new version.
+
+# 06 | Route Handlers & Proxy (Middleware) | route.ts, HTTP methods, Request and Response, caching, proxy/middleware for redirects and auth | Route Handlers
+
+## Route Handlers | rose
+- A **`route.ts`** (or `.js`) file in `app/` defines an **HTTP endpoint** for that path using the **Web `Request` / `Response`** APIs.
+- Export functions named after HTTP methods: **`GET`**, **`POST`**, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`. Unsupported methods get 405.
+- A folder cannot contain both `page.tsx` and `route.ts` (they would claim the same URL).
+- Uses: webhooks (Stripe, CMS), endpoints for mobile apps or third parties, file downloads, OAuth callbacks. For your own UI mutations, **Server Actions** are usually simpler.
+```ts
+// app/api/products/[id]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const product = await db.product.findUnique({ where: { id } });
+  if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json(product);
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const body = await req.json();                     // validate with Zod in real code
+  const updated = await db.product.update({ where: { id }, data: body });
+  return NextResponse.json(updated);
+}
+```
+
+## Requests, Responses and Caching | blue
+- Read the URL and query from **`req.nextUrl.searchParams`**, headers with `req.headers` or `headers()`, cookies with `req.cookies` or `cookies()`, the body with `req.json()`, `req.formData()`, `req.text()`.
+- Respond with **`Response.json(data, { status })`**, `NextResponse.json`, `NextResponse.redirect(url)`, streams, or files with the right `Content-Type`.
+- **Since Next.js 15, `GET` handlers are not cached by default**; opt into static output with `export const dynamic = 'force-static'` (or `revalidate`).
+- Set **CORS** headers explicitly (and answer `OPTIONS`) if other origins call the endpoint.
+
+## Proxy (formerly Middleware) | green
+- **`middleware.ts`** at the project root runs **before a request is routed**: it can **redirect, rewrite, set headers and cookies, or return a response**. In **Next.js 16 the file is renamed `proxy.ts`** (exporting a `proxy` function); `middleware` is deprecated.
+- Configure which paths it runs on with a **`matcher`**.
+- Typical uses: **authentication checks** (redirect to /login), locale detection and rewrites, A/B testing, bot protection, adding security headers.
+- Keep it **fast and light** (it runs on every matching request); do full authorisation checks again where data is accessed (pages, actions, route handlers).
+```ts
+// proxy.ts  (middleware.ts with `export function middleware` before Next.js 16)
+import { NextResponse, type NextRequest } from 'next/server';
+
+export function proxy(req: NextRequest) {
+  const session = req.cookies.get('session')?.value;
+  if (!session && req.nextUrl.pathname.startsWith('/account')) {
+    const login = new URL('/login', req.url);
+    login.searchParams.set('next', req.nextUrl.pathname);
+    return NextResponse.redirect(login);
+  }
+  const res = NextResponse.next();
+  res.headers.set('X-Frame-Options', 'DENY');
+  return res;
+}
+
+export const config = { matcher: ['/account/:path*', '/checkout/:path*'] };
+```
+
+## Pages Router API Routes | amber
+- **`pages/api/hello.ts`** exports a default handler `(req: NextApiRequest, res: NextApiResponse)`, Node-style (`res.status(200).json(...)`), one handler for all methods (switch on `req.method`).
+- Same role as route handlers; new code in the App Router uses `route.ts`.
+
+## Interview Q&A | sky | wide
+Q: What are route handlers?
+A: route.ts files in the app directory that export functions named after HTTP methods and handle requests with the Web Request and Response APIs, replacing pages/api routes.
+Q: Route handler or Server Action?
+A: Server Actions for mutations triggered by your own UI (forms, buttons); route handlers for public HTTP endpoints, webhooks, other clients, file downloads and callbacks.
+Q: What is middleware (proxy) used for?
+A: Code that runs before routing for redirects, rewrites, auth checks, locale detection and headers. Next.js 16 renames middleware.ts to proxy.ts.
+Q: Are GET route handlers cached?
+A: Not by default since Next.js 15; opt in with `dynamic = 'force-static'` or revalidate.
+Q: Is middleware enough for authorisation?
+A: No. It is a convenient first gate, but data access points (Server Components, actions, route handlers) must verify the session and permissions themselves.
+Q: How do you limit which paths middleware runs on?
+A: Export a config with a matcher array of path patterns.
+
+# 07 | Optimizations & Metadata | next/image, next/font, next/script, Metadata API, generateMetadata, file-based metadata | Optimizations
+
+## next/image | rose
+- **`<Image>`** from `next/image` optimises images automatically: **resizes and serves modern formats** (WebP/AVIF) on demand, generates **`srcset`**, **lazy-loads** by default, and **prevents layout shift** by requiring `width` and `height` (or **`fill`** inside a sized parent).
+- **`priority`** for the above-the-fold **LCP image** (preloaded, not lazy); **`sizes`** tells the browser the rendered width for responsive images; `placeholder="blur"` for static imports.
+- Remote images must be allowed in `next.config` with **`images.remotePatterns`** (prevents abuse of your optimiser).
+```tsx
+import Image from 'next/image';
+import hero from './hero.jpg';                 // static import: width/height and blur data inferred
+
+<Image src={hero} alt="Team planning on a whiteboard" priority placeholder="blur" />
+<Image src={`https://cdn.example.com/p/${p.id}.jpg`} alt={p.name} width={400} height={300}
+       sizes="(width >= 768px) 33vw, 100vw" />
+<div style={{ position: 'relative', aspectRatio: '16 / 9' }}>
+  <Image src={banner} alt="" fill style={{ objectFit: 'cover' }} />
+</div>
+```
+
+## next/font | blue
+- **`next/font/google`** and **`next/font/local`** download fonts **at build time** and **self-host** them with your other static assets: **no requests to Google** from the browser (privacy, speed).
+- Generates **size-adjusted fallback fonts** to minimise **layout shift** while the web font loads; exposes a `className` or CSS **variable**.
+- Load once in the root layout and reuse.
+```tsx
+// app/layout.tsx
+import { Inter, JetBrains_Mono } from 'next/font/google';
+const sans = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
+const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return <html lang="en" className={`${sans.variable} ${mono.variable}`}><body>{children}</body></html>;
+}
+```
+
+## Metadata API | green
+- Export a static **`metadata`** object, or an async **`generateMetadata({ params })`** for dynamic values, from a **`layout.tsx` or `page.tsx`** (Server Components only). Child segments override and merge with parents.
+- Covers `title` (with **`title.template`** like `'%s · Shop'`), `description`, `openGraph`, `twitter`, `alternates.canonical`, `robots`, icons, `viewport` (separate `viewport` export).
+- **File-based metadata**: `favicon.ico`, `icon.png`, **`opengraph-image.tsx`** (generated OG images), **`sitemap.ts`**, **`robots.ts`**, `manifest.ts`.
+- Rendered on the server, so crawlers and link previews see it in the initial HTML.
+```tsx
+// app/layout.tsx
+export const metadata: Metadata = {
+  title: { default: 'ShopCo', template: '%s · ShopCo' },
+  description: 'Everyday products, delivered fast.',
+};
+
+// app/products/[id]/page.tsx
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const product = await getProduct((await params).id);          // memoised with the page's own fetch
+  return {
+    title: product.name,
+    description: product.summary,
+    openGraph: { images: [product.imageUrl] },
+    alternates: { canonical: `/products/${product.id}` },
+  };
+}
+
+// app/sitemap.ts
+export default async function sitemap() {
+  const products = await getAllProducts();
+  return products.map(p => ({ url: `https://shop.co/products/${p.id}`, lastModified: p.updatedAt }));
+}
+```
+
+## next/script and Other Optimisations | amber
+- **`<Script>`** controls third-party script loading: **`strategy="afterInteractive"`** (default), **`lazyOnload`** (idle time: chat widgets), `beforeInteractive` (critical, root layout only), `worker` (experimental, Partytown).
+- **Automatic code splitting per route**, prefetching, **`next/dynamic`** (lazy-load client components, `ssr: false` for browser-only libraries), bundle analysis with `@next/bundle-analyzer`.
+- **Turbopack** (default bundler in Next.js 16) for fast dev and builds; React Compiler support for automatic memoisation.
+```tsx
+import Script from 'next/script';
+import dynamic from 'next/dynamic';
+const Chart = dynamic(() => import('./chart'), { loading: () => <p>Loading chart…</p> });
+
+<Script src="https://widget.example.com/chat.js" strategy="lazyOnload" />
+```
+
+## Interview Q&A | sky | wide
+Q: What does next/image do?
+A: Resizes and converts images on demand, generates srcset, lazy-loads by default, requires dimensions (or fill) to prevent layout shift, and offers priority for the LCP image.
+Q: Why use next/font?
+A: It self-hosts fonts at build time (no runtime requests to Google), applies size-adjusted fallbacks to avoid layout shift, and exposes them as classes or CSS variables.
+Q: How do you set SEO metadata in the App Router?
+A: Export a metadata object or generateMetadata function from layouts and pages, plus file-based conventions like opengraph-image, sitemap.ts and robots.ts.
+Q: Can a Client Component export metadata?
+A: No. Metadata exports work only in Server Component layouts and pages.
+Q: What are next/script strategies?
+A: beforeInteractive, afterInteractive (default), lazyOnload and worker, controlling when third-party scripts load relative to hydration.
+Q: How do you lazy-load a heavy client-only component?
+A: next/dynamic with a dynamic import (optionally `ssr: false` for browser-only libraries) and a loading fallback.
+
+@ Review
+
+# 08 | Rapid-Fire & Version Notes | Version notes, tricky questions, one-liners, big Q&A | Rapid-fire
+
+## Version Notes | rose
+- **13 / 13.4**: App Router introduced (stable in 13.4), Server Components, layouts, streaming.
+- **14**: Server Actions stable, partial prerendering preview.
+- **15** (Oct 2024): **React 19**; **async request APIs** (`params`, `searchParams`, `cookies()`, `headers()` return Promises); **fetch, GET route handlers and client router cache no longer cached by default**; Turbopack for dev stable; `next.config.ts`; `<Form>` component; `after()`.
+- **16** (Oct 2025): **Turbopack default** for dev and build; **Cache Components** (`"use cache"`, `cacheLife`, `cacheTag`, `updateTag`); **`middleware.ts` renamed `proxy.ts`**; React Compiler support stable.
+> Say which version your project used; caching defaults differ between them.
+
+## Tricky Questions | blue
+- **"useState is not defined / hooks error in a page"**: the file is a Server Component; add `'use client'` to an interactive leaf component.
+- **"window is not defined"**: browser API used while prerendering; use it in an effect or event handler, or `dynamic(..., { ssr: false })`.
+- **"Hydration mismatch"**: server and client render different output (dates, random values, `typeof window` branches, invalid HTML nesting).
+- **"My page shows stale data after a mutation"**: missing `revalidatePath` / `revalidateTag`, or the route was statically prerendered.
+- **"Page became dynamic unexpectedly"**: `cookies()`, `headers()`, `searchParams` or a `no-store` fetch somewhere in the tree.
+- **"Secret leaked to the browser"**: used in a Client Component or a `NEXT_PUBLIC_` variable.
+
+## One-Line Cheat Sheet | green
+- **CSR / SSR / SSG / ISR**: browser / per request / build / build + background regeneration.
+- **App Router** files: `page`, `layout` (persists), `template` (remounts), `loading` (Suspense), `error` (client), `not-found`, `route`.
+- **Dynamic segments** `[id]`, `[...all]`, `[[...opt]]`; **groups** `(name)`; **private** `_name`; `params` is a Promise (15+).
+- **Link** prefetches; **next/navigation** hooks in Client Components; `redirect()` and `notFound()` on the server.
+- **Server Components by default**; `'use client'` marks a boundary; serialisable props only.
+- **fetch**: no cache by default (15+); `force-cache`, `no-store`, `revalidate`, tags; `revalidatePath/Tag`.
+- **Server Actions** = POST endpoints: validate and authorise.
+- **route.ts** for HTTP endpoints; **proxy.ts** (middleware) for request-time redirects and headers.
+- **next/image**, **next/font**, **Metadata API**, **next/script**, **next/dynamic**.
+
+## How to Answer Well | teal
+- **Definition → example → when you would use it → trade-off**, and state the **Next.js version**.
+- For rendering questions, say **where** code runs (build, server per request, browser) and **what is cached**.
+- Show security awareness: Server Actions and route handlers are public endpoints; secrets stay server-side.
+- Tie to experience: "We moved the product listing to ISR with tag revalidation from the CMS webhook; TTFB dropped from 600 ms to 40 ms."
+
+## Big Interview Q&A | sky | wide
+Q: How would you build an e-commerce product page in Next.js?
+A: A Server Component page that fetches the product with tag-based caching (ISR), generateStaticParams for top products, generateMetadata for SEO, next/image for photos, a small client component for add-to-cart calling a Server Action, and revalidateTag from the admin or CMS webhook.
+Q: What problems do Server Components solve?
+A: Large client bundles, data-fetching waterfalls from the browser, and exposing secrets or heavy libraries to the client, by rendering data-heavy UI on the server and shipping only its output.
+Q: How does Next.js decide between static and dynamic rendering?
+A: Routes are static unless they use request-time APIs (cookies, headers, searchParams) or uncached data, or are forced with segment config; Cache Components in v16 make this explicit with "use cache".
+Q: How do you handle authentication in the App Router?
+A: Session cookie (HttpOnly) issued by an auth library such as Auth.js, optional proxy redirects for protected sections, and session plus permission checks in Server Components, Server Actions and route handlers.
+Q: What is the difference between getServerSideProps and a Server Component?
+A: getServerSideProps (Pages Router) fetches data per request and passes props to a client-rendered page; a Server Component fetches inside the component itself, can be async, and sends no JavaScript for itself.
+Q: How do you deploy Next.js outside Vercel?
+A: `next build` then `next start` on Node.js (often in Docker with `output: 'standalone'`), or a static export when no server features are used; configure caching and image optimisation for the host.
+Q: What causes hydration errors and how do you fix them?
+A: Different output on server and client: time or random values, browser-only branches, locale formatting, or invalid HTML. Move browser-specific code into effects, use stable values, and fix nesting.
+Q: When would you not use Next.js?
+A: A purely client-side app behind login with no SEO needs (a Vite SPA is simpler), or teams that need a different backend architecture; Next.js adds server infrastructure and concepts.

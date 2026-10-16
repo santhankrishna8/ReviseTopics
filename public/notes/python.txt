@@ -1,0 +1,2090 @@
+@ Beginner
+# 00 | Python Basics: Start Here | History, philosophy, features and limits, installing and running, first script, operators, keywords, Python vs Java, Python 2 vs 3 | Start Here
+
+## What Python Is and Where It Came From | rose
+- **Python** is a high-level, general-purpose language: **interpreted** (via bytecode, sheet 01), **dynamically and strongly typed**, and **multi-paradigm** (procedural, object-oriented, functional).
+- Created by **Guido van Rossum** at CWI in the Netherlands. Work started in **December 1989** and version 0.9.0 was published in **February 1991**. The name comes from **Monty Python's Flying Circus**, not the snake.
+- Milestones: **Python 2.0 (2000)** added list comprehensions and a cycle-detecting garbage collector. **Python 3.0 (2008)** was deliberately **not backward compatible** (print became a function, `str` became Unicode, `/` became true division). **Python 2 reached end of life on 1 January 2020.**
+- Governance: Guido stepped down as "BDFL" (Benevolent Dictator For Life) in 2018; a five-person **Steering Council** now decides, through **PEPs** (Python Enhancement Proposals). **PEP 8** is the style guide.
+- A new 3.x version ships **every October** (3.13 in 2024, 3.14 in 2025), each supported for about five years.
+- **The Zen of Python** (`import this`): "Beautiful is better than ugly", "Readability counts", "There should be one, and preferably only one, obvious way to do it".
+- Used for web backends (Django, Flask, FastAPI), data analysis (pandas, NumPy), machine learning and AI (PyTorch, scikit-learn), automation and scripting, DevOps tooling and testing.
+
+## Features and Limitations | blue
+- **Readable syntax**: indentation instead of braces, few symbols, reads close to English.
+- **Interpreted and interactive**: run code line by line in the REPL or a Jupyter notebook.
+- **Dynamically typed** (no type declarations; optional type hints) but **strongly typed** (no silent `"1" + 1`).
+- **Automatic memory management**: reference counting plus a cyclic garbage collector (sheet 17).
+- **"Batteries included"**: a large standard library (files, JSON, HTTP, CSV, dates, testing, ...) plus **PyPI** with hundreds of thousands of third-party packages.
+- **Portable and extensible**: the same code runs on Windows, macOS and Linux; heavy work can be written in C (NumPy is C underneath).
+- **Everything is an object**, including functions, classes and modules.
+- **Limitations**: slower than compiled languages for CPU-bound loops; the **GIL** stops threads from running Python bytecode in parallel in standard CPython (sheet 14); type errors appear only at runtime; weak for mobile apps and in the browser; higher memory use per object.
+
+## Installing and Running Python | green
+```bash
+python --version            # on macOS and Linux often: python3 --version
+python                      # interactive REPL: >>> prompt, exit() or Ctrl+D to leave
+python hello.py             # run a script
+python -c "print(2 ** 10)"  # run one statement: 1024
+python -m venv .venv        # create a virtual environment for a project (sheet 12)
+pip install requests        # install a package from PyPI into the active environment
+py -3.13 hello.py           # Windows launcher: pick a specific installed version
+```
+- Get it from **python.org**, the Microsoft Store, a package manager, or tools such as `uv` or `pyenv` that manage several versions.
+- Editors: **IDLE** (bundled), **VS Code**, **PyCharm**, and **Jupyter** notebooks (cells of code plus output, popular in data science).
+- In the REPL, `_` holds the last result and `help(obj)` / `dir(obj)` explore objects.
+
+## Your First Script | amber
+```python hello.py
+"""A small script. This first string is the module docstring."""
+
+def greet(name: str, times: int = 1) -> str:
+    return ", ".join([f"Hello {name}"] * times)
+
+if __name__ == "__main__":          # True only when the file is run directly, not when imported
+    print(greet("Python"))          # Hello Python
+    print(greet("Ann", 2))          # Hello Ann, Hello Ann
+```
+- No `main()` function, semicolons, braces or type declarations are required. Type hints (`name: str`) are optional and not enforced at runtime.
+- **`if __name__ == "__main__":`** Python sets `__name__` to `"__main__"` for the file being run and to the module's name when it is imported, so this block runs only as a script.
+- Comments start with `#`. Basic input and output (`input`, `print`), indentation rules and naming conventions are in sheet 01.
+
+## Operators Quick Reference | violet
+```python
+print(7 / 2, 7 // 2, -7 // 2, 7 % 3, -7 % 3, 2 ** 10)    # 3.5 3 -4 1 2 1024
+print(divmod(17, 5), abs(-3), round(2.5), round(3.5))     # (3, 2) 3 2 4
+x = [1, 2]; y = [1, 2]; z = x
+print(x == y, x is y, x is z)                            # True False True
+print(3 in x, "py" in "python", not True)                # False True False
+n = 10
+n += 5
+n //= 2
+print(n, 1 < n < 10, 0b1010, 0x1F, 1_000_000)            # 7 True 10 31 1000000
+print(5 & 3, 5 | 3, 5 ^ 3, ~5, 1 << 3)                   # 1 7 6 -6 8
+```
+- **Arithmetic**: `/` always returns a float; `//` is **floor** division (rounds towards minus infinity, so `-7 // 2 == -4`); `%` takes the sign of the divisor; `**` is power.
+- **`==` compares values; `is` compares identity** (the same object). Use `is` only with singletons: `if x is None`.
+- **No `++` or `--`**: write `n += 1`. Logical operators are words: `and`, `or`, `not`.
+- `round()` uses **banker's rounding** (ties go to the even number): `round(2.5) == 2`.
+- Membership `in` / `not in`; identity `is` / `is not`; chained comparisons `1 < n < 10`.
+- **Keywords** (35 in 3.13, listed by `import keyword; keyword.kwlist`): `False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield`. `match`, `case`, `type` and `_` are **soft keywords** (keywords only in certain positions).
+
+## Python vs Java, Python 2 vs 3 | sky
+- **Python vs Java**: dynamic vs static typing; indentation vs braces; concise vs verbose (a Java class for "hello world" vs one line); CPython interprets bytecode while the JVM JIT-compiles it, so Java is usually faster for CPU-heavy code; the GIL vs truly parallel threads; duck typing vs explicit interfaces. Python wins for scripting, data and ML, and prototypes; Java for large, long-lived backend systems and Android.
+- **Python vs C/C++**: managed memory vs manual; much slower to run but much faster to write; many Python libraries are C or C++ underneath.
+- **Python 2 vs 3**: `print "x"` statement vs `print("x")` function; byte strings vs Unicode `str` by default; `3 / 2 == 1` vs `1.5`; `range()` returned a list vs a lazy range object; `raw_input()` vs `input()`; Python 2 is unsupported since 2020.
+
+## Interview Q&A | sky | wide
+Q: What is Python, and what are its key features?
+A: A high-level, interpreted, dynamically but strongly typed, multi-paradigm language known for readable syntax, automatic memory management, a large standard library and the PyPI ecosystem.
+Q: Is Python compiled or interpreted?
+A: Both, in a sense: CPython compiles source to bytecode (.pyc) and then interprets that bytecode in its virtual machine. There is no separate compile step for the developer.
+Q: What is PEP 8?
+A: Python's official style guide: 4-space indentation, snake_case for functions and variables, PascalCase for classes, line length limits, import ordering and whitespace rules.
+Q: What is the difference between is and ==?
+A: `==` checks whether two objects have equal values; `is` checks whether they are the same object in memory. Use `is` for None checks.
+Q: What is the difference between / and //?
+A: `/` is true division and always returns a float; `//` is floor division, rounding down to the nearest whole number.
+Q: What does `if __name__ == "__main__"` do?
+A: It runs the block only when the file is executed directly, so the module can also be imported without running its script code.
+Q: Python 2 vs Python 3?
+A: Python 3 made print a function, made strings Unicode, changed `/` to true division and made range lazy. Python 2 is end of life since January 2020.
+Q: What are Python's main limitations?
+A: Slower execution for CPU-bound code, the GIL limiting CPU-bound threads in standard CPython, runtime-only type errors and higher memory use.
+Q: Is Python case-sensitive?
+A: Yes: `name`, `Name` and `NAME` are three different identifiers.
+Q: What are pip and PyPI?
+A: PyPI (the Python Package Index) is the public repository of packages; pip is the tool that installs them, ideally into a virtual environment.
+Q: Why is Python called dynamically typed?
+A: Variables are just names bound to objects; the type belongs to the object and is checked at runtime, so the same name can refer to values of different types.
+
+# 01 | Python Fundamentals & How It Runs | CPython, names and objects, built-in types, LEGB scope | Fundamentals
+
+## How Python Runs | rose
+- **CPython** (the reference implementation, written in C) **compiles** source to **bytecode** (`.pyc` files in `__pycache__`), then the **Python Virtual Machine** interprets it.
+- So Python is "interpreted" in practice, but there is a compile step to bytecode.
+- **Dynamically typed**: types belong to **objects**, not variables. Checked at runtime.
+- **Strongly typed**: no silent coercion between unrelated types (`"1" + 1` raises `TypeError`).
+- **Everything is an object**: ints, functions, classes, modules. Each has an **identity** (`id()`), a **type** and a **value**.
+- Other implementations: **PyPy** (JIT, much faster for long-running pure-Python code), Jython, MicroPython. CPython 3.13 added an experimental JIT.
+```python
+import dis
+def add(a, b): return a + b
+dis.dis(add)          # shows bytecode: LOAD_FAST a, LOAD_FAST b, BINARY_OP +, RETURN_VALUE
+```
+> One-liner: "CPython compiles to bytecode and interprets it. Python is dynamically but strongly typed, and everything is an object."
+
+## Syntax, Indentation and Basic I/O | teal
+- **Indentation defines blocks** (there are no braces). A colon `:` opens a block (`if`, `for`, `def`, `class`, `with`, `try`); the indented lines below it form the block.
+- Indent consistently: **PEP 8 says 4 spaces**. Wrong indentation raises **`IndentationError`**; mixing tabs and spaces ambiguously raises **`TabError`**.
+- A newline ends a statement. **Implicit line continuation** inside `()`, `[]` and `{}`; a trailing backslash also works but is discouraged. `;` allows several statements on one line (also discouraged).
+- **`pass`** is a no-op placeholder for an empty block. Comments start with `#`; a string literal as the first statement is a **docstring**, not a comment.
+- Names are **case-sensitive**, cannot start with a digit, and cannot be **keywords** (`keyword.kwlist`). Conventions: `snake_case` functions and variables, `PascalCase` classes, `UPPER_CASE` constants.
+- **`print(*objects, sep=" ", end="\n", file=sys.stdout, flush=False)`**; **`input(prompt)` always returns a `str`**, so convert explicitly.
+```python
+def grade(score: int) -> str:
+    if score >= 90:              # the colon opens a block
+        return "A"               # 4 spaces: inside the if
+    elif score >= 75:
+        return "B"
+    return "C"                   # dedent: back at function level
+
+total = (price * qty             # implicit continuation inside parentheses
+         + shipping)
+
+name = input("Name: ")           # str
+age = int(input("Age: "))        # ValueError if not a number
+print("Hi", name, sep=", ", end="!\n")
+```
+
+## Names, Objects and Mutability | blue
+- A **variable is a name bound to an object**. Assignment never copies, it **binds another name** to the same object.
+- **Mutable**: `list`, `dict`, `set`, `bytearray`, most custom objects. **Immutable**: `int`, `float`, `str`, `tuple`, `frozenset`, `bytes`, `None`.
+- **`==`** compares **values** (`__eq__`). **`is`** compares **identity** (same object). Use `is` only for singletons: `None`, `True`, `False`.
+- **Small int cache**: CPython caches **-5 to 256**, so `is` on small ints "works" by accident. Never rely on it.
+- Arguments are passed by **object reference** ("call by sharing"): a function can **mutate** a mutable argument, but rebinding the parameter does not affect the caller.
+```python
+a = [1, 2]
+b = a              # same list, two names
+b.append(3)
+print(a)           # [1, 2, 3]
+
+x = 256; y = 256;  x is y    # True  (cached)
+x = 257; y = 257;  x is y    # may be False (implementation detail)
+
+def f(lst): lst.append(9); lst = [0]   # append is visible, rebinding is not
+```
+
+## Built-in Types and Number Gotchas | green
+- **`int`** has **arbitrary precision** (no overflow). **`float`** is IEEE-754 double. `complex`, **`bool`** (a subclass of `int`: `True + True == 2`).
+- **`/`** is true division (always float). **`//`** is **floor** division: `-7 // 2 == -4`. **`%`** takes the sign of the divisor: `-7 % 2 == 1`.
+- **`round()`** uses **banker's rounding**: `round(2.5) == 2`, `round(3.5) == 4`.
+- `0.1 + 0.2 != 0.3`. Use **`decimal.Decimal("0.1")`** for money, `math.isclose` for comparison, `fractions.Fraction` for exact ratios.
+- `None` is the single null object. Check with `is None`.
+```python
+2 ** 100                     # exact big integer
+from decimal import Decimal
+Decimal("0.1") + Decimal("0.2") == Decimal("0.3")   # True
+int("42"), float("3.5"), str(10), bool([])          # conversions
+isinstance(True, int)        # True
+```
+
+## Scope: the LEGB Rule | amber
+- Name lookup order: **Local → Enclosing (outer functions) → Global (module) → Built-in**.
+- Assigning to a name **anywhere in a function makes it local** for the whole function. Reading it before assignment raises **`UnboundLocalError`**.
+- **`global x`** rebinds a module-level name. **`nonlocal x`** rebinds a name in the enclosing function (closures).
+- Blocks (`if`, `for`, `with`) **do not create scope**. Loop variables survive the loop.
+- Avoid shadowing built-ins (`list = [...]`, `id = 5`, `input = ...`).
+```python
+count = 0
+def inc():
+    global count
+    count += 1               # without 'global': UnboundLocalError
+
+def counter():
+    n = 0
+    def step():
+        nonlocal n
+        n += 1
+        return n
+    return step
+c = counter(); c(); c()      # 2
+```
+
+## Truthiness and Operators | violet
+- **Falsy**: `False`, `None`, `0`, `0.0`, `0j`, `""`, `[]`, `()`, `{}`, `set()`, `range(0)`. Everything else is truthy (custom classes via `__bool__` or `__len__`).
+- **`and` / `or` return one of their operands**, not a bool: `name or "anon"`, `user and user.email`.
+- **Chained comparisons**: `0 < x < 10` means `0 < x and x < 10`.
+- **Conditional expression**: `a if cond else b`.
+- **Walrus `:=`** (3.8) assigns inside an expression.
+- `in` tests membership (O(1) for set and dict, O(n) for list).
+```python
+if (n := len(items)) > 10:
+    print(f"too many: {n}")
+
+while (line := f.readline()):
+    process(line)
+
+port = config.get("port") or 8080     # careful: also replaces 0
+```
+
+## Interview Q&A | sky | wide
+Q: Is Python interpreted or compiled?
+A: CPython compiles source to bytecode, then the Python virtual machine interprets the bytecode. So both, with the compile step to bytecode rather than machine code.
+Q: How does Python define code blocks?
+A: By indentation after a colon, not braces. All statements in a block must share the same indentation (PEP 8: 4 spaces); inconsistent indentation raises IndentationError or TabError.
+Q: Is Python dynamically or statically typed? Strong or weak?
+A: Dynamically typed (types are checked at runtime and belong to objects) and strongly typed (no implicit conversion between unrelated types).
+Q: `is` vs `==`?
+A: `==` compares values via `__eq__`. `is` checks whether both names refer to the same object. Use `is` for `None` and other singletons.
+Q: Is Python pass-by-value or pass-by-reference?
+A: Neither exactly: call by object reference. The function receives a reference to the same object, so it can mutate mutable objects, but rebinding the parameter does not affect the caller.
+Q: What is the LEGB rule?
+A: The order Python searches for a name: Local, Enclosing function scopes, Global (module), Built-ins.
+Q: What does `global` vs `nonlocal` do?
+A: `global` lets a function rebind a module-level name. `nonlocal` lets a nested function rebind a name in the nearest enclosing function scope.
+Q: Why is `round(2.5)` equal to 2?
+A: Python uses round-half-to-even (banker's rounding) to avoid systematic bias.
+Q: What is `-7 // 2`?
+A: `-4`, because `//` floors toward negative infinity rather than truncating toward zero.
+
+# 02 | Strings | Immutability, slicing, f-strings, methods, bytes vs str | Strings
+
+## str Basics | rose
+- `str` is an **immutable sequence of Unicode code points**. Methods return **new strings**.
+- Quotes: `'...'`, `"..."`, triple `"""..."""` for multi-line. **Raw strings** `r"C:\path\n"` keep backslashes (use for regex and Windows paths).
+- Indexing and **slicing**: `s[start:stop:step]`, stop is exclusive, negative indexes count from the end. `s[::-1]` reverses.
+- Slicing never raises `IndexError`: `"abc"[5:]` is `""`.
+- String interning: CPython interns many identifier-like strings, so `is` sometimes works. Always use `==`.
+```python
+s = "interview"
+s[0], s[-1], s[2:5], s[::2], s[::-1]   # 'i' 'w' 'ter' 'itriw' 'weivretni'
+len(s), "view" in s, s.count("e")
+# s[0] = "I"                            # TypeError: immutable
+s = "I" + s[1:]                         # build a new string instead
+```
+
+## f-strings and Formatting | blue
+- **f-strings** (3.6): `f"{name} is {age}"`. Expressions allowed inside braces.
+- Format spec after `:`: `{x:.2f}` (2 decimals), `{n:,}` (thousands), `{n:08.3f}`, `{s:>10}` (right align), `{s:^10}` (centre), `{n:b}` / `{n:x}` (binary / hex), `{p:.1%}`.
+- **Debug specifier** `{x=}` (3.8) prints `x=value`.
+- Older styles: `"{} {}".format(a, b)` and `"%s" % x`.
+- 3.14 adds **t-strings** (`t"..."`, template strings) that produce a `Template` object for safe processing (SQL, HTML escaping).
+```python
+price, qty, user = 1234.5, 3, "ann"
+f"{user!r} owes {price * qty:,.2f}"   # "'ann' owes 3,703.50"
+f"{qty=}"                             # 'qty=3'
+f"{'left':<8}|{'mid':^8}|{'right':>8}"
+f"{255:#x} {5:03d} {0.256:.0%}"       # '0xff 005 26%'
+```
+
+## Must-Know Methods | green
+- `split(sep=None, maxsplit=-1)` (no arg splits on any whitespace and drops empties), `rsplit`, `splitlines`, **`"sep".join(iterable)`**.
+- `strip` / `lstrip` / `rstrip` (removes a **set of characters**, not a prefix), **`removeprefix` / `removesuffix`** (3.9).
+- `replace`, `find` (returns -1) vs `index` (raises `ValueError`), `startswith` / `endswith` (accept tuples).
+- `upper`, `lower`, **`casefold`** (better for case-insensitive compare), `title`, `capitalize`, `swapcase`.
+- Tests: `isdigit`, `isalpha`, `isalnum`, `isspace`, `isupper`.
+- `partition` returns `(head, sep, tail)`. `zfill`, `center`, `ljust`, `rjust`.
+```python
+"  a  b ".split()               # ['a', 'b']
+"a,b,,c".split(",")             # ['a', 'b', '', 'c']
+", ".join(["x", "y", "z"])      # 'x, y, z'
+"www.site.com".strip("w.moc")   # 'site'  (strips characters, a classic trap)
+"report.csv".removesuffix(".csv")   # 'report'
+"key=value=x".partition("=")    # ('key', '=', 'value=x')
+```
+
+## Building Strings Efficiently | amber
+- Repeated `+=` in a loop **can** be O(n²) because each step creates a new string (CPython sometimes optimises it, but do not rely on that).
+- Collect parts in a **list and `"".join(parts)`**, or use `io.StringIO`.
+- `str * n` repeats: `"-" * 20`.
+- For templating with untrusted values, escape properly (HTML: `html.escape`, SQL: parameterised queries, never f-strings).
+```python
+parts = []
+for row in rows:
+    parts.append(f"{row.id},{row.name}")
+csv_text = "\n".join(parts)
+```
+
+## bytes vs str and Encoding | violet
+- **`str`** = text (Unicode code points). **`bytes`** = raw 8-bit values. They never mix implicitly in Python 3.
+- **Encode** text to bytes: `"héllo".encode("utf-8")`. **Decode** bytes to text: `b.decode("utf-8")`.
+- Files: text mode needs an **`encoding`** (always pass `encoding="utf-8"`). Binary mode (`"rb"`) gives bytes.
+- `len("é")` is 1 character but `len("é".encode())` is 2 bytes.
+- `ord("A") == 65`, `chr(65) == "A"`.
+```python
+data = "₹100".encode("utf-8")   # b'\xe2\x82\xb9100'
+data.decode("utf-8")            # '₹100'
+bytearray(b"abc")               # mutable bytes
+```
+
+## Interview Q&A | sky | wide
+Q: Why are strings immutable in Python?
+A: Immutability makes them hashable (usable as dict keys and in sets), safe to share and intern, and thread-safe.
+Q: How do you reverse a string?
+A: `s[::-1]`, or `"".join(reversed(s))`.
+Q: `find` vs `index`?
+A: Both return the first position. `find` returns -1 when not found, `index` raises `ValueError`.
+Q: `strip("abc")` vs `removeprefix("abc")`?
+A: `strip` removes any of the characters a, b, c from both ends repeatedly. `removeprefix` removes the exact prefix string once.
+Q: What is the fastest way to concatenate many strings?
+A: Collect them in a list and call `"".join(list)`, which is linear time.
+Q: `str` vs `bytes`?
+A: `str` holds Unicode text, `bytes` holds raw bytes. Convert with `encode` and `decode`, specifying the encoding.
+Q: What does `f"{x=}"` print?
+A: The expression text and its value, for example `x=42`. Handy for debugging.
+Q: `__str__` vs `__repr__` for strings?
+A: `str("a")` is `a`, `repr("a")` is `'a'` with quotes. `repr` aims to be unambiguous, ideally valid Python.
+
+# 03 | Core Collections | list, tuple, dict, set, complexity, copying | Collections
+
+## list | rose
+- **Ordered, mutable, allows duplicates**. A **dynamic array** of references (over-allocates to keep `append` amortised O(1)).
+- `append` / `pop()` at the end: O(1). `insert(0, x)` / `pop(0)`: **O(n)** (use `deque`). `x in lst`: O(n). Indexing: O(1).
+- `sort()` sorts **in place** and returns **`None`**. `sorted()` returns a new list. Both are **stable** (Timsort).
+- `extend` vs `append`: `append([1, 2])` adds one nested list, `extend([1, 2])` adds two items.
+- `[[]] * 3` creates **three references to the same inner list**.
+```python
+nums = [3, 1, 2]
+nums.append(4); nums.extend([5, 6]); nums.insert(0, 0)
+nums.remove(3)          # first matching value
+last = nums.pop()       # remove and return last
+nums.sort(reverse=True)
+
+grid = [[0] * 3] * 3    # WRONG: rows are the same object
+grid[0][0] = 1          # changes every row
+grid = [[0] * 3 for _ in range(3)]   # RIGHT
+```
+
+## tuple | blue
+- **Ordered, immutable**. Lighter than a list and **hashable if all items are hashable**, so usable as a **dict key** or set member.
+- Single-element tuple needs a comma: `(1,)`. The comma makes the tuple, not the parentheses.
+- **Unpacking**: `a, b = b, a` (swap), `first, *rest = items`, `for k, v in d.items()`.
+- Immutable only at the top level: `([1], 2)` contains a mutable list (and is then not hashable).
+- **`namedtuple`** and **`typing.NamedTuple`** give named fields with tuple performance.
+```python
+point = (3, 4)
+x, y = point
+head, *middle, tail = [1, 2, 3, 4, 5]   # 1, [2, 3, 4], 5
+locations = {(12.9, 77.6): "Bengaluru"}  # tuple as dict key
+```
+
+## dict | green
+- **Hash table** of key to value. Average O(1) get, set, delete, membership.
+- **Insertion order preserved** (guaranteed since 3.7).
+- Keys must be **hashable** (immutable built-ins, tuples of hashables, objects with `__hash__`).
+- `d[key]` raises **`KeyError`**. `d.get(key, default)` does not. `setdefault`, `pop(key, default)`, `popitem()` (LIFO).
+- Merge: `{**a, **b}` or **`a | b`** (3.9), update in place with `a |= b`. Later keys win.
+- Iterating while adding or removing keys raises `RuntimeError`. Iterate over `list(d)` to modify.
+- **Dict comprehension**: `{k: v for k, v in pairs if v}`.
+```python
+stock = {"apple": 3, "pear": 0}
+stock.get("kiwi", 0)                    # 0
+stock.setdefault("kiwi", 5)             # inserts and returns 5
+for name, qty in stock.items(): ...
+inverted = {v: k for k, v in stock.items()}
+merged = defaults | overrides
+```
+
+## set and frozenset | amber
+- **Unordered collection of unique hashable items**. O(1) average membership. Great for **deduplication** and fast lookups.
+- Operations: union `a | b`, intersection `a & b`, difference `a - b`, symmetric difference `a ^ b`, `issubset`, `isdisjoint`.
+- `{}` is an **empty dict**. Use **`set()`** for an empty set.
+- **`frozenset`** is immutable and hashable (can be a dict key or a set member).
+- Dedupe while keeping order: `list(dict.fromkeys(items))`.
+```python
+seen = set()
+emails = ["a@x.com", "b@x.com", "a@x.com"]
+unique = list(dict.fromkeys(emails))     # ['a@x.com', 'b@x.com']
+admins & active_users                    # who is both
+required - provided                      # what is missing
+```
+
+## Copying: Shallow vs Deep | violet
+- **Assignment** copies nothing. **Shallow copy** (`lst[:]`, `list(lst)`, `lst.copy()`, `dict(d)`, `copy.copy`) creates a new container that holds the **same inner objects**.
+- **Deep copy** (`copy.deepcopy`) recursively copies inner objects too (handles cycles).
+- Customise with `__copy__` / `__deepcopy__`.
+```python
+import copy
+orig = [[1, 2], [3]]
+shallow = orig.copy()
+deep = copy.deepcopy(orig)
+orig[0].append(99)
+shallow[0]   # [1, 2, 99]  shared inner list
+deep[0]      # [1, 2]
+```
+
+## Complexity Cheat Sheet | teal | wide
+- **list**: index O(1), append O(1)*, pop() O(1), insert / pop(0) / remove O(n), `in` O(n), sort O(n log n).
+- **dict**: get, set, delete, `in` O(1) average, O(n) worst (many collisions). Iteration O(n).
+- **set**: add, remove, `in` O(1) average. Union O(len(a) + len(b)), intersection O(min(len(a), len(b))).
+- **deque**: append / appendleft / pop / popleft O(1), index in the middle O(n).
+- **heapq**: push / pop O(log n), heapify O(n), peek `heap[0]` O(1).
+> * = amortised: occasionally the array is reallocated and copied.
+
+## Interview Q&A | sky | wide
+Q: List vs tuple?
+A: Lists are mutable and suited to homogeneous, changing collections. Tuples are immutable, slightly faster and smaller, hashable when their contents are, so they can be dict keys. Tuples often model fixed records.
+Q: How does a Python dict work?
+A: It is a hash table: the key's hash picks a slot, collisions are resolved by open addressing (probing), and equality confirms the key. Since 3.7 a compact layout also preserves insertion order.
+Q: Why must dict keys be hashable?
+A: The hash locates the slot. If a key's hash could change after insertion, the dict could no longer find it.
+Q: How do you remove duplicates from a list keeping order?
+A: `list(dict.fromkeys(items))`. `list(set(items))` loses order.
+Q: `sort()` vs `sorted()`?
+A: `sort()` is a list method that sorts in place and returns None. `sorted()` takes any iterable and returns a new list.
+Q: Shallow vs deep copy?
+A: A shallow copy duplicates the outer container but shares the inner objects. A deep copy recursively duplicates everything.
+Q: Why does `[[0]*3]*3` behave strangely?
+A: The outer `* 3` repeats a reference to the same inner list three times, so changing one row changes all. Use a comprehension.
+Q: Is a set ordered?
+A: No. Iteration order is arbitrary and can differ between runs for strings (hash randomisation). Use a dict or sort if order matters.
+
+# 04 | collections, heapq, bisect & Sorting | Counter, defaultdict, deque, namedtuple, key functions | collections & sorting
+
+## Counter and defaultdict | rose
+- **`Counter`**: a dict subclass for counting hashables. `most_common(n)`, arithmetic (`+`, `-`, `&`, `|`), missing keys return 0.
+- **`defaultdict(factory)`**: missing keys are created with `factory()`: `list`, `int`, `set`, `lambda: ...`.
+- Both remove the "check if key exists" boilerplate.
+```python
+from collections import Counter, defaultdict
+words = "the cat and the hat".split()
+Counter(words).most_common(1)          # [('the', 2)]
+Counter("anagram") == Counter("nagaram")   # anagram check
+
+by_dept = defaultdict(list)
+for emp in employees:
+    by_dept[emp.dept].append(emp.name)
+```
+
+## deque, namedtuple, OrderedDict, ChainMap | blue
+- **`deque`**: double-ended queue, O(1) at both ends. `maxlen` makes a fixed-size sliding window. Use it for **BFS queues**.
+- **`namedtuple("Point", "x y")`**: tuple with named fields, immutable. `_replace`, `_asdict`.
+- **`OrderedDict`**: still useful for `move_to_end` and `popitem(last=False)` (LRU caches) and order-sensitive equality.
+- **`ChainMap`**: views several dicts as one (config layers: CLI over env over defaults).
+```python
+from collections import deque, namedtuple, OrderedDict
+q = deque([start]); q.append(x); q.popleft()
+last5 = deque(maxlen=5)                 # keeps the 5 most recent
+
+Point = namedtuple("Point", "x y")
+p = Point(1, 2); p.x; p._replace(x=9)
+
+class LRU(OrderedDict):
+    def __init__(self, cap): super().__init__(); self.cap = cap
+    def get(self, k):
+        if k not in self: return -1
+        self.move_to_end(k); return self[k]
+    def put(self, k, v):
+        self[k] = v; self.move_to_end(k)
+        if len(self) > self.cap: self.popitem(last=False)
+```
+
+## heapq and bisect | green
+- **`heapq`** turns a list into a **min-heap**: `heappush`, `heappop`, `heapify` (O(n)), `heap[0]` is the smallest.
+- **Max-heap**: push negated values, or tuples `(-priority, item)`.
+- `nlargest(k, it, key=...)` / `nsmallest` for top-k.
+- **`bisect`**: binary search on a **sorted list**: `bisect_left`, `bisect_right`, `insort` (insert keeping order, O(n) due to shifting).
+```python
+import heapq, bisect
+heap = []
+heapq.heappush(heap, (2, "write")); heapq.heappush(heap, (1, "plan"))
+heapq.heappop(heap)                     # (1, 'plan')
+heapq.nlargest(3, scores, key=lambda s: s.points)
+
+grades = [60, 70, 80, 90]
+"FDCBA"[bisect.bisect(grades, 85)]      # 'B'
+```
+
+## Sorting with key Functions | amber
+- `sorted(iterable, key=func, reverse=False)`. The key is computed **once per element** (decorate-sort-undecorate).
+- **Multi-level sort**: return a tuple key: `key=lambda e: (e.dept, -e.salary)`.
+- Sorts are **stable**, so you can sort by the secondary key first, then by the primary key.
+- **`operator.itemgetter` / `attrgetter`** are fast, readable keys.
+- `functools.cmp_to_key` adapts an old-style comparator.
+- Python 3 does not compare unrelated types: `sorted([1, "a"])` raises `TypeError`.
+```python
+from operator import attrgetter, itemgetter
+people.sort(key=attrgetter("age"))
+rows.sort(key=itemgetter(1, 0))                 # by column 1, then 0
+sorted(words, key=str.casefold)
+sorted(emps, key=lambda e: (e.dept, -e.salary, e.name))
+min(points, key=lambda p: p.x ** 2 + p.y ** 2)  # closest to origin
+```
+
+## Useful Built-ins | violet
+- `enumerate(it, start=0)`, `zip(a, b, strict=True)` (3.10 raises if lengths differ), `reversed`, `range`.
+- `any(...)`, `all(...)`, `sum(..., start)`, `min` / `max` with `key` and `default`.
+- `map` and `filter` return **lazy iterators**. Comprehensions are usually clearer.
+- `divmod(a, b)`, `abs`, `pow(base, exp, mod)` (fast modular exponentiation), `round`.
+- `isinstance(x, (int, float))`, `callable`, `getattr(obj, "name", default)`, `vars`, `dir`.
+```python
+for i, (name, score) in enumerate(zip(names, scores), start=1):
+    print(i, name, score)
+all(x > 0 for x in nums)       # short-circuits
+max(items, key=len, default=None)
+```
+
+## Interview Q&A | sky | wide
+Q: When do you use `deque` instead of a list?
+A: When you add or remove at the front: `deque.popleft()` is O(1) while `list.pop(0)` is O(n). Typical for queues and BFS.
+Q: How do you implement a max-heap in Python?
+A: `heapq` is a min-heap, so push negated priorities, or tuples like `(-priority, counter, item)`.
+Q: How do you find the k most frequent elements?
+A: `Counter(items).most_common(k)`, which uses a heap internally. O(n log k).
+Q: `defaultdict` vs `dict.setdefault`?
+A: Both supply defaults for missing keys. `defaultdict` does it automatically on every access, `setdefault` is explicit per call and always constructs the default argument.
+Q: How do you sort by multiple keys with mixed order?
+A: Return a tuple key and negate numeric fields for descending, or do two stable sorts (secondary key first).
+Q: What does `zip(strict=True)` do?
+A: Raises `ValueError` if the iterables have different lengths, instead of silently stopping at the shortest.
+Q: Is Python's sort stable? Which algorithm?
+A: Yes. Timsort, a hybrid of merge sort and insertion sort, O(n log n) worst case and very fast on partially sorted data. (3.11+ uses Powersort merge policy, same guarantees.)
+Q: How do you binary search a sorted list?
+A: The `bisect` module: `bisect_left` returns the insertion index. Check `i < len(a) and a[i] == x` to test membership.
+
+# 05 | Functions | Arguments, defaults trap, lambdas, closures, first-class functions | Functions
+
+## Parameters and Arguments | rose
+- **Positional** and **keyword** arguments. Default values. **`*args`** collects extra positional args into a **tuple**. **`**kwargs`** collects extra keyword args into a **dict**.
+- **Keyword-only** params come after `*` or `*args`. **Positional-only** params come before `/` (3.8).
+- Full order: `def f(pos_only, /, normal, *args, kw_only, **kwargs)`.
+- **Unpacking at call site**: `f(*my_list, **my_dict)`.
+- A function without `return` returns **`None`**.
+```python
+def connect(host, port=5432, /, *, timeout=10, **opts):
+    ...
+connect("db", 5433, timeout=5, ssl=True)
+# connect(host="db")        # TypeError: host is positional-only
+
+def total(*nums, scale=1):
+    return sum(nums) * scale
+total(1, 2, 3, scale=2)       # 12
+args = [1, 2]; total(*args)
+```
+
+## The Mutable Default Argument Trap | blue
+- **Default values are evaluated once, when the function is defined**, not on each call.
+- So a mutable default (`[]`, `{}`, `set()`) is **shared across all calls**.
+- Fix: use **`None`** as the sentinel and create the object inside.
+- The same "evaluated once" rule means `def f(t=time.time())` freezes the timestamp.
+```python
+def add_item(item, bucket=[]):      # BUG
+    bucket.append(item)
+    return bucket
+add_item(1); add_item(2)            # [1, 2]  (shared list)
+
+def add_item(item, bucket=None):    # FIX
+    if bucket is None:
+        bucket = []
+    bucket.append(item)
+    return bucket
+```
+
+## First-Class Functions and Lambdas | green
+- Functions are **objects**: assign them, store them in dicts, pass them as arguments, return them (**higher-order functions**).
+- **`lambda args: expression`**: anonymous, **single expression**, no statements or annotations. Use for short keys and callbacks.
+- PEP 8: do not assign a lambda to a name. Write a `def` instead (better tracebacks).
+- **`functools.partial`** fixes some arguments of a function.
+- Dispatch tables replace long `if/elif` chains.
+```python
+from functools import partial
+ops = {"+": lambda a, b: a + b, "*": lambda a, b: a * b}
+ops["*"](3, 4)                      # 12
+
+int_from_binary = partial(int, base=2)
+int_from_binary("1010")            # 10
+
+def apply_twice(fn, x): return fn(fn(x))
+apply_twice(lambda n: n * 3, 2)    # 18
+```
+
+## Closures and Late Binding | amber
+- A **closure** is an inner function that **remembers variables from its enclosing scope** after that scope has finished (stored in `fn.__closure__` cells).
+- Uses: **factories**, decorators, callbacks with state, data hiding.
+- **Late binding**: closures look up the variable **when called**, not when defined. Classic loop bug.
+- Fix with a default argument (`lambda i=i: i`) or `functools.partial`.
+```python
+def multiplier(n):
+    def mul(x): return x * n        # n is captured
+    return mul
+double = multiplier(2); double(5)   # 10
+
+fns = [lambda: i for i in range(3)]
+[f() for f in fns]                  # [2, 2, 2]  late binding
+fns = [lambda i=i: i for i in range(3)]
+[f() for f in fns]                  # [0, 1, 2]
+```
+
+## Recursion, Docstrings and Annotations | violet
+- Default **recursion limit is about 1000** (`sys.getrecursionlimit()`). Python has **no tail-call optimisation**. Prefer iteration for deep recursion.
+- **`functools.lru_cache` / `cache`** memoises pure recursive functions.
+- **Docstrings** (`"""..."""` first statement) become `fn.__doc__`.
+- **Annotations** document types and are stored in `__annotations__`. They are **not enforced** at runtime.
+- `return a, b` returns a **tuple**.
+```python
+from functools import cache
+@cache
+def fib(n: int) -> int:
+    """Return the n-th Fibonacci number."""
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+fib(200)   # instant thanks to memoisation
+```
+
+## Interview Q&A | sky | wide
+Q: What are `*args` and `**kwargs`?
+A: `*args` collects extra positional arguments into a tuple, `**kwargs` collects extra keyword arguments into a dict. At a call site, `*` and `**` unpack sequences and mappings into arguments.
+Q: Why should you not use a mutable default argument?
+A: Defaults are evaluated once at definition time, so the same list or dict is shared between calls and accumulates state. Use None and create a new object inside.
+Q: What is a closure?
+A: A nested function that captures variables from its enclosing scope and keeps them alive after the outer function returns.
+Q: Lambda vs def?
+A: A lambda is an anonymous single-expression function. `def` supports statements, docstrings, annotations and has a proper name in tracebacks.
+Q: What are keyword-only and positional-only parameters?
+A: Parameters after `*` must be passed by keyword. Parameters before `/` must be passed positionally, which lets you rename them later without breaking callers.
+Q: Does Python support tail-call optimisation?
+A: No. Deep recursion hits the recursion limit (about 1000), so use iteration or an explicit stack.
+Q: What does a function return without a return statement?
+A: `None`.
+Q: What is `functools.partial`?
+A: It creates a new callable with some arguments of the original function pre-filled.
+
+# 06 | Control Flow, Comprehensions & match | Loops, comprehensions, pattern matching, EAFP style | Flow & Comprehensions
+
+## Loops the Pythonic Way | rose
+- Iterate **directly over items**, not indexes. Use `enumerate` for indexes and `zip` for parallel lists.
+- **`for ... else` / `while ... else`**: the `else` runs **only if the loop did not `break`**. Great for search loops.
+- `break`, `continue`, `pass` (a no-op placeholder).
+- `range(start, stop, step)` is lazy and supports `len`, indexing and `in` in O(1).
+- Do not modify a list while iterating over it. Iterate over a copy or build a new list.
+```python
+for i, name in enumerate(names, start=1):
+    print(i, name)
+
+for n in nums:
+    if n < 0:
+        print("found negative", n)
+        break
+else:
+    print("no negatives")          # runs only without break
+```
+
+## Comprehensions | blue
+- **List** `[expr for x in it if cond]`, **set** `{...}`, **dict** `{k: v for ...}`, **generator expression** `(... for ...)`.
+- Faster and clearer than building with `append` in a loop.
+- Nested: `[cell for row in grid for cell in row]` (outer loop first, as in nested for loops).
+- Conditional value: `[x if x > 0 else 0 for x in nums]` (the `if-else` goes **before** `for`, a filter `if` goes after).
+- The loop variable **does not leak** out of a comprehension in Python 3.
+- Keep them short. If it needs comments, write a loop.
+```python
+squares = [n * n for n in range(10) if n % 2 == 0]
+flat = [x for row in matrix for x in row]
+transposed = [list(col) for col in zip(*matrix)]
+index = {user.id: user for user in users}
+lengths = {len(w) for w in words}
+total = sum(o.amount for o in orders)        # generator: no list built
+```
+
+## Structural Pattern Matching (3.10) | green
+- **`match` / `case`** matches the **shape** of data, not just values.
+- Patterns: **literals**, **capture names**, **wildcard `_`**, **sequences** `[x, *rest]`, **mappings** `{"type": "click", **rest}`, **class patterns** `Point(x=0)`, **OR** `|`, **guards** `if ...`, `as` bindings.
+- A bare name in a pattern **captures**, it does not compare. Use dotted names (`Color.RED`) or literals for constants.
+- Not a plain switch: use it for parsing commands, JSON events, ASTs.
+```python
+def handle(event: dict):
+    match event:
+        case {"type": "click", "pos": [x, y]}:
+            return f"click at {x},{y}"
+        case {"type": "key", "key": "q" | "Q"}:
+            return "quit"
+        case {"type": "resize", "w": w, "h": h} if w > 0 and h > 0:
+            return f"resize {w}x{h}"
+        case _:
+            return "unknown"
+```
+
+## EAFP vs LBYL | amber
+- **EAFP** ("Easier to Ask Forgiveness than Permission"): just try it and catch the exception. **Pythonic default**.
+- **LBYL** ("Look Before You Leap"): check first (`if key in d`). Can race in concurrent code (the state may change between check and use).
+- Use EAFP when failure is rare. Use LBYL when failure is common or exceptions are expensive in a hot loop.
+```python
+# EAFP
+try:
+    value = config["timeout"]
+except KeyError:
+    value = 30
+
+# LBYL
+if os.path.exists(path):      # file could be deleted before open()
+    open(path)
+```
+
+## Unpacking Tricks | violet
+- Swap: `a, b = b, a`.
+- **Extended unpacking**: `first, *_, last = items`.
+- Nested: `for (x, y), label in points_with_labels:`.
+- Merge: `[*a, *b]`, `{**d1, **d2}`.
+- `_` conventionally names a throwaway value.
+```python
+name, (lat, lng) = "Pune", (18.5, 73.8)
+head, *tail = "a,b,c".split(",")
+combined = [*range(3), *"ab"]          # [0, 1, 2, 'a', 'b']
+```
+
+## Interview Q&A | sky | wide
+Q: What is a list comprehension and why use it?
+A: A concise expression that builds a list from an iterable with optional filtering. It is more readable and usually faster than an explicit loop with `append`.
+Q: List comprehension vs generator expression?
+A: A list comprehension builds the whole list in memory. A generator expression yields items lazily, so it uses constant memory and suits large or infinite data and one-pass consumers like `sum`.
+Q: When does a loop's `else` run?
+A: When the loop finishes without hitting `break`.
+Q: What is EAFP?
+A: Easier to Ask Forgiveness than Permission: attempt the operation and handle exceptions instead of checking preconditions first. It is the idiomatic Python style.
+Q: How is `match` different from a switch?
+A: It matches structure (sequences, mappings, class attributes) and binds variables, supports guards, and bare names capture rather than compare.
+Q: How do you flatten a list of lists?
+A: `[x for sub in nested for x in sub]` or `list(itertools.chain.from_iterable(nested))`.
+Q: How do you transpose a matrix?
+A: `list(zip(*matrix))`, or `[list(r) for r in zip(*matrix)]` for lists.
+
+# 07 | File I/O & Context Managers | open, pathlib, with, contextlib, json and csv | Files & Context
+
+## Reading and Writing Files | rose
+- **`open(path, mode, encoding="utf-8")`**. Modes: `r` (read, default), `w` (write, truncates), `a` (append), `x` (create, fails if exists), `b` (binary), `+` (read and write).
+- **Always use `with`** so the file is closed even when an exception happens.
+- `read()` loads everything. **Iterate over the file object** to read line by line lazily (big files).
+- `write` does not add newlines. `print(..., file=f)` does.
+- Always pass **`encoding`**: the platform default differs between Windows and Linux.
+```python
+with open("data.txt", encoding="utf-8") as f:
+    for line in f:                       # lazy, memory-friendly
+        process(line.rstrip("\n"))
+
+with open("out.log", "a", encoding="utf-8") as f:
+    f.write("started\n")
+
+with open("img.png", "rb") as src, open("copy.png", "wb") as dst:
+    dst.write(src.read())
+```
+
+## pathlib | blue
+- **`pathlib.Path`** is the modern, object-oriented path API (preferred over `os.path`).
+- Join with **`/`**: `Path("data") / "users.csv"`. Cross-platform.
+- `read_text`, `write_text`, `exists`, `is_file`, `mkdir(parents=True, exist_ok=True)`, `glob`, `rglob`, `stem`, `suffix`, `parent`, `resolve`.
+```python
+from pathlib import Path
+base = Path(__file__).parent
+out = base / "reports" / "2026"
+out.mkdir(parents=True, exist_ok=True)
+for csv_file in base.rglob("*.csv"):
+    print(csv_file.stem, csv_file.stat().st_size)
+text = (base / "README.md").read_text(encoding="utf-8")
+```
+
+## Context Managers | green
+- The **`with` statement** calls **`__enter__`** on entry and **`__exit__(exc_type, exc, tb)`** on exit, **even when an exception is raised**.
+- Guarantees cleanup: files, locks, DB transactions, network connections, temporary state.
+- If `__exit__` **returns `True`, the exception is suppressed**.
+- Multiple managers: `with A() as a, B() as b:` (parenthesised across lines since 3.10).
+```python
+import time
+class Timer:
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+    def __exit__(self, exc_type, exc, tb):
+        self.elapsed = time.perf_counter() - self.start
+        print(f"took {self.elapsed:.3f}s")
+        return False                     # do not swallow exceptions
+
+with Timer():
+    heavy_work()
+```
+
+## contextlib | amber
+- **`@contextmanager`**: write a context manager as a generator. Code before `yield` is setup, after `yield` is teardown (put it in `finally`).
+- **`suppress(*exceptions)`**: ignore specific exceptions.
+- **`ExitStack`**: manage a dynamic number of context managers.
+- `closing`, `redirect_stdout`, `nullcontext`, `chdir` (3.11). `asynccontextmanager` for `async with`.
+```python
+from contextlib import contextmanager, suppress
+
+@contextmanager
+def transaction(conn):
+    tx = conn.begin()
+    try:
+        yield tx
+        tx.commit()
+    except Exception:
+        tx.rollback()
+        raise
+
+with suppress(FileNotFoundError):
+    os.remove("tmp.lock")
+```
+
+## JSON, CSV and Serialisation | violet
+- **`json`**: `loads` / `dumps` (strings), `load` / `dump` (files). Maps dict, list, str, int, float, bool, None. Tuples become lists. Use `default=` for custom types.
+- **`csv`**: `csv.reader` / `DictReader`, `csv.writer` / `DictWriter`. Open with `newline=""`.
+- **`pickle`** serialises arbitrary Python objects, but **never unpickle untrusted data** (it can execute code).
+- Large data: stream line by line, or use pandas or pyarrow.
+```python
+import json, csv
+payload = json.loads('{"id": 1, "tags": ["a"]}')
+text = json.dumps(payload, indent=2, default=str)   # default handles datetime etc.
+
+with open("users.csv", newline="", encoding="utf-8") as f:
+    for row in csv.DictReader(f):
+        print(row["email"])
+```
+
+## Interview Q&A | sky | wide
+Q: Why use `with open(...)`?
+A: The context manager closes the file automatically, even if an exception occurs, which prevents resource leaks.
+Q: How do you read a huge file without loading it into memory?
+A: Iterate over the file object line by line, or read fixed-size chunks with `f.read(size)` in a loop.
+Q: How do you write your own context manager?
+A: Implement `__enter__` and `__exit__` in a class, or decorate a generator function with `contextlib.contextmanager` and put cleanup after `yield` in a `finally` block.
+Q: What happens if `__exit__` returns True?
+A: The exception raised inside the with-block is suppressed.
+Q: Why is `pickle` dangerous?
+A: Unpickling can execute arbitrary code embedded in the data, so it must never be used on untrusted input. Use JSON for data exchange.
+Q: `os.path` vs `pathlib`?
+A: `pathlib` offers path objects with methods and the `/` operator, clearer and cross-platform. `os.path` is the older string-based API.
+Q: What is the difference between modes `w`, `a` and `x`?
+A: `w` truncates or creates, `a` appends or creates, `x` creates and fails if the file already exists.
+
+
+@ Intermediate
+# 08 | Object-Oriented Python | Classes, self, attributes, properties, class and static methods, dataclasses, ABCs | OOP
+
+## Classes and Instances | rose
+- `class` defines a type. **`__init__`** initialises a new instance (it is not the constructor). **`__new__`** actually creates the instance (rarely overridden: singletons, immutable subclasses).
+- **`self`** is the instance, passed explicitly as the first parameter. `obj.method()` is `Class.method(obj)`.
+- **Instance attributes** live in `obj.__dict__`. **Class attributes** are shared by all instances.
+- **Pitfall**: a **mutable class attribute** (`items = []`) is shared by every instance.
+- Attributes can be added at runtime (unless `__slots__` is used).
+```python
+class Account:
+    bank = "PyBank"                  # class attribute (shared)
+    def __init__(self, owner, balance=0):
+        self.owner = owner           # instance attributes
+        self.balance = balance
+    def deposit(self, amount):
+        self.balance += amount
+        return self
+
+class Bad:
+    items = []                        # shared by ALL instances (bug)
+```
+
+## Encapsulation and @property | blue
+- Python has **no real private members**. Conventions: **`_name`** means internal ("please do not touch"). **`__name`** triggers **name mangling** to `_ClassName__name` (avoids clashes in subclasses).
+- **`@property`** exposes a method as an attribute, so you can add **validation or computed values** without changing the public API.
+- Start with plain attributes. Add a property later only when needed (no Java-style getters and setters).
+```python
+class Temperature:
+    def __init__(self, celsius):
+        self.celsius = celsius            # goes through the setter
+    @property
+    def celsius(self):
+        return self._celsius
+    @celsius.setter
+    def celsius(self, value):
+        if value < -273.15:
+            raise ValueError("below absolute zero")
+        self._celsius = value
+    @property
+    def fahrenheit(self):                 # computed, read-only
+        return self._celsius * 9 / 5 + 32
+```
+
+## classmethod vs staticmethod | green
+- **Instance method**: receives `self`. Works with instance state.
+- **`@classmethod`**: receives **`cls`**. Used for **alternative constructors** (`from_json`, `from_row`) and works correctly with subclasses.
+- **`@staticmethod`**: receives nothing implicit. A plain function namespaced in the class (a helper related to the class).
+```python
+from datetime import date
+class Person:
+    def __init__(self, name, born):
+        self.name, self.born = name, born
+    @classmethod
+    def from_string(cls, text):           # Person.from_string("Ann,1995")
+        name, year = text.split(",")
+        return cls(name, int(year))       # cls: subclasses get their own type
+    @staticmethod
+    def is_adult_age(age):
+        return age >= 18
+    def age(self):
+        return date.today().year - self.born
+```
+
+## dataclasses | amber
+- **`@dataclass`** generates `__init__`, `__repr__`, `__eq__` (and optionally ordering, hashing) from type-annotated fields.
+- Options: **`frozen=True`** (immutable and hashable), **`order=True`**, **`slots=True`** (3.10, less memory), `kw_only=True`.
+- Mutable defaults need **`field(default_factory=list)`**.
+- `__post_init__` for validation or derived fields. `dataclasses.asdict`, `replace`.
+- Alternatives: `NamedTuple` (immutable tuple), **Pydantic** `BaseModel` (runtime validation), `attrs`.
+```python
+from dataclasses import dataclass, field
+
+@dataclass(frozen=True, slots=True)
+class Money:
+    amount: int
+    currency: str = "INR"
+
+@dataclass
+class Cart:
+    owner: str
+    items: list[str] = field(default_factory=list)
+    def __post_init__(self):
+        if not self.owner:
+            raise ValueError("owner required")
+```
+
+## Abstraction: ABCs and Protocols | violet
+- **`abc.ABC` + `@abstractmethod`**: a nominal interface. Subclasses must implement abstract methods or they cannot be instantiated.
+- **`typing.Protocol`**: **structural typing** (static duck typing). Any class with matching methods satisfies it, no inheritance needed. Checked by mypy, or at runtime with `@runtime_checkable`.
+- **Duck typing**: "if it walks like a duck..." Python cares about behaviour (methods), not declared types.
+- **Composition over inheritance** applies here too.
+```python
+from abc import ABC, abstractmethod
+from typing import Protocol
+
+class PaymentGateway(ABC):
+    @abstractmethod
+    def charge(self, amount: int) -> str: ...
+
+class Stripe(PaymentGateway):
+    def charge(self, amount): return "ch_123"
+
+class SupportsClose(Protocol):
+    def close(self) -> None: ...
+
+def shutdown(resource: SupportsClose) -> None:   # any object with close() works
+    resource.close()
+```
+
+## Interview Q&A | sky | wide
+Q: `__init__` vs `__new__`?
+A: `__new__` creates and returns the instance (a static method on the class). `__init__` then initialises that instance and returns None. Override `__new__` for immutable types or singletons.
+Q: What is `self`?
+A: The instance on which a method is called, passed explicitly as the first argument. `obj.m()` is shorthand for `type(obj).m(obj)`.
+Q: `classmethod` vs `staticmethod`?
+A: A classmethod receives the class (`cls`) and is used for factory methods that respect subclassing. A staticmethod receives nothing implicit and is just a function grouped with the class.
+Q: Does Python have private variables?
+A: Not enforced. A single underscore is a convention for internal use, a double underscore triggers name mangling to avoid accidental overrides in subclasses.
+Q: Why use `@property`?
+A: To expose attribute-style access while running code for validation, lazy computation or derived values, without breaking callers.
+Q: Class attribute vs instance attribute?
+A: A class attribute is shared by all instances. An instance attribute belongs to one object. Assigning through `self` creates an instance attribute that shadows the class one.
+Q: What is a dataclass?
+A: A decorator that generates boilerplate methods (`__init__`, `__repr__`, `__eq__`, optionally ordering and hashing) from annotated fields.
+Q: ABC vs Protocol?
+A: An ABC requires explicit inheritance (nominal). A Protocol is satisfied by any class with the right methods (structural), which matches Python's duck typing.
+
+# 09 | Dunder Methods, Inheritance & MRO | Data model, operator overloading, super, C3 linearisation, slots | Dunders & MRO
+
+## The Data Model (Dunder Methods) | rose
+- **Dunder** (double underscore) methods let your objects plug into Python syntax and built-ins.
+- **`__repr__`**: unambiguous, for developers (shown in the REPL and containers). **`__str__`**: readable, for users (`print`). If only `__repr__` exists, `str()` uses it.
+- Containers: `__len__`, `__getitem__`, `__setitem__`, `__delitem__`, `__contains__`, `__iter__`.
+- Callables: **`__call__`** makes an instance callable like a function.
+- Truthiness: `__bool__` (falls back to `__len__`).
+- Context managers: `__enter__`, `__exit__`. Attribute hooks: `__getattr__`, `__setattr__`.
+```python
+class Playlist:
+    def __init__(self, songs): self._songs = list(songs)
+    def __len__(self): return len(self._songs)
+    def __getitem__(self, i): return self._songs[i]       # also enables iteration and slicing
+    def __contains__(self, s): return s in self._songs
+    def __repr__(self): return f"Playlist({self._songs!r})"
+
+p = Playlist(["a", "b"])
+len(p), p[0], "a" in p, list(p)
+```
+
+## Operators, Equality and Hashing | blue
+- Arithmetic: `__add__`, `__sub__`, `__mul__`, `__truediv__`, and reflected versions `__radd__` etc. In-place: `__iadd__`.
+- Comparison: `__eq__`, `__lt__`, `__le__`... **`functools.total_ordering`** fills in the rest from `__eq__` and one ordering method.
+- Return **`NotImplemented`** (not `False`) for unsupported types so Python can try the other operand.
+- **Defining `__eq__` sets `__hash__` to `None`** (instances become unhashable) unless you define `__hash__` too.
+- Contract: **equal objects must have equal hashes**. Hash only immutable fields.
+```python
+from functools import total_ordering
+
+@total_ordering
+class Version:
+    def __init__(self, major, minor): self.parts = (major, minor)
+    def __eq__(self, other):
+        if not isinstance(other, Version): return NotImplemented
+        return self.parts == other.parts
+    def __lt__(self, other):
+        return self.parts < other.parts
+    def __hash__(self): return hash(self.parts)
+
+Version(1, 2) < Version(1, 10)       # True
+```
+
+## Inheritance and super() | green
+- `class Child(Parent)`: inherits attributes and methods. Override by redefining.
+- **`super()`** returns a proxy to the **next class in the MRO** (not simply "the parent"). Use it so cooperative multiple inheritance works.
+- Call `super().__init__(...)` in subclass `__init__` to initialise the parent part.
+- `isinstance(obj, Cls)` (respects inheritance), `issubclass(A, B)`, `type(obj) is Cls` (exact type).
+- **Mixins**: small classes adding one behaviour (`JsonMixin`, `LoggingMixin`), combined via multiple inheritance.
+```python
+class Animal:
+    def __init__(self, name): self.name = name
+    def speak(self): return "..."
+
+class Dog(Animal):
+    def __init__(self, name, breed):
+        super().__init__(name)
+        self.breed = breed
+    def speak(self): return "Woof"
+
+class JsonMixin:
+    def to_json(self): import json; return json.dumps(self.__dict__)
+
+class Puppy(JsonMixin, Dog): pass
+```
+
+## MRO and the Diamond Problem | amber
+- **MRO (Method Resolution Order)**: the order Python searches classes for an attribute. Computed with **C3 linearisation**.
+- Rules: a class comes **before its parents**, and parents keep the **order listed** in the class statement. Each class appears once.
+- Inspect with **`Cls.__mro__`** or `Cls.mro()`.
+- In a diamond, `super()` chains through every class exactly once (cooperative inheritance), so the shared base runs once.
+- An inconsistent hierarchy raises `TypeError: Cannot create a consistent method resolution order`.
+```python
+class A:
+    def hi(self): print("A")
+class B(A):
+    def hi(self): print("B"); super().hi()
+class C(A):
+    def hi(self): print("C"); super().hi()
+class D(B, C):
+    def hi(self): print("D"); super().hi()
+
+D().hi()              # D B C A   (A runs once)
+D.__mro__             # (D, B, C, A, object)
+```
+
+## __slots__ and Object Size | violet
+- By default each instance has a **`__dict__`** (flexible but memory-heavy).
+- **`__slots__ = ("x", "y")`** stores attributes in fixed slots: **less memory, faster access**, but no new attributes at runtime and no `__dict__` (unless listed).
+- Worth it for **millions of small objects**. `@dataclass(slots=True)` generates it.
+- `sys.getsizeof` gives the shallow size of an object.
+```python
+class PointSlots:
+    __slots__ = ("x", "y")
+    def __init__(self, x, y): self.x, self.y = x, y
+
+p = PointSlots(1, 2)
+# p.z = 3            # AttributeError
+```
+
+## Interview Q&A | sky | wide
+Q: `__str__` vs `__repr__`?
+A: `__repr__` is an unambiguous developer representation (ideally valid Python to recreate the object) used by the REPL and containers. `__str__` is the readable user-facing form used by `print`. `str()` falls back to `__repr__`.
+Q: What is the MRO?
+A: The method resolution order: the linearised list of classes Python searches for attributes, computed by the C3 algorithm. See it with `Cls.__mro__`.
+Q: How does Python solve the diamond problem?
+A: C3 linearisation puts each class once in the MRO, after its subclasses and in declaration order, and cooperative `super()` calls follow that order so the shared base runs once.
+Q: What does `super()` really do?
+A: It returns a proxy that delegates to the next class after the current one in the instance's MRO, which may be a sibling class, not the direct parent.
+Q: Why did my objects become unhashable after defining `__eq__`?
+A: Defining `__eq__` sets `__hash__` to None, because the default identity hash would break the "equal objects have equal hashes" rule. Define `__hash__` from the same fields.
+Q: What is operator overloading?
+A: Defining dunder methods like `__add__` or `__lt__` so your objects work with operators. Return `NotImplemented` for unsupported operand types.
+Q: What are `__slots__`?
+A: A class-level declaration of a fixed set of attributes, removing the per-instance `__dict__` to save memory and speed up attribute access.
+Q: What does `__call__` do?
+A: Makes instances callable like functions, useful for stateful callables and class-based decorators.
+
+# 10 | Iterators & Generators | Iterator protocol, yield, generator expressions, itertools | Generators
+
+## Iterables vs Iterators | rose
+- **Iterable**: anything with **`__iter__`** returning an iterator (list, str, dict, file, range). You can loop over it many times.
+- **Iterator**: has **`__next__`** (returns the next item or raises **`StopIteration`**) and `__iter__` returning itself. **Single pass**, it is exhausted after one loop.
+- `for x in obj` calls `iter(obj)` then `next()` repeatedly until `StopIteration`.
+- `iter(callable, sentinel)` builds an iterator from repeated calls.
+```python
+it = iter([1, 2, 3])
+next(it), next(it), next(it)    # 1 2 3
+# next(it)                      # StopIteration
+next(it, "done")                # default instead of exception
+
+class Countdown:
+    def __init__(self, n): self.n = n
+    def __iter__(self): return self
+    def __next__(self):
+        if self.n <= 0: raise StopIteration
+        self.n -= 1
+        return self.n + 1
+```
+
+## Generators | blue
+- A function containing **`yield`** returns a **generator** (an iterator) when called. The body runs **lazily**, one item per `next()`.
+- **State is preserved** between yields (local variables, the position in the code).
+- Memory: O(1) for streaming huge or infinite sequences. Composable into **pipelines**.
+- A generator can be consumed **only once**.
+- `return value` in a generator ends it (the value is attached to `StopIteration`).
+```python
+def read_large(path):
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            yield line.rstrip()
+
+def grep(lines, word):
+    return (l for l in lines if word in l)
+
+errors = grep(read_large("app.log"), "ERROR")    # nothing read yet
+for e in errors: print(e)                        # streams one line at a time
+
+def fib():
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+```
+
+## yield from, send and Generator Expressions | green
+- **`yield from iterable`** delegates to a sub-generator (flattens nested generators, passes through `send` and the return value).
+- **`gen.send(value)`** resumes the generator and makes `yield` evaluate to `value` (coroutine-style). Also `throw()` and `close()`.
+- **Generator expression** `(x * x for x in data)`: lazy version of a list comprehension. Parentheses can be dropped when it is the only argument: `sum(x * x for x in data)`.
+```python
+def flatten(items):
+    for item in items:
+        if isinstance(item, list):
+            yield from flatten(item)
+        else:
+            yield item
+list(flatten([1, [2, [3, 4]], 5]))   # [1, 2, 3, 4, 5]
+
+def running_avg():
+    total = count = 0
+    avg = None
+    while True:
+        value = yield avg
+        total += value; count += 1
+        avg = total / count
+g = running_avg(); next(g); g.send(10); g.send(20)   # 15.0
+```
+
+## itertools | amber
+- Infinite: **`count`**, **`cycle`**, **`repeat`**.
+- Slicing and filtering: **`islice`**, `takewhile`, `dropwhile`, `filterfalse`, `compress`.
+- Combining: **`chain`** / `chain.from_iterable`, **`zip_longest`**, **`pairwise`** (3.10), **`batched`** (3.12).
+- Grouping: **`groupby`** (groups **consecutive** equal keys, so **sort first**).
+- Combinatorics: **`product`**, **`permutations`**, **`combinations`**, `combinations_with_replacement`. **`accumulate`** for running totals.
+```python
+from itertools import islice, groupby, combinations, accumulate, batched, pairwise, chain
+list(islice(fib(), 10))                         # first 10 Fibonacci numbers
+for dept, grp in groupby(sorted(emps, key=lambda e: e.dept), key=lambda e: e.dept):
+    print(dept, [e.name for e in grp])
+list(combinations("abc", 2))                     # [('a','b'), ('a','c'), ('b','c')]
+list(accumulate([1, 2, 3, 4]))                   # [1, 3, 6, 10]
+list(batched(range(7), 3))                       # [(0,1,2), (3,4,5), (6,)]
+[b - a for a, b in pairwise([1, 4, 9, 16])]      # [3, 5, 7]
+```
+
+## Interview Q&A | sky | wide
+Q: Iterable vs iterator?
+A: An iterable can produce an iterator via `__iter__` and can be looped over repeatedly. An iterator has `__next__`, keeps position, and is exhausted after one pass.
+Q: What is a generator and why use it?
+A: A function with `yield` that produces values lazily, keeping its state between calls. It uses constant memory, supports infinite sequences, and composes into pipelines.
+Q: `yield` vs `return`?
+A: `return` ends the function with one value. `yield` produces a value and pauses, resuming from the same point on the next `next()` call.
+Q: What does `yield from` do?
+A: Delegates iteration to another iterable or generator, forwarding values, `send`, exceptions and the sub-generator's return value.
+Q: Why does `groupby` give unexpected groups?
+A: It groups only consecutive equal keys. Sort by the same key first.
+Q: Can you iterate a generator twice?
+A: No. Once exhausted it yields nothing. Recreate it or store results in a list.
+Q: How do you get the first n items of a generator?
+A: `itertools.islice(gen, n)`.
+Q: How do you process a 50 GB log file in Python?
+A: Stream it with a generator pipeline (iterate lines lazily, filter and transform with generator expressions, aggregate incrementally), so memory stays constant.
+
+# 11 | Decorators | Wrapping functions, functools.wraps, arguments, class decorators, built-ins | Decorators
+
+## How Decorators Work | rose
+- A **decorator** is a callable that **takes a function and returns a (usually wrapped) function**.
+- `@decorator` above `def f` is shorthand for **`f = decorator(f)`**.
+- Possible because functions are first-class objects and closures capture the original function.
+- Uses: **logging, timing, caching, retries, authentication, validation, registration** (routes, plugins).
+- Always use **`functools.wraps`** to keep the original `__name__`, `__doc__` and signature metadata.
+```python
+import functools, time
+
+def timed(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            print(f"{func.__name__} took {time.perf_counter() - start:.4f}s")
+    return wrapper
+
+@timed
+def load_users(): ...
+```
+
+## Decorators with Arguments | blue
+- Need **three levels**: a **factory** that takes the arguments and returns the actual decorator, which returns the wrapper.
+- `@retry(times=3)` means `f = retry(times=3)(f)`.
+```python
+def retry(times=3, delay=0.5, exceptions=(Exception,)):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(1, times + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions:
+                    if attempt == times:
+                        raise
+                    time.sleep(delay * 2 ** (attempt - 1))   # exponential backoff
+        return wrapper
+    return decorator
+
+@retry(times=5, exceptions=(ConnectionError,))
+def fetch(url): ...
+```
+
+## Stacking and Class Decorators | green
+- **Stacked decorators apply bottom-up**: `@a @b def f` is `f = a(b(f))`. At call time, `a`'s wrapper runs first.
+- **Class decorators** take a class and return a class (`@dataclass`, registering classes).
+- A **class can be a decorator** by implementing `__call__` (useful when the decorator needs state).
+- Decorating **methods**: `self` arrives in `*args` automatically.
+```python
+REGISTRY = {}
+def register(cls):
+    REGISTRY[cls.__name__] = cls
+    return cls
+
+@register
+class CsvExporter: ...
+
+class CountCalls:
+    def __init__(self, func):
+        functools.update_wrapper(self, func)
+        self.func, self.calls = func, 0
+    def __call__(self, *args, **kwargs):
+        self.calls += 1
+        return self.func(*args, **kwargs)
+```
+
+## Built-in and stdlib Decorators | amber
+- **`@property`**, **`@classmethod`**, **`@staticmethod`**, `@abstractmethod`.
+- **`@functools.lru_cache(maxsize=128)`** / **`@functools.cache`**: memoise pure functions (arguments must be hashable). `cache_info()`, `cache_clear()`.
+- **`@functools.cached_property`**: compute once per instance, then store.
+- **`@functools.singledispatch`**: overload a function by the type of its first argument.
+- `@dataclass`, `@contextmanager`, `@total_ordering`, `@typing.override` (3.12).
+- Framework examples: FastAPI `@app.get("/users")`, Flask `@app.route`, pytest `@pytest.fixture`.
+```python
+from functools import lru_cache, singledispatch, cached_property
+
+@lru_cache(maxsize=1024)
+def exchange_rate(currency: str) -> float: ...
+
+@singledispatch
+def to_json(obj): raise TypeError
+@to_json.register
+def _(obj: list): return "[" + ",".join(map(to_json, obj)) + "]"
+```
+
+## Interview Q&A | sky | wide
+Q: What is a decorator?
+A: A callable that takes a function (or class) and returns a replacement, usually a wrapper adding behaviour before or after the original. `@d` above a def means `f = d(f)`.
+Q: Why use `functools.wraps`?
+A: Without it the wrapper replaces the function's name, docstring and other metadata, which breaks debugging, introspection and tools like FastAPI that read signatures.
+Q: How do you write a decorator that takes arguments?
+A: Write a function that takes the arguments and returns a decorator, which in turn returns the wrapper: three nested levels.
+Q: In what order are stacked decorators applied?
+A: Bottom to top at definition time (the one closest to the function first). At call time the outermost wrapper runs first.
+Q: What does `lru_cache` require?
+A: The function should be pure and all arguments hashable. It caches results keyed by arguments, evicting least recently used entries when `maxsize` is reached.
+Q: Write a decorator that logs function arguments.
+A: Define `log(func)` with an inner `wrapper(*args, **kwargs)` decorated by `functools.wraps(func)` that prints `func.__name__`, args and kwargs, calls `func(*args, **kwargs)`, logs and returns the result.
+Q: Can decorators be applied to classes?
+A: Yes. A class decorator receives the class and returns it (modified or wrapped). `@dataclass` is the best-known example.
+
+# 12 | Modules, Packages & Environments | Import system, __main__, packaging, venv, pip, poetry, conda, uv | Modules & Envs
+
+## Modules and the Import System | rose
+- A **module** is a `.py` file. A **package** is a directory of modules (with `__init__.py`; without it you get a **namespace package**).
+- `import pkg.mod`, `from pkg.mod import name`, `import numpy as np`. Avoid `from x import *` (pollutes the namespace).
+- Modules are **executed once** on first import and cached in **`sys.modules`**. Later imports reuse the cached object.
+- Search order: the script's directory, **`PYTHONPATH`**, standard library, **site-packages**. See **`sys.path`**.
+- **`if __name__ == "__main__":`** runs code only when the file is executed directly, not when imported.
+- **Relative imports** inside packages: `from .models import User`, `from ..utils import slugify`. Run packages with `python -m pkg.module`.
+```text
+shop/
+  pyproject.toml
+  src/shop/
+    __init__.py          # package marker, can expose a public API
+    models.py
+    services/
+      __init__.py
+      orders.py          # from ..models import Order
+  tests/
+```
+
+## Circular Imports | blue
+- A imports B and B imports A at module top level. One of them sees a **partially initialised module**, causing `ImportError` or `AttributeError`.
+- Fixes: **restructure** (move shared code to a third module), **import inside the function** that needs it, import the module rather than names (`import a` then `a.x`), or use `typing.TYPE_CHECKING` for type-only imports.
+```python
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from shop.models import Order      # only for type checkers, no runtime import
+
+def total(order: "Order") -> int: ...
+```
+
+## Virtual Environments and pip | green
+- A **virtual environment** is an isolated Python with its own `site-packages`, so projects do not clash over dependency versions.
+- Create: **`python -m venv .venv`**. Activate: `source .venv/bin/activate` (Linux/macOS) or `.venv\Scripts\activate` (Windows).
+- **pip**: `pip install pkg==1.2`, `pip install -r requirements.txt`, `pip freeze > requirements.txt`, `pip install -e .` (editable dev install).
+- **Pin versions** for reproducibility (lock files). Separate dev dependencies (pytest, ruff, mypy).
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install fastapi "pydantic>=2,<3"
+pip freeze > requirements.txt
+python -m pip install --upgrade pip
+```
+
+## Poetry, conda, uv and pyproject.toml | amber
+- **`pyproject.toml`** (PEP 518/621) is the standard project file: metadata, dependencies, build backend and tool config (ruff, pytest, mypy).
+- **Poetry**: dependency resolution, **lock file** (`poetry.lock`), virtualenv management, publishing.
+- **conda**: environments that also manage **non-Python dependencies** (CUDA, C libraries). Common in data science.
+- **uv** (Astral, written in Rust): very fast pip and venv replacement, project manager with `uv.lock`, can install Python versions.
+- **pipx**: install CLI tools in isolated envs. **pyenv**: manage multiple Python versions.
+```toml
+[project]
+name = "shop"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fastapi>=0.115", "pydantic>=2.7"]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "mypy"]
+```
+
+## Tooling Around Code Quality | violet
+- **Formatter / linter**: **ruff** (fast, replaces flake8, isort and often black), black.
+- **Type checking**: **mypy**, pyright.
+- **Testing**: **pytest** (fixtures, parametrize, `monkeypatch`), `unittest.mock`, coverage.
+- **PEP 8**: `snake_case` functions and variables, `PascalCase` classes, `UPPER_CASE` constants, 4-space indents.
+- **pre-commit** hooks run these automatically before each commit.
+
+## Interview Q&A | sky | wide
+Q: Module vs package?
+A: A module is a single `.py` file. A package is a directory of modules, usually with `__init__.py`, imported with dotted names.
+Q: What does `if __name__ == "__main__"` do?
+A: `__name__` is `"__main__"` when the file is run directly and the module name when imported, so the block runs only for direct execution (CLI entry, quick tests).
+Q: Why use a virtual environment?
+A: To isolate each project's dependencies and versions from the system Python and from other projects, making builds reproducible.
+Q: pip vs conda vs poetry?
+A: pip installs Python packages from PyPI. Poetry adds dependency resolution, lock files and packaging on top. Conda manages environments and binary packages including non-Python libraries.
+Q: How does Python find a module on import?
+A: It checks `sys.modules` first, then searches each directory on `sys.path` (script dir, PYTHONPATH, stdlib, site-packages) using finders and loaders.
+Q: How do you fix a circular import?
+A: Move the shared code into a separate module, import inside functions, import the module instead of names, or use `TYPE_CHECKING` for type-only imports.
+Q: What is `__init__.py` for?
+A: It marks a regular package, runs on package import, and can define the package's public API (and `__all__`).
+Q: What is `pip install -e .`?
+A: An editable install: the package is installed by reference to your source tree so code changes take effect without reinstalling.
+
+# 13 | Exceptions | Hierarchy, try/except/else/finally, raise from, custom exceptions, exception groups | Exceptions
+
+## Exception Hierarchy | rose
+- **`BaseException`** is the root. Under it: **`SystemExit`**, **`KeyboardInterrupt`**, `GeneratorExit` and **`Exception`** (the base for normal errors).
+- Catch **`Exception`**, never bare `except:` (that also swallows Ctrl+C and `sys.exit()`).
+- Common: `ValueError` (right type, bad value), `TypeError` (wrong type), `KeyError`, `IndexError` (both `LookupError`), `AttributeError`, `ZeroDivisionError`, `FileNotFoundError` (`OSError`), `ImportError` / `ModuleNotFoundError`, `StopIteration`, `RuntimeError`, `NotImplementedError`, `AssertionError`.
+- Python has **no checked exceptions**: document what you raise.
+
+## try / except / else / finally | blue
+- **`except`** blocks are tried top to bottom: put specific exceptions first. Catch several with a tuple.
+- **`else`** runs **only if no exception** occurred in `try` (keeps the try block minimal).
+- **`finally`** **always** runs (cleanup). A `return` in `finally` overrides other returns and swallows exceptions: avoid it.
+- **`raise`** alone re-raises the current exception with its traceback.
+```python
+def read_config(path):
+    try:
+        f = open(path, encoding="utf-8")
+    except FileNotFoundError:
+        return {}
+    except (PermissionError, IsADirectoryError) as e:
+        log.warning("cannot read %s: %s", path, e)
+        raise
+    else:
+        with f:
+            return json.load(f)        # only runs if open() succeeded
+    finally:
+        log.debug("read_config done")
+```
+
+## raise, Chaining and Custom Exceptions | green
+- **`raise NewError(...) from err`**: explicit **chaining**, sets `__cause__` ("The above exception was the direct cause...").
+- Raising inside `except` without `from` sets `__context__` implicitly. **`from None`** hides the original.
+- **Custom exceptions**: subclass `Exception` (build a small hierarchy per app or library). Add fields for context.
+- **`e.add_note("...")`** (3.11) attaches extra context to a traceback.
+```python
+class AppError(Exception):
+    """Base for all errors raised by this app."""
+
+class PaymentFailed(AppError):
+    def __init__(self, order_id: int, reason: str):
+        super().__init__(f"payment failed for order {order_id}: {reason}")
+        self.order_id, self.reason = order_id, reason
+
+try:
+    gateway.charge(order)
+except TimeoutError as e:
+    raise PaymentFailed(order.id, "gateway timeout") from e
+```
+
+## Exception Groups (3.11) | amber
+- **`ExceptionGroup`** bundles several unrelated exceptions (for example from concurrent tasks).
+- **`except*`** handles matching parts of a group; unmatched parts propagate.
+- `asyncio.TaskGroup` raises an `ExceptionGroup` when several tasks fail.
+```python
+try:
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(fetch_users())
+        tg.create_task(fetch_orders())
+except* ConnectionError as eg:
+    for err in eg.exceptions:
+        log.error("network: %s", err)
+except* ValueError as eg:
+    log.error("bad data: %s", eg.exceptions)
+```
+
+## Best Practices and Logging | violet
+- **Catch narrowly**, as close to where you can actually handle the error. Let others propagate.
+- **Never silently `pass`** in an except block. At least log.
+- Use **`logging`**, not `print`: `log.exception("msg")` inside `except` records the traceback.
+- `assert` is for **internal invariants**, not input validation (asserts are removed with `python -O`).
+- Clean up with `with` / context managers rather than `finally` where possible.
+- At API boundaries (FastAPI), map domain exceptions to HTTP responses with exception handlers.
+```python
+import logging
+log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+try:
+    process(job)
+except AppError:
+    log.exception("job %s failed", job.id)   # includes traceback
+```
+
+## Interview Q&A | sky | wide
+Q: What is the purpose of `else` in try/except?
+A: It runs only when the try block raised nothing, so you keep the try block focused on the risky line and avoid accidentally catching errors from follow-up code.
+Q: Why avoid a bare `except:`?
+A: It catches `BaseException`, including `KeyboardInterrupt` and `SystemExit`, which makes programs hard to stop and hides bugs. Catch `Exception` or something narrower.
+Q: What does `raise ... from ...` do?
+A: It sets the original exception as the explicit cause of the new one, so tracebacks show both. `from None` suppresses the chain.
+Q: How do you create a custom exception?
+A: Subclass `Exception` (or your app's base error), optionally add an `__init__` with extra fields, and call `super().__init__(message)`.
+Q: Does Python have checked exceptions?
+A: No. Any function can raise anything, so document exceptions and test error paths.
+Q: When does `finally` not run?
+A: Practically always runs, except when the process is killed hard (`os._exit`, SIGKILL, power loss) or the interpreter crashes.
+Q: What are exception groups?
+A: A 3.11 feature to raise several exceptions together, handled with `except*`. Used heavily with `asyncio.TaskGroup`.
+Q: `assert` for validation?
+A: No. Asserts can be disabled with `-O`. Raise `ValueError` or similar for input validation.
+
+
+@ Advanced
+# 14 | Concurrency: GIL, Threads & Processes | GIL, threading, multiprocessing, concurrent.futures, free-threading | GIL & Parallelism
+
+## The GIL | rose
+- The **Global Interpreter Lock** lets **only one thread execute Python bytecode at a time** in a CPython process.
+- Why it exists: CPython's **reference counting** is not thread-safe. One big lock made the interpreter simple and fast for single-threaded code and C extensions.
+- Effect: threads give **no speed-up for CPU-bound pure-Python code**.
+- The GIL is **released during blocking I/O** (network, disk, `time.sleep`) and by many C extensions (NumPy, hashlib, compression), so **threads work well for I/O-bound tasks**.
+- The GIL does **not** make your code thread-safe: `count += 1` is several bytecodes and can still race. Use locks.
+- **Free-threaded CPython** (PEP 703): experimental build in 3.13 (`python3.13t`), officially supported but still optional in 3.14. Removes the GIL at some single-thread cost.
+
+## Concurrency vs Parallelism | blue
+- **Concurrency**: dealing with many tasks by **interleaving** (one core can do it). **Parallelism**: running tasks **simultaneously** on multiple cores.
+- **I/O-bound** (HTTP calls, DB, files): **`asyncio`** (thousands of connections) or **threads**.
+- **CPU-bound** (image processing, number crunching): **`multiprocessing`** / `ProcessPoolExecutor` (separate processes, each with its own GIL), or NumPy / C extensions, or the free-threaded build.
+- Processes cost more (memory, startup, data must be **pickled** to cross process boundaries).
+
+## threading | green
+- `threading.Thread(target=fn, args=(...))`, `start()`, `join()`. `daemon=True` threads die with the main thread.
+- Synchronisation: **`Lock`** / `RLock` (use with `with`), `Semaphore`, `Event`, `Condition`, `Barrier`.
+- **`queue.Queue`** is thread-safe: the standard **producer-consumer** tool.
+- `threading.local()` for per-thread data.
+```python
+import threading
+lock = threading.Lock()
+counter = 0
+def work():
+    global counter
+    for _ in range(100_000):
+        with lock:                 # without the lock, increments are lost
+            counter += 1
+threads = [threading.Thread(target=work) for _ in range(4)]
+for t in threads: t.start()
+for t in threads: t.join()
+```
+
+## multiprocessing and concurrent.futures | amber
+- **`concurrent.futures`** gives one API for both: **`ThreadPoolExecutor`** (I/O) and **`ProcessPoolExecutor`** (CPU).
+- `submit()` returns a **`Future`**. `map()` keeps input order. `as_completed()` yields futures as they finish.
+- `multiprocessing`: `Pool`, `Process`, `Queue`, `Manager`, shared memory. Guard the entry point with **`if __name__ == "__main__":`** (required on Windows and macOS spawn).
+- Arguments and results must be **picklable** (no lambdas, open sockets).
+```python
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+import requests
+
+def fetch(url): return requests.get(url, timeout=5).status_code
+with ThreadPoolExecutor(max_workers=20) as pool:          # I/O-bound
+    futures = {pool.submit(fetch, u): u for u in urls}
+    for fut in as_completed(futures):
+        print(futures[fut], fut.result())
+
+def crunch(n): return sum(i * i for i in range(n))
+if __name__ == "__main__":
+    with ProcessPoolExecutor() as pool:                    # CPU-bound, uses all cores
+        results = list(pool.map(crunch, [10**7] * 8))
+```
+
+## Choosing the Right Tool | violet
+- **Many slow network calls**: `asyncio` with `httpx` / `aiohttp`, or a thread pool for blocking libraries.
+- **Heavy computation**: process pool, vectorise with NumPy, or move hot code to C/Rust (Cython, PyO3).
+- **Background jobs in web apps**: task queues (**Celery**, RQ, Dramatiq) with Redis or RabbitMQ, or FastAPI `BackgroundTasks` for small work.
+- **Subinterpreters** (3.12+: per-interpreter GIL; 3.14: `concurrent.interpreters`) are another path to parallelism inside one process.
+
+## Interview Q&A | sky | wide
+Q: What is the GIL and why does it exist?
+A: A mutex in CPython allowing only one thread to execute bytecode at a time. It protects reference counts and interpreter state, keeping single-threaded code and C extensions simple and fast.
+Q: Does the GIL make Python code thread-safe?
+A: No. Thread switches can happen between bytecodes, so compound operations like `x += 1` can race. Use locks or thread-safe structures.
+Q: Threads or processes for CPU-bound work?
+A: Processes (`ProcessPoolExecutor`, `multiprocessing`), since each has its own interpreter and GIL. Threads help only for I/O-bound work.
+Q: Why do threads still help for I/O?
+A: Blocking I/O calls release the GIL, so other threads run while one waits on the network or disk.
+Q: Concurrency vs parallelism?
+A: Concurrency is structuring many tasks to make progress by interleaving. Parallelism is executing them literally at the same time on multiple cores.
+Q: What is free-threaded Python?
+A: A CPython build without the GIL (PEP 703), experimental in 3.13 and officially supported but optional in 3.14, allowing true multi-core threading at some single-thread cost.
+Q: Why must multiprocessing code be under `if __name__ == "__main__"`?
+A: With the spawn start method, child processes re-import the main module. Without the guard they would spawn children recursively.
+Q: How do threads communicate safely?
+A: Through `queue.Queue` (producer-consumer), or shared data protected by `Lock`, `Event` and `Condition`.
+
+# 15 | asyncio | Event loop, coroutines, tasks, gather, TaskGroup, timeouts, pitfalls | asyncio
+
+## Core Concepts | rose
+- **`asyncio`** provides **single-threaded cooperative concurrency** for **I/O-bound** work.
+- **`async def`** defines a **coroutine function**. Calling it returns a **coroutine object**; nothing runs until it is awaited or scheduled.
+- **`await`** suspends the current coroutine until the awaited thing finishes, **giving control back to the event loop** so other tasks run.
+- The **event loop** runs tasks, watches sockets (epoll/kqueue/IOCP) and resumes coroutines when their I/O is ready.
+- Entry point: **`asyncio.run(main())`** creates the loop, runs `main`, then closes the loop.
+- Switching happens **only at `await`**, so no locks are needed between awaits (but shared state across awaits can still interleave).
+```python
+import asyncio
+async def fetch(n):
+    await asyncio.sleep(1)          # non-blocking wait
+    return n * 2
+
+async def main():
+    result = await fetch(5)         # sequential
+    print(result)
+
+asyncio.run(main())
+```
+
+## Running Things Concurrently | blue
+- **`asyncio.create_task(coro)`** schedules a coroutine to run concurrently and returns a **Task**. Keep a reference (tasks can be garbage collected).
+- **`asyncio.gather(*aws)`** runs many and returns results **in order**. `return_exceptions=True` collects errors instead of failing fast.
+- **`asyncio.TaskGroup`** (3.11): **structured concurrency**. If one task fails, the rest are cancelled and errors raise as an `ExceptionGroup`. Preferred for new code.
+- **`asyncio.as_completed`** yields results as they finish. `asyncio.wait` gives finer control.
+```python
+import httpx, asyncio
+
+async def get_status(client, url):
+    r = await client.get(url, timeout=5)
+    return url, r.status_code
+
+async def main(urls):
+    async with httpx.AsyncClient() as client:
+        async with asyncio.TaskGroup() as tg:
+            tasks = [tg.create_task(get_status(client, u)) for u in urls]
+    return [t.result() for t in tasks]          # all done here
+
+# 3 calls of 1s each take about 1s total, not 3s
+```
+
+## Timeouts, Cancellation and Limits | green
+- **`async with asyncio.timeout(5):`** (3.11) or `asyncio.wait_for(coro, 5)` raises `TimeoutError` and **cancels** the inner work.
+- Cancellation raises **`CancelledError`** inside the task at its current `await`. Clean up in `finally` and **re-raise it**.
+- **`asyncio.Semaphore(n)`** limits concurrency (do not open 10,000 connections at once).
+- `asyncio.Queue` for async producer-consumer pipelines. `asyncio.Lock`, `Event` exist too.
+```python
+sem = asyncio.Semaphore(10)
+async def limited_fetch(client, url):
+    async with sem:                         # at most 10 in flight
+        async with asyncio.timeout(5):
+            return await client.get(url)
+```
+
+## The Blocking Pitfall | amber
+- **Any blocking call inside a coroutine freezes the entire event loop**: `time.sleep`, `requests.get`, heavy CPU loops, synchronous DB drivers.
+- Use **async libraries**: `httpx` / `aiohttp`, `asyncpg`, SQLAlchemy `AsyncSession`, `aiofiles`.
+- Offload unavoidable blocking calls with **`await asyncio.to_thread(func, *args)`** (thread pool) or `loop.run_in_executor` with a process pool for CPU work.
+- Forgetting `await` gives a coroutine object and a "coroutine was never awaited" warning.
+- FastAPI: an `async def` endpoint that calls blocking code stalls the server. A plain `def` endpoint runs in a thread pool automatically.
+```python
+async def handler():
+    time.sleep(2)                           # BAD: blocks every request
+    await asyncio.sleep(2)                  # GOOD
+    data = await asyncio.to_thread(legacy_sync_call, 42)   # offload blocking work
+```
+
+## Async Iteration and Context | violet
+- **`async for`** iterates async iterators and **async generators** (`async def` with `yield`).
+- **`async with`** uses async context managers (`__aenter__` / `__aexit__`, or `contextlib.asynccontextmanager`).
+- **`contextvars.ContextVar`** carries request-scoped data (request id, user) across awaits, the async replacement for thread-locals.
+```python
+async def paginate(client, url):
+    while url:
+        r = await client.get(url)
+        data = r.json()
+        for item in data["items"]:
+            yield item
+        url = data.get("next")
+
+async for item in paginate(client, "/api/orders"):
+    handle(item)
+```
+
+## Interview Q&A | sky | wide
+Q: How does asyncio work?
+A: A single-threaded event loop runs coroutines. When a coroutine awaits I/O it suspends and the loop resumes others whose I/O is ready, giving concurrency without threads.
+Q: asyncio vs threading?
+A: asyncio uses cooperative switching only at `await`, scales to many thousands of connections cheaply and avoids most race conditions, but needs async libraries. Threads work with blocking libraries but cost more memory and need locks.
+Q: What happens if you call blocking code in a coroutine?
+A: It blocks the event loop, so every other task stalls until it returns. Use async libraries or `asyncio.to_thread`.
+Q: `gather` vs `TaskGroup`?
+A: Both run awaitables concurrently. TaskGroup gives structured concurrency: on the first failure it cancels the remaining tasks and raises an ExceptionGroup. gather by default propagates the first error without cancelling the others.
+Q: What is a coroutine?
+A: The object returned by calling an `async def` function. It runs only when awaited or wrapped in a Task, and can suspend at await points.
+Q: How do you limit concurrent requests?
+A: Wrap the request in `async with semaphore:` using `asyncio.Semaphore(n)`.
+Q: How do you add a timeout?
+A: `async with asyncio.timeout(seconds):` (3.11+) or `await asyncio.wait_for(coro, seconds)`.
+Q: Is asyncio parallel?
+A: No, it is concurrent on one thread. For CPU-bound work use processes.
+
+# 16 | Metaprogramming | type, metaclasses, __init_subclass__, descriptors, attribute hooks, introspection | Metaprogramming
+
+## Classes Are Objects | rose
+- Classes are objects too. Their type is a **metaclass**, by default **`type`**. `type(int) is type`, `type(type) is type`.
+- **`type(obj)`** returns the class. **`type(name, bases, namespace)`** **creates a class dynamically**.
+- Class creation steps: run the class body into a namespace dict, then call `metaclass(name, bases, namespace)`.
+- Introspection: `dir`, `vars`, `getattr` / `setattr` / `hasattr` / `delattr`, `inspect.signature`, `__dict__`, `__class__`, `__module__`.
+```python
+def greet(self): return f"hi {self.name}"
+Person = type("Person", (object,), {"species": "human", "greet": greet})
+p = Person(); p.name = "Ann"; p.greet()
+
+getattr(p, "greet")()                 # dynamic method call
+setattr(p, "age", 30)
+```
+
+## Metaclasses | blue
+- A **metaclass** controls **how classes are created**: subclass `type` and override `__new__` / `__init__` (or `__call__` to control instance creation).
+- Use cases: **registries**, enforcing interfaces or naming rules, auto-adding methods, ORMs (Django models, SQLAlchemy declarative), Pydantic models.
+- "If you wonder whether you need a metaclass, you don't." Prefer **`__init_subclass__`**, class decorators or descriptors.
+```python
+class SingletonMeta(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+class Config(metaclass=SingletonMeta): ...
+Config() is Config()                   # True
+```
+
+## __init_subclass__ and Class Decorators | green
+- **`__init_subclass__`** (3.6) runs on the parent whenever a subclass is defined. Covers most metaclass use cases (registration, validation) with far less magic.
+- **`__set_name__`** tells a descriptor the attribute name it was assigned to.
+```python
+class Plugin:
+    registry: dict[str, type] = {}
+    def __init_subclass__(cls, *, name: str, **kwargs):
+        super().__init_subclass__(**kwargs)
+        Plugin.registry[name] = cls
+
+class CsvPlugin(Plugin, name="csv"): ...
+class JsonPlugin(Plugin, name="json"): ...
+Plugin.registry          # {'csv': CsvPlugin, 'json': JsonPlugin}
+```
+
+## Descriptors | amber
+- A **descriptor** is an object defining **`__get__`**, and optionally **`__set__`** / `__delete__`, placed as a **class attribute**. It controls attribute access on instances.
+- **`property`, `classmethod`, `staticmethod` and methods themselves are descriptors** (functions are non-data descriptors that bind `self`).
+- **Data descriptors** (with `__set__`) take priority over the instance `__dict__`. Non-data descriptors do not.
+- Used for reusable validation fields (ORM columns, typed attributes).
+```python
+class Positive:
+    def __set_name__(self, owner, name): self.name = "_" + name
+    def __get__(self, obj, objtype=None):
+        return getattr(obj, self.name)
+    def __set__(self, obj, value):
+        if value <= 0: raise ValueError(f"{self.name[1:]} must be > 0")
+        setattr(obj, self.name, value)
+
+class Product:
+    price = Positive()
+    qty = Positive()
+    def __init__(self, price, qty): self.price, self.qty = price, qty
+```
+
+## Attribute Hooks | violet
+- **`__getattribute__`**: called for **every** attribute access (easy to cause infinite recursion; call `super().__getattribute__`).
+- **`__getattr__`**: called **only when normal lookup fails**. Good for proxies, lazy loading and delegation.
+- **`__setattr__`** / `__delattr__` intercept writes and deletes.
+- Module-level `__getattr__` (3.7) enables lazy imports and deprecation warnings.
+- Lookup order: data descriptors on the type, then instance `__dict__`, then non-data descriptors and class attributes, then `__getattr__`.
+```python
+class Proxy:
+    def __init__(self, target): self._target = target
+    def __getattr__(self, name):              # only for missing attributes
+        print(f"accessing {name}")
+        return getattr(self._target, name)
+
+Proxy([1, 2]).append(3)
+```
+
+## Interview Q&A | sky | wide
+Q: What is a metaclass?
+A: The class of a class. It controls class creation; `type` is the default. You subclass `type` to customise how classes are built.
+Q: When would you use a metaclass?
+A: Rarely: frameworks such as ORMs or validation libraries that transform class definitions. For registration or validation prefer `__init_subclass__` or class decorators.
+Q: How do you create a class dynamically?
+A: `type("Name", (Base,), {"attr": value, "method": func})`.
+Q: What is a descriptor?
+A: An object with `__get__` (and optionally `__set__`, `__delete__`) stored on a class that customises attribute access. Properties and methods are built on descriptors.
+Q: `__getattr__` vs `__getattribute__`?
+A: `__getattribute__` runs for every attribute lookup. `__getattr__` runs only when the normal lookup fails.
+Q: What is monkey patching?
+A: Changing classes or modules at runtime (for example replacing a function in tests). Powerful but risky in production code; prefer dependency injection or `unittest.mock.patch` in tests.
+Q: How does a method get `self` bound?
+A: Functions are descriptors. Accessing `obj.method` calls the function's `__get__`, which returns a bound method with `obj` as the first argument.
+
+# 17 | Memory Management | Reference counting, cyclic GC, weakref, leaks, profiling | Memory
+
+## Reference Counting | rose
+- CPython tracks how many references point to each object. When the **count drops to zero, the object is freed immediately** (deterministic).
+- References come from names, containers, attributes, function arguments and frames.
+- **`sys.getrefcount(obj)`** returns the count, **one higher than expected** because the argument itself is a temporary reference.
+- **`del name`** removes a **name**, it does not delete the object. The object dies only when no references remain.
+```python
+import sys
+a = []
+sys.getrefcount(a)      # 2 (a + the argument)
+b = a
+sys.getrefcount(a)      # 3
+del b
+sys.getrefcount(a)      # 2
+```
+
+## Cyclic Garbage Collector | blue
+- Reference counting **cannot free cycles** (A points to B, B points to A).
+- The **cyclic GC** (`gc` module) periodically finds unreachable groups of container objects and frees them. It is **generational**: new objects are checked often, survivors less often.
+- `gc.collect()` forces a run. `gc.disable()` is used by some high-performance apps (Instagram famously tuned this). `gc.get_threshold()`.
+- `__del__` finalisers run when an object is collected; avoid relying on them for cleanup (use context managers).
+```python
+import gc
+class Node:
+    def __init__(self): self.other = None
+a, b = Node(), Node()
+a.other, b.other = b, a       # cycle
+del a, b                      # refcounts never reach 0
+gc.collect()                  # cycle collector frees them
+```
+
+## Memory Allocation Details | green
+- **pymalloc**: a fast allocator for small objects (up to 512 bytes) using arenas and pools. Large objects use the system allocator.
+- Freed memory often goes back to Python's pools, not the OS, so the **process RSS may not shrink**.
+- **Interning and caching**: small ints (-5 to 256), some strings, the empty tuple, `None`, `True` / `False` are shared singletons.
+- `sys.getsizeof` is **shallow**: a list's size excludes the objects it references.
+- Every object carries overhead (type pointer, refcount): an `int` is about 28 bytes. Use **arrays, NumPy, `__slots__`** for many small values.
+
+## weakref | amber
+- A **weak reference** points to an object **without increasing its refcount**, so it does not keep the object alive.
+- **`weakref.ref(obj)`** (call it to get the object or `None`), **`WeakValueDictionary`**, **`WeakKeyDictionary`**, `WeakSet`, `weakref.finalize`.
+- Use for **caches**, observer lists and back-references (child to parent) to avoid leaks and cycles.
+```python
+import weakref
+class Image: ...
+cache = weakref.WeakValueDictionary()
+img = Image()
+cache["logo"] = img
+del img                       # entry disappears automatically when no strong refs remain
+```
+
+## Leaks and Profiling | violet
+- Python "leaks" are objects **still referenced** but no longer needed: **growing global caches or lists**, unbounded `lru_cache`, **closures or callbacks** keeping big objects alive, unremoved event handlers, cycles with `__del__` in old versions, C extension bugs.
+- Tools: **`tracemalloc`** (where allocations come from, compare snapshots), `gc.get_objects()`, **objgraph**, memray, Scalene, `memory_profiler`.
+- Fixes: bound caches (`maxsize`), weak references, process data in streams or generators, release references (`del`, scope).
+```python
+import tracemalloc
+tracemalloc.start()
+run_workload()
+snapshot = tracemalloc.take_snapshot()
+for stat in snapshot.statistics("lineno")[:5]:
+    print(stat)              # top 5 lines by allocated memory
+```
+
+## Interview Q&A | sky | wide
+Q: How does Python manage memory?
+A: CPython uses reference counting to free objects immediately when unused, plus a generational cyclic garbage collector for reference cycles, with pymalloc handling small-object allocation.
+Q: Why is `sys.getrefcount` one higher than expected?
+A: Passing the object as an argument creates a temporary extra reference for the duration of the call.
+Q: Does `del` delete an object?
+A: No, it removes a name binding (or container item). The object is freed only when its reference count reaches zero or the GC collects its cycle.
+Q: Can Python have memory leaks?
+A: Yes: lingering references in globals, caches, closures or callbacks keep objects alive, and C extensions can leak. Use tracemalloc to find them.
+Q: What is a weak reference for?
+A: To refer to an object without keeping it alive, for caches and back-references that should not prevent garbage collection.
+Q: Why does memory not return to the OS after freeing objects?
+A: pymalloc keeps freed blocks in its arenas for reuse; arenas are released only when completely empty, and fragmentation often prevents that.
+Q: What does `gc.collect()` do?
+A: Runs the cyclic garbage collector immediately on all generations and returns the number of unreachable objects found.
+
+# 18 | Type Hints & Pydantic | typing module, generics, Protocol, mypy, Pydantic v2 validation | Typing & Pydantic
+
+## Type Hints Basics | rose
+- Hints are **optional and not enforced at runtime**. Static checkers (**mypy**, **pyright**) and IDEs use them; frameworks (FastAPI, Pydantic) read them at runtime.
+- Built-in generics (3.9): `list[int]`, `dict[str, float]`, `tuple[int, ...]`, `set[str]`.
+- **Union** with **`X | Y`** (3.10), `Optional[X]` is `X | None`.
+- `Any` (opt out), `object` (anything, but you must narrow), **`Literal["GET", "POST"]`**, **`Final`**, `ClassVar`, **`Callable[[int, str], bool]`**, `Iterable`, `Sequence`, `Mapping` (from `collections.abc`).
+- `Self` (3.11) for methods returning their own class. `@override` (3.12).
+```python
+from collections.abc import Callable, Iterable
+from typing import Literal
+
+Method = Literal["GET", "POST"]
+
+def request(url: str, method: Method = "GET", timeout: float | None = None) -> dict[str, object]: ...
+
+def apply(fn: Callable[[int], int], values: Iterable[int]) -> list[int]:
+    return [fn(v) for v in values]
+```
+
+## Generics, TypedDict and Protocol | blue
+- **Generics** (3.12 syntax): `def first[T](items: list[T]) -> T`, `class Box[T]:`. Older: `T = TypeVar("T")` and `Generic[T]`.
+- **Type aliases** (3.12): `type UserId = int`. **`NewType("UserId", int)`** creates a distinct type for the checker.
+- **`TypedDict`**: types dict shapes (JSON payloads). **`NamedTuple`**, dataclasses for records.
+- **`Protocol`**: structural interfaces (duck typing that the checker understands).
+- **`Annotated[int, Field(gt=0)]`**: attach metadata used by FastAPI and Pydantic.
+```python
+from typing import TypedDict, Protocol, NewType
+
+def first[T](items: list[T]) -> T | None:
+    return items[0] if items else None
+
+type Json = dict[str, "Json"] | list["Json"] | str | int | float | bool | None
+UserId = NewType("UserId", int)
+
+class UserPayload(TypedDict):
+    id: int
+    email: str
+
+class Repository[T](Protocol):
+    def get(self, id: int) -> T | None: ...
+```
+
+## Pydantic v2 Models | green
+- **Pydantic** turns type hints into **runtime validation and parsing**. Core written in **Rust** (pydantic-core), so v2 is much faster than v1.
+- `class User(BaseModel)`: fields from annotations, **coercion by default** (`"42"` becomes `42` in lax mode), detailed **`ValidationError`**.
+- **`Field(...)`** constraints: `gt`, `ge`, `max_length`, `pattern`, `default_factory`, `alias`.
+- Methods: **`model_validate(dict)`**, **`model_validate_json(str)`**, **`model_dump()`**, **`model_dump_json()`**, `model_copy(update=...)`, `model_json_schema()`.
+- `ConfigDict(strict=True)` disables coercion, `extra="forbid"` rejects unknown fields, `frozen=True` for immutability, `from_attributes=True` to read ORM objects.
+```python
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, ValidationError
+
+class Address(BaseModel):
+    city: str
+    pin: str = Field(pattern=r"^\d{6}$")
+
+class User(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: int
+    email: EmailStr
+    age: int = Field(ge=18, le=120)
+    tags: list[str] = []
+    address: Address | None = None
+
+u = User.model_validate({"id": "7", "email": "a@x.com", "age": 30})   # id coerced to 7
+try:
+    User(id=1, email="bad", age=10)
+except ValidationError as e:
+    print(e.errors())        # list of field errors with locations
+```
+
+## Pydantic Validators and Settings | amber
+- **`@field_validator("field")`**: validate or transform a single field (mode `"before"` or `"after"`).
+- **`@model_validator(mode="after")`**: cross-field checks (password confirmation, date ranges).
+- **`@computed_field`** includes derived properties in output.
+- **`pydantic-settings`** `BaseSettings`: load config from **environment variables and `.env`** with validation.
+- **FastAPI** uses Pydantic models for request bodies, query validation, response models and OpenAPI docs.
+```python
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings
+
+class SignUp(BaseModel):
+    username: str
+    password: str
+    confirm: str
+    @field_validator("username")
+    @classmethod
+    def normalise(cls, v: str) -> str:
+        return v.strip().lower()
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.confirm:
+            raise ValueError("passwords do not match")
+        return self
+
+class Settings(BaseSettings):
+    database_url: str
+    debug: bool = False                      # read from DEBUG env var
+```
+
+## Interview Q&A | sky | wide
+Q: Are type hints enforced at runtime?
+A: No. The interpreter stores them but does not check them. Static checkers like mypy verify them, and libraries like Pydantic and FastAPI read them to validate data at runtime.
+Q: Why use type hints?
+A: Catch bugs before running, better IDE autocomplete and refactoring, self-documenting code, and they power runtime validation frameworks.
+Q: `Optional[int]` vs `int | None`?
+A: Same meaning. `int | None` is the modern syntax (3.10+). Optional does not mean the parameter has a default.
+Q: What is Pydantic?
+A: A library that validates and parses data based on type hints, producing typed model objects or detailed validation errors. FastAPI uses it for requests and responses.
+Q: Pydantic model vs dataclass?
+A: A dataclass generates boilerplate but does no runtime validation. A Pydantic model validates, coerces types, serialises to JSON and generates JSON Schema.
+Q: What is lax vs strict mode in Pydantic?
+A: Lax (default) coerces compatible inputs such as `"42"` to `42`. Strict rejects any input not already of the exact type.
+Q: What is a Protocol?
+A: A structural type: any class implementing the listed methods is accepted by the type checker, without inheriting from it.
+Q: How do you validate across several fields?
+A: With `@model_validator(mode="after")`, which receives the whole model and can raise `ValueError`.
+
+
+@ Review
+# 19 | Modern Python & Rapid-Fire | Version map, tricky snippets, coding patterns, big Q&A | Rapid-fire
+
+## Version Map (know a few) | rose
+- **3.8**: walrus `:=`, positional-only `/`, `f"{x=}"`.
+- **3.9**: dict union `|`, built-in generics `list[int]`, `str.removeprefix`, `zoneinfo`.
+- **3.10**: **`match` / `case`**, `X | Y` unions, `zip(strict=True)`, better error messages.
+- **3.11**: **10-60% faster** (Faster CPython), **exception groups** and `except*`, `TaskGroup`, `asyncio.timeout`, `tomllib`, `Self`.
+- **3.12**: **generic syntax** `def f[T]` and `type` aliases, more flexible f-strings, `itertools.batched`, `@override`, per-interpreter GIL.
+- **3.13**: experimental **free-threaded** build and **JIT**, new interactive REPL, improved error messages.
+- **3.14** (Oct 2025): **template strings** `t"..."`, **deferred evaluation of annotations**, free-threaded build officially supported, `concurrent.interpreters`, Zstandard in stdlib.
+> Mention the version your project runs and one or two features you used.
+
+## Tricky Snippets | blue
+```python
+print(0.1 + 0.2 == 0.3)            # False
+print(round(2.5), round(3.5))      # 2 4   (banker's rounding)
+print(-7 // 2, -7 % 2)             # -4 1
+print(True + True)                 # 2
+print([] == [], [] is [])          # True False
+print("a" * 3, [0] * 3)            # aaa [0, 0, 0]
+
+def f(x=[]):
+    x.append(1); return x
+f(); print(f())                    # [1, 1]
+
+a = [1, 2, 3]
+b = a
+a += [4]                           # in-place: b sees it
+a = a + [5]                        # new list: b does not
+print(b)                           # [1, 2, 3, 4]
+
+t = (1, [2])
+try: t[1] += [3]                   # raises TypeError AND mutates the list
+except TypeError: pass
+print(t)                           # (1, [2, 3])
+
+print(bool("False"), bool(""))     # True False
+print({1, 1.0, True})              # {1}  (equal and same hash)
+```
+
+## Coding Patterns to Recall | green
+```python
+# Two-sum in O(n)
+def two_sum(nums, target):
+    seen = {}
+    for i, n in enumerate(nums):
+        if target - n in seen: return seen[target - n], i
+        seen[n] = i
+
+# Group anagrams
+from collections import defaultdict
+def group_anagrams(words):
+    groups = defaultdict(list)
+    for w in words: groups["".join(sorted(w))].append(w)
+    return list(groups.values())
+
+# Sliding window: longest substring without repeats
+def longest_unique(s):
+    last, start, best = {}, 0, 0
+    for i, ch in enumerate(s):
+        if ch in last and last[ch] >= start: start = last[ch] + 1
+        last[ch] = i
+        best = max(best, i - start + 1)
+    return best
+
+# Flatten arbitrarily nested lists
+def flatten(x):
+    for item in x:
+        if isinstance(item, list): yield from flatten(item)
+        else: yield item
+
+# Merge intervals
+def merge(intervals):
+    out = []
+    for s, e in sorted(intervals):
+        if out and s <= out[-1][1]: out[-1][1] = max(out[-1][1], e)
+        else: out.append([s, e])
+    return out
+```
+
+## One-Line Cheat Sheet | amber
+- **Names bind to objects**; assignment never copies. **`is`** = identity, **`==`** = value.
+- **Mutable defaults** are shared: use `None`.
+- **LEGB** scope; `global` / `nonlocal` to rebind.
+- **list** O(1) end ops, **deque** for both ends, **dict / set** O(1) lookups, **heapq** min-heap.
+- **Generators** are lazy and single-pass. **Decorators**: `f = d(f)`, always `functools.wraps`.
+- **`__repr__`** for devs, **`__str__`** for users; **`__eq__`** without **`__hash__`** = unhashable.
+- **MRO** via C3; `super()` = next in MRO.
+- **GIL**: threads for I/O, processes for CPU. **asyncio**: never block the loop.
+- **Refcount + cyclic GC**. **Type hints** are not enforced; **Pydantic** enforces at runtime.
+
+## How to Answer Well | teal
+- **Definition → tiny example → when you use it → trade-off.** Stop after about a minute and let them dig.
+- Name the **Pythonic idiom**: comprehension, context manager, generator, EAFP, `dict.get`, `enumerate`.
+- For performance questions, give **Big-O** and the data structure that changes it (list vs set membership).
+- Connect to projects: "We moved blocking `requests` calls in FastAPI to `httpx.AsyncClient` with a semaphore and cut p95 latency by half."
+- In live coding, talk through edge cases: empty input, duplicates, None, very large input.
+
+## Big Interview Q&A | sky | wide
+Q: What are Python's key features?
+A: Readable syntax, dynamic and strong typing, automatic memory management, rich standard library, multiple paradigms (procedural, OOP, functional), huge ecosystem, and easy C integration.
+Q: What is PEP 8?
+A: The official style guide: naming conventions, 4-space indents, line lengths, import ordering, whitespace rules. Tools like ruff and black enforce it.
+Q: How would you speed up slow Python code?
+A: Profile first (cProfile, py-spy). Then fix the algorithm or data structure, use built-ins and comprehensions, cache with `lru_cache`, vectorise with NumPy, use concurrency for I/O and processes for CPU, or move hot loops to C, Cython or Rust.
+Q: What is monkey patching and duck typing?
+A: Duck typing means caring about an object's behaviour (methods it has) rather than its declared type. Monkey patching means modifying classes or modules at runtime.
+Q: Explain `*args` and `**kwargs` in a decorator.
+A: The wrapper accepts any positional and keyword arguments and forwards them unchanged to the wrapped function, so the decorator works for any signature.
+Q: Deep vs shallow copy in one sentence?
+A: Shallow copies the container and shares nested objects; deep copies everything recursively.
+Q: How does a dict lookup run in O(1)?
+A: The key's hash maps directly to a slot in an array; equality confirms the key; the table is resized to keep it sparse so probing stays short.
+Q: What is `__init__.py`, `__name__` and `__main__`?
+A: `__init__.py` marks a package; `__name__` is the module's name, set to `"__main__"` when the file runs as a script.
+Q: Generators vs lists for big data?
+A: Generators produce items lazily with constant memory; lists hold everything at once. Use generators for streams and single-pass processing.
+Q: How do you handle configuration and secrets?
+A: Environment variables or a secrets manager, loaded and validated with pydantic-settings; never commit secrets; `.env` only for local development.
+Q: Python 2 vs Python 3?
+A: Python 2 reached end of life in 2020. Python 3 has Unicode strings by default, `print()` as a function, true division, iterators for `range` / `zip` / `dict.items`, and all modern features.
+Q: What would you check if a FastAPI service is slow?
+A: Blocking calls inside async endpoints, N+1 database queries, missing indexes, connection pool limits, large payload serialisation, and CPU-heavy work that should move to a worker; confirm with profiling and tracing.

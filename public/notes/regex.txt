@@ -1,0 +1,804 @@
+@ Beginner
+# 00 | Regex Basics: Start Here | What regex is used for, history, flavours and their differences, how to read a pattern, testing tools, the core cheat sheet, when not to use regex | Start Here
+
+## Where Regex Is Used | rose
+- A regular expression ("regex" or "regexp") is a mini-language for describing text patterns (sheet 01). The same idea appears almost everywhere:
+- **Programming languages**: Java (`java.util.regex`), Python (`re`), JavaScript (`RegExp`), plus C#, Go, PHP, Ruby and others.
+- **Editors and IDEs**: find and replace with the `.*` regex toggle in VS Code and IntelliJ.
+- **Command-line tools**: `grep` (search), `sed` (stream editing), `awk`, `find -regex`, `rg` (ripgrep).
+- **Databases**: PostgreSQL `~` and `regexp_replace`, MySQL `REGEXP`, Oracle `REGEXP_LIKE`.
+- **Web forms**: the HTML `pattern` attribute validates input in the browser.
+- **Ops and data work**: log searches, routing rules (NGINX `location ~`), data cleaning, tokenising text.
+- Typical jobs: **validate** (is this a PIN code?), **search** (find all error lines), **extract** (pull dates out of text), **replace** (reformat phone numbers), **split** (on commas or whitespace).
+
+## A Short History | blue
+- **1950s**: mathematician **Stephen Kleene** described "regular sets" (regular languages) in automata theory; the `*` repetition operator is still called the **Kleene star**.
+- **1968**: **Ken Thompson** built regex searching into the QED text editor and published an algorithm that compiles a regex into a state machine. He carried it into Unix `ed`, and from `ed`'s command `g/re/p` ("globally search for a regular expression and print") came **`grep`** (1973).
+- **1980s**: Henry Spencer's free regex library spread the feature; **Perl** (Larry Wall, 1987) made rich regex part of everyday programming, adding lazy quantifiers, lookarounds and more over the following years.
+- **1997**: **PCRE** (Perl Compatible Regular Expressions, by Philip Hazel) brought Perl's syntax to other tools and languages. Most modern flavours descend from Perl's style.
+- Today two engine families exist: **backtracking** engines (Perl, PCRE, Java, Python, JavaScript, .NET), which are feature-rich but can blow up on bad patterns, and **automaton** engines such as **RE2** (Google, used by Go), which guarantee linear time but drop backreferences and lookarounds (sheet 09).
+
+## Flavours and Their Differences | green
+- **POSIX BRE** (Basic Regular Expressions, default `grep`, `sed`): `(`, `)`, `{`, `}`, `+`, `?` are literal unless escaped (`\(` `\)` `\{` `\}`); no `\d` shorthand (use `[0-9]` or `[[:digit:]]`).
+- **POSIX ERE** (Extended, `grep -E`, `awk`): `( ) { } + ? |` work unescaped; still no `\d` or lookarounds.
+- **PCRE / Perl style** (`grep -P`, PHP, many tools): `\d \w \s`, lazy quantifiers, lookarounds, named groups, possessive quantifiers, atomic groups.
+- **JavaScript (ECMAScript)**: literals `/pattern/flags`; lookbehind since ES2018; **no possessive quantifiers or atomic groups**; flags `d g i m s u v y`.
+- **Java**: strings need doubled backslashes (`"\\d+"`); supports possessive quantifiers and atomic groups.
+- **Python `re`**: raw strings (`r"\d+"`); named groups are written **`(?P<name>...)`** (the `(?<name>...)` form is rejected by Python 3.13); possessive quantifiers and atomic groups since 3.11; lookbehind must be fixed-width.
+- Practical rule: write the pattern **for the flavour you'll run it in**, and test it in that flavour.
+
+## How to Read a Pattern | amber
+```text
+^[\w.+-]+@[\w-]+(\.[\w-]+)*\.[a-z]{2,}$        (with the i flag)
+
+^            start of the string
+[\w.+-]+     one or more word characters, dots, plus signs or hyphens  (the local part: ann.lee+news)
+@            a literal @
+[\w-]+       one or more word characters or hyphens                    (the domain: mail)
+(\.[\w-]+)*  zero or more ".something" parts                           (.co)
+\.           a literal dot (escaped)
+[a-z]{2,}    two or more letters                                       (the top-level domain: in)
+$            end of the string
+matches: ann.lee+news@mail.co.in     rejects: ann@localhost, @mail.com, ann@mail.c
+```
+- Read **left to right, one token at a time**: what does this token match, and how many times (its quantifier)?
+- Split the pattern by its **anchors and literal characters** first (`^`, `@`, `\.`, `$`); they show the structure.
+- Spell out what each group is for, and list a few strings that **must match** and a few that **must not** before writing the pattern.
+
+## Testing Tools | violet
+- **regex101.com**: pick the flavour (PCRE, JavaScript, Python, Java, .NET, Go...), see a token-by-token explanation, the match information and a step debugger that reveals backtracking.
+- **regexr.com**: similar, with a reference and community patterns.
+- Your editor's search with the regex toggle, or `grep -E` / `grep -P` in a terminal.
+- In code, keep a small **table of positive and negative examples** as a unit test next to every non-trivial regex.
+
+## Core Cheat Sheet | rose
+```text
+.        any character except newline         \d \D   digit / non-digit
+\w \W    word char [A-Za-z0-9_] / non-word    \s \S   whitespace / non-whitespace
+[abc]    one of a, b, c                       [^abc]  anything except a, b, c
+[a-z]    range                                \b      word boundary
+^  $     start / end (of line with m flag)    \       escape a metacharacter
+*        0 or more    +  1 or more            ?       0 or 1 (optional)
+{n}      exactly n    {n,}  n or more         {n,m}   between n and m
+*? +?    lazy (as few as possible)            a|b     a or b
+(...)    capturing group                      (?:...) non-capturing group
+\1       backreference to group 1             (?<n>...) named group  (Python: (?P<n>...))
+(?=...)  followed by     (?!...)  not followed by
+(?<=...) preceded by     (?<!...) not preceded by
+flags:   i ignore case, g global, m multiline, s dotAll, u unicode, x verbose (not in JS)
+```
+
+## When Not to Use Regex | blue
+- **Parsing nested or structured formats**: HTML, XML, JSON, programming languages and arithmetic with nested brackets. Use a real parser.
+- **Simple string checks**: `startsWith`, `endsWith`, `includes`, `split(',')` are clearer and faster.
+- **Strict email or URL validation**: a perfect regex is enormous. Use a simple sanity pattern plus a confirmation email, or the platform's URL parser.
+- **Untrusted patterns or untrusted huge inputs** with a backtracking engine: risk of catastrophic backtracking (**ReDoS**, sheet 09). Use timeouts, input limits or a linear-time engine.
+> "Some people, when confronted with a problem, think 'I know, I'll use regular expressions.' Now they have two problems." (Jamie Zawinski, 1997). Regex is powerful; keep patterns small, commented and tested.
+
+## Interview Q&A | sky | wide
+Q: What is a regular expression?
+A: A pattern, written in a compact syntax, that describes a set of strings. Engines use it to validate, search, extract, replace and split text.
+Q: What does grep stand for?
+A: It comes from the ed editor command g/re/p: globally search for a regular expression and print matching lines.
+Q: What is a regex flavour?
+A: A specific dialect of regex syntax and features: POSIX BRE and ERE, PCRE, JavaScript, Java, Python and .NET differ in shorthands, lookbehind support, named-group syntax, possessive quantifiers and flags.
+Q: What is the difference between BRE and ERE?
+A: In POSIX basic regex, characters like ( ) { } + ? are literal unless escaped; in extended regex they are operators without escaping.
+Q: How do you test a regex?
+A: In a tool such as regex101 set to the target flavour, and in code with unit tests covering strings that must match and strings that must not.
+Q: When should you not use regex?
+A: For nested or structured formats such as HTML or JSON (use parsers), for checks a simple string method can do, and for untrusted input with backtracking engines without protection against ReDoS.
+Q: What is the difference between a backtracking engine and an automaton (DFA/RE2) engine?
+A: Backtracking engines try alternatives one by one and support backreferences and lookarounds, but can take exponential time. Automaton engines run in time linear in the input but don't support those features.
+Q: Why do Java regexes have double backslashes?
+A: Java string literals use backslash as their own escape, so `\d` must be written `"\\d"` to reach the regex engine as `\d`. Python avoids this with raw strings (r"\d"), JavaScript with regex literals (/\d/).
+
+# 01 | Regex Fundamentals | Literals, metacharacters, escaping, character classes, sets, anchors | Fundamentals
+
+## What a Regex Is | rose
+- A **regular expression** is a **pattern** describing a set of strings. Used to **validate**, **search**, **extract** and **replace** text.
+- Most characters match **themselves literally**: `cat` matches "cat" anywhere in "concatenate".
+- **Metacharacters** have special meaning: `. ^ $ * + ? ( ) [ ] { } | \` (and `/` inside JS literals).
+- **Escape** a metacharacter with a backslash to match it literally: `\.` matches a dot, `\$` a dollar sign, `\\` a backslash.
+- The engine scans **left to right** and returns the **leftmost** match (and, for alternation, the first alternative that succeeds).
+- Practise on **regex101.com** (pick the flavour: PCRE, JavaScript, Python, Java) and read its explanation panel.
+> One-liner: "A regex is a compact pattern language; the engine tries to match it at each position from left to right and backtracks when a choice fails."
+
+## Character Classes (Shorthands) | blue
+- **`.`**: any character **except a newline** (unless the dotall `s` flag is set).
+- **`\d`** digit, **`\w`** word character (letter, digit, underscore), **`\s`** whitespace (space, tab, newline, ...).
+- Uppercase negates: **`\D`** non-digit, **`\W`** non-word, **`\S`** non-whitespace.
+- Flavour difference: in **JavaScript and Java** `\d` and `\w` are **ASCII** by default; in **Python 3** (str patterns) they match **Unicode** digits and letters unless `re.ASCII` is used.
+- Escapes: `\t` tab, `\n` newline, `\r` carriage return, `\uFFFF` / `\x41` by code.
+```text
+Pattern     Matches in "Order #A12, 3 items"
+\d          1, 2, 3
+\d\d        12
+\w+         Order, A12, 3, items
+\s          the spaces
+.           every character (one at a time)
+```
+
+## Sets and Ranges | green
+- **`[abc]`**: one character from the set. **`[a-z]`**, **`[A-Z0-9]`**: ranges.
+- **`[^abc]`**: negated set, any character **except** these (including newline).
+- Inside `[]` most metacharacters are **literal**: `[.+*?]` matches those symbols. Still escape `]`, `\`, and `^` (if first) and `-` (unless first or last).
+- Shorthands work inside sets: `[\w.-]` (word chars, dot, hyphen).
+- **Negated sets are often better than lazy dots**: `"[^"]*"` matches a quoted string fast and precisely.
+- Java supports set intersection and subtraction: `[a-z&&[^aeiou]]` (consonants). JavaScript's `v` flag adds `[\p{L}--[a-z]]`.
+```text
+[aeiou]            a vowel
+[0-9A-Fa-f]        a hex digit
+[^\s,]+            a run of characters that are not whitespace or commas
+gr[ae]y            gray or grey
+[-+]?\d+           optional sign then digits
+```
+
+## Anchors and Boundaries | amber
+- Anchors match a **position**, not a character (**zero-width**).
+- **`^`** start of string, **`$`** end of string. With the **multiline `m` flag**, they match at the start and end of **each line**.
+- **`\b`** word boundary (between a `\w` and a `\W` or the string edge). **`\B`** not a boundary.
+- **`\A`** and **`\z`** (Java, Python uses `\Z`) are absolute string start and end, unaffected by multiline mode. JavaScript lacks them.
+- Python and Java `$` also matches **before a final trailing newline**. For strict validation use `\Z` (Python) or `\z` (Java), or `fullmatch` / `matches()`.
+- **Validation needs anchors**: `\d{4}` finds 4 digits inside "abc12345"; `^\d{4}$` requires exactly 4 digits.
+```text
+\bcat\b          "cat" as a whole word, not inside "concatenate"
+^\d{6}$          exactly six digits (a full-string check)
+^#               lines starting with # (with the m flag)
+\Bend            "end" not at the start of a word (matches in "legend")
+```
+
+## Unicode | violet
+- **Unicode property escapes**: `\p{L}` any letter, `\p{Lu}` uppercase letter, `\p{N}` number, `\p{Script=Devanagari}`, `\P{L}` not a letter.
+- Supported in **Java** and **JavaScript (with the `u` or `v` flag)**. Python's built-in `re` does **not** support `\p{...}`; use the third-party **`regex`** module.
+- Without the `u` flag, JavaScript treats emoji and other astral characters as **two code units**, so `.` matches half an emoji.
+- Case-insensitive matching across scripts needs Unicode-aware flags (`re.IGNORECASE` is Unicode-aware in Python; Java needs `UNICODE_CASE`).
+```js
+/^\p{L}+$/u.test("नमस्ते");        // false: Devanagari vowel signs are \p{M} (marks), not letters
+/^[\p{L}\p{M}]+$/u.test("नमस्ते"); // true
+/^.$/.test("😀");                  // false: two UTF-16 code units
+/^.$/u.test("😀");                 // true
+```
+
+## Interview Q&A | sky | wide
+Q: What does `.` match?
+A: Any single character except line terminators, unless the dotall flag (`s`, `re.DOTALL`, `Pattern.DOTALL`) is enabled.
+Q: Difference between `[^abc]` and `^abc`?
+A: `[^abc]` is a negated set matching one character that is not a, b or c. `^abc` anchors "abc" at the start of the string (or line in multiline mode).
+Q: What is `\b`?
+A: A zero-width word boundary: a position between a word character and a non-word character, or at the string edge next to a word character.
+Q: Why must validation patterns be anchored?
+A: Without `^...$` (or a full-match API) the pattern can match a substring, so "abc123def" would pass a check meant for digits only.
+Q: Does `\d` match Arabic-Indic or Devanagari digits?
+A: In Python 3 str patterns yes (Unicode by default). In JavaScript and Java no, they are ASCII 0-9 unless Unicode character classes are enabled.
+Q: How do you match a literal dot or parenthesis?
+A: Escape it: `\.` or `\(`, or put it inside a character class like `[.]`. Each language also has an escape helper for whole strings (`re.escape`, `Pattern.quote`, `RegExp.escape`).
+
+# 02 | Quantifiers: Greedy, Lazy & Possessive | How many times, and how hard the engine tries | Quantifiers
+
+## Basic Quantifiers | rose
+- A quantifier applies to the **single token before it** (a character, class, escape or group).
+- **`*`** zero or more, **`+`** one or more, **`?`** zero or one (optional).
+- **`{n}`** exactly n, **`{n,}`** n or more, **`{n,m}`** between n and m inclusive.
+- To repeat several characters, **group them**: `(ab)+` repeats "ab", while `ab+` repeats only "b".
+- Python also accepts `{,m}`; write `{0,m}` for portability.
+```text
+colou?r            color, colour
+\d{3}-\d{4}        555-1234
+(ha)+              ha, haha, hahaha
+[A-Z]{2,4}         2 to 4 capital letters
+\w{8,}             at least 8 word characters
+```
+
+## Greedy vs Lazy | blue
+- Quantifiers are **greedy** by default: they match **as much as possible**, then **backtrack** (give characters back) if the rest of the pattern fails.
+- Add **`?`** to make them **lazy (reluctant)**: `*?`, `+?`, `??`, `{n,m}?` match **as little as possible**, expanding only when needed.
+- Both find a match at the **same starting position** (leftmost); they differ in **how long** it is.
+- Often a **negated set** is clearer and faster than a lazy dot: `<[^>]+>` instead of `<.+?>`.
+```text
+Input:   <b>bold</b> and <i>italic</i>
+
+<.+>     greedy: <b>bold</b> and <i>italic</i>   (whole thing)
+<.+?>    lazy:   <b>, </b>, <i>, </i>
+<[^>]+>  set:    <b>, </b>, <i>, </i>             (no backtracking needed)
+
+Input:   "a" and "b"
+".*"     "a" and "b"
+".*?"    "a", "b"
+```
+
+## How Backtracking Works | green
+- For `\d+5` on "12345": `\d+` first grabs all of "12345", then `5` fails at the end, so the engine **backtracks** one character at a time until `\d+` holds "1234" and `5` matches.
+- Lazy quantifiers backtrack the other way: start small and **expand**.
+- Each backtrack is a saved **choice point**. Many nested choices can explode (see sheet 09).
+```text
+Pattern \d+5 on "12345"
+step 1: \d+ = "12345", then 5 has nothing to match -> backtrack
+step 2: \d+ = "1234",  then 5 matches "5"           -> success
+```
+
+## Possessive Quantifiers and Atomic Groups | amber
+- **Possessive** quantifiers `*+`, `++`, `?+`, `{n,m}+` are greedy but **never give back** characters (no backtracking into them).
+- **Atomic group** `(?>...)`: once the group matches, the engine **discards its backtracking positions**.
+- Use them to **prevent catastrophic backtracking** and to fail fast.
+- Supported in **Java**, **PCRE**, and **Python 3.11+**. **Not supported in JavaScript** (emulate atomic groups with `(?=(...))\1`).
+```java
+Pattern.compile("\\d++5").matcher("12345").find();   // false: \d++ keeps "12345" and never gives back
+Pattern.compile("\"[^\"]*+\"");                       // quoted string, no backtracking
+Pattern.compile("(?>\\w+)@");                         // atomic word before @
+```
+
+## Interview Q&A | sky | wide
+Q: Greedy vs lazy quantifiers?
+A: Greedy quantifiers match as much as possible and backtrack if needed. Lazy ones (with a trailing `?`) match as little as possible and expand only when the rest of the pattern needs more.
+Q: What does `a{2,}` mean?
+A: Two or more "a" characters.
+Q: Why does `<.*>` match too much in HTML?
+A: `.*` is greedy, so it runs to the last `>` in the line. Use `<.*?>` or better `<[^>]*>`.
+Q: What is a possessive quantifier?
+A: A greedy quantifier that never backtracks (`++`, `*+`). It can make a match fail where a greedy one would succeed, but it prevents runaway backtracking.
+Q: What does a quantifier apply to?
+A: Only the immediately preceding token. Use a group to quantify a sequence.
+Q: Does JavaScript support possessive quantifiers?
+A: No. Use a lookahead-plus-backreference trick to emulate atomic groups, or restructure the pattern.
+
+
+@ Intermediate
+# 03 | Groups, Alternation & Backreferences | Capturing, non-capturing, named groups, backreferences | Groups
+
+## Capturing Groups | rose
+- **`( ... )`** groups tokens (for quantifiers and alternation) **and captures** the matched text.
+- Groups are numbered **by their opening parenthesis, left to right**, starting at 1. Group 0 is the whole match.
+- A quantified group keeps only its **last iteration**: `(\d)+` on "123" captures "3".
+- An unmatched optional group is `undefined` (JS), `None` (Python), `null` (Java).
+```text
+Pattern:  (\d{4})-(\d{2})-(\d{2})
+Input:    2026-10-14
+group 0 = 2026-10-14, group 1 = 2026, group 2 = 10, group 3 = 14
+```
+
+## Non-Capturing and Named Groups | blue
+- **`(?: ... )`** groups **without capturing**: cleaner numbering and slightly faster. Use when you only need grouping.
+- **Named groups** make code readable and robust when the pattern changes:
+- **JavaScript and Java**: `(?<year>\d{4})`, backreference `\k<year>`.
+- **Python**: `(?P<year>\d{4})`, backreference `(?P=year)`, replacement `\g<year>`.
+```js
+const m = "2026-10-14".match(/(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})/);
+m.groups.year;                                      // "2026"
+"2026-10-14".replace(/(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})/, "$<d>/$<m>/$<y>");   // "14/10/2026"
+```
+```python
+import re
+m = re.search(r"(?P<user>[\w.]+)@(?P<domain>[\w.-]+)", "mail ann.lee@shop.io now")
+m.group("user"), m.group("domain")                  # ('ann.lee', 'shop.io')
+m.groupdict()                                       # {'user': 'ann.lee', 'domain': 'shop.io'}
+```
+
+## Alternation | green
+- **`a|b`** matches a **or** b. It has the **lowest precedence**: `^cat|dog$` means `(^cat)|(dog$)`. Group it: `^(?:cat|dog)$`.
+- Alternatives are tried **left to right**; the first one that leads to an overall match wins (not the longest). Put **longer or more specific alternatives first**: `(?:Saturday|Sat)`.
+- Prefer a **character class** over single-character alternation: `[abc]` is faster than `(?:a|b|c)`.
+- **Factor common prefixes**: `(?:get|set)Value` instead of `getValue|setValue`.
+```text
+^(?:jpg|jpeg|png|gif)$        file extension check
+\b(?:Mr|Mrs|Ms|Dr)\.?\s       titles
+https?|ftp                    protocol
+```
+
+## Backreferences | amber
+- **`\1`, `\2`** (or named `\k<name>`) match **the same text** a group captured earlier (not the same pattern).
+- Uses: **repeated words**, **matching quotes**, paired HTML-like tags, palindromic structures.
+- In **replacement strings** groups are referenced differently: JS `$1` / `$<name>`, Java `$1` / `${name}`, Python `\1` / `\g<name>`.
+- Backreferences make a pattern non-regular, so linear-time engines like **RE2 do not support them**.
+```text
+\b(\w+)\s+\1\b          "the the", "is is"  (doubled words, use the i flag too)
+(["']).*?\1             a string in matching quotes: "x" or 'y'
+<(\w+)>.*?</\1>         <b>...</b> with the same tag name
+```
+
+## Interview Q&A | sky | wide
+Q: Capturing vs non-capturing group?
+A: A capturing group `( )` stores the matched text for later use (extraction, backreferences, replacements). A non-capturing group `(?: )` only groups tokens for quantifiers or alternation.
+Q: How are groups numbered?
+A: By the position of their opening parenthesis from left to right, starting at 1. Group 0 is the entire match.
+Q: What is a backreference?
+A: `\1` (or `\k<name>`) matches exactly the text captured earlier by that group, for example to find repeated words.
+Q: What does `^a|b$` match?
+A: Either "a" at the start or "b" at the end, because alternation has the lowest precedence. Use `^(?:a|b)$` for "exactly a or b".
+Q: How do you swap first and last names with regex?
+A: Match `^(\w+)\s+(\w+)$` and replace with `$2, $1` (JS and Java) or `\2, \1` (Python).
+Q: Why use named groups?
+A: Readability and robustness: adding a group earlier in the pattern does not shift the names you rely on.
+
+# 04 | Flags & Modes | i, g, m, s, x, u and their equivalents per language | Flags
+
+## The Common Flags | rose
+- **`i`** case-insensitive.
+- **`m`** multiline: `^` and `$` match at **each line** start and end.
+- **`s`** dotall: `.` also matches **newlines**.
+- **`x`** extended / verbose: ignore whitespace and allow `#` comments in the pattern (Python `re.VERBOSE`, Java `COMMENTS`). JavaScript has no x flag.
+- **`u`** Unicode mode.
+- **Global `g`** (JavaScript only): find **all** matches instead of the first. Python and Java use separate methods (`findall`, `while (m.find())`).
+
+## Flags per Language | blue
+- **JavaScript**: `/pattern/gimsuyd` or `new RegExp(src, "gi")`. Extra: **`y` sticky** (match only at `lastIndex`), **`d`** hasIndices (start and end positions of groups), **`v`** (ES2024, Unicode sets and set operations).
+- **Python**: `re.IGNORECASE` (`re.I`), `re.MULTILINE` (`re.M`), `re.DOTALL` (`re.S`), `re.VERBOSE` (`re.X`), `re.ASCII` (`re.A`). Combine with `|`.
+- **Java**: `Pattern.CASE_INSENSITIVE`, `MULTILINE`, `DOTALL`, `COMMENTS`, `UNICODE_CASE`, `UNICODE_CHARACTER_CLASS`, `LITERAL`. Combine with `|`.
+```js
+const re = /^error:\s(.+)$/gim;
+```
+```python
+re.compile(r"^error:\s(.+)$", re.IGNORECASE | re.MULTILINE)
+```
+```java
+Pattern.compile("^error:\\s(.+)$", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+```
+
+## Inline Flags | green
+- Set flags **inside the pattern**: `(?i)`, `(?m)`, `(?s)`, `(?x)` at the start (Java and Python).
+- **Scoped** inline flags apply to part of a pattern: `(?i:abc)def` (case-insensitive only for "abc"). Supported in Java, Python 3.6+, and JavaScript (ES2025 regexp modifiers).
+- Useful when a pattern comes from configuration and you cannot pass flags separately.
+```text
+(?i)^select\b         case-insensitive SQL keyword at start
+(?i:https?)://        only the scheme is case-insensitive
+```
+
+## Verbose Mode for Readable Patterns | amber
+- Complex patterns become maintainable when split over lines with comments.
+- In verbose mode, **literal spaces must be escaped** (`\ `) or put in a class `[ ]`.
+```python
+PHONE = re.compile(r"""
+    ^(?:\+91[\s-]?)?     # optional country code
+    [6-9]                # Indian mobile numbers start with 6-9
+    \d{9}$               # nine more digits
+""", re.VERBOSE)
+PHONE.match("+91 9876543210") is not None    # True
+```
+
+## Interview Q&A | sky | wide
+Q: What does the multiline flag change?
+A: Only the meaning of `^` and `$`: they match at the start and end of every line instead of only the whole string.
+Q: Multiline vs dotall?
+A: Multiline affects anchors (`^`, `$`). Dotall lets `.` match newline characters. They are independent.
+Q: What does the `g` flag do in JavaScript?
+A: Finds all matches (for `match`, `replace`, `matchAll`) and makes `exec`/`test` stateful through `lastIndex`.
+Q: How do you write a readable complex regex?
+A: Use verbose mode (`re.VERBOSE` or Java `COMMENTS`) with comments, named groups, or build the pattern from named string parts. In JS, compose with `new RegExp` from documented pieces.
+Q: What is the sticky `y` flag?
+A: It anchors each match attempt at `lastIndex`, which is useful for tokenisers that must consume input contiguously.
+
+# 05 | Lookarounds | Lookahead, lookbehind, zero-width assertions, password rules | Lookarounds
+
+## Lookahead and Lookbehind | rose
+- **Lookarounds** check what comes before or after a position **without consuming characters** (zero-width).
+- **Positive lookahead** `X(?=Y)`: X followed by Y.
+- **Negative lookahead** `X(?!Y)`: X not followed by Y.
+- **Positive lookbehind** `(?<=Y)X`: X preceded by Y.
+- **Negative lookbehind** `(?<!Y)X`: X not preceded by Y.
+- The lookaround text is **not part of the match** (useful for extraction and replacement).
+```text
+\d+(?=%)            digits followed by %          "50" in "50% off"
+\d+(?!%)            digits not followed by %       careful: also matches "5" in "50%"
+(?<=\$)\d+          digits after a dollar sign     "30" in "$30"
+(?<!-)\b\d+\b       numbers without a minus sign before them
+\b\w+(?=ing\b)      word stems before "ing"        "walk" in "walking"
+```
+
+## Password and Multi-Condition Validation | blue
+- Stack **lookaheads at the start** to require several independent conditions in any order, then match the overall length.
+- Each `(?=.*X)` scans ahead from the start without consuming.
+- For user-facing apps, check rules separately in code so you can show **specific error messages**.
+```text
+^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,64}$
+ ^ lowercase   ^ upper     ^ digit ^ special   ^ length 8-64
+```
+```js
+const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,64}$/;
+strong.test("Passw0rd!");   // true
+strong.test("password1");   // false
+```
+
+## Practical Lookaround Recipes | green
+- **Thousands separators**: insert commas at positions followed by groups of three digits to the end.
+- **camelCase to snake_case**: insert `_` before each capital that is not at the start.
+- **Split without losing delimiters**: split on a lookahead position.
+- **Exclude words**: `^(?!.*\bforbidden\b).*$` (lines without a word).
+```js
+"1234567".replace(/\B(?=(\d{3})+(?!\d))/g, ",");      // "1,234,567"
+"userAccountId".replace(/(?<!^)(?=[A-Z])/g, "_").toLowerCase();   // "user_account_id"
+"oneTwoThree".split(/(?=[A-Z])/);                    // ["one", "Two", "Three"]
+```
+```python
+re.sub(r"(?<!^)(?=[A-Z])", "_", "userAccountId").lower()   # 'user_account_id'
+```
+
+## Lookbehind Support Differences | amber
+- **JavaScript** (ES2018+): lookbehind of **any length** (`(?<=\$\d*)` is fine).
+- **Java**: lookbehind needs a **bounded maximum length**: `?` and `{n,m}` are allowed, `*` and `+` are not.
+- **Python `re`**: lookbehind must be **fixed width** (alternatives of different lengths fail). The `regex` module allows variable width.
+- Lookarounds can contain **capturing groups**; in JS a backreference to a group captured inside a lookahead emulates an atomic group.
+
+## Interview Q&A | sky | wide
+Q: What is a lookahead?
+A: A zero-width assertion that checks whether a pattern follows the current position (`(?=...)` positive, `(?!...)` negative) without including it in the match.
+Q: What does zero-width mean?
+A: The assertion matches a position, not characters, so the engine does not advance through the text. Anchors, `\b` and lookarounds are zero-width.
+Q: Write a regex for a password with an uppercase letter, a digit and 8+ characters.
+A: `^(?=.*[A-Z])(?=.*\d).{8,}$`.
+Q: How do you match a word that is not followed by another word?
+A: Negative lookahead: `foo(?!bar)`. For a whole word: `\bfoo\b(?!\s+bar)`.
+Q: Why might a lookbehind fail to compile in Python?
+A: Python's re requires fixed-width lookbehind; variable-length alternatives or quantifiers like `*` inside it are rejected.
+Q: How do you format a number with commas using regex?
+A: Replace `\B(?=(\d{3})+(?!\d))` globally with ",". In production prefer `Intl.NumberFormat` or locale formatting.
+
+
+@ Advanced
+# 06 | Regex in JavaScript | RegExp, test, exec, match, matchAll, replace, split, lastIndex | In JavaScript
+
+## Creating Patterns | rose
+- **Literal** `/\d+/g`: compiled once when the script loads. Best for fixed patterns.
+- **Constructor** `new RegExp("\\d+", "g")`: for dynamic patterns. Inside a string, **backslashes must be doubled**.
+- **Escape user input** before putting it into a pattern: `RegExp.escape(text)` (ES2025) or a helper.
+- Properties: `source`, `flags`, `global`, `lastIndex`.
+```js
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const term = "c++ (beta)";
+const re = new RegExp(escapeRe(term), "i");      // or RegExp.escape(term)
+re.test("Learning C++ (Beta) now");                // true
+```
+
+## Matching Methods | blue
+- **`re.test(str)`** returns a boolean.
+- **`str.match(re)`**: without `g`, returns the first match with **groups, index and `groups`**; with `g`, returns an **array of all full matches (no groups)**; returns `null` if none.
+- **`str.matchAll(re)`**: iterator of match objects with groups for **every** match. **Requires the `g` flag**.
+- **`re.exec(str)`**: one match object; with `g` or `y` it advances `lastIndex` on each call.
+- **`str.search(re)`** returns the index of the first match or -1.
+```js
+const text = "Order A12 costs 250, order B7 costs 90";
+text.match(/\d+/);              // ["12", index: 7, ...]
+text.match(/\d+/g);             // ["12", "250", "7", "90"]
+
+for (const m of text.matchAll(/order (?<id>[A-Z]\d+) costs (?<price>\d+)/gi)) {
+  console.log(m.groups.id, Number(m.groups.price), m.index);
+}
+```
+
+## replace, replaceAll and split | green
+- `str.replace(stringOrRegex, replacement)`: a **string pattern replaces only the first** occurrence; a regex with `g` replaces all.
+- `str.replaceAll(...)`: replaces all; with a regex it **requires the `g` flag** (otherwise TypeError).
+- Replacement tokens: **`$&`** whole match, **`$1`**, **`$<name>`**, `$'` text after the match (and dollar-backtick for the text before), **`$$`** a literal dollar.
+- **Replacer function** `(match, p1, p2, ..., offset, string, groups) => newText` for computed replacements.
+- **`split(re)`**: capturing groups in the separator are **included** in the result.
+```js
+"2026-10-14".replace(/(\d+)-(\d+)-(\d+)/, "$3.$2.$1");      // "14.10.2026"
+"hello world".replace(/\b\w/g, (c) => c.toUpperCase());     // "Hello World"
+"price: 10 USD".replace(/\d+/, (n) => n * 2);               // "price: 20 USD"
+"a1b2c3".split(/\d/);                                       // ["a", "b", "c", ""]
+"a1b2c3".split(/(\d)/);                                     // ["a", "1", "b", "2", "c", "3", ""]
+```
+
+## The lastIndex Gotcha | amber
+- A regex with **`g` or `y` is stateful**: `test` and `exec` start at `lastIndex` and update it.
+- Reusing one global regex with `test` on different strings gives **alternating true / false** results.
+- Fixes: drop the `g` flag for `test`, reset `re.lastIndex = 0`, or create the regex inside the function.
+```js
+const hasDigit = /\d/g;
+hasDigit.test("a1");    // true  (lastIndex = 2)
+hasDigit.test("b2");    // false (starts searching at index 2)
+hasDigit.test("b2");    // true  (lastIndex was reset to 0 after the failure)
+
+const ok = /\d/;        // no g: stateless
+```
+
+## Interview Q&A | sky | wide
+Q: `match` vs `matchAll`?
+A: `match` with `g` returns only the full-match strings; without `g` it returns the first match with groups. `matchAll` (requires `g`) returns an iterator of full match objects with groups and indexes for every match.
+Q: Why does `regex.test` alternate between true and false?
+A: The regex has the `g` (or `y`) flag, so `test` resumes from `lastIndex` left by the previous call. Remove `g` or reset `lastIndex`.
+Q: How do you replace all occurrences of a string?
+A: `str.replaceAll("x", "y")`, or `str.replace(/x/g, "y")` with the special characters escaped.
+Q: How do you use user input in a regex safely?
+A: Escape regex metacharacters (`RegExp.escape` or a helper) before passing it to `new RegExp`, and limit input length to avoid ReDoS.
+Q: Literal vs `new RegExp`?
+A: Literals are for fixed patterns and need single backslashes. The constructor builds patterns from strings at runtime, so backslashes are doubled and input must be escaped.
+Q: How do you capitalise every word?
+A: `str.replace(/\b\w/g, (c) => c.toUpperCase())`.
+
+# 07 | Regex in Python | re module: match, search, fullmatch, findall, finditer, sub, split, compile | In Python
+
+## Raw Strings and Compiling | rose
+- **Always use raw strings** `r"\d+\.\d+"` so Python does not interpret backslashes before `re` sees them (`"\b"` is a backspace character, `r"\b"` is a word boundary).
+- **`re.compile(pattern, flags)`** returns a reusable Pattern object. The module also caches recently used patterns, but compiling makes intent and reuse explicit.
+- **`re.escape(text)`** escapes user input for literal matching.
+```python
+import re
+PRICE = re.compile(r"(?P<amount>\d+(?:\.\d{2})?)\s?(?P<cur>INR|USD)", re.IGNORECASE)
+m = PRICE.search("Total: 249.50 inr")
+m["amount"], m["cur"]            # ('249.50', 'inr')
+```
+
+## match vs search vs fullmatch | blue
+- **`re.match`**: matches only at the **start** of the string.
+- **`re.search`**: finds the **first match anywhere**.
+- **`re.fullmatch`**: the **whole string** must match. **Best for validation** (avoids the `$` trailing-newline issue).
+- They return a **Match object** or **`None`**: always check before using it.
+- Match object: `group()`, `group(1, 2)`, `groups()`, `groupdict()`, `start()`, `end()`, `span()`, `m["name"]`.
+```python
+re.match(r"\d+", "abc123")         # None (not at start)
+re.search(r"\d+", "abc123")        # <Match '123'>
+re.fullmatch(r"\d{6}", "560001")   # <Match '560001'>
+re.fullmatch(r"\d{6}", "560001\n") # None
+re.match(r"\d{6}$", "560001\n")    # matches! ($ allows a trailing newline)
+
+if m := re.search(r"id=(\d+)", url):
+    user_id = int(m.group(1))
+```
+
+## findall, finditer, sub, split | green
+- **`findall`** returns a list: of full matches if no groups, of **group strings if one group**, of **tuples if several groups**.
+- **`finditer`** yields Match objects (memory-friendly, gives positions and named groups).
+- **`sub(pattern, repl, s, count=0)`**: `repl` can use `\1` / `\g<name>` or be a **function** taking the match. `subn` also returns the count.
+- **`split(pattern, s, maxsplit=0)`**: capturing groups in the pattern are **kept** in the result.
+```python
+log = "user=ann ip=10.0.0.1 user=bob ip=10.0.0.2"
+re.findall(r"user=(\w+)", log)                  # ['ann', 'bob']
+re.findall(r"user=(\w+) ip=([\d.]+)", log)      # [('ann', '10.0.0.1'), ('bob', '10.0.0.2')]
+for m in re.finditer(r"ip=(?P<ip>[\d.]+)", log):
+    print(m["ip"], m.span())
+
+re.sub(r"(\d{4})-(\d{2})-(\d{2})", r"\3/\2/\1", "2026-10-14")       # '14/10/2026'
+re.sub(r"\d+", lambda m: str(int(m.group()) * 2), "a1 b20")         # 'a2 b40'
+re.split(r"[,;]\s*", "a, b;c")                                      # ['a', 'b', 'c']
+re.split(r"([,;])", "a,b;c")                                        # ['a', ',', 'b', ';', 'c']
+```
+
+## Python-Specific Notes | amber
+- Named groups use the **`(?P<name>...)`** syntax; backreference `(?P=name)`; replacement `\g<name>`.
+- `\d`, `\w`, `\s` are **Unicode-aware** for str patterns. Add **`re.ASCII`** for ASCII-only behaviour.
+- Lookbehind must be **fixed width**.
+- **Python 3.11+** supports **atomic groups** `(?>...)` and **possessive quantifiers** `*+`, `++`.
+- The third-party **`regex`** module adds `\p{L}`, variable-width lookbehind, fuzzy matching and timeouts.
+- For CSV, HTML, JSON or dates use **proper parsers** (`csv`, `html.parser` / BeautifulSoup, `json`, `datetime.strptime`), not regex.
+
+## Interview Q&A | sky | wide
+Q: `re.match` vs `re.search` vs `re.fullmatch`?
+A: `match` anchors at the start of the string, `search` scans for the first match anywhere, `fullmatch` requires the entire string to match.
+Q: Why use raw strings for regex in Python?
+A: So backslashes reach the regex engine unchanged. In a normal string `"\b"` is a backspace and `"\d"` triggers an invalid-escape warning.
+Q: What does `findall` return when the pattern has groups?
+A: The captured group text instead of the full match: a list of strings for one group, a list of tuples for several groups.
+Q: How do you replace using a computed value?
+A: Pass a function to `re.sub`; it receives each Match object and returns the replacement string.
+Q: Is `re.compile` necessary for performance?
+A: Not strictly, because `re` caches recently used patterns, but precompiling at module level is clearer and avoids cache lookups in hot loops.
+Q: How do you match Unicode letters only (no digits) in Python?
+A: `[^\W\d_]+` with the default Unicode mode, or `\p{L}+` with the `regex` module.
+
+# 08 | Regex in Java | Pattern, Matcher, String helpers, escaping, thread safety | In Java
+
+## Pattern and Matcher | rose
+- **`Pattern.compile(regex, flags)`** compiles once. **Pattern is immutable and thread-safe**: store it in a `static final` field.
+- **`pattern.matcher(input)`** creates a **Matcher** (stateful, **not thread-safe**; create one per use).
+- **`matches()`**: the **entire input** must match. **`lookingAt()`**: match at the **start**. **`find()`**: the **next match** anywhere (call in a loop).
+- Groups: `group()`, `group(1)`, `group("name")`, `start()`, `end()`, `groupCount()`.
+```java
+private static final Pattern ORDER =
+    Pattern.compile("order\\s+(?<id>[A-Z]\\d+)\\s+costs\\s+(?<price>\\d+)", Pattern.CASE_INSENSITIVE);
+
+Matcher m = ORDER.matcher("Order A12 costs 250, order B7 costs 90");
+while (m.find()) {
+  String id = m.group("id");
+  int price = Integer.parseInt(m.group("price"));
+  System.out.println(id + " " + price + " at " + m.start());
+}
+
+List<String> ids = ORDER.matcher(text).results()          // Java 9+
+    .map(r -> r.group(1)).toList();
+```
+
+## Double Escaping | blue
+- Java string literals consume one level of backslashes, so the regex `\d` is written **`"\\d"`** and a literal backslash is **`"\\\\"`**.
+- **Text blocks** (Java 15) still process escapes, so backslashes stay doubled.
+- **`Pattern.quote(text)`** treats user input literally (wraps it in `\Q...\E`).
+- **`Matcher.quoteReplacement(text)`** escapes `$` and `\` in replacement strings.
+```java
+"a.b.c".split("\\.");                      // [a, b, c]
+"C:\\temp".replaceAll("\\\\", "/");        // C:/temp
+Pattern.compile(Pattern.quote("1+1=2"));    // matches the literal text
+"cost: X".replaceAll("X", Matcher.quoteReplacement("$5"));   // cost: $5
+```
+
+## String Convenience Methods | green
+- **`str.matches(regex)`**: whole-string match (implicitly anchored). Compiles the regex **every call**: use a static Pattern in hot code.
+- **`replaceAll(regex, replacement)`**, **`replaceFirst`**: `$1` and `${name}` in replacements. **`replace(CharSequence, CharSequence)`** is literal (no regex).
+- **`split(regex, limit)`**: trailing empty strings are **removed** unless `limit` is negative.
+- Java 9+: **`Matcher.replaceAll(Function<MatchResult, String>)`** for computed replacements.
+```java
+"2026-10-14".matches("\\d{4}-\\d{2}-\\d{2}");            // true
+"2026-10-14".replaceAll("(\\d+)-(\\d+)-(\\d+)", "$3/$2/$1");   // 14/10/2026
+"a,b,,".split(",");                                     // [a, b]
+"a,b,,".split(",", -1);                                 // [a, b, , ]
+"a.b".split(".");                                       // [] : "." matches every character!
+
+Pattern.compile("\\d+").matcher("a1 b20")
+    .replaceAll(r -> String.valueOf(Integer.parseInt(r.group()) * 2));   // a2 b40
+```
+
+## Java-Specific Features | amber
+- **Possessive quantifiers** and **atomic groups** for performance.
+- **Character class intersection** `[a-z&&[^aeiou]]`.
+- `\p{L}`, `\p{IsAlphabetic}`, `\p{javaLowerCase}`; `UNICODE_CHARACTER_CLASS` makes `\w` and `\d` Unicode-aware.
+- `\R` matches any line break (`\r\n`, `\n`, `\r`...). `\z` absolute end of input.
+- Spring and Bean Validation: **`@Pattern(regexp = "...")`** on DTO fields (whole-value match).
+```java
+public record SignupRequest(
+    @Pattern(regexp = "^[a-z0-9_]{3,20}$", message = "3-20 lowercase letters, digits or _") String username,
+    @Email String email) {}
+```
+
+## Interview Q&A | sky | wide
+Q: `matches()` vs `find()`?
+A: `matches()` requires the whole input to match the pattern. `find()` searches for the next matching subsequence and can be called repeatedly to iterate all matches.
+Q: Is `Pattern` thread-safe? `Matcher`?
+A: Pattern is immutable and thread-safe, so compile once and share it. Matcher holds state and is not thread-safe; create one per thread or use.
+Q: Why does `"a.b".split(".")` return an empty array?
+A: `split` takes a regex and `.` matches every character, so every piece is empty and trailing empty strings are removed. Use `split("\\.")` or `Pattern.quote(".")`.
+Q: Why use `Pattern.compile` instead of `String.matches` in a loop?
+A: `String.matches` recompiles the regex on every call; a static compiled Pattern avoids that cost.
+Q: How do you match user input literally?
+A: `Pattern.quote(input)` for the pattern and `Matcher.quoteReplacement(input)` for replacement strings.
+Q: How do you reference a named group in a replacement?
+A: `${name}`, for example `replaceAll("(?<y>\\d{4})", "${y}")`.
+
+# 09 | Engines, Backtracking & ReDoS | NFA vs DFA, catastrophic backtracking, real outages, prevention | ReDoS
+
+## How Engines Work | rose
+- **Backtracking (NFA-style) engines**: Java, Python `re`, JavaScript (V8 Irregexp), PCRE, .NET, Ruby. They try paths one by one and **backtrack** on failure. Support backreferences and lookarounds.
+- **Automaton (DFA / Thompson NFA) engines**: **RE2** (Go `regexp`, re2j, Rust `regex`, `google-re2` for Python). Guarantee **linear time** in the input length but **no backreferences** and limited lookarounds.
+- Backtracking engines are usually fast, but some patterns on some inputs take **exponential or polynomial time**.
+
+## Catastrophic Backtracking | blue
+- Happens when a pattern can match the **same text in many different ways** and the overall match **fails**, so the engine tries every combination.
+- Classic shapes: **nested quantifiers** `(a+)+`, `(\w*)*`, **overlapping alternation** `(a|aa)+`, `(\d|\d\d)+`, and **adjacent overlapping quantifiers** `\s*.*\s*` or `.*.*=.*`.
+- `^(a+)+$` against "aaaaaaaaaaaaaaaaaaaaaaaaaaaa!" takes about 2^n steps: 30 characters can take seconds, 40 can hang for hours.
+```text
+Pattern: ^(a+)+$
+Input:   aaaaaaaaaaaaaaaaaaaaaaaa!
+
+The "!" makes the overall match fail. The engine then tries every way to split
+the a's between the inner + and the outer + (2^n splits) before giving up.
+
+Safe version: ^a+$   (one quantifier, one way to match)
+```
+
+## ReDoS and Real Incidents | green
+- **ReDoS (Regular expression Denial of Service)**: an attacker sends input that triggers catastrophic backtracking, **pinning CPU** and blocking the thread. Especially severe in **Node.js** (single thread) and in request validation.
+- **Stack Overflow, July 2016**: a whitespace-trimming regex like `\s+$` hit a post containing about 20,000 consecutive spaces (quadratic backtracking); the homepage went down for 34 minutes.
+- **Cloudflare, July 2019**: a WAF rule containing `.*(?:.*=.*)` pushed CPUs to 100% worldwide for about 27 minutes.
+- Common vulnerable spots: email and URL validators, trimming, user-supplied patterns, log parsers.
+
+## Prevention Checklist | amber
+- **Avoid nested quantifiers** on overlapping content and **overlapping alternatives**.
+- Make each part **mutually exclusive**: `"[^"]*"` instead of `".*?"`, `[^,]*` instead of `.*` before a comma.
+- **Anchor** patterns and **limit lengths**: `{1,64}` instead of `+`; reject over-long input before matching.
+- Use **possessive quantifiers / atomic groups** (Java, PCRE, Python 3.11+).
+- Use a **linear-time engine** (RE2) for untrusted patterns or input.
+- Never build a regex from user input without escaping it.
+- **Test** with long adversarial inputs (repeated characters plus a failing suffix); lint with tools like `safe-regex`, `eslint-plugin-regexp`, or CodeQL.
+- Prefer **parsers** for structured formats (HTML, JSON, URLs, dates, emails).
+
+## Performance Tips | violet
+- **Compile once**, reuse (static Pattern, module-level `re.compile`, literal regex in JS).
+- Start with **literal text or anchors** when possible so the engine can skip quickly.
+- Prefer **character classes** over alternation of single characters.
+- Use **non-capturing groups** when you do not need the capture.
+- For simple checks, **string methods** (`startsWith`, `includes`, `split`) are faster and clearer.
+
+## Interview Q&A | sky | wide
+Q: What is catastrophic backtracking?
+A: Exponential (or high polynomial) running time when a pattern can match the same text in many ways and the overall match fails, forcing the engine to try every combination, as with `(a+)+$`.
+Q: What is ReDoS?
+A: A denial-of-service attack that sends crafted input to a vulnerable regex so matching consumes CPU for seconds or hours, blocking servers, especially single-threaded Node.js.
+Q: How do you prevent ReDoS?
+A: Avoid nested and overlapping quantifiers, make sub-patterns mutually exclusive, bound repetition and input length, use atomic or possessive constructs, or use a linear-time engine like RE2 for untrusted input.
+Q: Backtracking engine vs RE2?
+A: Backtracking engines support backreferences and lookarounds but can blow up on some inputs. RE2 guarantees linear time but drops features like backreferences.
+Q: Why not parse HTML with regex?
+A: HTML is nested and irregular (attributes in any order, quoting variations, comments), which regular expressions cannot model reliably. Use an HTML parser.
+Q: Describe a regex-caused outage.
+A: Cloudflare 2019: a WAF rule with `.*(?:.*=.*)` caused catastrophic backtracking that maxed out CPUs globally for about 27 minutes.
+
+
+@ Review
+# 10 | Pattern Cookbook & Rapid-Fire | Common validators, extraction recipes, one-liners, big Q&A | Cookbook
+
+## Validation Patterns | rose
+- Pragmatic **email** (then confirm by sending a mail): `^[^\s@]+@[^\s@]+\.[^\s@]+$`.
+- **Username**: `^[a-zA-Z0-9_]{3,20}$`. **Slug**: `^[a-z0-9]+(?:-[a-z0-9]+)*$`.
+- **Indian mobile**: `^(?:\+91[\s-]?)?[6-9]\d{9}$`. **E.164 phone**: `^\+[1-9]\d{1,14}$`.
+- **Indian PIN code**: `^[1-9]\d{5}$`. **PAN**: `^[A-Z]{5}\d{4}[A-Z]$`. **IFSC**: `^[A-Z]{4}0[A-Z0-9]{6}$`.
+- **ISO date shape** (then check with a date parser): `^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$`.
+- **24h time**: `^([01]\d|2[0-3]):[0-5]\d$`. **Hex colour**: `^#(?:[0-9a-fA-F]{3}){1,2}$`.
+- **IPv4**: `^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$`.
+- **Strong password**: `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,64}$`.
+> Validate the **shape** with regex, the **meaning** with code (real dates, existing domains, checksums).
+
+## Extraction and Cleanup Recipes | blue
+```js
+text.match(/https?:\/\/[^\s<>"]+/g);                 // URLs in text (rough)
+text.match(/#\w+/g);                                 // hashtags
+text.match(/-?\d+(?:\.\d+)?/g);                      // numbers incl. negatives and decimals
+s.replace(/\s+/g, " ").trim();                       // collapse whitespace
+s.replace(/[^\w\s-]/g, "");                          // strip punctuation
+s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");   // slugify
+s.replace(/\b(\w+)\s+\1\b/gi, "$1");                 // remove doubled words
+```
+```python
+re.findall(r"\b[A-Z]{2,}\b", text)                    # acronyms
+re.sub(r"(?<=\d)(?=(\d{3})+$)", ",", "1234567")       # '1,234,567'
+re.findall(r"(\w+)=(\"[^\"]*\"|\S+)", 'a=1 b="x y"')  # key=value pairs
+re.sub(r"\s{2,}", " ", text)                          # collapse spaces
+```
+```java
+String masked = card.replaceAll("\\d(?=\\d{4})", "*");     // ************1234
+String level = Pattern.compile("^\\[(?<lvl>[A-Z]+)\\]").matcher(line).results()
+    .map(r -> r.group(1)).findFirst().orElse("INFO");     // MatchResult.group(name) needs Java 20+
+```
+
+## Log Parsing Example | green
+```python
+LINE = re.compile(r"""
+    ^(?P<ip>\d{1,3}(?:\.\d{1,3}){3})\s     # client ip
+    \S+\s\S+\s                             # identity, user
+    \[(?P<time>[^\]]+)\]\s                 # [10/Oct/2026:13:55:36 +0530]
+    "(?P<method>[A-Z]+)\s(?P<path>\S+)\s[^"]*"\s
+    (?P<status>\d{3})\s(?P<size>\d+|-)$
+""", re.VERBOSE)
+
+from collections import Counter
+errors = Counter()
+with open("access.log", encoding="utf-8") as f:
+    for line in f:
+        if (m := LINE.match(line)) and m["status"].startswith("5"):
+            errors[m["path"]] += 1
+errors.most_common(5)
+```
+
+## One-Line Cheat Sheet | amber
+- **`.`** any char but newline; **`\d \w \s`** and uppercase negations; **`[...]`** set, **`[^...]`** negated set.
+- **`^ $`** anchors (per line with **m**); **`\b`** word boundary; always anchor validators.
+- **`* + ? {n,m}`** greedy; add **`?`** for lazy; **`++ *+`** possessive (not JS).
+- **`( )`** capture, **`(?: )`** group only, **`(?<n> )`** named (Python **`(?P<n> )`**); **`\1`** backreference.
+- **`(?= ) (?! ) (?<= ) (?<! )`** lookarounds: zero-width.
+- JS: **`matchAll` needs g**, **lastIndex** gotcha. Python: **raw strings**, **fullmatch**. Java: **double escaping**, **static Pattern**, **matches = whole**.
+- **ReDoS**: no nested or overlapping quantifiers on failing input.
+
+## How to Answer Well | teal
+- Write the pattern, then **walk through it token by token** out loud.
+- Mention **anchors**, **flags** and the **language flavour** you are assuming.
+- State **edge cases** you would test: empty string, leading zeros, Unicode, very long input.
+- Say when **not** to use regex: HTML, JSON, URLs, dates, emails beyond basic shape. Use parsers and libraries.
+- For performance questions, mention **compile once** and **catastrophic backtracking**.
+
+## Big Interview Q&A | sky | wide
+Q: Write a regex that matches a valid IPv4 address.
+A: `^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$`. Each octet allows 0 to 255 without leading zeros.
+Q: How would you validate an email address?
+A: Use a simple shape check like `^[^\s@]+@[^\s@]+\.[^\s@]+$` (or a library validator), then confirm ownership by sending a verification email. Fully RFC-compliant regexes are huge and still do not prove the address exists.
+Q: Extract all numbers from a string.
+A: `-?\d+(?:\.\d+)?` with global matching (`findall`, `match(/.../g)`, `while (m.find())`).
+Q: Find duplicate consecutive words.
+A: `\b(\w+)\s+\1\b` with case-insensitive matching.
+Q: What does `^(?!.*admin).*$` do?
+A: Matches lines (whole strings) that do not contain "admin", using a negative lookahead at the start.
+Q: Greedy vs lazy in one example?
+A: On `<a><b>`, `<.*>` matches the whole string, `<.*?>` matches `<a>`.
+Q: How do you mask all but the last four digits of a card number?
+A: Replace `\d(?=\d{4})` with `*`.
+Q: When should you not use regex?
+A: For nested or structured formats (HTML, JSON, programming languages), for semantic checks (valid dates, Luhn checksums), and for simple substring tasks where string methods are clearer.
+Q: Why is my regex slow?
+A: Likely catastrophic backtracking from nested or overlapping quantifiers on input that fails to match, or recompiling it in a loop. Restructure, bound repetition, use possessive or atomic constructs, and compile once.
+Q: What is the difference between `\Z` and `$` in Python?
+A: `$` matches at the end or just before a trailing newline (and at every line end with MULTILINE). `\Z` matches only at the absolute end of the string.

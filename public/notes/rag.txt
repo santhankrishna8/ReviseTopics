@@ -1,0 +1,953 @@
+@ Beginner
+
+# 00 | Embeddings & RAG Basics: Start Here | History from keyword search to embeddings and RAG, why LLMs need retrieval, the idea in one picture, a tiny semantic search, core vocabulary, keyword vs semantic search, RAG vs fine-tuning | Start Here
+
+## History | rose
+- **1970s**: information retrieval is born. Gerard Salton's **vector space model** represents documents as vectors of word weights, and Karen Spärck Jones introduces **inverse document frequency** (1972), giving **TF-IDF**.
+- **1990s**: **BM25** comes out of the Okapi system at City University London (Robertson and colleagues), and still powers keyword search engines such as Elasticsearch today.
+- **2013 to 2014**: **word embeddings**: Google's **word2vec** (Mikolov et al.) and Stanford's **GloVe** learn dense vectors in which related words sit close together (famously king − man + woman ≈ queen).
+- **2017 to 2019**: Facebook open-sources **Faiss** for fast vector search (2017); Google's **BERT** (2018) produces context-aware representations; **Sentence-BERT** (2019) makes good sentence embeddings practical.
+- **2020**: **Dense Passage Retrieval** (Karpukhin et al.) shows learned embeddings beating BM25 for question answering, and Lewis et al. at Facebook AI name and publish **Retrieval-Augmented Generation (RAG)**.
+- **2022 onward**: after ChatGPT, **RAG becomes the standard way to use LLMs on private data**, and vector databases (Pinecone, Qdrant, Milvus, Chroma, pgvector) go mainstream.
+
+## Why LLMs Need Retrieval | blue
+- An LLM only knows what was in its training data, **up to a cutoff date**, and nothing about **your private documents**.
+- Asked about things it doesn't know, it may **hallucinate** a plausible answer instead of admitting ignorance.
+- Its **context window** is limited and expensive, so you can't paste your whole knowledge base into every prompt.
+- **RAG** fixes this: **find the few most relevant passages** for each question and give them to the model, so it answers **from your sources, with citations**.
+
+## The Idea in One Picture | green
+```text
+          Offline: build the index                          Online: answer a question
+ documents ──► chunks ──► embedding model ──► vectors       question ──► embedding model ──► query vector
+                                               │                                               │
+                                               ▼                                               ▼
+                                        vector database  ◄──────── nearest-neighbour search ───┘
+                                                                          │ top-k chunks
+                                                                          ▼
+                                             prompt = instructions + chunks + question ──► LLM ──► answer + sources
+```
+- **Embeddings** turn text into vectors so that **similar meaning means nearby vectors**; a **vector database** finds the nearest ones quickly; the **LLM** writes the answer from them.
+
+## A Tiny Semantic Search | amber
+```python
+import numpy as np
+from openai import OpenAI
+
+client = OpenAI()
+docs = ["Refunds are processed within 5 business days.",
+        "We ship to every pin code in India.",
+        "Reset your password from the login page.",
+        "Our support team is available 24x7 on chat."]
+
+def embed(texts: list[str]) -> np.ndarray:
+    resp = client.embeddings.create(model="text-embedding-3-small", input=texts)
+    return np.array([d.embedding for d in resp.data])
+
+doc_vecs = embed(docs)                       # index once
+q = embed(["how do I reset my password"])[0] # embed the query with the same model
+scores = doc_vecs @ q                        # cosine similarity: OpenAI vectors have length 1
+best = int(scores.argmax())
+print(docs[best], round(float(scores[best]), 3))
+```
+- That is semantic search in its simplest form. Real systems add **chunking, a vector database, metadata filters, hybrid keyword search, reranking** and then pass the results to an LLM: the rest of these notes.
+
+## Core Vocabulary | violet
+- **Embedding**: a vector of numbers representing meaning. **Dimension**: the vector's length (for example 1,536).
+- **Similarity / distance**: how close two vectors are (cosine, dot product, Euclidean).
+- **Corpus**: the collection of documents. **Chunk**: a piece of a document small enough to embed and retrieve.
+- **Vector database / index**: stores vectors and finds nearest neighbours fast (**ANN**: approximate nearest neighbour).
+- **Retriever**: the component that returns relevant chunks; **top-k**: how many it returns. **Reranker**: a second, more accurate scoring step.
+- **Metadata**: fields stored with each chunk (source, date, permissions) used for filtering and citations.
+- **Grounding**: making the model answer from provided sources. **Ingestion**: loading, cleaning, chunking and indexing documents.
+
+## Comparisons | teal
+- **Keyword vs semantic search**: keyword search (BM25) matches **exact words** and excels at names, codes and IDs; semantic search matches **meaning** and handles synonyms and paraphrases. Production systems often combine both (**hybrid search**).
+- **RAG vs fine-tuning vs long context**: RAG adds **knowledge** that can be updated instantly and cited; fine-tuning changes **behaviour and style**; stuffing a huge context is slower and costlier and models use the middle of long contexts less reliably.
+- **Vector database vs relational database**: relational databases answer exact queries (WHERE id = 7); vector databases answer **"what is most similar to this?"**. Extensions like pgvector add vector search to PostgreSQL.
+- **Embedding model vs chat LLM**: an embedding model **encodes** text into one vector (cheap, fast); a chat LLM **generates** text token by token.
+
+## Interview Q&A | sky | wide
+Q: What is RAG in one sentence?
+A: Retrieval-Augmented Generation finds the passages most relevant to a question in your own data and puts them into the LLM's prompt so it answers from those sources.
+Q: Why not just ask the LLM directly?
+A: It doesn't know private or recent information, may hallucinate, and can't cite sources; retrieval supplies the facts and the citations.
+Q: What is an embedding?
+A: A list of numbers produced by a model so that texts with similar meaning get vectors that are close together.
+Q: What does a vector database do?
+A: It stores embeddings with their text and metadata and quickly finds the nearest vectors to a query vector, usually with approximate nearest-neighbour indexes.
+Q: Who introduced RAG?
+A: Patrick Lewis and colleagues at Facebook AI Research, in a 2020 paper that combined a neural retriever with a generator model.
+Q: Keyword search or semantic search?
+A: Keyword search for exact terms such as IDs and names, semantic search for meaning and paraphrases; hybrid search combines both and is usually best.
+Q: Must the query use the same embedding model as the documents?
+A: Yes. Each model has its own vector space, so vectors from different models cannot be compared.
+
+# 01 | What Embeddings Are | Vectors that encode meaning, the latent space, how embedding models are trained, what they capture and miss, common uses | Embeddings
+
+## Vector Embeddings | rose
+- An **embedding** is a **dense vector of floating-point numbers** (for example 1,536 numbers) that represents the **meaning** of a piece of text, an image or other data.
+- The vectors live in a **high-dimensional latent space** in which **semantically similar inputs are close together**. "How do I reset my password?" and "I forgot my login credentials" land near each other although they share almost no words.
+- **Dense**: almost every dimension is non-zero, and individual dimensions have no human-readable meaning. In contrast, **sparse** vectors (bag-of-words, BM25) have one dimension per vocabulary term, mostly zeros.
+- Closeness is measured with a **similarity metric** such as cosine similarity (sheet 03).
+```text
+"refund my order"          -> [ 0.021, -0.113,  0.087, ..., 0.004]   (1,536 numbers)
+"I want my money back"     -> [ 0.019, -0.098,  0.091, ..., 0.010]   close: cosine ≈ 0.8
+"Kubernetes pod eviction"  -> [-0.071,  0.052, -0.004, ..., 0.066]   far:   cosine ≈ 0.1
+```
+
+## How Embedding Models Learn | blue
+- Modern text embedding models are **transformer encoders**. The token representations are **pooled** (mean pooling or a special [CLS] token) into one fixed-size vector.
+- They are trained with **contrastive learning**: pull **positive pairs** (question and its answer, paraphrases, title and body) together and push **negatives** (unrelated texts, hard negatives) apart, typically with an in-batch softmax loss (InfoNCE / multiple negatives ranking loss).
+- The model therefore learns a geometry where **distance reflects relatedness as defined by its training pairs**. That is why a model trained for search behaves differently from one trained for paraphrase detection.
+- A **bi-encoder** embeds query and documents **independently**, so document vectors can be **precomputed and indexed**, which is what makes vector search fast.
+
+## What Embeddings Capture and Miss | green
+- **Capture well**: synonyms and paraphrases, topic, intent, cross-lingual meaning (multilingual models), fuzzy conceptual matches.
+- **Weak at**: exact identifiers and rare tokens (error codes, SKUs, names), negation ("not refundable" vs "refundable" can look similar), numbers and dates, and very long texts squeezed into one vector (meaning gets averaged out).
+- **Inputs beyond the model's maximum length are truncated**, so long documents must be **chunked** first.
+- Vectors from **different models are not comparable**: always embed queries and documents with the **same model** (and version).
+
+## Common Uses | amber
+- **Semantic search and RAG retrieval** (the main use in these notes).
+- **Recommendations** ("similar articles"), **deduplication** and near-duplicate detection.
+- **Clustering and topic discovery**, **classification** (train a light classifier on embeddings), **anomaly detection**.
+- **Semantic caching**: reuse an LLM answer when a new question is very similar to a previous one.
+
+## Interview Q&A | sky | wide
+Q: What is a vector embedding?
+A: A dense, fixed-length numeric vector produced by a model so that semantically similar inputs are close together in vector space.
+Q: How are embedding models trained?
+A: Usually with contrastive learning on pairs of related texts: related pairs are pulled together and unrelated or hard-negative texts pushed apart, so distance reflects semantic relatedness.
+Q: What is a bi-encoder?
+A: A model that embeds queries and documents separately into the same space, so document vectors can be precomputed and searched with nearest-neighbour indexes.
+Q: Where do embeddings fail?
+A: Exact identifiers, rare terms, negation, numbers, and long texts compressed into one vector; hybrid search with keywords and chunking address this.
+Q: Can you compare embeddings from two different models?
+A: No. Each model has its own vector space; queries and documents must use the same model, and changing models means re-embedding the corpus.
+
+# 02 | Embedding Models: OpenAI, Sentence-Transformers & BGE | text-embedding-3-small and -large, the embeddings API, Sentence-Transformers, the BGE family, choosing a model with MTEB | Embedding Models
+
+## OpenAI Embedding Models | rose
+- **`text-embedding-3-small`**: **1,536 dimensions**, cheap and fast, the default choice for most RAG systems.
+- **`text-embedding-3-large`**: **3,072 dimensions**, the most accurate OpenAI embedding model, at a higher price and larger vectors.
+- Both (released Jan 2024) replaced **`text-embedding-ada-002`** (1,536 dimensions). On the MTEB benchmark OpenAI reported averages of about **61.0% (ada-002), 62.3% (3-small) and 64.6% (3-large)**, and 3-small launched at **one fifth of ada-002's price**.
+- Both support the **`dimensions` parameter** to return shorter vectors (sheet 04). Max input is **8,192 tokens** per text; a request can carry up to 2,048 inputs. Both use the **`cl100k_base`** tokenizer.
+- OpenAI embeddings are **normalised to length 1**, so cosine similarity equals the dot product.
+```python
+from openai import OpenAI
+
+client = OpenAI()
+resp = client.embeddings.create(
+    model="text-embedding-3-small",
+    input=["How do I reset my password?", "Steps to recover a forgotten login"],   # batch inputs
+)
+vectors = [d.embedding for d in resp.data]          # list of 1,536-float lists, same order as input
+print(len(vectors[0]), resp.usage.total_tokens)
+```
+
+## Sentence-Transformers | blue
+- **Sentence-Transformers (SBERT)** is the standard open-source Python library for embedding models (Reimers & Gurevych, 2019). It loads thousands of models from Hugging Face and runs them **locally** (CPU or GPU): no per-token API cost, and data stays on your machines.
+- Classic small models: **`all-MiniLM-L6-v2`** (384 dimensions, very fast) and **`all-mpnet-base-v2`** (768 dimensions, better quality).
+- The same library provides **CrossEncoder** rerankers (sheet 13) and training utilities.
+```python
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+docs = ["Refunds are processed within 5 business days.", "We ship to all Indian pin codes."]
+doc_vecs = model.encode_document(docs, normalize_embeddings=True)       # shape (2, 384)
+q_vec = model.encode_query("how long does a refund take", normalize_embeddings=True)
+scores = doc_vecs @ q_vec                                                # cosine, since normalised
+print(scores.argmax(), scores)
+```
+
+## The BGE Family | green
+- **BGE (BAAI General Embedding)** models from the Beijing Academy of Artificial Intelligence are strong open-source embedders:
+- **`bge-small-en-v1.5`** (384 dimensions), **`bge-base-en-v1.5`** (768), **`bge-large-en-v1.5`** (1,024): English, 512-token input.
+- **`bge-m3`**: multilingual (100+ languages), inputs up to 8,192 tokens, 1,024 dimensions, and supports **dense, sparse (lexical weights) and multi-vector** retrieval in one model.
+- Matching **BGE rerankers** (`bge-reranker-base`, `bge-reranker-large`, `bge-reranker-v2-m3`) are cross-encoders for the reranking stage.
+- Many retrieval models are **asymmetric**: queries get a short **instruction prefix** (BGE v1.5 recommends "Represent this sentence for searching relevant passages: " for short queries, though v1.5 works reasonably without it). Sentence-Transformers' `encode_query` applies the model's configured query prompt.
+
+## Choosing a Model | amber
+- Check the **MTEB leaderboard** (Massive Text Embedding Benchmark, on Hugging Face) for the **retrieval** task and your **languages**, then **evaluate on your own data**: benchmark rank does not guarantee domain performance.
+- Trade-offs: **quality vs latency vs cost vs dimensions** (storage), **max input length**, **multilingual** needs, **hosted API vs self-hosted** (privacy, compliance, offline).
+- Re-embedding a large corpus is expensive, so pick deliberately and **store the model name with every vector**.
+
+## Interview Q&A | sky | wide
+Q: text-embedding-3-small vs text-embedding-3-large?
+A: Small gives 1,536-dimensional vectors cheaply and is good enough for most retrieval; large gives 3,072 dimensions and higher accuracy at higher cost and storage. Both can be shortened with the dimensions parameter.
+Q: Why use Sentence-Transformers or BGE instead of OpenAI?
+A: Self-hosting means no per-token cost, data never leaves your infrastructure, offline use and fine-tuning are possible; the trade-off is running GPU or CPU inference yourself.
+Q: What is bge-m3?
+A: A multilingual BGE model with long (8K-token) input that produces dense, sparse and multi-vector representations, so one model can power hybrid retrieval.
+Q: How do you choose an embedding model?
+A: Shortlist from the MTEB retrieval leaderboard by language, size and licence, then measure recall on your own labelled queries, considering cost, latency and vector size.
+Q: Do OpenAI embeddings need normalising?
+A: No. They are returned with unit length, so cosine similarity and dot product give the same ranking.
+
+# 03 | Similarity Metrics | Cosine similarity, dot product, Euclidean (L2) distance, how they relate for normalised vectors, which to use | Similarity Metrics
+
+## Cosine Similarity | rose
+- **cos(a, b) = (a · b) / (‖a‖ ‖b‖)**: the cosine of the angle between the vectors. It ranges from **-1 (opposite) through 0 (unrelated) to 1 (same direction)**.
+- It ignores **magnitude** and compares only **direction**, which is why it is the default for text embeddings.
+- **Cosine distance = 1 − cosine similarity** (used by pgvector's `<=>` and Chroma's `cosine` space): smaller is closer.
+
+## Dot Product | blue
+- **a · b = Σ a(i) b(i) = ‖a‖ ‖b‖ cos θ**: it grows with both **similarity and vector length**.
+- For **normalised (unit-length) vectors, dot product = cosine similarity**, and it is the **cheapest** to compute (no division), so systems normalise once at write time and use inner product at query time.
+- Some models are trained for **unnormalised dot product**, where vector length carries signal (for example popularity). Use the metric the **model card** specifies.
+
+## Euclidean (L2) Distance | green
+- **‖a − b‖ = √Σ (a(i) − b(i))²**: straight-line distance; **smaller means more similar**; range 0 to infinity.
+- Sensitive to magnitude. For unit vectors **‖a − b‖² = 2 − 2 cos(a, b)**, so L2 and cosine produce the **same ranking**.
+- Other metrics: **Manhattan (L1)** and **Hamming / Jaccard** for binary vectors (used with binary quantisation).
+```python
+import numpy as np
+
+def cosine(a: np.ndarray, b: np.ndarray) -> float:
+    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+a, b = np.array([3.0, 4.0]), np.array([6.0, 8.0])
+print(cosine(a, b))                    # 1.0   same direction
+print(float(a @ b))                    # 50.0  dot product grows with length
+print(float(np.linalg.norm(a - b)))    # 5.0   Euclidean distance
+
+# For unit vectors: ||a - b||^2 == 2 - 2 * cos(a, b), so L2 and cosine rank identically
+```
+
+## Which Metric to Use | amber
+- **Use what the embedding model was trained for**; for most text models that is cosine.
+- With **normalised vectors**, cosine, dot product and L2 give the **same ranking**, so pick inner product for speed.
+- **Configure the index with the same metric** you query with. In pgvector the operator class must match the operator (`vector_cosine_ops` with `<=>`), otherwise the index is not used. **Chroma's default space is L2**, so set `cosine` explicitly if you want it.
+- **Score thresholds are model-specific**: a cosine of 0.75 may be "very similar" for one model and "unrelated" for another. Calibrate thresholds on your data.
+
+## Interview Q&A | sky | wide
+Q: Cosine similarity vs dot product?
+A: Cosine measures only the angle; dot product also scales with vector lengths. For unit-length vectors they are identical, and dot product is cheaper.
+Q: Why do cosine and Euclidean give the same ranking for normalised vectors?
+A: Because for unit vectors the squared Euclidean distance equals 2 minus 2 times the cosine similarity, a monotonic transformation.
+Q: Which metric should you use for OpenAI embeddings?
+A: Cosine or, equivalently and faster, dot product, because the vectors are normalised to length 1.
+Q: Can you use a fixed similarity threshold like 0.8 everywhere?
+A: No. Score distributions differ by model and domain; calibrate thresholds on labelled examples.
+Q: What does cosine distance mean in pgvector?
+A: The <=> operator returns 1 minus cosine similarity, so ordering ascending by it returns the most similar rows first.
+
+@ Intermediate
+
+# 04 | Dimensionality & Matryoshka Embeddings | Why dimension count matters, the dimensions parameter, Matryoshka Representation Learning, truncation and renormalisation, PCA and quantisation | Dimensions & MRL
+
+## Why Dimensionality Matters | rose
+- More dimensions can hold **more information**, but cost **storage, memory and compute**: a 1,536-dimensional float32 vector is **6 KB**, so 10 million chunks need about **61 GB** for the vectors alone (HNSW graph links add more).
+- Distance computations scale with dimension, so **query latency and index build time** grow too.
+- Index limits matter: pgvector's HNSW and IVFFlat index the `vector` type only up to **2,000 dimensions** (`halfvec` up to 4,000), so 3,072-dimensional `text-embedding-3-large` vectors must be shortened or stored as `halfvec` to be indexed.
+
+## The dimensions Parameter | blue
+- `text-embedding-3-small` and `-large` accept **`dimensions`** to return a **shorter vector** (for example 256 or 1,024) that is still normalised.
+- OpenAI reported that **text-embedding-3-large shortened to 256 dimensions still beat ada-002 at 1,536** on MTEB: a 6× smaller vector with better quality.
+```python
+resp = client.embeddings.create(model="text-embedding-3-large", input=texts, dimensions=1024)
+```
+
+## Matryoshka Representation Learning (MRL) | green
+- **MRL** (Kusupati et al., NeurIPS 2022), named after Russian nesting dolls: the model is trained with the loss applied to **several nested prefixes** of the vector (for example the first 64, 128, 256... up to all dimensions).
+- As a result, the **first k dimensions form a usable embedding on their own**: information is packed **coarse-to-fine**, with the most important information first.
+- You can **truncate** an MRL embedding to any trained size and **re-normalise** it, trading a little accuracy for big savings. OpenAI's text-embedding-3 models behave this way, which is what the `dimensions` parameter relies on.
+- **Truncating a non-MRL embedding** (ada-002, most older models) throws information away arbitrarily and hurts quality badly.
+```python
+import numpy as np
+
+full = np.asarray(full_embedding)        # e.g. 3,072 dims from an MRL-trained model
+short = full[:256]
+short = short / np.linalg.norm(short)    # re-normalise after truncating
+```
+- Sentence-Transformers supports it with `SentenceTransformer(name, truncate_dim=256)`, and `MatryoshkaLoss` for training your own.
+
+## Adaptive (Funnel) Retrieval | amber
+- Use **short vectors for a fast first pass** over millions of items, then **re-score the top few hundred with full-length vectors** (or a reranker). You get most of the full-dimension accuracy at a fraction of the cost.
+
+## Other Reduction and Compression Options | violet
+- **PCA** (or random projection) fitted on your corpus can reduce dimensions for any model, with some quality loss; apply the same transform to queries.
+- **Quantisation** shrinks each dimension rather than the number of dimensions: **scalar int8** (4× smaller) or **binary** (32× smaller), usually followed by **rescoring** the top candidates with full-precision vectors. Most vector databases and pgvector (`halfvec`, `bit`) support some form of this.
+
+## Interview Q&A | sky | wide
+Q: What is Matryoshka Representation Learning?
+A: A training method that applies the loss to multiple nested prefixes of the embedding, so the first k dimensions are themselves a good embedding and vectors can be truncated with little loss.
+Q: How do you shorten OpenAI embeddings?
+A: Pass the dimensions parameter (text-embedding-3 models), or truncate the full vector yourself and re-normalise it; both work because the models were trained Matryoshka-style.
+Q: Why not just truncate any embedding?
+A: Models not trained with MRL spread information across all dimensions, so truncation discards meaning unpredictably.
+Q: Why reduce dimensions at all?
+A: To cut storage, memory and query latency, and to fit index limits, often with only a small drop in retrieval quality.
+Q: What is adaptive retrieval?
+A: A funnel: shortlist candidates with low-dimensional vectors, then re-score the shortlist with full-dimensional vectors or a reranker.
+
+# 05 | Exact KNN vs Approximate Nearest Neighbours | Brute-force search, why ANN exists, recall versus speed, measuring an index | KNN vs ANN
+
+## Exact Nearest Neighbour (KNN) | rose
+- **Exact k-nearest-neighbour search** compares the query with **every vector** and returns the true top k. Cost is **O(N × d)** per query (N vectors, d dimensions).
+- **Recall is 100%** by definition, there is no index to build, and filtering is trivial.
+- Fast enough for **up to roughly hundreds of thousands of vectors**, especially with SIMD or GPU matrix multiplication (Faiss `IndexFlat`, pgvector without an index, NumPy).
+```python
+import numpy as np
+
+def knn(query: np.ndarray, matrix: np.ndarray, k: int = 5) -> np.ndarray:
+    scores = matrix @ query                          # rows and query normalised: cosine
+    top = np.argpartition(-scores, k)[:k]            # O(N) selection of the k best
+    return top[np.argsort(-scores[top])]             # sort just those k
+```
+
+## Approximate Nearest Neighbour (ANN) | blue
+- At millions or billions of vectors, brute force is too slow. **ANN indexes** organise vectors (graphs, clusters, quantised codes) so a query examines **only a small fraction** of them.
+- They return **most of the true neighbours, not all**: you trade a little **recall** for orders-of-magnitude **lower latency**.
+- Main families: **graph-based** (HNSW), **partition / inverted-file** (IVF), **quantisation** (PQ), often combined, plus **disk-based** variants (DiskANN) for data larger than RAM.
+
+## Measuring an Index | green
+- **Recall@k**: the fraction of the true top-k (from exact search) that the ANN index returned. Production targets are often 0.95 to 0.99.
+- **Latency** (p50/p99) and **throughput** (queries per second).
+- **Build time, memory footprint, update and delete cost**.
+- Every index has knobs (HNSW `ef_search`, IVF `nprobe`) that **move along the recall vs speed curve**. Tune them by measuring recall against exact search on a sample of real queries.
+
+## Interview Q&A | sky | wide
+Q: KNN vs ANN?
+A: KNN compares against every vector for exact results at O(N·d) per query; ANN uses an index to search a small subset, giving approximate results with far lower latency at scale.
+Q: When is brute-force search fine?
+A: For small to medium collections (up to roughly hundreds of thousands of vectors) or when every query is restricted by filters to a small subset.
+Q: How do you measure ANN quality?
+A: Recall@k against exact search on representative queries, together with latency, throughput, memory and build time.
+Q: What does "approximate" cost you in RAG?
+A: Occasionally missing a relevant chunk; usually acceptable at 95%+ recall, and reranking over a slightly larger candidate set compensates.
+
+# 06 | HNSW & IVF Indexes | Hierarchical Navigable Small World graphs and their parameters, IVF clustering and probes, product quantisation, comparison, filtering | HNSW & IVF
+
+## HNSW: Hierarchical Navigable Small World | rose
+- **HNSW** (Malkov & Yashunin, 2016) builds a **multi-layer proximity graph**. Every vector is in the bottom layer; each higher layer holds an exponentially **smaller random subset**, like a skip list.
+- Upper layers have few nodes and **long-range links** for coarse navigation; lower layers are dense for fine search.
+- **Search**: start at the entry point in the top layer, **greedily move to the neighbour closest to the query**, drop down a layer when no closer neighbour exists, and at the bottom layer run a **beam search** keeping the best **ef** candidates. Cost grows roughly **logarithmically** with N.
+- **Insert**: pick the node's top layer at random, then connect it to its nearest neighbours on each layer from there down.
+```text
+Layer 2:  A ----------------------- K                 few nodes, long jumps
+Layer 1:  A ------ E ------- H ---- K ---- P
+Layer 0:  A - B - C - D - E - F - G - H - I - K - ... - P - Q   every vector, short links
+query: enter at A (top) -> greedy hops -> descend -> beam search (ef) on layer 0
+```
+
+## HNSW Parameters | blue
+- **M**: maximum links per node per layer (pgvector default **16**). Higher gives better recall and more memory and build time.
+- **ef_construction**: candidate list size while building (pgvector default **64**). Higher gives a better graph and slower builds.
+- **ef_search**: candidate list size at query time (pgvector default **40**), at least k. **The main runtime knob**: raise it for recall, lower it for speed.
+- **Strengths**: excellent recall/latency trade-off, supports **incremental inserts**, no training step. **Weaknesses**: **memory-hungry** (vectors plus graph in RAM), slower builds, deletes are handled by marking and later repair.
+
+## IVF: Inverted File Index | green
+- **IVF** clusters the vectors with **k-means** into **nlist** partitions (centroids, also called lists or cells). Each vector is stored in the **inverted list** of its nearest centroid.
+- **Query**: find the **nprobe** nearest centroids, then search only the vectors in those lists exhaustively.
+- **nprobe** is the recall vs speed knob (pgvector `ivfflat.probes`, default 1). pgvector's guidance: **lists = rows / 1000** up to 1M rows and **√rows** above; start with **probes = √lists**.
+- **Needs training data**: build the index **after loading representative data**; heavy data drift degrades the clusters, so rebuild periodically. Faster to build and **lighter on memory** than HNSW, usually with lower recall at the same speed.
+
+## Product Quantisation and Combinations | amber
+- **Product Quantisation (PQ)** splits each vector into m sub-vectors and replaces each with the ID of its nearest sub-centroid (typically 1 byte), compressing a 1,536-dimensional float vector from 6 KB to a few dozen bytes. Distances are approximated from lookup tables.
+- **IVF-PQ** (IVF partitions plus PQ codes) is the classic recipe for **billion-scale** search in Faiss and Milvus; **HNSW + quantisation** and **DiskANN** are other common combinations.
+- Compression lowers recall, so systems **rescore the top candidates** with full vectors.
+
+## Comparison and Filtering | violet
+- **HNSW**: best recall and latency, high memory, incremental updates. The default in most vector databases and pgvector.
+- **IVF**: lower memory, faster builds, needs training and rebuilding, recall depends on nprobe.
+- **Flat (exact)**: perfect recall, slowest at scale; use for small sets or to measure recall.
+- **Filtered search** (tenant = acme, year ≥ 2024) is tricky with ANN: **post-filtering** can return fewer than k results, and **pre-filtering** with a very selective filter is effectively brute force over the subset. Engines handle this with **filter-aware graph traversal** (Qdrant, Milvus) or **iterative scans** (pgvector 0.8+ `hnsw.iterative_scan`), so test recall with filters on.
+
+## Interview Q&A | sky | wide
+Q: Explain how HNSW search works.
+A: It enters at the top layer of a hierarchical proximity graph and greedily moves to neighbours closer to the query, descending layer by layer, then runs a beam search with ef candidates on the bottom layer that contains every vector.
+Q: What do M, ef_construction and ef_search control?
+A: M is links per node (recall vs memory), ef_construction is build-time candidate breadth (graph quality vs build time), ef_search is query-time candidate breadth (recall vs latency).
+Q: How does IVF work?
+A: K-means partitions vectors into lists around centroids; a query probes the nprobe closest lists and searches only their vectors exhaustively.
+Q: HNSW or IVF?
+A: HNSW for the best recall and latency with frequent inserts when memory allows; IVF (often with PQ) for very large collections where memory and build time matter more.
+Q: Why is filtering hard with ANN indexes?
+A: Graph or cluster traversal ignores the filter, so post-filtering can drop results below k, and selective pre-filters defeat the index; engines use filter-aware traversal or iterative scans.
+
+# 07 | Vector Databases & pgvector | ChromaDB, Pinecone, Qdrant, Milvus, PostgreSQL pgvector, Faiss as a library, how to choose, code | Vector Databases
+
+## What a Vector Database Adds | rose
+- Beyond an ANN index, a vector database provides **persistence, CRUD and upserts, metadata storage and filtering, collections and namespaces, replication and scaling, access control, hybrid search** and client SDKs.
+- **Faiss** (Meta) is a **library**, not a database: very fast in-memory and GPU indexes, but persistence, metadata and serving are up to you.
+
+## The Main Options | blue
+- **ChromaDB**: open-source (Apache 2.0), **embedded in-process** or client/server, plus a hosted cloud. Very simple API with built-in embedding functions; HNSW index; **default distance L2**. Great for **prototypes, notebooks and small to medium apps**.
+- **Pinecone**: **fully managed, proprietary SaaS**. **Serverless** indexes separate storage from compute; **namespaces** for multi-tenancy; metadata filtering; sparse-dense hybrid search; hosted embedding and reranking models. No infrastructure to run, at a usage-based price.
+- **Qdrant**: open-source (Apache 2.0), written in **Rust**; self-hosted or Qdrant Cloud. Strong **payload (JSON) filtering integrated into HNSW**, named vectors (several per point), **sparse vectors with built-in RRF hybrid queries**, scalar, binary and product quantisation.
+- **Milvus**: open-source (LF AI & Data Foundation), **distributed and cloud-native** (separate query, data and index nodes over object storage), built for **billions of vectors**, with the widest index choice (FLAT, IVF_FLAT, IVF_PQ, HNSW, DiskANN, GPU indexes). Managed as **Zilliz Cloud**; **Milvus Lite** runs locally.
+- **PostgreSQL + pgvector**: an extension adding `vector`, `halfvec`, `sparsevec` and `bit` types with **HNSW and IVFFlat** indexes. Vectors live **next to relational data**, with **SQL joins, transactions, backups, row-level security** and one less system to operate.
+
+## pgvector in Practice | green
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE chunks (
+  id         bigserial PRIMARY KEY,
+  doc_id     text  NOT NULL,
+  tenant_id  text  NOT NULL,
+  content    text  NOT NULL,
+  embedding  vector(1536) NOT NULL          -- text-embedding-3-small
+);
+
+-- the operator class must match the operator used in queries
+CREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+
+SET hnsw.ef_search = 100;                    -- higher recall, slower
+
+SELECT id, content, 1 - (embedding <=> $1) AS similarity
+FROM chunks
+WHERE tenant_id = $2                         -- relational filter in the same query
+ORDER BY embedding <=> $1                    -- <=> cosine distance, <-> L2, <#> negative inner product
+LIMIT 5;
+```
+- Operators: **`<->` L2**, **`<#>` negative inner product**, **`<=>` cosine distance**, `<+>` L1, `<~>` Hamming and `<%>` Jaccard for bit vectors. The `ORDER BY ... LIMIT` form is what lets the planner **use the index**.
+- With selective filters, enable **iterative index scans** (0.8+): `SET hnsw.iterative_scan = strict_order;`.
+
+## ChromaDB in Practice | amber
+```python
+import chromadb
+
+client = chromadb.PersistentClient(path="./chroma")              # embedded, stored on disk
+col = client.get_or_create_collection("docs", configuration={"hnsw": {"space": "cosine"}})
+col.upsert(
+    ids=["faq:0", "faq:1"],
+    documents=["Refunds take 5 business days.", "We ship to all Indian pin codes."],
+    metadatas=[{"source": "faq.md"}, {"source": "faq.md"}],
+)                                                                 # uses the default local embedding model
+res = col.query(query_texts=["how long is a refund"], n_results=2, where={"source": "faq.md"})
+print(res["ids"][0], res["distances"][0])                         # cosine distances, smaller = closer
+```
+
+## How to Choose | violet
+- **Already on Postgres, up to tens of millions of vectors, need joins and transactions**: pgvector.
+- **Prototype or embedded app**: Chroma.
+- **No ops team, want managed serverless scaling**: Pinecone.
+- **Self-hosted with heavy filtering, hybrid search and quantisation**: Qdrant.
+- **Billion-scale, distributed, GPU indexes**: Milvus.
+- Also weigh **multi-tenancy, hybrid search support, cost model, latency SLOs, data residency, backup and restore**, and team familiarity.
+
+## Interview Q&A | sky | wide
+Q: Why use a vector database instead of Faiss?
+A: Faiss is an index library; a vector database adds persistence, upserts and deletes, metadata filtering, scaling, replication, access control and APIs.
+Q: When would you choose pgvector?
+A: When the application already uses PostgreSQL and the scale is moderate: vectors sit next to relational data with SQL filters, joins, transactions and existing backups.
+Q: What is the difference between <=>, <-> and <#> in pgvector?
+A: Cosine distance, Euclidean distance and negative inner product; the index operator class must match the operator you order by.
+Q: Pinecone vs Qdrant vs Milvus?
+A: Pinecone is fully managed serverless SaaS; Qdrant is an open-source Rust engine strong at filtering and hybrid search; Milvus is an open-source distributed system for billion-scale workloads with many index types.
+Q: What is Chroma's default distance metric?
+A: L2 (squared Euclidean); set the collection's HNSW space to cosine for cosine distance.
+
+# 08 | Dense, Sparse & Hybrid Search | TF-IDF, BM25, dense retrieval, strengths and weaknesses of each, hybrid search with Reciprocal Rank Fusion | Hybrid Search
+
+## Sparse Retrieval: TF-IDF and BM25 | rose
+- **Sparse (lexical) retrieval** represents texts by the **words they contain**: one dimension per vocabulary term, almost all zeros. It is served by an **inverted index** (term → list of documents), as in Lucene, Elasticsearch and OpenSearch.
+- **TF-IDF**: weight = **term frequency × inverse document frequency**, with idf = log(N / df). Terms frequent in a document but rare in the corpus score highest.
+- **BM25** (Okapi BM25) improves TF-IDF with **term-frequency saturation** (the 10th occurrence adds little) and **document-length normalisation**:
+- **score(D, Q) = Σ IDF(q) · f(q, D) · (k1 + 1) / ( f(q, D) + k1 · (1 − b + b · |D| / avgdl) )**, typically **k1 ≈ 1.2 to 2.0** and **b = 0.75**.
+- **Strengths**: exact matches on **IDs, codes, names and rare terms**; no training; fast; explainable. **Weakness**: **vocabulary mismatch**, since "car" does not match "automobile".
+
+## Dense Retrieval | blue
+- **Dense retrieval** embeds query and documents and finds **nearest neighbours** in vector space.
+- **Strengths**: synonyms, paraphrases, natural-language questions, cross-lingual matching. **Weaknesses**: exact identifiers, rare jargon, out-of-domain text, and harder to explain.
+- In practice the two **fail on different queries**, which is why combining them works.
+
+## Hybrid Search | green
+- **Hybrid search** runs **both** a sparse (BM25) and a dense (vector) search and **merges** the result lists. It usually beats either alone, especially on queries mixing concepts with exact terms ("E1042 error during checkout").
+- **Merging problem**: BM25 scores (unbounded) and cosine similarities (about -1 to 1) are **not on comparable scales**.
+- Options: **weighted score fusion** (normalise each score, then α·dense + (1 − α)·sparse) or **rank-based fusion** with RRF.
+- **Learned sparse** models (for example SPLADE, or bge-m3's lexical weights) produce sparse vectors with term expansion, combining both ideas.
+
+## Reciprocal Rank Fusion (RRF) | amber
+- **RRF** (Cormack, Clarke and Büttcher, 2009): **RRF(d) = Σ over result lists of 1 / (k + rank(d))**, with **k = 60** by convention and ranks starting at 1.
+- It uses **only ranks**, so no score normalisation is needed. Documents ranked high in several lists win, and k damps the dominance of the very top ranks.
+- Built into Elasticsearch, OpenSearch, Qdrant, Weaviate and others, and also used to merge **multi-query** results (sheet 12).
+```python
+from rank_bm25 import BM25Okapi
+
+docs = ["Error E1042: payment gateway timeout during checkout",
+        "How to request a refund for a cancelled order",
+        "Checkout fails when the card issuer does not respond in time"]
+bm25 = BM25Okapi([d.lower().split() for d in docs])
+sparse_scores = bm25.get_scores("e1042 checkout".split())
+
+def rrf(rankings: list[list[str]], k: int = 60) -> list[tuple[str, float]]:
+    scores: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, doc_id in enumerate(ranking, start=1):
+            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank)
+    return sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+
+dense = ["doc3", "doc1", "doc2"]          # ranking from vector search
+sparse = ["doc1", "doc2", "doc3"]         # ranking from BM25
+print(rrf([dense, sparse]))               # doc1 0.0325, doc3 0.0323, doc2 0.0320
+```
+
+## Interview Q&A | sky | wide
+Q: Dense vs sparse retrieval?
+A: Sparse (BM25, TF-IDF) matches exact terms through an inverted index and excels at identifiers and rare words; dense embeds meaning and handles synonyms and paraphrases but misses exact tokens.
+Q: How does BM25 improve on TF-IDF?
+A: It saturates term frequency so repeated terms add diminishing score, and normalises for document length relative to the average, controlled by k1 and b.
+Q: What is hybrid search?
+A: Running lexical and vector search together and fusing the results, so queries benefit from both exact matching and semantic matching.
+Q: Explain Reciprocal Rank Fusion.
+A: Each document gets the sum of 1/(k + rank) over the result lists it appears in, usually with k = 60; it fuses rankings without normalising incompatible scores.
+Q: Why not just add BM25 and cosine scores?
+A: They are on different, query-dependent scales, so one dominates; normalise them carefully or fuse by rank.
+
+# 09 | RAG Architecture & Ingestion | Why RAG, the two pipelines, document loading, text extraction, cleaning and metadata | RAG & Ingestion
+
+## Why Retrieval-Augmented Generation | rose
+- **RAG** gives an LLM **relevant external knowledge at query time** by retrieving documents and putting them into the prompt. The term comes from Lewis et al., 2020 (Facebook AI).
+- It solves: **knowledge cutoff** (fresh data), **private data** (company docs the model never saw), **hallucinations** (grounded answers), **citations** (traceable sources) and **access control** (retrieve only what the user may see).
+- **RAG vs fine-tuning**: RAG adds **knowledge** and is easy to update (re-index a document); fine-tuning changes **behaviour, style or format** and is poor at injecting facts. They can be combined.
+- **RAG vs long context**: stuffing everything into a huge context window is slower, costlier and suffers from **"lost in the middle"**; retrieval keeps prompts focused and scales to corpora far bigger than any window.
+
+## The Two Pipelines | blue
+```text
+INGESTION (offline, on change)                  QUERY (online, per question)
+documents -> load -> extract text -> clean      question -> (rewrite) -> embed query
+   -> chunk -> embed chunks                         -> vector / hybrid search (+ filters)
+   -> upsert {id, vector, text, metadata}           -> (rerank, compress)
+      into the vector store                         -> inject context into prompt
+                                                    -> LLM generates answer with citations
+```
+
+## Document Loading and Text Extraction | green
+- **Sources**: PDFs, Word, HTML and wikis (Confluence, Notion), Markdown, emails, tickets, databases, code repositories.
+- **PDF text** with libraries such as pypdf, PyMuPDF or pdfplumber; **scanned PDFs need OCR** (for example Tesseract or a cloud OCR service).
+- **Layout-aware parsers** (Unstructured, Docling and similar) detect **titles, sections, lists and tables**, which matters for chunking and citations.
+- **Tables**: convert to Markdown or keep them as whole units with a caption, because splitting a table mid-row destroys its meaning.
+- **HTML**: strip navigation, scripts and boilerplate (for example with BeautifulSoup) and keep headings.
+- Frameworks such as **LangChain and LlamaIndex** provide ready-made loaders for many formats.
+
+## Cleaning | amber
+- Remove **repeated headers, footers, page numbers, cookie banners and navigation text**; fix **broken hyphenation and line breaks** from PDFs; normalise **whitespace and Unicode**.
+- **Deduplicate** documents and near-duplicates (hashes, MinHash) so retrieval doesn't return five copies of the same paragraph.
+- **Redact PII or secrets** where policy requires it, and **drop empty or junk pages**.
+- **Garbage in, garbage out**: most RAG quality problems trace back to ingestion, so **inspect real extracted text** before tuning anything else.
+
+## Metadata | violet
+- Store metadata with every chunk: **source (path or URL), title, section heading, page, author, created and updated dates, document type, version, language**, and **access-control fields** (tenant, team, allowed roles).
+- Metadata enables **filtered retrieval** (only this product, only this year, only what this user may see), **citations** (link back to the page), **freshness** (prefer the latest version) and **incremental re-indexing** (by content hash or last-modified time).
+
+## Interview Q&A | sky | wide
+Q: What is RAG and what problems does it solve?
+A: Retrieving relevant documents at query time and adding them to the prompt so the LLM answers from them; it addresses knowledge cutoffs, private data, hallucinations, citations and access control.
+Q: RAG or fine-tuning for a company knowledge base?
+A: RAG, because the knowledge changes and must be cited and permissioned; fine-tuning suits style and behaviour, not facts.
+Q: What are the stages of an ingestion pipeline?
+A: Load documents, extract text (OCR and layout parsing as needed), clean and deduplicate, chunk, embed, and upsert vectors with text and metadata into the store.
+Q: Why does metadata matter?
+A: It powers filtering (tenant, permissions, dates), citations, freshness and incremental updates.
+Q: Why not just use a model with a huge context window?
+A: Cost and latency grow with tokens, models use information in the middle of long contexts less reliably, and corpora often exceed any window; retrieval keeps prompts small and relevant.
+
+# 10 | Chunking Strategies | Why chunk, fixed-size, sliding window with overlap, recursive character, semantic chunking, structure-aware splitting, choosing chunk size | Chunking
+
+## Why Chunk | rose
+- Embedding models have **input limits** (512 tokens for many open models, 8,192 for OpenAI), and **one vector for a whole document blurs its topics**.
+- **Smaller chunks** give **precise matches** but may lack surrounding context. **Larger chunks** carry more context but **dilute the embedding** and spend more prompt tokens.
+- Chunking quality is one of the **biggest levers on RAG quality**.
+
+## Fixed-Size and Sliding-Window Chunking | blue
+- **Fixed-size**: cut every N tokens (or characters). Simple and predictable, but cuts through sentences and ideas.
+- **Sliding window with overlap**: consecutive chunks **share some tokens** (for example 500-token chunks with 50 to 100 tokens of overlap, about 10 to 20%), so a sentence that straddles a boundary appears whole in at least one chunk. The cost is extra storage and possibly duplicate hits.
+- Measure size in **tokens** (with the embedding model's tokenizer) rather than characters.
+
+## Recursive Character Chunking | green
+- **Recursive character splitting** tries a **hierarchy of separators**: paragraphs (`"\n\n"`), then lines (`"\n"`), then words (`" "`), then characters (`""`). It only splits further when a piece is still too large, so paragraphs and sentences stay together where possible.
+- It is LangChain's default general-purpose splitter (`RecursiveCharacterTextSplitter`, separators `["\n\n", "\n", " ", ""]`) and a strong baseline.
+```python
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+    encoding_name="cl100k_base",     # measure chunk_size in tokens of the embedding model
+    chunk_size=400,
+    chunk_overlap=60,
+)
+chunks = splitter.split_text(document_text)
+```
+- **Language-aware** variants split source code on functions and classes, and **Markdown or HTML header splitters** split on headings and keep the heading path as metadata.
+
+## Semantic Chunking | amber
+- **Semantic chunking** places boundaries where the **topic changes**: split the text into sentences, embed each sentence (or a small window), compute the **similarity between neighbours**, and **cut where similarity drops sharply** (for example below the 95th-percentile distance).
+- Produces **topically coherent chunks** of variable size, at the cost of **embedding every sentence** during ingestion and threshold tuning. Gains over a good recursive splitter vary by corpus, so evaluate.
+- Implementations include LangChain's `SemanticChunker` (in `langchain_experimental`) and LlamaIndex's semantic splitter.
+
+## Choosing Chunk Size and Enrichment | violet
+- Start around **300 to 800 tokens with 10 to 20% overlap**, then **evaluate retrieval recall** on real questions and adjust.
+- Short factual lookups (FAQs) favour **smaller chunks**; questions needing explanation favour **larger chunks**.
+- **Respect structure**: never split tables or code blocks mid-way; keep list items with their heading.
+- **Add context to each chunk**: prepend the document title and section path ("HR Policy > Leave > Carry-over") so an isolated chunk still makes sense, and store the chunk's position so neighbours can be fetched.
+- **Small-to-big retrieval**: search with **small chunks** for precision and return the **larger parent section** to the LLM for context.
+
+## Interview Q&A | sky | wide
+Q: Why does chunk size matter?
+A: Small chunks retrieve precisely but lack context; large chunks keep context but dilute the embedding and cost more tokens. The right size depends on the documents and questions and should be tuned by evaluation.
+Q: Why use overlap?
+A: So information spanning a chunk boundary appears intact in at least one chunk; typical overlap is 10 to 20% of the chunk size.
+Q: How does recursive character splitting work?
+A: It splits on the largest separator first (paragraphs), then recursively on smaller ones (lines, words, characters) only for pieces still over the size limit, keeping natural units together.
+Q: What is semantic chunking?
+A: Splitting where embedding similarity between adjacent sentences drops, so each chunk covers one topic; it costs extra embeddings and needs threshold tuning.
+Q: How do you chunk tables and code?
+A: Keep tables whole (converted to Markdown with a caption) and split code along function or class boundaries with language-aware splitters.
+
+# 11 | Indexing & the Query Pipeline | Embedding and upserting chunks with metadata, stable IDs, re-indexing, query embedding, retrieval, context injection, prompt template and generation | Index & Query
+
+## Indexing: Embed and Upsert | rose
+- **Embed chunks in batches** (OpenAI accepts many inputs per request), with retries and backoff for rate limits.
+- **Upsert** each chunk as **{id, vector, text, metadata}**. **Stable, deterministic IDs** (`doc_id:chunk_no`, or a content hash) make re-runs **idempotent**: updating a document overwrites rather than duplicates.
+- On re-ingest, **delete the document's old chunks first**: a shorter new version would otherwise leave orphaned chunks behind.
+- **Incremental updates**: detect changed sources by hash or last-modified time and re-embed only those.
+- **Record the embedding model and version** in metadata or collection config. Changing the model means **re-embedding everything**; old and new vectors cannot be mixed.
+- **Bulk loads**: insert first, then build the index (required for IVF, faster for HNSW).
+
+## Query Pipeline | blue
+- **1. Embed the query** with the **same model** used for the chunks.
+- **2. Retrieve top-k** by similarity (often k = 5 to 20), applying **metadata filters**: tenant, permissions, product, date.
+- **3. Optionally rerank and compress** (sheet 13).
+- **4. Inject context**: format the chunks with **numbered source labels** and put them in the prompt with clear delimiters.
+- **5. Generate**: instruct the model to answer **only from the context**, **cite sources**, and **say it doesn't know** when the context is insufficient. Use a low temperature.
+- **6. Post-process**: verify citations point to real retrieved chunks, and return answer plus sources to the UI.
+
+## End-to-End Example | green
+```python
+import chromadb
+from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from openai import OpenAI
+
+llm = OpenAI()
+embed = OpenAIEmbeddingFunction(model_name="text-embedding-3-small", api_key_env_var="OPENAI_API_KEY")
+db = chromadb.PersistentClient(path="./rag_db")
+col = db.get_or_create_collection("handbook", embedding_function=embed,
+                                  configuration={"hnsw": {"space": "cosine"}})
+splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+    encoding_name="cl100k_base", chunk_size=400, chunk_overlap=60)
+
+def ingest(doc_id: str, text: str, meta: dict) -> None:
+    chunks = splitter.split_text(text)
+    col.delete(where={"doc_id": doc_id})                    # re-ingest: drop the old chunks first
+    col.upsert(
+        ids=[f"{doc_id}:{i}" for i in range(len(chunks))],  # stable IDs make re-runs idempotent
+        documents=chunks,
+        metadatas=[{**meta, "doc_id": doc_id, "chunk": i} for i in range(len(chunks))],
+    )
+
+SYSTEM = ("Answer only from the numbered context. Cite sources like [1]. "
+          "If the answer is not in the context, say you don't know.")
+
+def answer(question: str, k: int = 5) -> str:
+    hits = col.query(query_texts=[question], n_results=k)
+    docs, metas = hits["documents"][0], hits["metadatas"][0]
+    context = "\n\n".join(f"[{i}] ({m['source']}) {d}" for i, (d, m) in enumerate(zip(docs, metas), 1))
+    resp = llm.chat.completions.create(model="gpt-4o-mini", temperature=0, messages=[
+        {"role": "system", "content": SYSTEM},
+        {"role": "user", "content": f"<context>\n{context}\n</context>\n\nQuestion: {question}"},
+    ])
+    return resp.choices[0].message.content
+```
+
+## Context Injection Details | amber
+- **Order matters**: LLMs use information at the **beginning and end** of long contexts better than in the middle ("Lost in the Middle", Liu et al., 2023). Put the strongest chunks first (or at the edges) and keep k modest.
+- **Budget tokens**: system prompt + chunks + question + expected answer must fit the context window. Retrieve more candidates, then trim to a token budget.
+- **Label sources** so the model can cite them and the UI can link to page and section.
+- **Conversation**: rewrite follow-up questions into standalone queries before retrieval (sheet 12), and don't re-inject the same chunks every turn.
+
+## Interview Q&A | sky | wide
+Q: Walk through a RAG query end to end.
+A: Rewrite the question if needed, embed it with the same model as the corpus, retrieve the top-k chunks with metadata filters, optionally rerank, insert numbered chunks into a prompt that requires grounded, cited answers, generate at low temperature, and return the answer with sources.
+Q: Why use deterministic chunk IDs?
+A: So re-ingesting a document updates its chunks instead of duplicating them; combined with deleting old chunks per document, the index stays consistent.
+Q: What happens if you change the embedding model?
+A: Existing vectors become incompatible, so the whole corpus must be re-embedded (often into a new index, switched over once complete).
+Q: How do you enforce permissions in RAG?
+A: Store access-control metadata on chunks and filter retrieval by the current user's tenant and roles, enforced on the server, never by asking the LLM to hide content.
+Q: What is "lost in the middle"?
+A: The finding that LLMs make better use of relevant information at the start or end of a long context than in the middle, so ordering and a modest k matter.
+
+@ Advanced
+
+# 12 | Pre-Retrieval: Query Rewriting, HyDE & Multi-Query | Fixing the query before search, standalone rewriting, Hypothetical Document Embeddings, multi-query expansion and fusion | Pre-Retrieval
+
+## Why Optimise the Query | rose
+- User questions are often **short, vague, conversational, misspelt or phrased differently from the documents**. A better query means better retrieval, before any change to the index.
+- Pre-retrieval techniques use an LLM (usually a small, fast one) to **transform the query** before embedding it.
+
+## Query Rewriting | blue
+- **Standalone rewriting** in chat: turn "what about its price?" into "What is the price of the Pixel 8 Pro?" using the conversation history. **Essential for conversational RAG.**
+- **Clarify and normalise**: fix spelling, expand acronyms and internal jargon ("PTO" → "paid time off"), remove filler, and add domain keywords.
+- **Decompose** multi-part questions into sub-questions, retrieve for each, and combine.
+- This idea was formalised as **Rewrite-Retrieve-Read** (Ma et al., 2023).
+```text
+History:  User: Tell me about the Pixel 8 Pro.   Assistant: It is Google's 2023 flagship...
+Follow-up: what about its battery?
+Rewrite the follow-up as a standalone search query.
+-> "Pixel 8 Pro battery capacity and battery life"
+```
+
+## HyDE: Hypothetical Document Embeddings | green
+- **HyDE** (Gao et al., 2022, "Precise Zero-Shot Dense Retrieval without Relevance Labels"): ask the LLM to **write a hypothetical answer document** for the query, **embed that document**, and search with its vector.
+- **Why it works**: a hypothetical answer is phrased like the real documents, so **answer-to-answer similarity** is stronger than question-to-answer similarity. The fake details don't matter; the real documents near it are what get returned.
+- It needs **no relevance labels**, which is why it is "zero-shot". The paper also averaged several generated documents (and the query) into one vector.
+- **Downsides**: an extra LLM call (latency and cost), and when the LLM knows little about the domain its **hallucinated document can point retrieval the wrong way**. Evaluate before adopting.
+```python
+def hyde_search(question: str, k: int = 5):
+    fake = llm.chat.completions.create(model="gpt-4o-mini", messages=[
+        {"role": "user", "content": f"Write a short passage from our documentation that answers: {question}"}
+    ]).choices[0].message.content
+    return col.query(query_texts=[fake], n_results=k)        # search with the hypothetical answer
+```
+
+## Multi-Query Expansion | amber
+- Ask the LLM for **3 to 5 alternative phrasings** (or sub-questions), **retrieve for each**, then **merge and deduplicate**. Fusing the lists with **RRF** is often called **RAG-Fusion**.
+- It improves **recall** for ambiguous or underspecified questions by covering several interpretations and vocabularies.
+- Costs: more embedding and search calls and more candidates, so it pairs well with **reranking** afterwards.
+```python
+def multi_query_search(question: str, k: int = 5):
+    variants = llm.chat.completions.create(model="gpt-4o-mini", messages=[
+        {"role": "user", "content": f"Write 3 different search queries for: {question}\nOne per line."}
+    ]).choices[0].message.content.splitlines()
+    rankings = [col.query(query_texts=[q], n_results=k)["ids"][0] for q in [question, *variants] if q.strip()]
+    return rrf(rankings)[:k]                                  # Reciprocal Rank Fusion (sheet 08)
+```
+
+## Interview Q&A | sky | wide
+Q: Why rewrite queries in conversational RAG?
+A: Follow-ups depend on earlier turns ("what about its battery?"); rewriting them into standalone queries makes retrieval find the right documents.
+Q: How does HyDE work?
+A: The LLM writes a hypothetical answer, its embedding is used for the search, and the real documents most similar to that answer are returned.
+Q: When can HyDE hurt?
+A: When the model lacks domain knowledge and generates a misleading passage, steering retrieval toward the wrong documents; it also adds an LLM call of latency.
+Q: What is multi-query retrieval?
+A: Generating several reformulations of the question, retrieving for each and fusing the results, often with Reciprocal Rank Fusion, to improve recall.
+Q: Where do pre-retrieval steps add latency, and how do you limit it?
+A: Each rewrite or generation is an LLM call; use a small fast model, run variant retrievals in parallel, and apply these steps only when simple retrieval scores poorly.
+
+# 13 | Post-Retrieval: Re-ranking & Context Compression | Bi-encoders vs cross-encoders, Cohere Rerank, BGE-Reranker, retrieve-then-rerank, context compression and filtering, MMR | Post-Retrieval
+
+## Bi-Encoder vs Cross-Encoder | rose
+- A **bi-encoder** (embedding model) encodes query and document **separately**, so document vectors are precomputed: fast, scalable, but the query and document never "see" each other.
+- A **cross-encoder** feeds **query and document together** through the transformer and outputs a **relevance score**. Full attention between them makes it **much more accurate**, but it must run **once per (query, document) pair at query time**, which is too slow for millions of documents.
+- So systems **retrieve then rerank**: get the top 20 to 100 candidates cheaply, rerank them with a cross-encoder, and keep the best 3 to 10 for the prompt.
+
+## Reranking with BGE-Reranker | blue
+- **BGE rerankers** (`BAAI/bge-reranker-base`, `bge-reranker-large`, multilingual `bge-reranker-v2-m3`) are open-source cross-encoders you can self-host.
+```python
+from sentence_transformers import CrossEncoder
+
+reranker = CrossEncoder("BAAI/bge-reranker-base")
+candidates = col.query(query_texts=[question], n_results=30)["documents"][0]   # cheap first stage
+ranked = reranker.rank(question, candidates, top_k=5, return_documents=True)
+context_chunks = [r["text"] for r in ranked]                                   # best 5 by relevance
+```
+
+## Reranking with Cohere Rerank | green
+- **Cohere Rerank** is a **hosted reranking API** (multilingual models such as `rerank-v3.5` and newer versions): send the query and candidate texts, get back indices and **relevance scores**.
+```python
+import cohere
+
+co = cohere.ClientV2()                               # reads CO_API_KEY
+resp = co.rerank(model="rerank-v3.5", query=question, documents=candidates, top_n=5)
+context_chunks = [candidates[r.index] for r in resp.results]   # r.relevance_score in [0, 1]
+```
+- Hosted vs self-hosted is the usual trade-off: **no GPU to run** versus **data leaving your infrastructure and per-call cost**.
+
+## Context Compression and Filtering | amber
+- **Context compression** keeps only the **parts of each chunk that matter** for the question: an LLM extracts relevant sentences, or an embeddings filter drops sentences below a similarity threshold. Fewer tokens means lower cost and latency and **less distracting noise**. (LangChain wraps this as `ContextualCompressionRetriever`.)
+- **Filtering**: drop chunks **below a relevance-score threshold** (better to answer "I don't know" than to pass junk), **deduplicate** near-identical chunks, enforce **metadata and permission filters**, prefer **recent versions**, and trim to a **token budget**.
+- **Maximal Marginal Relevance (MMR)** (Carbonell & Goldstein, 1998) selects chunks that are relevant **and not redundant** with ones already chosen: score = λ · sim(query, d) − (1 − λ) · max sim(d, selected).
+```python
+def mmr(query_vec, doc_vecs, k=5, lambda_=0.7):
+    """Pick k documents relevant to the query but not redundant with each other (vectors normalised)."""
+    sim_q = doc_vecs @ query_vec
+    selected, candidates = [], list(range(len(doc_vecs)))
+    while candidates and len(selected) < k:
+        def score(i):
+            redundancy = max((doc_vecs[i] @ doc_vecs[j] for j in selected), default=0.0)
+            return lambda_ * sim_q[i] - (1 - lambda_) * redundancy
+        best = max(candidates, key=score)
+        selected.append(best)
+        candidates.remove(best)
+    return selected
+```
+- Then **order** the final chunks with the most relevant at the edges of the context (lost in the middle).
+
+## Interview Q&A | sky | wide
+Q: Why use a cross-encoder reranker?
+A: It scores each query-document pair jointly with full attention, which is far more accurate than comparing independent embeddings; it runs only on the shortlisted candidates.
+Q: Why not use the cross-encoder for the whole search?
+A: It must run once per document per query and cannot precompute anything, so it is too slow beyond a few hundred candidates.
+Q: Cohere Rerank vs BGE-Reranker?
+A: Cohere is a hosted API with no infrastructure but external data transfer and per-call cost; BGE rerankers are open-source models you self-host on your own hardware.
+Q: What is context compression?
+A: Removing irrelevant sentences or chunks after retrieval, via LLM extraction or similarity filters, to cut tokens and noise before generation.
+Q: What does MMR do?
+A: It balances relevance to the query against redundancy with already selected chunks, giving a diverse set of useful context.
+
+# 14 | GraphRAG | Where vector RAG struggles, knowledge graphs, Microsoft GraphRAG indexing, local and global search, hybrid graph plus vector retrieval, trade-offs | GraphRAG
+
+## Where Plain Vector RAG Struggles | rose
+- **Multi-hop questions** that connect facts across documents: "Which suppliers of our best-selling product are located in regions hit by the port strike?"
+- **Global or aggregate questions** over a whole corpus: "What are the main themes in 3,000 customer interviews?" No single chunk contains the answer.
+- **Relationship-heavy domains**: organisations, people, contracts, dependencies, regulations, fraud rings.
+
+## Knowledge Graphs | blue
+- A **knowledge graph** stores **entities as nodes** (Supplier, Product, Region) and **relationships as edges** (SUPPLIES, LOCATED_IN), with properties on both.
+- Graphs are stored in **graph databases** such as **Neo4j** and queried with **Cypher** (or Gremlin, SPARQL), or kept in-memory for analytics.
+- They can come from structured data you already have, or be **extracted from text with an LLM** (entities, relations, claims).
+```text
+(Acme Corp)-[:SUPPLIES]->(Battery X)-[:PART_OF]->(Phone Z)
+(Acme Corp)-[:LOCATED_IN]->(Chennai)-[:AFFECTED_BY]->(Port Strike 2026)
+Q: "Which Phone Z suppliers are affected by the port strike?" -> traverse 2-3 hops
+```
+
+## Microsoft GraphRAG | green
+- **GraphRAG** (Microsoft Research, Edge et al., 2024, "From Local to Global") builds an LLM-generated graph and summaries **at indexing time**:
+- **1.** Chunk documents. **2.** An LLM **extracts entities, relationships and claims** from each chunk. **3.** Build the graph and run **hierarchical community detection (Leiden algorithm)**. **4.** An LLM writes a **summary report for each community** at several levels.
+- **Global search** answers corpus-wide questions with **map-reduce over community summaries**: each summary yields a partial answer, then these are combined. Plain RAG cannot do this well.
+- **Local search** answers entity-specific questions: find relevant entities by **vector similarity**, then gather their **neighbours, relationships, source text chunks and community reports** as context.
+- Variants such as **DRIFT search** (mixing local and global) and **LazyGraphRAG** (deferring LLM summarisation to query time to cut indexing cost) followed.
+
+## Combining Graphs with Vector Retrieval | amber
+- **Vector search finds entry points** (entities or chunks), then **graph traversal expands** 1 to 3 hops to collect connected facts, and both go into the prompt.
+- **Text-to-Cypher**: an LLM translates the question into a graph query for precise structured answers, with validation and read-only permissions.
+- Neo4j and others support **vector indexes inside the graph database**, so both lookups run in one system.
+
+## Trade-offs | violet
+- **Pros**: multi-hop reasoning, global summarisation, explicit and explainable relationships, better answers for connected data.
+- **Cons**: **expensive indexing** (many LLM calls over the whole corpus), **entity resolution** problems ("IBM" vs "International Business Machines"), extraction errors, **graph maintenance** as documents change, more latency and complexity.
+- **Use it when** questions are relationship-heavy or corpus-wide; **stick with vector or hybrid RAG** for direct fact lookup, which covers most enterprise Q&A.
+
+## Interview Q&A | sky | wide
+Q: What is GraphRAG?
+A: RAG that adds a knowledge graph of entities and relationships, usually LLM-extracted, so retrieval can follow connections and summarise communities instead of only matching similar chunks.
+Q: How does Microsoft GraphRAG index documents?
+A: It chunks text, uses an LLM to extract entities, relationships and claims, builds a graph, detects hierarchical communities with Leiden, and writes LLM summaries for each community.
+Q: Local vs global search in GraphRAG?
+A: Local search starts from entities relevant to the query and gathers their neighbourhood and source text; global search map-reduces over community summaries to answer questions about the whole corpus.
+Q: When is GraphRAG worth the cost?
+A: For multi-hop, relationship-heavy or corpus-wide questions; for simple fact lookup, hybrid vector RAG is cheaper and enough.
+Q: How do you combine a graph with vector search?
+A: Use vector similarity to find starting entities or chunks, traverse the graph a few hops for related facts, and give both the text and the relationships to the LLM.
+
+# 15 | RAG Evaluation: Ragas & TruLens | Evaluating retrieval and generation separately, Ragas metrics (faithfulness, answer relevancy, context precision, context recall), the TruLens RAG triad, building an evaluation workflow | RAG Evaluation
+
+## Why and What to Evaluate | rose
+- RAG has two failure points: **retrieval** (the right information never reached the prompt) and **generation** (the model ignored, misread or went beyond the context). **Measure each separately** to know what to fix.
+- **Retrieval metrics** (need labelled relevant chunks): **Recall@k / hit rate**, **Precision@k**, **MRR** (mean reciprocal rank), **nDCG**.
+- **Generation and end-to-end metrics** usually use **LLM-as-judge** scoring: faithfulness, relevance, correctness against a reference.
+
+## Ragas Metrics | blue
+- **Ragas** is an open-source framework of RAG metrics, mostly computed by an LLM judge, each scored from 0 to 1.
+- **Faithfulness** (needs question, answer, retrieved contexts): break the answer into atomic **claims** and check each against the context. **Score = supported claims / total claims.** Low faithfulness means hallucination.
+- **Answer Relevancy** (also called response relevancy): the LLM **generates several questions from the answer**, and the score is their mean **cosine similarity to the original question**. It penalises **incomplete, evasive or off-topic** answers; it **does not check correctness**.
+- **Context Precision**: are the **relevant chunks ranked near the top**? An LLM judges each retrieved chunk as useful or not (against a reference answer, or the response in the reference-free variant), and the score is an **average precision**: Σ (precision@k × relevance at k) / number of relevant chunks in the top K.
+- **Context Recall** (needs a **reference answer**): split the reference into claims and check how many can be **attributed to the retrieved context**. **Score = attributable claims / total reference claims.** Low recall means retrieval missed needed information.
+```python
+from openai import AsyncOpenAI
+from ragas.llms.base import llm_factory
+from ragas.metrics.collections import Faithfulness
+
+llm = llm_factory("gpt-4o-mini", client=AsyncOpenAI())
+metric = Faithfulness(llm=llm)
+result = await metric.ascore(                         # inside async code (or a notebook)
+    user_input="How many leave days carry over?",
+    response="Up to 12 unused leave days carry over to the next year.",
+    retrieved_contexts=["Unused leave up to 12 days carries over."],
+)
+print(result.value)                                   # 1.0: every claim is supported
+```
+- Ragas' API has changed across versions (this is the 0.4 style); check the installed version's docs.
+
+## TruLens and the RAG Triad | green
+- **TruLens** (open-source, now part of Snowflake) **instruments and traces** an LLM app and scores it with **feedback functions** (LLM judges or smaller models), with a dashboard to compare app versions.
+- Its **RAG triad**: **Context Relevance** (is the retrieved context relevant to the question?), **Groundedness** (is the answer supported by the context?), **Answer Relevance** (does the answer address the question?). If all three are high, the answer is very unlikely to be a hallucination.
+- The triad maps onto Ragas: groundedness ≈ faithfulness, answer relevance ≈ answer relevancy, context relevance ≈ context precision.
+
+## Building an Evaluation Workflow | amber
+- **Golden dataset**: 50 to a few hundred **real questions** with **reference answers** and ideally the **IDs of relevant chunks**; include hard, ambiguous and unanswerable cases. Synthetic question generation (Ragas has a testset generator) can bootstrap it, but review the results by hand.
+- **Run every pipeline variant** (chunk size, embedding model, k, hybrid, reranker, prompt) against the set and **compare metrics**; add the evaluation to **CI as a regression gate**.
+- **Calibrate the judge**: LLM judges have bias and variance, so spot-check them against human labels and keep the judge model fixed when comparing runs.
+- **Online monitoring**: sample production traffic for faithfulness scoring, track user feedback (thumbs, edits), retrieval scores and "I don't know" rates.
+
+## Diagnosing with Metrics | violet
+- **Low context recall**: retrieval misses information. Fix chunking, the embedding model, k, hybrid search or query rewriting.
+- **High recall but low context precision**: the right chunks are there but buried. Add **reranking** and filtering.
+- **Good context but low faithfulness**: the generator hallucinates. Tighten the prompt ("only from context"), lower temperature, use a stronger model, require citations.
+- **Low answer relevancy**: answers are evasive or padded. Fix the prompt and output format.
+
+## Interview Q&A | sky | wide
+Q: How do you evaluate a RAG system?
+A: Separately measure retrieval (recall@k, precision, MRR or context precision and recall) and generation (faithfulness, answer relevancy, correctness) on a golden dataset, using LLM-as-judge tools like Ragas or TruLens, plus online monitoring and user feedback.
+Q: Define faithfulness.
+A: The fraction of claims in the answer that are supported by the retrieved context; it measures hallucination relative to the sources.
+Q: Context precision vs context recall?
+A: Precision checks whether relevant chunks are ranked at the top of what was retrieved; recall checks whether the retrieved context contains all the information needed for the reference answer.
+Q: How is answer relevancy computed in Ragas?
+A: The judge generates questions that the answer would answer, and the score is the mean cosine similarity between those questions and the original question.
+Q: What is the RAG triad?
+A: TruLens' three checks: context relevance, groundedness and answer relevance, covering each hop from question to context to answer.
+Q: Faithfulness is high but users say answers are wrong. What do you check?
+A: Retrieval: the answer is faithful to the wrong or outdated context, so look at context recall and precision, freshness filters and document versions.
+
+@ Review
+
+# 16 | Rapid-Fire & Tricky Questions | Gotchas, embeddings, search and RAG cheat sheets, how to answer, big Q&A | Rapid-fire
+
+## Gotchas | rose
+- **Different embedding models for queries and documents**: meaningless similarities.
+- **Truncating non-Matryoshka embeddings**: quality collapses. Re-normalise after truncating MRL vectors.
+- **Index metric ≠ query metric** (pgvector operator class vs operator): the index is silently not used.
+- **Chroma's default space is L2**, not cosine.
+- **Adding BM25 and cosine scores directly**: incompatible scales; use RRF or normalise.
+- **No overlap**: answers split across chunk boundaries disappear.
+- **Re-ingesting without deleting old chunks**: stale and duplicate content.
+- **Permissions enforced by the prompt** instead of retrieval filters: data leaks.
+- **Too many chunks**: cost, latency and lost-in-the-middle; rerank and keep the best few.
+- **Tuning prompts before inspecting extracted text**: most problems start in ingestion.
+- **High faithfulness ≠ correct**: the context itself may be wrong or outdated.
+
+## Embeddings and Search Cheat Sheet | blue
+- **Embedding**: dense vector of meaning; bi-encoder; contrastive training; same model for both sides.
+- **OpenAI**: 3-small (1,536), 3-large (3,072), `dimensions` parameter, 8,192-token input, unit-normalised. **Open**: Sentence-Transformers, BGE (small 384, base 768, large 1,024, m3 multilingual).
+- **Metrics**: cosine (angle), dot (angle × lengths), L2 (distance); identical ranking for unit vectors.
+- **MRL**: nested prefixes are valid embeddings; truncate + re-normalise; funnel retrieval.
+- **KNN** exact O(N·d) vs **ANN** approximate; recall@k vs latency.
+- **HNSW**: layered graph; M, ef_construction, ef_search. **IVF**: k-means lists; nlist, nprobe; + PQ for compression.
+- **Stores**: Chroma (embedded), Pinecone (managed), Qdrant (Rust, filters, hybrid), Milvus (distributed), pgvector (`<=>`, `<->`, `<#>`).
+- **Hybrid**: BM25 (k1, b) + dense, fused with **RRF = Σ 1/(60 + rank)**.
+
+## RAG Cheat Sheet | green
+- **Ingest**: load → extract (OCR, layout) → clean and dedupe → chunk (recursive, overlap, semantic) → embed → upsert with metadata and stable IDs.
+- **Query**: rewrite → embed → retrieve top-k with filters → rerank and compress → inject numbered context → grounded, cited generation.
+- **Pre-retrieval**: standalone rewriting, HyDE (embed a hypothetical answer), multi-query + RRF.
+- **Post-retrieval**: cross-encoder rerank (Cohere, BGE), compression, thresholds, MMR, ordering.
+- **GraphRAG**: entities and relations + communities; local vs global search; costly indexing.
+- **Evaluation**: faithfulness, answer relevancy, context precision, context recall (Ragas); RAG triad (TruLens); golden set, CI gates, monitoring.
+
+## How to Answer Well | teal
+- Describe the **pipeline stage by stage**, then name the **trade-off** at each stage (chunk size, k, hybrid, reranking cost).
+- Always mention **evaluation** and how a metric guided a decision.
+- Tie to experience: "Switching from pure vector search to hybrid BM25 + vector with a BGE reranker raised context recall from 0.71 to 0.88 on our 200-question golden set, mostly on queries containing error codes."
+
+## Big Interview Q&A | sky | wide
+Q: Design a RAG system for 50,000 internal PDFs with per-team permissions.
+A: Ingestion with layout-aware extraction and OCR, cleaning and dedupe, recursive token-based chunking with headings as context, text-embedding-3-small embeddings stored in pgvector or Qdrant with team and document metadata and stable IDs; query time with standalone rewriting, hybrid retrieval filtered by the user's teams, cross-encoder reranking, a grounded prompt with citations, streaming, and Ragas-based evaluation plus monitoring.
+Q: Retrieval returns irrelevant chunks. How do you debug it?
+A: Inspect the extracted and chunked text, check the same embedding model is used for queries and documents and the metric matches the index, look at failed queries (exact terms suggest hybrid search; vague ones suggest rewriting or multi-query), tune chunk size and k, add a reranker, and measure recall on a labelled set after each change.
+Q: How do you keep a RAG index fresh?
+A: Incremental ingestion by content hash or modified time, delete-and-upsert per document with stable chunk IDs, version metadata with filters for the latest version, scheduled re-syncs from sources, and a full re-embed into a new index when the embedding model changes.
+Q: Explain HNSW vs IVF to a non-specialist.
+A: HNSW is like a road network with highways on top and local streets at the bottom that you navigate greedily; IVF groups items into neighbourhoods and only searches the few neighbourhoods closest to your query.
+Q: How would you reduce RAG latency?
+A: A smaller embedding dimension, a well-tuned ANN index, parallel retrieval, a fast reranker on fewer candidates, caching of frequent queries and embeddings, smaller generation models, shorter context and streaming the answer.
+Q: How do you prevent the model from answering beyond the documents?
+A: Instruct context-only answers with "I don't know" allowed, use low temperature, require citations and verify them, filter low-relevance chunks so there is nothing misleading to use, and monitor faithfulness.
+Q: When would you not use RAG?
+A: When the knowledge is small and static enough to fit in the prompt, when the task is about style or behaviour (fine-tuning), or when answers come from structured data better served by SQL or an API tool.

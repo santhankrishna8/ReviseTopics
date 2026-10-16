@@ -1,0 +1,692 @@
+@ Beginner
+
+# 00 | Firestore Basics: Start Here | Firebase and Firestore history, editions and modes, the serverless client-direct model, setting up a project and the emulator, a first read and write, core vocabulary, Firestore vs Realtime Database, MongoDB and SQL | Start Here
+
+## History | rose
+- **Firebase** was founded in **2011** by **James Tamplin and Andrew Lee**, growing out of Envolve, a chat API. Its first product, the **Realtime Database** (2012), synced one big JSON tree to clients in real time. **Google acquired Firebase in October 2014** and turned it into its app-development platform (Authentication, Hosting, Cloud Functions, Storage, Analytics, Crashlytics...).
+- **Cloud Firestore** launched in beta in **October 2017** and became generally available in **January 2019**. It is the successor to the Realtime Database for most apps: richer queries, collections and documents instead of one tree, automatic scaling, and multi-region replication.
+- Firestore also runs in **Datastore mode** (the server-only successor to Google Cloud Datastore). Apps using Firebase use **Native mode**.
+- **Editions**: **Standard** (the classic product, covered here) and **Enterprise**. Enterprise adds **Pipeline operations** (hundreds of extra query capabilities), indexes that are optional, with no automatic single-field indexes, and a **MongoDB-compatibility** mode that accepts MongoDB drivers and tools.
+- **Web SDK**: the **modular API** (v9, 2021) exports tree-shakable functions (`getDoc(doc(db, ...))`) instead of the older namespaced `db.collection().doc().get()`, which survives only as `firebase/compat`. These notes were verified with **firebase 13.0.0** (October 2026; Node.js 20+) against the **Firestore Emulator** from firebase-tools 15.34. v13's typings mention the new `Temporal` API, so TypeScript projects need `skipLibCheck` (Angular's and Vite's default).
+
+## The Client-Direct, Serverless Model | blue
+- Firestore is **serverless**: no servers, connection pools or capacity planning. It scales automatically and you **pay per document read, write and delete**, plus storage and network.
+- **Clients talk to the database directly** through the Web, Android, Apple, Flutter, Unity and C++ SDKs, with **real-time listeners** and **offline support** built in. Without a backend in between, **Security Rules** (sheet 06) are what protect the data.
+- **Server code** uses the **Admin SDKs** (Node.js, Java, Python, Go, .NET), which use service-account credentials and **bypass Security Rules**; Cloud Functions triggers react to document changes.
+- **Firebase Authentication** supplies the user identity (`request.auth`) that rules check.
+
+## Set Up a Project | green
+```bash
+npm install firebase                                  # the client SDK (modular)
+npm install -g firebase-tools                         # the Firebase CLI
+firebase login
+firebase init firestore                               # creates firestore.rules and firestore.indexes.json
+firebase emulators:start --only firestore             # local emulator (needs Java 11+); demo-* projects need no login
+firebase deploy --only firestore:rules,firestore:indexes
+```
+```js firebase.js
+import { initializeApp } from "firebase/app";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+
+const app = initializeApp({ apiKey: "...", authDomain: "shop-app.firebaseapp.com", projectId: "shop-app", appId: "..." });
+export const db = getFirestore(app);
+if (location.hostname === "localhost") connectFirestoreEmulator(db, "127.0.0.1", 8080);   // the emulator's default port
+```
+- Create the project and the Firestore database (choosing a **location**, which cannot be changed later) in the **Firebase console**.
+- The web config (`apiKey`, `projectId`...) is **not a secret**: it only identifies the project. Rules and App Check do the protecting.
+
+## A First Write and Read | amber
+```js
+import { collection, addDoc, doc, getDoc } from "firebase/firestore";
+
+const ref = await addDoc(collection(db, "products"), { name: "Gel Pen", price: 1.5, tags: ["office", "school"], stock: 120 });
+console.log(ref.id);                                   // auto-generated 20-character id, e.g. "vmMZiHC3kBp6iBSaSaNq"
+const snap = await getDoc(doc(db, "products", ref.id));
+console.log(snap.exists(), snap.data());               // true { name: 'Gel Pen', price: 1.5, tags: [...], stock: 120 }
+```
+- There is no schema and no `CREATE`: the collection appears with its first document and vanishes when its last document is deleted.
+
+## Core Vocabulary | violet
+- **Document**: a record of fields (like a JSON object), identified by an **id** inside a collection; at most **1 MiB**.
+- **Collection**: a container of documents. **Subcollection**: a collection under a document (`orders/{orderId}/items`).
+- **Reference**: a pointer to a location (`doc(db, "products", "PEN-1")`, `collection(db, "products")`). **Snapshot**: the data read at a moment (`DocumentSnapshot`, `QuerySnapshot`).
+- **Listener**: a real-time subscription (`onSnapshot`). **Index**: what makes every query fast; Firestore requires one for every query.
+- **Security Rules**: server-enforced access rules for client SDK requests. **Emulator Suite**: local Firestore, Auth and Functions for development and tests.
+
+## Firestore vs Other Databases | blue
+- **vs Realtime Database**: RTDB is one large JSON tree with deep, path-based listeners, very low latency and billing by bandwidth and storage. Firestore has collections and documents, compound queries, better scaling and multi-region options, and billing per operation. Choose Firestore for most new apps.
+- **vs MongoDB**: both are document databases. MongoDB is a general-purpose server database with aggregation pipelines, `$lookup`, transactions and self-managed sharding. Firestore is serverless and built for **clients connecting directly**, with listeners, offline caching and Security Rules, but has more restricted queries (no joins, index-backed queries only).
+- **vs SQL databases**: no joins, foreign keys or ad-hoc aggregation. You **denormalise** and model for your queries, and in exchange get automatic scaling and real-time sync.
+
+## Interview Q&A | sky | wide
+Q: What is Cloud Firestore?
+A: A serverless, NoSQL document database from Google and Firebase that stores documents in collections, scales automatically, and gives mobile and web clients real-time listeners, offline support and Security Rules for direct access.
+Q: Firestore vs Realtime Database?
+A: The Realtime Database stores one JSON tree with path-based sync and bandwidth billing. Firestore organises data into documents and collections with compound queries and indexes, scales further, and bills per read, write and delete. Firestore is the default for new projects.
+Q: If clients access the database directly, what protects the data?
+A: Firestore Security Rules, evaluated on Google's servers for every client request, using the Firebase Authentication identity (request.auth). Admin SDK calls from trusted servers bypass the rules.
+Q: Is the Firebase web config apiKey a secret?
+A: No. It only identifies the project to Google's APIs; security comes from Security Rules, Authentication and App Check.
+Q: How do you develop and test locally?
+A: With the Firebase Emulator Suite (firebase emulators:start), connecting the SDK with connectFirestoreEmulator, and testing rules with @firebase/rules-unit-testing.
+Q: What is the modular SDK?
+A: The v9+ JavaScript API of standalone functions (doc, getDoc, setDoc, query, where...) that bundlers can tree-shake, replacing the older chained namespaced API.
+
+# 01 | Data Model: Documents, Collections & Subcollections | Paths and ids, field types, limits, subcollections and their independence, collection groups, modelling choices and denormalisation | Data Model
+
+## Documents and Collections | rose
+- Data lives in **documents** (sets of fields) inside **collections**. A document can hold **subcollections**, so paths alternate: `collection/document/collection/document...`.
+- A **collection path has an odd number of segments** (`orders`, `orders/o1/items`), and a **document path an even number** (`orders/o1`). Getting this wrong throws "Invalid document reference. Document references must have an even number of segments".
+- Collections **cannot contain fields**, only documents. A document's id is unique within its collection.
+```text
+products/PEN-1                       { name: "Gel Pen", price: 1.5, tags: ["office", "school"] }
+users/{uid}                          { name: "Ann", email: "ann@x.com" }
+orders/{orderId}                     { uid: "ann", status: "PENDING", total: 9, createdAt: <timestamp> }
+orders/{orderId}/items/{itemId}      { sku: "PEN-1", qty: 2, price: 1.5 }        <- subcollection
+```
+
+## Field Types | blue
+- **string**, **number** (64-bit integer or double), **boolean**, **null**, **map** (nested object), **array**, **timestamp** (microsecond precision), **geopoint**, **reference** (a pointer to another document), and **bytes**.
+- **Arrays** cannot directly contain other arrays (an array of maps that contain arrays is fine). Values of different types sort in a fixed order (null < boolean < number < timestamp < string < bytes < reference < geopoint < array < map).
+- Use **`serverTimestamp()`** for creation and update times, so you never trust the device clock (sheet 02).
+
+## Limits | green
+- **Maximum document size: 1 MiB** (1,048,576 bytes); maps and arrays nest at most **20 levels deep**; subcollections nest at most **100 levels deep**.
+- **40,000 index entries per document**: large maps or arrays can exceed it, because every field is indexed by default.
+- A single document should sustain about **1 write per second** (a soft limit, see sheet 09). Design hot counters and aggregates accordingly.
+
+## Subcollections and Collection Groups | amber
+```js
+await setDoc(doc(db, "orders", "o1"), { uid: "ann", total: 9 });
+await setDoc(doc(db, "orders", "o1", "items", "i1"), { sku: "PEN-1", qty: 2 });
+await deleteDoc(doc(db, "orders", "o1"));
+(await getDoc(doc(db, "orders", "o1", "items", "i1"))).exists()     // true: subcollections are NOT deleted with the parent
+const pens = query(collectionGroup(db, "items"), where("sku", "==", "PEN-1"));   // every "items" collection, any parent
+```
+- A subcollection is **independent** of its parent document: deleting the parent leaves the subcollection (verified). A document may even be missing while its subcollections exist (the console shows such parents in italics). Delete recursively with the CLI (`firebase firestore:delete --recursive`) or the Admin SDK's `recursiveDelete`.
+- Reading a document **does not** read its subcollections, so large child lists cost nothing until queried.
+- **Collection group queries** search every collection with the same id across the database, which needs a collection-group index (sheet 05).
+
+## Modelling Choices | violet
+- **Nested map or array in the document**: small, bounded data always read with the parent (address, a few tags). Watch the 1 MiB limit and the index-entry limit.
+- **Subcollection**: many children belonging to one parent (an order's items, a chat room's messages). You can query them per parent or across parents with a collection group.
+- **Root-level collection with a reference field**: entities queried on their own or shared (all orders across users with `uid`), which also simplifies Security Rules.
+- **Denormalise for reads**: there are no joins, so copy the fields a screen needs (the author's name on each post) and keep the copies in sync with batched writes or Cloud Functions triggers. Reads are frequent and billed; writes are rarer.
+
+## Interview Q&A | sky | wide
+Q: How is Firestore data organised?
+A: In documents of fields, grouped into collections. Documents can contain subcollections, so paths alternate collection/document/collection...
+Q: Does deleting a document delete its subcollections?
+A: No. Subcollections are independent and must be deleted separately, for example with the CLI's recursive delete or the Admin SDK's recursiveDelete.
+Q: What is the maximum document size?
+A: 1 MiB. Large or growing data belongs in subcollections or Cloud Storage.
+Q: Subcollection or array field?
+A: An array or map for small, bounded data always read with the document; a subcollection for large or growing lists, for children queried on their own, or for children with separate security rules.
+Q: How do you model relationships without joins?
+A: Store references or ids, query in a second step, and denormalise the fields screens need, keeping copies consistent with batched writes or Cloud Functions.
+Q: What is a collection group query?
+A: A query across all collections with the same id (every "items" subcollection) regardless of parent, which requires a collection-group index.
+
+# 02 | CRUD Operations | addDoc, setDoc and merge, getDoc and getDocs, updateDoc with nested fields, deleteDoc, field transforms (serverTimestamp, increment, arrayUnion, arrayRemove, deleteField), typed converters | CRUD
+
+## Create: addDoc and setDoc | rose
+```js
+import { collection, doc, addDoc, setDoc } from "firebase/firestore";
+
+const ref = await addDoc(collection(db, "products"), { name: "Gel Pen", price: 1.5 });     // auto id (20 chars)
+await setDoc(doc(db, "products", "NB-1"), { name: "Notebook A5", price: 4.25, tags: ["office"], stock: 40 });  // your id
+await setDoc(doc(db, "products", "NB-1"), { stock: 39 }, { merge: true });
+// { name: 'Notebook A5', price: 4.25, tags: ['office'], stock: 39 }      merge: other fields kept
+await setDoc(doc(db, "products", "NB-1"), { stock: 38 });
+// { stock: 38 }                                                          no merge: document REPLACED
+const newRef = doc(collection(db, "orders"));                             // reserve an auto id before writing
+```
+- **`addDoc(collectionRef, data)`** creates a document with an **auto-generated id**. **`setDoc(docRef, data)`** creates or **overwrites** a document whose id you choose.
+- **`setDoc(..., { merge: true })`** creates the document if missing and otherwise **merges** the given fields into it.
+- Auto ids are random, which **spreads writes** across Firestore's storage. Sequential ids (timestamps, counters) create hotspots (sheet 09).
+
+## Read: getDoc and getDocs | blue
+```js
+const snap = await getDoc(doc(db, "products", "NB-1"));
+snap.exists();     // true
+snap.id;           // 'NB-1'
+snap.data();       // { name: 'Notebook A5', price: 4.25, tags: ['office'], stock: 40 }
+(await getDoc(doc(db, "products", "nope"))).data();      // undefined (exists() is false): not an error
+
+const all = await getDocs(collection(db, "products"));
+all.size; all.docs.map(d => ({ id: d.id, ...d.data() }));
+```
+- **`getDoc`** returns a `DocumentSnapshot`; check **`exists()`** before using **`data()`**. **`getDocs`** returns a `QuerySnapshot` with `docs`, `size` and `empty`.
+- **Every document returned is billed as one read**, including each document of a listener's initial result.
+
+## Update and Delete | green
+```js
+import { updateDoc, deleteDoc, serverTimestamp, increment, arrayUnion, arrayRemove, deleteField } from "firebase/firestore";
+
+await updateDoc(doc(db, "products", "NB-1"), { price: 4.5, "dims.w": 14.8, updatedAt: serverTimestamp() });  // dot path into a map
+await updateDoc(doc(db, "products", "NB-1"), {
+  stock: increment(-1),                       // atomic add on the server
+  tags: arrayUnion("school", "office"),       // add each value only if absent
+  dims: deleteField()                         // remove a field
+});
+await updateDoc(doc(db, "products", "NB-1"), { tags: arrayRemove("school") });   // remove every instance of the value
+await updateDoc(doc(db, "products", "nope"), { price: 1 });   // FirebaseError code 'not-found': updateDoc needs an existing document
+await deleteDoc(doc(db, "products", "nope"));                 // no error: deleting a missing document succeeds
+```
+- **`updateDoc`** changes only the given fields and **fails with `not-found`** if the document does not exist (use `setDoc` with merge to upsert).
+- **Dot notation** (`"dims.w"`) updates one field inside a map; without it, `{ dims: { w: 14.8 } }` replaces the whole map.
+- **`deleteDoc`** removes one document (not its subcollections). Deleting a whole collection means deleting its documents, in batches or with the CLI or Admin SDK.
+
+## Field Transforms | amber
+- **`serverTimestamp()`**: the server's commit time. Until the write is confirmed, local snapshots read the field as **`null`** by default, or as a local estimate with `snap.data({ serverTimestamps: "estimate" })` (verified offline).
+- **`increment(n)`**: atomic numeric add with no read and no transaction, the right tool for likes and stock counters.
+- **`arrayUnion(...values)` / `arrayRemove(...values)`**: atomic set-style array edits. You cannot update one element of an array in place: rewrite the array in a transaction, or use a map keyed by id instead.
+- **`deleteField()`**: removes a field in `updateDoc` or `setDoc` with merge.
+- A commit allows at most **500 field transforms per document**.
+
+## Typed Documents with Converters | violet
+```ts
+interface Product { name: string; price: number; tags: string[] }
+const productConverter: FirestoreDataConverter<Product> = {
+  toFirestore: (p: Product) => ({ name: p.name, price: p.price, tags: p.tags }),
+  fromFirestore: (snap: QueryDocumentSnapshot, options: SnapshotOptions) => snap.data(options) as Product
+};
+const ref = doc(db, "products", "PEN-1").withConverter(productConverter);   // DocumentReference<Product>
+await setDoc(ref, { name: "Gel Pen", price: 1.5, tags: ["office"] });      // type-checked
+const p = (await getDoc(ref)).data();                                      // Product | undefined
+```
+- **`withConverter`** maps between your class or interface and stored data on every read and write, giving TypeScript types to references, queries and snapshots.
+
+## Interview Q&A | sky | wide
+Q: addDoc vs setDoc?
+A: addDoc creates a document with an auto-generated id in a collection. setDoc writes to a document id you specify, creating it or overwriting it completely (or merging with { merge: true }).
+Q: setDoc with merge vs updateDoc?
+A: setDoc with merge creates the document if it does not exist and merges fields otherwise. updateDoc only modifies an existing document and fails with not-found if it is missing.
+Q: How do you update a field inside a map without replacing the map?
+A: Use a dot-notation field path in updateDoc, for example { "address.city": "Pune" }.
+Q: How do you safely increment a counter?
+A: Use increment(n), which is applied atomically on the server without reading the document. For very hot counters, use a distributed counter (sheet 09).
+Q: Why use serverTimestamp() instead of new Date()?
+A: Device clocks can be wrong or manipulated; serverTimestamp records the commit time on the server, and rules can require it (request.resource.data.createdAt == request.time).
+Q: How do you update one element inside an array?
+A: You cannot target an index. Read and rewrite the array in a transaction, use arrayRemove plus arrayUnion for whole values, or model the data as a map keyed by id.
+
+# 03 | Real-time Listeners | onSnapshot on documents and queries, docChanges, latency compensation and metadata, includeMetadataChanges, errors, unsubscribing, listener billing | Listeners
+
+## onSnapshot | rose
+```js
+import { onSnapshot, query, collection, where, doc } from "firebase/firestore";
+
+const unsubscribe = onSnapshot(doc(db, "orders", "o1"), (snap) => {
+  render(snap.data());                                   // called now with the current data, then on every change
+}, (error) => console.error(error.code));                // e.g. 'permission-denied'
+
+const q = query(collection(db, "products"), where("price", "<", 10));
+const stop = onSnapshot(q, (qs) => {
+  qs.docChanges().forEach(change => {
+    if (change.type === "added")    addRow(change.doc);
+    if (change.type === "modified") updateRow(change.doc);
+    if (change.type === "removed")  removeRow(change.doc.id);   // deleted, or no longer matching the query
+  });
+});
+stop();                                                   // unsubscribe: stops updates and billing
+```
+- **`onSnapshot`** opens a **real-time listener** on a document or a query. The callback runs **immediately** with the current result and again **on every change**.
+- **`docChanges()`** lists what changed since the previous snapshot: **`added`**, **`modified`**, **`removed`**. A document that stops matching the query arrives as **`removed`** (verified: raising a mug's price from 9 to 12 removed it from `price < 10`).
+- Always **unsubscribe** when the component or screen is destroyed (`ngOnDestroy`, React effect cleanup), or the listener keeps running and keeps billing.
+
+## Latency Compensation and Metadata | blue
+```text
+// listener on price < 10 with { includeMetadataChanges: true }, verified sequence:
+{ size: 2, pending: false, fromCache: true,  changes: [added x2] }     first event: served from the local cache
+{ size: 2, pending: false, fromCache: false, changes: [] }             confirmed by the server
+{ size: 3, pending: true,  fromCache: false, changes: [added:MUG-1] }  local write shown instantly
+{ size: 3, pending: false, fromCache: false, changes: [] }             server acknowledged the write
+{ size: 3, pending: true,  ...  changes: [modified:MUG-1] }  ->  { pending: false }  ->  { size: 2, changes: [removed:MUG-1] }
+```
+- **Latency compensation**: local writes fire your listeners **immediately**, before the server confirms them, so UIs feel instant. **`snapshot.metadata.hasPendingWrites`** is `true` until the write is committed.
+- **`metadata.fromCache`**: the data came from the local cache and may not be up to date with the server (offline, or the first event).
+- Pass **`{ includeMetadataChanges: true }`** to also receive events when only the metadata changes (pending to confirmed, cache to server), for example to show a "saving..." indicator.
+
+## Errors and Lifecycle | green
+- The **error callback** fires once and the listener **stops** (common: `permission-denied` from Security Rules, or a missing index with a link to create it).
+- The SDK **reconnects automatically** after network loss and resumes the listener, sending only the changes.
+- **Snapshots are consistent**: a query snapshot reflects one point in time across all its documents. `onSnapshotsInSync` tells you when all active listeners are in sync.
+
+## Listener Billing | amber
+- The **initial result** costs **one read per document**, and each later **added or modified document** costs one read. A document **leaving the result set because it changed** also costs a read; a **deleted** document does not.
+- With offline persistence enabled, a listener **disconnected for more than 30 minutes** is billed like a **brand-new query** when it reconnects. Every query, even an empty one, costs at least one read.
+- Listeners are cheaper than polling with `getDocs`, because only changes are sent. Keep queries narrow (`where`, `limit`) so the initial snapshot stays small.
+
+## Interview Q&A | sky | wide
+Q: How do real-time updates work in Firestore?
+A: onSnapshot attaches a listener to a document or query. It delivers the current result immediately and then a new snapshot whenever matching data changes, with docChanges() describing the added, modified and removed documents.
+Q: What is latency compensation?
+A: Local writes update the local cache and fire listeners immediately, before the server confirms; snapshot.metadata.hasPendingWrites is true until the commit is acknowledged.
+Q: What does metadata.fromCache mean?
+A: The snapshot was served from the local cache, for example while offline or before the server responds, so it may not reflect the latest server state.
+Q: How are listeners billed?
+A: One read per document in the initial result, then one read per added, modified, or changed-and-removed document (deletions are free). Reconnecting after more than 30 minutes offline is billed as a new query.
+Q: What happens if you forget to unsubscribe?
+A: The listener keeps running in the background, updating detached UI, leaking memory and continuing to incur reads.
+Q: How does a removed change type differ from a delete?
+A: removed means the document left the query's result set, either because it was deleted or because it no longer matches the query's filters.
+
+@ Intermediate
+
+# 04 | Querying | where operators, compound queries, OR queries, orderBy and limit, cursor pagination, array-contains, in and not-in, rules and limits, aggregations, collection groups | Queries
+
+## Filters and Compound Queries | rose
+```js
+import { query, collection, where, orderBy, limit } from "firebase/firestore";
+const P = collection(db, "products");
+
+query(P, where("category", "==", "pens"), where("price", ">=", 5))            // AND of filters     -> Fountain Pen
+query(P, where("tags", "array-contains", "office"), orderBy("price"))          // array has the value
+query(P, where("category", "in", ["pens", "bags"]), orderBy("price"))         // up to 30 values    -> Marker, Fountain Pen, Laptop Bag
+query(P, where("tags", "array-contains-any", ["gift", "travel"]))             // array has any value
+query(P, where("category", "!=", "bags"))                                     // excludes docs WITHOUT category
+query(P, where("category", "not-in", ["bags"]))                               // up to 10 values
+query(P, where("price", ">", 2), where("stock", ">", 0))                      // range filters on two fields
+```
+- Operators: **`<`, `<=`, `==`, `!=`, `>=`, `>`, `array-contains`, `array-contains-any`, `in`, `not-in`**. Chaining `where` calls means **AND**.
+- **Every query is served by an index**: its cost and speed depend on the result size, not the collection size.
+- **Range and inequality filters on several fields** are allowed (up to 10 fields), but they need a composite index, and the index's field order affects cost (sheet 05).
+
+## OR Queries | blue
+```js
+import { or, and } from "firebase/firestore";
+query(P, or(where("price", "<", 2), where("stock", "==", 0)))                                       // -> Gel Pen, Marker, Coffee Mug
+query(P, and(where("category", "==", "pens"), or(where("stock", "==", 0), where("price", ">", 20)))) // -> Marker, Fountain Pen
+```
+- **`or()`** and **`and()`** build disjunctions. A query may have at most **30 disjunctions** in **disjunctive normal form**: `in` with 30 values counts as 30, so `and(in[10], or(a, b, c))` is already 30.
+- **`in`** and **`array-contains-any`** are shorthand ORs on one field (**30** values maximum; 31 fails with "'IN' supports up to 30 comparison values").
+
+## Rules and Gotchas | green
+- **At most one `array-contains`** per disjunction ("Only a single array-contains clause is allowed in a query"), and `array-contains` cannot be combined with `array-contains-any` in the same disjunction.
+- **`!=` and `not-in` cannot be combined** ("You cannot use '!=' filters with 'not-in' filters"); `not-in` takes at most **10** values.
+- **`!=`, `not-in` and `orderBy` exclude documents that lack the field** (verified: `orderBy("category")` returned 3 of 6 products). `null` values do not match `!=`.
+- There is **no `LIKE`, full-text search, `JOIN` or `GROUP BY`**. Use prefix ranges (`>= "pen"` and `< "pen"`), a search service (Algolia, Typesense, Elasticsearch, or the Enterprise edition's search), and denormalised data.
+
+## Ordering, Limits and Cursor Pagination | amber
+```js
+query(P, orderBy("price", "desc"), limit(2))                                  // -> Laptop Bag, Fountain Pen
+const page1 = await getDocs(query(P, orderBy("price"), limit(2)));            // Gel Pen, Marker
+const last = page1.docs[page1.docs.length - 1];
+const page2 = await getDocs(query(P, orderBy("price"), startAfter(last), limit(2)));   // Notebook A5, Coffee Mug
+```
+- **`orderBy`**, **`limit`**, **`limitToLast`** (requires `orderBy`). Pagination uses **query cursors**: `startAt`, `startAfter`, `endAt`, `endBefore`, taking a document snapshot or field values.
+- The client SDKs have **no `offset`**. Server SDKs do, but skipped documents are still billed as reads, so cursors are both faster and cheaper.
+
+## Aggregations and Collection Groups | violet
+```js
+import { getCountFromServer, getAggregateFromServer, count, sum, average, collectionGroup } from "firebase/firestore";
+(await getCountFromServer(query(P, where("category", "==", "pens")))).data().count          // 2
+(await getAggregateFromServer(P, { n: count(), totalStock: sum("stock"), avgPrice: average("price") })).data()
+// { n: 6, totalStock: 176, avgPrice: 13 }
+await getDocs(query(collectionGroup(db, "items"), where("sku", "==", "PEN-1")))           // all "items" subcollections
+```
+- **`count()`, `sum()` and `average()`** are computed on the server **without downloading documents**. They are billed **one read per batch of up to 1,000 index entries** matched, which is far cheaper than reading the documents, but not real-time (no listener).
+- **`collectionGroup(db, "items")`** queries every collection named `items`; it needs a collection-group index for its filters.
+
+## Interview Q&A | sky | wide
+Q: How do you write an OR query in Firestore?
+A: With or() (and and() for nesting), or with in / array-contains-any for several values of one field. The query is limited to 30 disjunctions in disjunctive normal form.
+Q: Why does a != or orderBy query not return some documents?
+A: Documents that do not have the field are not in that field's index, so inequality filters and orderBy on the field exclude them.
+Q: How do you paginate efficiently?
+A: With query cursors: orderBy a field, limit the page size, and startAfter the last document snapshot of the previous page. offset is not available in client SDKs and is billed for skipped documents on servers.
+Q: How do you count documents without reading them all?
+A: getCountFromServer or getAggregateFromServer with count(), sum() or average(), billed per 1,000 index entries rather than per document.
+Q: Can Firestore do full-text search or joins?
+A: No. Use an external search index (Algolia, Typesense, Elasticsearch) synchronised by Cloud Functions or an extension, prefix range queries for simple cases, and denormalisation instead of joins.
+Q: Can a query have range filters on more than one field?
+A: Yes, on up to 10 fields, backed by a composite index. Put equality fields first and the most selective range field next to reduce the index entries scanned.
+
+# 05 | Indexes | Automatic single-field indexes, composite indexes, when a query needs one, the missing-index error, index merging, exemptions, firestore.indexes.json, limits | Indexes
+
+## Single-Field Indexes | rose
+- In the Standard edition, **every query must be served by an index**, which is why query cost scales with the result, not the data.
+- Firestore **automatically** creates **single-field indexes** for every field (and every field inside maps): **ascending**, **descending**, and **array-contains** for arrays. Simple equality, range and `orderBy` queries on one field just work.
+- **Index exemptions** turn off automatic indexing for fields you never query: large strings or blobs, big maps, and **monotonically increasing values** such as timestamps that would otherwise limit write throughput (sheet 09). They also save the 40,000-entries-per-document budget.
+
+## Composite Indexes | blue
+- A **composite index** sorts by several fields (`category ASC, price ASC`). It is needed when a query combines a **range, inequality or `orderBy` on one field with filters on other fields**, for example `where("category", "==", "pens"), orderBy("price")`, or ranges on two fields.
+- Queries using **only equality filters** on several fields can run on single-field indexes through **index merging** (a zig-zag merge join), although a composite index may still be faster.
+- **Missing-index error**: in production, the query fails with **`FAILED_PRECONDITION: The query requires an index`** and a **console link that creates the exact index**. The emulator does **not** enforce indexes (verified: two-field range queries ran without one), so test index requirements against a real project.
+```json firestore.indexes.json
+{
+  "indexes": [
+    { "collectionGroup": "products", "queryScope": "COLLECTION",
+      "fields": [ { "fieldPath": "category", "order": "ASCENDING" }, { "fieldPath": "price", "order": "ASCENDING" } ] },
+    { "collectionGroup": "items", "queryScope": "COLLECTION_GROUP",
+      "fields": [ { "fieldPath": "sku", "order": "ASCENDING" }, { "fieldPath": "qty", "order": "DESCENDING" } ] }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "logs", "fieldPath": "payload", "indexes": [] }
+  ]
+}
+```
+
+## Managing Indexes | green
+- Keep indexes **in source control** in `firestore.indexes.json` and deploy them with **`firebase deploy --only firestore:indexes`**; `firebase firestore:indexes` exports the current ones. Building an index on existing data takes minutes to hours.
+- **`queryScope`**: `COLLECTION` (one collection) or `COLLECTION_GROUP` (collection group queries). `fieldOverrides` change single-field indexing (exemptions, collection-group scope).
+- **Limits** (Standard edition): **200 composite indexes** per database (**1,000** with billing enabled), and **40,000 index entries per document**. Every index entry costs storage and makes writes slower.
+- For range filters on several fields, put **equality fields first**, then the **most selective range field**. The composite index must prefix-match the query's `orderBy` (the console link chooses it for you).
+
+## Interview Q&A | sky | wide
+Q: Which indexes does Firestore create automatically?
+A: Single-field indexes for every field, including fields in maps: ascending, descending, and array-contains for arrays, unless you add exemptions.
+Q: When do you need a composite index?
+A: When a query combines an inequality, range or orderBy on one field with filters on other fields, or uses ranges on several fields. Equality-only queries can often be served by merging single-field indexes.
+Q: How do you find out which composite index to create?
+A: Run the query against a real project: the FAILED_PRECONDITION error message contains a link that creates the needed index. Then export it into firestore.indexes.json.
+Q: Why exempt a field from indexing?
+A: To avoid write hotspots from sequential values such as timestamps, to save storage and write cost for fields never queried, and to stay under the 40,000 index entries per document.
+Q: Why are Firestore queries fast regardless of collection size?
+A: Every query reads a contiguous range of an index, so cost and latency depend on the number of results returned, not on how many documents the collection holds.
+
+# 06 | Security Rules | Structure, match paths and wildcards, request.auth, resource.data vs request.resource.data, validation, get() and exists(), custom claims, rules are not filters, testing with the emulator | Security Rules
+
+## Structure and Matching | rose
+```js firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin()  { return signedIn() && request.auth.token.admin == true; }    // custom claim
+
+    match /products/{productId} {
+      allow read: if true;                                  // public catalogue
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read, update, delete: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn() && request.auth.uid == userId
+                    && request.resource.data.keys().hasOnly(['name', 'email', 'createdAt'])
+                    && request.resource.data.name is string;
+    }
+  }
+}
+```
+- Rules are **evaluated on Google's servers for every client SDK request**. **Admin SDK requests bypass them.**
+- **`match`** selects paths; **`{wildcard}`** binds one segment; **`{path=**}`** (recursive wildcard, `rules_version = '2'`) matches any depth. Rules for a document **do not cascade** to its subcollections: match them explicitly or with `=**`.
+- **`allow read, write: if <condition>`**. Fine-grained methods: **`get`** and **`list`** (read), **`create`**, **`update`** and **`delete`** (write). If any `allow` for the request is true, it is allowed; **anything not allowed is denied** (verified on an unmatched path).
+
+## request and resource | blue
+- **`request.auth`**: the Firebase Auth identity (`uid`, and `token` with email, `email_verified`, sign-in provider and **custom claims**); `null` when signed out.
+- **`resource.data`**: the document **as currently stored** (for reads, updates and deletes). **`request.resource.data`**: the document **as it would be after the write** (for creates and updates).
+- **`request.time`**: the server time, so `request.resource.data.createdAt == request.time` forces `serverTimestamp()`.
+- **Custom claims** (`{ admin: true }`) are set by trusted code with the Admin SDK (`setCustomUserClaims`), carried in the ID token, and read as `request.auth.token.admin`.
+
+## Validation and Lookups | green
+```js
+match /orders/{orderId} {
+  allow read:   if signedIn() && resource.data.uid == request.auth.uid;
+  allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+                && request.resource.data.status == 'PENDING'
+                && request.resource.data.total is number && request.resource.data.total > 0;
+  allow update: if signedIn() && resource.data.uid == request.auth.uid
+                && resource.data.status == 'PENDING'
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                && request.resource.data.status == 'CANCELLED';           // owner may only cancel
+  allow delete: if false;
+
+  match /items/{itemId} {
+    allow read: if signedIn()
+      && get(/databases/$(database)/documents/orders/$(orderId)).data.uid == request.auth.uid;
+  }
+}
+```
+- **Validate writes**: types (`is string`, `is number`, `is timestamp`), allowed keys (`keys().hasOnly([...])`, `hasAll`), value ranges and lengths (`size()`), and which fields an update may change (**`diff(resource.data).affectedKeys().hasOnly([...])`**).
+- **`get()` / `exists()` / `getAfter()`** read other documents (role lookups, parent ownership). Each call is a **billed read**, limited to **10 per request** (**20** for transactions, batched writes and multi-document reads).
+- **All 23 checks verified** with `@firebase/rules-unit-testing` on the emulator, including the denied cases: another user's order, a PAID create, a changed total, a second cancel, an extra profile field and a delete.
+
+## Rules Are Not Filters | amber
+```js
+// DENIED: the query could include other users' orders
+await getDocs(collection(annDb, "orders"));
+// allowed: every possible result passes the read rule
+await getDocs(query(collection(annDb, "orders"), where("uid", "==", "ann")));
+```
+- Firestore checks a **query against the rules before running it**: if the query **could** return a document the user may not read, the **whole query is rejected** (`permission-denied`). Rules never silently filter results.
+- So queries must carry the same constraints as the rules (`where("uid", "==", currentUser.uid)`).
+
+## Testing and Hardening | violet
+- **Unit-test rules** with the Emulator Suite and **`@firebase/rules-unit-testing`**: `authenticatedContext("ann", { admin: true })`, `unauthenticatedContext()`, `assertSucceeds`, `assertFails`, and `withSecurityRulesDisabled` to seed data. Run the tests in CI.
+- **Never ship** `allow read, write: if true` (test mode, which expires) or rules that only check `request.auth != null`, which lets any signed-in user read and write everything.
+- Add **App Check** so only your genuine apps can call the backend, and do **sensitive logic** (payments, role changes) in Cloud Functions or a server with the Admin SDK.
+
+## Interview Q&A | sky | wide
+Q: How is data secured when clients access Firestore directly?
+A: Security Rules, evaluated server-side on every client request: match paths, check request.auth (identity and custom claims), compare resource.data and request.resource.data, and validate the incoming data. The default is deny.
+Q: resource.data vs request.resource.data?
+A: resource.data is the stored document before the operation; request.resource.data is the document as it would be after the write. Use the first for ownership checks and the second for validation.
+Q: What does "rules are not filters" mean?
+A: Firestore rejects any query that could return a document the user cannot read, instead of filtering results, so queries must include constraints matching the rules, such as where("uid", "==", uid).
+Q: How do you implement admin users?
+A: Set a custom claim (admin: true) with the Admin SDK and check request.auth.token.admin in the rules, or look up a role document with get(), which costs a read.
+Q: How do you restrict which fields an update can change?
+A: request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']).
+Q: Do Security Rules apply to the Admin SDK?
+A: No. Admin SDKs authenticate with service-account credentials and bypass rules, so they belong only in trusted server environments.
+Q: How do you test Security Rules?
+A: With the Firestore Emulator and @firebase/rules-unit-testing: create contexts for different users, then assertSucceeds and assertFails on reads and writes, in CI.
+
+@ Advanced
+
+# 07 | Offline Persistence & Caching | Mobile defaults, enabling persistence on the web, multi-tab, cache size, pending writes, reading from cache or server, network control, conflicts and limits | Offline
+
+## How Offline Works | rose
+- The SDKs keep a **local cache** of documents you have read or written. When the device is **offline**, reads are served from the cache, writes are **queued** and applied to the cache immediately (latency compensation), and listeners keep firing with `metadata.fromCache: true`.
+- When connectivity returns, queued writes are **sent in order** and listeners resync. **Last write wins** at field level on the server, unless you use transactions or rules to prevent overwrites.
+- **Android and Apple SDKs**: persistence is **on by default**. **Web**: the default is a **memory cache**, lost on page reload; enable the **IndexedDB-backed persistent cache** yourself.
+
+## Enabling Persistence on the Web | blue
+```js
+import { initializeApp } from "firebase/app";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, CACHE_SIZE_UNLIMITED,
+         onSnapshot, doc } from "firebase/firestore";
+
+const app = initializeApp(firebaseConfig);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })   // IndexedDB, shared by all tabs
+});
+
+onSnapshot(doc(db, "products", "PEN-1"), { includeMetadataChanges: true }, (snap) => {
+  console.log(snap.data(), snap.metadata.fromCache ? "from cache" : "from server",
+              snap.metadata.hasPendingWrites ? "(local change, not yet saved)" : "");
+});
+```
+- **`initializeFirestore(app, { localCache: persistentLocalCache(...) })`** must run **before any other Firestore call**. `persistentMultipleTabManager()` shares one cache across tabs; `persistentSingleTabManager()` allows only one tab.
+- The older **`enableIndexedDbPersistence()`** and `enableMultiTabIndexedDbPersistence()` are **deprecated** (still in the v13 typings as deprecated).
+- **Cache size**: the default threshold is **40 MB**, after which least-recently-used documents are garbage-collected; use `cacheSizeBytes: CACHE_SIZE_UNLIMITED` to disable collection. `memoryLocalCache()` is the explicit in-memory option.
+
+## Pending Writes, Cache and Network Control | green
+```js
+await disableNetwork(db);                                          // simulate offline
+const write = setDoc(doc(db, "products", "OFF-1"), { name: "Offline Item", price: 1 });
+const cached = await getDocFromCache(doc(db, "products", "OFF-1"));
+// { exists: true, pending: true, fromCache: true }                the write is visible locally at once
+// the setDoc promise is still unresolved while offline
+await enableNetwork(db);
+await write;                                                       // resolves once the server acknowledges it
+```
+- **Write promises resolve only when the server commits the write.** In offline-capable UIs, **do not `await` writes** before updating the screen; rely on listeners and latency compensation, and show `hasPendingWrites` as "saving".
+- **`getDocFromCache` / `getDocsFromCache`** read only the cache (and fail if the document is not cached); **`getDocFromServer` / `getDocsFromServer`** bypass it. Plain `getDoc` tries the server and falls back to the cache when offline.
+- **`disableNetwork` / `enableNetwork`** switch the client offline and online (useful for "airplane mode" features and tests). **`waitForPendingWrites`** resolves when every queued write is committed.
+
+## Limits of Offline Mode | amber
+- **Transactions fail when offline**, because they need the server to check reads. Batched writes and normal writes are queued.
+- Queries can only use **cached** data: results may be incomplete if the documents were never downloaded. Aggregation queries (`count`, `sum`, `average`) run only on the server.
+- Security Rules are checked **when the write reaches the server**: a write queued offline can be **rejected later**, and the SDK then rolls back the local change and fires listeners again.
+- A cleared browser cache or private browsing loses unsynchronised writes. `clearIndexedDbPersistence()` wipes the cache, for example on logout.
+
+## Interview Q&A | sky | wide
+Q: How does Firestore work offline?
+A: The SDK serves reads from a local cache, applies writes to the cache immediately while queueing them, fires listeners with fromCache and hasPendingWrites metadata, and syncs the queued writes in order when the connection returns.
+Q: Is offline persistence enabled by default?
+A: On Android and Apple, yes. On the web the default is a memory cache; you enable IndexedDB persistence with initializeFirestore and persistentLocalCache, using persistentMultipleTabManager for multiple tabs.
+Q: Why should you not await a write in an offline-first UI?
+A: The write's promise resolves only when the server acknowledges it, which may be much later. The local cache and listeners already reflect the change, so the UI should update from them.
+Q: What does not work offline?
+A: Transactions, aggregation queries, and anything needing documents that were never cached. Queued writes can still be rejected by Security Rules when they reach the server.
+Q: How do you handle conflicts between offline edits?
+A: By default the last write to reach the server wins per field. Use transactions (online), version fields checked in rules, field-level merges and increment/arrayUnion transforms to reduce conflicts.
+
+# 08 | Batched Writes & Transactions | writeBatch, runTransaction, reads-before-writes, optimistic retries and maxAttempts, server vs client transactions, limits, choosing between them | Transactions
+
+## Batched Writes | rose
+```js
+import { writeBatch, doc, increment } from "firebase/firestore";
+
+const batch = writeBatch(db);
+batch.set(doc(db, "products", "CLIP-1"), { name: "Paper Clips", price: 0.5, stock: 500 });
+batch.update(doc(db, "products", "PEN-2"), { stock: increment(-1) });
+batch.delete(doc(db, "products", "OLD-1"));
+await batch.commit();                         // all succeed, or none are applied
+```
+- A **batched write** groups `set`, `update` and `delete` operations on **any documents** and commits them **atomically**. It **reads nothing**, works **offline** (it is queued), and is the tool for **keeping denormalised copies in sync**.
+- Verified atomicity: a batch whose `update` targeted a missing document failed with `not-found`, and its `set` was **not** applied.
+
+## Transactions | blue
+```js
+import { runTransaction, doc } from "firebase/firestore";
+
+async function transfer(from, to, amount) {
+  await runTransaction(db, async (tx) => {
+    const fromSnap = await tx.get(doc(db, "accounts", from));           // 1. ALL reads first
+    const toSnap = await tx.get(doc(db, "accounts", to));
+    if (fromSnap.data().balance < amount) throw new Error("Insufficient funds");   // throwing aborts
+    tx.update(fromSnap.ref, { balance: fromSnap.data().balance - amount });        // 2. then writes
+    tx.update(toSnap.ref, { balance: toSnap.data().balance + amount });
+  });
+}
+await transfer("A", "B", 30);       // A 100 -> 70, B 50 -> 80
+await transfer("A", "B", 1000);     // Error: Insufficient funds; nothing written
+```
+- **`runTransaction`** reads documents and writes based on what it read, atomically. **All reads must come before any writes** (otherwise: "Firestore transactions require all reads to be executed before all writes").
+- **Client SDK transactions are optimistic**: if a document read by the transaction changes before the commit, the **whole callback is re-run** (verified: 2 attempts when another client incremented the balance mid-transaction; the final balance included both updates). The default is **5 attempts** (`maxAttempts`).
+- Therefore the callback must **not have side effects** (no UI updates, no external calls), and it must not modify app state, because it may run several times.
+
+## Server SDKs, Limits and Offline | green
+- **Server (Admin) SDK transactions use pessimistic locking**: documents read in the transaction are locked, which prevents retries at the cost of lock contention.
+- **Limits**: a transaction may last **270 seconds**, with a **60-second idle timeout** and a **20-second lock deadline**; a request may be at most **10 MiB** (index entries count towards it); a commit allows **500 field transforms per document**. The current documentation states no fixed operation count (older material quotes 500 writes); for bulk loads use a server SDK with parallel writes or BulkWriter, not huge batches.
+- **Transactions fail when the client is offline**; batched writes are queued.
+- A query inside a client transaction is not supported: read documents by reference (`tx.get(docRef)`), and query beforehand if needed.
+
+## Choosing Between Them | amber
+- **Single document, no read needed**: `updateDoc` with `increment`, `arrayUnion` or `serverTimestamp`; no transaction.
+- **Several documents that must change together, with no reads**: a **batched write** (fan-out of denormalised data, creating an order and updating an index document).
+- **Writes that depend on current values**: a **transaction** (transfers, seat booking, unique usernames via a `usernames/{name}` document).
+- **Business rules that must be trusted**: run the transaction in a **Cloud Function** with the Admin SDK, and keep the rules strict for clients.
+
+## Interview Q&A | sky | wide
+Q: Batched write vs transaction?
+A: A batch atomically applies writes to several documents without reading and works offline. A transaction reads documents first and writes based on them, retries automatically on conflicts, and needs a connection.
+Q: Why must all reads come before writes in a transaction?
+A: The SDK collects the read set first so it can detect conflicts at commit time; reading after writing is rejected with an error.
+Q: What happens when two clients run conflicting transactions?
+A: Client transactions are optimistic: the commit fails for the one whose read documents changed, and its callback is re-run with fresh data, up to 5 attempts by default.
+Q: Why must transaction functions have no side effects?
+A: They may run several times because of retries, so side effects such as UI updates, emails or counters would repeat.
+Q: How do you enforce unique usernames in Firestore?
+A: Use the username as a document id in a usernames collection, and in a transaction (or with rules requiring that the document does not exist) create it together with the user's profile.
+Q: How do server SDK transactions differ?
+A: Admin SDK transactions take pessimistic locks on the documents they read, while client SDK transactions use optimistic concurrency with retries.
+
+# 09 | Scaling, Cost Optimisation & Distributed Counters | Billing model and free quota, write-rate limits and hotspots, the 500/50/5 ramp-up rule, cost optimisation techniques, distributed counters, TTL policies | Scaling & Cost
+
+## The Billing Model | rose
+- You pay for **document reads, writes and deletes**, **stored data** (including index entries), and **network egress**. You do not pay for connections or idle capacity.
+- **Free quota** (no-cost tier, per day): **50,000 reads, 20,000 writes, 20,000 deletes**, and **1 GiB** stored; quotas reset around midnight Pacific time.
+- What counts: **one read per document returned** (also per document in a listener's initial result, and per document added, modified or changed out of the result afterwards); **aggregations** at one read per batch of up to 1,000 index entries; documents **skipped by `offset`**; **Security Rules `get()`/`exists()`** lookups; and a **minimum of one read** for a query that returns nothing.
+
+## Scaling Limits and Hotspots | blue
+- Firestore scales automatically, but **one document** should sustain only about **one write per second**. Hot documents (a global counter, a "last updated" field everyone writes) contend and cause errors and latency.
+- **Monotonically increasing indexed values** (timestamps, sequential ids) put every write at the end of one index range. Such a collection is limited to about **500 writes per second** unless you exempt that field from indexing or add randomness (auto ids, sharded fields).
+- **500/50/5 rule** for new or suddenly hot collections: start at **at most 500 operations per second**, then **increase by 50% every 5 minutes**, so Firestore can split ranges ahead of the traffic.
+- Other limits worth knowing: **1 MiB per document**, **10 MiB per request**, transactions **270 s**, and **10** rule lookups per request.
+
+## Cost Optimisation | green
+- **Read less**: narrow queries with `where` and `limit`; paginate with cursors (never `offset`); use **aggregation queries** instead of downloading documents to count or sum them.
+- **Denormalise for the screen**: one document per page view (a summary document with the top items) beats N reads. Maintain the summary with batched writes or Cloud Functions.
+- **Use the cache**: enable persistence; use `getDocFromCache` where staleness is acceptable; listeners send only changes after the initial result.
+- **Avoid chatty listeners** on large or fast-changing queries, and **unsubscribe** when screens close. Listeners that reconnect after more than 30 minutes are billed in full.
+- **Delete automatically** with **TTL policies** (a timestamp field after which documents are deleted, usually within a day; the deletes are billed). **Exempt** unqueried fields from indexing. Keep documents small.
+
+## Distributed Counters | amber
+```js
+const counterRef = doc(db, "counters", "pageViews");
+const NUM_SHARDS = 10;
+// once: create the shards
+await Promise.all(Array.from({ length: NUM_SHARDS }, (_, i) => setDoc(doc(counterRef, "shards", String(i)), { count: 0 })));
+// each increment goes to a random shard: up to ~10 writes per second in total
+const incrementCounter = () =>
+  updateDoc(doc(counterRef, "shards", String(Math.floor(Math.random() * NUM_SHARDS))), { count: increment(1) });
+await Promise.all(Array.from({ length: 50 }, incrementCounter));
+// read: sum all shards on the server
+const total = (await getAggregateFromServer(collection(counterRef, "shards"), { total: sum("count") })).data().total;   // 50
+```
+- A **distributed counter** splits one hot counter into **N shard documents**. Writes go to a random shard (N times the write capacity), and reads **sum the shards** (here with a `sum()` aggregation, one read per batch of index entries).
+- Trade-offs: reads cost more (N documents, or an aggregation), and the value is computed rather than stored. Alternatives: **batching counts in a Cloud Function**, keeping the count in **Realtime Database**, or approximate counters.
+- The same **sharding idea** fixes other hotspots, for example adding a random `shard` field in front of a timestamp in a composite index.
+
+## Interview Q&A | sky | wide
+Q: How is Firestore billed?
+A: Per document read, write and delete, plus storage (including indexes) and network egress, with a daily free quota of 50,000 reads, 20,000 writes and 20,000 deletes.
+Q: What is a distributed counter and why is it needed?
+A: A counter split across N shard documents updated at random, because a single document should sustain only about one write per second. The total is the sum of the shards, read with a sum() aggregation or by reading all shards.
+Q: What is the 500/50/5 rule?
+A: When ramping traffic to a new collection, start at 500 operations per second and increase by 50% every 5 minutes, so Firestore can split the key ranges as load grows.
+Q: Why are sequential document ids or timestamps a problem?
+A: Writes all land at the end of the same index range, creating a hotspot that caps throughput (about 500 writes per second). Use auto-generated ids and exempt or shard timestamp fields.
+Q: How do you reduce Firestore costs?
+A: Read fewer documents (filters, limits, cursors, aggregations, denormalised summary documents, caching), unsubscribe unused listeners, delete stale data with TTL policies, and exempt unqueried fields from indexing.
+Q: What are Firestore's main limits?
+A: 1 MiB per document, about 1 sustained write per second per document, 10 MiB per request, 270 s per transaction, 200 composite indexes (1,000 with billing), 40,000 index entries per document, and 30 disjunctions per query.
+
+@ Review
+
+# 10 | Rapid-Fire & Scenarios | Tricky questions, one-liners, design scenarios, big Q&A | Rapid-fire
+
+## Tricky Questions | rose
+- **"Query works in the emulator but fails in production"**: a missing composite index (the emulator does not require them); follow the link in the `FAILED_PRECONDITION` error.
+- **"permission-denied on a list query even though each document is readable"**: rules are not filters; add the matching `where`.
+- **"Deleted the parent but the subcollection is still there"**: subcollections are independent; delete them recursively.
+- **"updateDoc fails with not-found"**: use `setDoc(..., { merge: true })` to upsert.
+- **"My await setDoc never resolves offline"**: write promises wait for the server; update the UI from listeners.
+- **"Documents missing from orderBy / != results"**: documents without the field are not in that index.
+- **"Transaction ran twice and sent two emails"**: callbacks retry; keep them free of side effects.
+- **"Counter updates fail under load"**: about one sustained write per second per document; use a distributed counter.
+
+## One-Line Cheat Sheet | blue
+- **Model**: collections, then documents (fields, maps, arrays), then subcollections; 1 MiB per document; odd and even path segments; denormalise.
+- **CRUD**: `addDoc`, `setDoc` (+ `merge`), `getDoc` (`exists()`), `updateDoc` (dot paths, needs the document), `deleteDoc`; transforms `serverTimestamp`, `increment`, `arrayUnion`, `arrayRemove`, `deleteField`.
+- **Real time**: `onSnapshot` (doc or query), `docChanges()` added/modified/removed, `hasPendingWrites`, `fromCache`, unsubscribe.
+- **Queries**: `where` (`==`, `!=`, ranges, `array-contains`, `in` and `array-contains-any` up to 30, `not-in` up to 10), `or`/`and` (30 disjunctions), `orderBy`, `limit`, cursors, `count`/`sum`/`average`, `collectionGroup`.
+- **Indexes**: automatic single-field ones (with exemptions), composite ones for mixed or range queries, the error link, `firestore.indexes.json`.
+- **Rules**: `match`, `allow`, `request.auth`, `resource.data` vs `request.resource.data`, `get()`, custom claims, not filters, default deny, emulator tests.
+- **Offline**: on by default on mobile; web `persistentLocalCache` + `persistentMultipleTabManager`; 40 MB cache; queued writes; no offline transactions.
+- **Writes**: batch (atomic, no reads, offline) vs transaction (reads first, optimistic retries, 5 attempts, online).
+- **Scale and cost**: billed per document operation; 1 write per second per document; 500/50/5; hotspots from sequential values; distributed counters; TTL.
+
+## How to Answer Well | green
+- **Start from the screens and queries**, then design documents (denormalised), then indexes, then rules. Mention **cost** (reads) and **security** (rules) in every design answer.
+- Quote the mechanism: "a listener's initial snapshot bills one read per document", "rules are not filters", "client transactions are optimistic".
+
+## Big Interview Q&A | sky | wide
+Q: Design a chat app's data model in Firestore.
+A: rooms/{roomId} with members and lastMessage (denormalised for the room list), and rooms/{roomId}/messages/{messageId} with text, senderId and createdAt (serverTimestamp). Clients listen to the latest messages with orderBy("createdAt", "desc") and limit(50), paginating with cursors. Rules allow members to read, and to write only their own messages with server timestamps; a collection group index covers cross-room searches.
+Q: How do you keep denormalised data consistent?
+A: Update all copies in one batched write when the client changes the source, or have a Cloud Functions trigger fan the change out, accepting brief inconsistency; keep the authoritative copy in one place.
+Q: When would you not choose Firestore?
+A: For heavy relational data with ad-hoc joins and reporting, complex aggregations, very high write rates to single documents, or when per-read pricing would explode, as with analytics scans. Use SQL, BigQuery or MongoDB there, possibly alongside Firestore.
+Q: How do you implement role-based access?
+A: Put roles in Firebase Auth custom claims (set by an Admin SDK function) and check request.auth.token in the rules; for per-resource roles, store membership on the resource (a members map) and check it in the rules, with queries filtered to match.
+Q: How do you show a total count on a dashboard cheaply?
+A: Use getCountFromServer or getAggregateFromServer (billed per 1,000 index entries), or maintain a counter document (distributed if it is hot) updated by Cloud Functions or increment().
+Q: How do you migrate a field across millions of documents?
+A: Make the app tolerate both shapes, then run an Admin SDK script or a Dataflow job that pages through documents with cursors and updates them with BulkWriter, respecting the 500/50/5 ramp-up and rules about write rates.

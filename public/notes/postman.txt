@@ -1,0 +1,674 @@
+@ Beginner
+
+# 00 | Postman Basics: Start Here | What Postman is, its history, installing the desktop app, web app and agent, a tour of the interface, first GET and POST requests and a first test, core vocabulary, Postman vs curl, Insomnia, Bruno, VS Code clients and code-based tests | Start Here
+
+## What Postman Is | rose
+- **Postman** is an **API platform**. At its core is a GUI client for building and sending HTTP requests (it also speaks GraphQL, gRPC and WebSocket) and inspecting the responses.
+- Around that client it adds **collections**, **environments**, scripted **tests**, **mock servers**, **documentation**, scheduled **monitors** and team **workspaces**.
+- Developers use it to explore an API before writing code, debug an endpoint, share runnable examples with the team, and automate API tests that run in CI through **Newman** or the **Postman CLI** (sheet 10).
+
+## History | blue
+- **Abhinav Asthana** started Postman in **2012** as a side project: a **Chrome extension**, later a Chrome app, to make testing APIs easier.
+- **Postman, Inc.** was founded in **2014** by Asthana with **Ankit Sobti** and **Abhijit Kane**. It began in Bangalore, India, and is headquartered in San Francisco.
+- The Chrome app was retired in favour of **native desktop apps** for Windows, macOS and Linux (built with Electron), and a **web version** was added later.
+- Postman grew from a request sender into a full API platform: collections, environments, **Newman** (an open-source command-line runner on Node.js), mock servers, monitors, workspaces, the **Postman CLI** and AI assistance (Postbot).
+- Collections are saved in the open, JSON-based **Collection Format v2.1**, which other tools can import.
+
+## Install and Set Up | green
+- **Desktop app** (recommended): download it from postman.com for Windows, macOS or Linux, then sign in to sync collections (a free account is enough).
+- **Web app**: runs in the browser. To reach **localhost** or private networks it needs the **Postman Desktop Agent**, because a web page cannot make those requests freely (CORS and browser restrictions).
+- **VS Code extension**: send requests and use your collections inside the editor.
+- **Without an account**: the desktop app's lightweight API client sends requests while you are signed out, but saving collections and environments and syncing them needs an account.
+- **Newman**: `npm install -g newman` runs exported collections from the command line (sheet 10).
+
+## A Tour of the Interface | amber
+- **Sidebar**: Collections, Environments and History, plus APIs, mock servers, monitors and flows, depending on your plan and version.
+- **Request tab**: a method drop-down, the URL bar and **Send**, then the sub-tabs **Params, Authorization, Headers, Body, Scripts (Pre-request and Post-response)** and **Settings**.
+- **Response pane**: **status code, time and size**, then **Body** (Pretty, Raw, Preview, Visualize), **Cookies**, **Headers** and **Test Results** (sheet 03).
+- **Environment selector** (top right); **Console** (bottom bar: the exact request sent, the raw response, and script logs); **Code** (`</>`) to generate the request as curl, Java, Python, JavaScript and other snippets.
+- **Workspaces**: personal, team or public spaces that hold collections and environments (sheet 01).
+
+## Your First Requests and Test | violet
+- **1. GET**: open a new request (`Ctrl+T`), keep the method **GET**, enter `https://postman-echo.com/get?name=ann` and click **Send**. The **Params** tab shows `name = ann`, parsed from the URL.
+- **2. Read the response**: **200 OK**, the time and the size. **Postman Echo** sends back what it received, so the body shows your query under `args` and your headers under `headers` (Postman adds its own, such as `User-Agent: PostmanRuntime/...` and `Postman-Token`).
+- **3. POST**: change the method to **POST** and the URL to `https://postman-echo.com/post`. Choose **Body → raw → JSON** and enter `{"name": "Ann", "qty": 2}`; Postman sets `Content-Type: application/json`. The echo returns the body under `json` (parsed) and `data`.
+- **4. Save and test**: save the request (`Ctrl+S`) into a new collection, "Learning". Then add a test for the GET request under **Scripts → Post-response** and send again; the results appear in **Test Results**:
+```js Post-response
+pm.test("status is 200", () => pm.response.to.have.status(200));
+pm.test("echoes the name", () => pm.expect(pm.response.json().args.name).to.eql("ann"));
+```
+```text
+GET https://postman-echo.com/get?name=ann   ->  200 OK
+{"args": {"name": "ann"}, "headers": {"host": "postman-echo.com", ...}, "url": "https://postman-echo.com/get?name=ann"}
+```
+
+## Core Vocabulary | rose
+- **Workspace**: where a person or team keeps collections and environments.
+- **Collection**: a saved, ordered group of requests, with folders, auth, variables and scripts. It can be run, shared, exported, documented and mocked.
+- **Environment**: a named set of variables (`baseUrl`, `token`) for one target, such as local, staging or production; you switch between them with one click (sheet 04).
+- **Variable**: a `{{name}}` placeholder resolved at send time. Scopes: global, collection, environment, data and local.
+- **Pre-request / post-response script**: JavaScript that runs before the request is sent or after the response arrives, using the `pm` API (sheets 05 and 06).
+- **Example**: a saved request and response pair, used for documentation and **mock servers** (sheet 09).
+- **Collection Runner / Newman / Postman CLI**: three ways to run a whole collection: in the app, from Node.js, and with Postman's own CLI (sheets 08 and 10).
+- **Monitor**: a collection run on a schedule in Postman's cloud.
+
+## Postman vs Other Tools | blue
+- **curl**: the command-line HTTP client available everywhere (scripts, servers, documentation), with no GUI or test framework. Postman imports curl commands and exports requests as curl.
+- **Insomnia** (Kong): a similar GUI client, strong on GraphQL and design-first OpenAPI work.
+- **Bruno**: open source and **offline-first**. Collections are plain-text `.bru` files kept in your Git repository.
+- **Thunder Client** and **REST Client**: lightweight request tools inside VS Code.
+- **HTTPie**: a friendlier command-line client, with a desktop app too.
+- **Swagger UI**: "Try it out" directly from an API's OpenAPI documentation (FastAPI's `/docs`).
+- **Code-based API tests** (REST Assured in Java, pytest with httpx in Python, Supertest in Node.js): versioned with the code and run by the build. Postman suits exploration, shared manual testing and quick automated suites; many teams use both.
+
+## Interview Q&A | sky | wide
+Q: Who created Postman and how did it start?
+A: Abhinav Asthana, in 2012, as a Chrome extension side project to simplify API testing. The company, Postman, Inc., was founded in 2014 with Ankit Sobti and Abhijit Kane.
+Q: Why can the Postman web app not reach localhost on its own?
+A: Browser security (CORS and network restrictions) blocks it, so the web app uses the Postman Desktop Agent, or you use the desktop app.
+Q: How do you send a JSON body in Postman?
+A: Choose Body → raw → JSON and type the JSON. Postman sets Content-Type: application/json, and you can use {{variables}} inside the body.
+Q: Where do you see exactly what Postman sent?
+A: In the Postman Console, which shows the final URL, headers (including auto-generated ones) and body of every request, together with script logs.
+Q: Postman vs curl?
+A: curl is a scriptable command-line client available everywhere; Postman is a GUI with collections, environments, tests, sharing and documentation. Postman converts between them, importing curl commands and generating curl snippets.
+Q: What is Postman Echo?
+A: A free service from Postman (postman-echo.com) that returns the request it received (query arguments, headers, body), useful for learning and for checking what a client really sends.
+Q: Postman vs Bruno?
+A: Postman is a cloud-synced platform with collaboration, mocks and monitors. Bruno is open source and offline-first, storing collections as plain-text files in Git.
+Q: How do you add a first test to a request?
+A: Write pm.test blocks in Scripts → Post-response, for example pm.response.to.have.status(200), then send the request and read Test Results.
+
+# 01 | Postman Basics: Collections & Requests | Workspaces, collections, folders, request anatomy, saving and organising, examples | Basics
+
+## What Postman Is For | rose
+- **Postman** is an API platform for **designing, sending, testing, documenting, mocking and monitoring** HTTP APIs (also GraphQL, gRPC, WebSocket, MQTT).
+- Typical uses for a developer: **exploring and debugging endpoints**, **manual and automated API testing**, sharing ready-to-run requests with the team, generating code snippets (cURL, Java, Python, JavaScript), and running collections in **CI with Newman** or the Postman CLI.
+- **Workspaces** (personal, team, public) hold collections, environments, APIs, mocks and monitors; changes sync to the team.
+
+## Collections and Folders | blue
+- A **collection** is a group of saved requests, usually **one per API or service**; **folders** group requests by resource or flow (Auth, Products, Orders).
+- Collections and folders can define **shared settings inherited by their requests**: **authorization**, **pre-request and post-response scripts**, and **collection variables**, plus Markdown **descriptions** used for documentation.
+- Order matters for runs: requests execute top to bottom (folder by folder) in the Collection Runner.
+- Collections can be **exported** as JSON (Collection Format v2.1) for version control and Newman, **forked**, and **imported** from OpenAPI, cURL or HAR files.
+```text
+Shop API (collection: auth = Bearer {{accessToken}}, variable baseUrl)
+  Auth
+    POST Login                {{baseUrl}}/api/auth/login
+    POST Refresh token        {{baseUrl}}/api/auth/refresh
+  Products
+    GET  List products        {{baseUrl}}/api/products?page=0&size=20
+    GET  Get product          {{baseUrl}}/api/products/:id
+    POST Create product       {{baseUrl}}/api/products
+  Orders
+    POST Place order          {{baseUrl}}/api/orders
+```
+
+## Anatomy of a Request | green
+- **Method** (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS) and **URL** (with `{{variables}}`).
+- Tabs: **Params** (query parameters and path variables), **Authorization**, **Headers**, **Body**, **Scripts** (Pre-request and Post-response), **Settings** (redirects, SSL verification, timeouts).
+- **Send** shows the response; **Save** stores the request in a collection; **Code** (`</>`) generates client code in many languages.
+- The **Postman Console** (View → Console) shows the raw request and response, headers, script logs (`console.log`) and network errors: the first place to look when something fails.
+
+## Saved Examples | amber
+- An **example** is a saved request/response pair (status, headers, body) attached to a request.
+- Uses: **documentation** (shows real responses), **mock servers** (examples are what the mock returns, sheet 09), and communicating API contracts before the backend exists.
+- Save several examples per request for different cases (200 success, 404 not found, 422 validation error).
+
+## Interview Q&A | sky | wide
+Q: What is Postman used for?
+A: Building, sending and inspecting API requests, organising them in collections, writing automated tests with scripts, managing environments, mocking APIs, generating documentation, and running collections in CI with Newman.
+Q: What is a collection?
+A: A saved, shareable group of requests (with folders) that can carry shared authorization, scripts, variables and documentation, and can be run as a test suite.
+Q: Why put auth and scripts at collection level?
+A: Requests inherit them, so the token or common checks are configured once instead of in every request.
+Q: What is a saved example in Postman?
+A: A stored request/response pair documenting an expected response; mock servers return examples and documentation displays them.
+Q: How do you debug a failing request in Postman?
+A: Open the Postman Console to see the exact URL, headers, body, resolved variables, script logs and network errors.
+
+# 02 | Building Requests: Params, Headers, Auth & Bodies | Query parameters, path variables, headers, authorization types, body formats | Building Requests
+
+## Query Parameters and Path Variables | rose
+- **Query parameters**: typed in the URL (`?page=0&size=20`) or in the **Params** table (key, value, description, enable/disable checkbox); Postman URL-encodes values.
+- **Path variables**: write **`:name`** in the URL (`{{baseUrl}}/api/products/:id`); a **Path Variables** table appears to set the value. Unlike `{{variables}}`, they are request-specific placeholders.
+- Disable a parameter temporarily with its checkbox instead of deleting it.
+```text
+GET {{baseUrl}}/api/products/:id?expand=reviews
+Path Variables: id = 42
+Query Params:   expand = reviews
+-> GET https://api.shop.example/api/products/42?expand=reviews
+```
+
+## Headers | blue
+- **Headers** tab for `Accept`, `Content-Type`, `Accept-Language`, custom headers (`X-Request-ID`, `Idempotency-Key: {{$guid}}`).
+- Postman adds **auto-generated headers** (`User-Agent`, `Accept`, `Content-Type` from the body type, `Content-Length`, `Host`, `Postman-Token`); show them with "hidden headers" and override when needed.
+- **Presets** save common header sets.
+- Cookies are managed per domain in the **Cookies** manager (sent automatically like a browser).
+
+## Authorization Types | green
+- **Inherit auth from parent** (default for requests in a collection), **No Auth**.
+- **Bearer Token** (`Authorization: Bearer {{accessToken}}`), **Basic Auth** (username/password, base64-encoded for you), **API Key** (as a header or query parameter), **OAuth 2.0** (Postman performs the flow: authorization code with PKCE, client credentials, password; stores and refreshes tokens), plus Digest, AWS Signature, NTLM, Hawk, JWT Bearer, Akamai EdgeGrid.
+- Store secrets in **variables** (environment or vault), never hard-coded in requests that get shared or exported.
+
+## Body Formats | amber
+- **none**.
+- **form-data** (`multipart/form-data`): key/value fields **and files**: file uploads.
+- **x-www-form-urlencoded** (`application/x-www-form-urlencoded`): simple key/value forms (`key=value&key2=value2`), used by HTML forms and OAuth token endpoints.
+- **raw**: JSON (sets `Content-Type: application/json`), XML, Text, HTML, JavaScript; `{{variables}}` are resolved inside the body before sending.
+- **binary**: send one file as the raw body (images, PDFs).
+- **GraphQL**: query and variables editor with schema introspection.
+```json
+{
+  "customerId": "{{customerId}}",
+  "items": [ { "sku": "PEN-01", "qty": 2 } ],
+  "couponCode": null,
+  "clientRequestId": "{{$guid}}"
+}
+```
+
+## Interview Q&A | sky | wide
+Q: form-data vs x-www-form-urlencoded?
+A: form-data sends multipart/form-data and supports files; x-www-form-urlencoded sends simple key=value pairs encoded in the body, used for basic forms and OAuth token requests.
+Q: How do you add a path variable in Postman?
+A: Write :name in the URL path (/products/:id) and fill its value in the Path Variables table under Params.
+Q: How do you send a JSON body?
+A: Choose Body → raw → JSON; Postman sets Content-Type: application/json automatically.
+Q: Which auth types does Postman support?
+A: Bearer token, Basic, API key, OAuth 1.0 and 2.0 (including authorization code with PKCE and client credentials), Digest, AWS Signature, NTLM, JWT Bearer and others, plus inheriting from the collection.
+Q: How do you upload a file?
+A: Use form-data with a field of type File (or binary for a raw single-file body).
+
+# 03 | Inspecting Responses | Status, time, size, body views, headers, cookies, test results, console | Responses
+
+## The Response Pane | rose
+- **Status code and text** (200 OK, 201 Created, 404 Not Found) with a description on hover.
+- **Time**: total request time, with a breakdown on hover (DNS lookup, TCP handshake, SSL handshake, time to first byte, download).
+- **Size**: response body plus headers (and request size), useful for spotting oversized payloads.
+- **Body views**: **Pretty** (formatted JSON/XML/HTML with search and folding), **Raw**, **Preview** (rendered HTML), **Visualize** (custom charts and tables from a script).
+- Other tabs: **Headers** (all response headers), **Cookies**, **Test Results** (pass/fail of `pm.test` assertions).
+
+## What to Look At When Testing | blue
+- **Status code** matches the contract (201 with `Location` for creates, 204 for deletes, 4xx for invalid input).
+- **Headers**: `Content-Type`, caching headers (`Cache-Control`, `ETag`), CORS headers, rate-limit headers (`Retry-After`), security headers.
+- **Body**: shape and types match the schema, no sensitive fields leaked (password hashes, internal ids), error format consistent (Problem Details).
+- **Time**: compare with performance expectations; investigate spikes in the timing breakdown (DNS/TLS vs server time).
+- **Size**: unexpectedly large responses suggest missing pagination or over-fetching.
+
+## Response Tools | green
+- **Save Response** → save as an **example** or to a file.
+- **Search** within the response, copy values, and use **"Set as variable"** on selected text to capture values quickly.
+- **Postman Console** shows the full network exchange, redirects, TLS details and `console.log` output from scripts.
+- **History** keeps recently sent requests to re-open and save.
+
+## Interview Q&A | sky | wide
+Q: What information does Postman show about a response?
+A: Status code, response time with a timing breakdown, size, body (pretty, raw, preview, visualize), headers, cookies and test results.
+Q: How do you find why a request is slow in Postman?
+A: Hover over the response time to see the DNS, TCP, TLS, time-to-first-byte and download breakdown, then compare server time with network setup time.
+Q: How do you see the exact request Postman sent?
+A: Open the Postman Console, which logs the resolved URL, headers, body and the full response.
+Q: What checks do you do on a response?
+A: Status code, important headers, body schema and values, absence of sensitive data, error format, response time and size.
+
+@ Intermediate
+
+# 04 | Variables & Environments | Variable scopes, precedence, environments, initial vs current values, dynamic variables, secrets | Variables
+
+## Variable Scopes | rose
+- **Global**: available across the whole workspace (rarely needed; easy to pollute).
+- **Collection**: shared by all requests in one collection (base URLs, tokens obtained during a run).
+- **Environment**: a named set of values for a target (**Local, Dev, QA, Staging, Prod**); switch the active environment to point the same collection at another server.
+- **Data**: values from a **CSV/JSON data file** in the Collection Runner or Newman, one row per iteration.
+- **Local**: temporary values set in a script for the current request or run (`pm.variables.set`).
+- Use them in requests as **`{{name}}`** (URL, params, headers, body, auth); unresolved variables show in red.
+```text
+Environment "QA":      baseUrl = https://qa.api.shop.example   adminEmail = qa-admin@shop.example
+Environment "Local":   baseUrl = http://localhost:8080
+Request URL:           {{baseUrl}}/api/products/{{productId}}
+```
+
+## Precedence | blue
+- If the same name exists in several scopes, the **narrowest scope wins**: **local > data > environment > collection > global**.
+- `pm.variables.get("name")` resolves using this precedence; `pm.environment.get`, `pm.collectionVariables.get`, `pm.globals.get`, `pm.iterationData.get` read a specific scope.
+- Keep names unique and scoped deliberately to avoid "why is it using the wrong URL?" surprises.
+
+## Initial vs Current Values and Secrets | green
+- Each variable has an **initial (shared) value**, synced to the workspace and visible to collaborators and exports, and a **current value**, kept **locally** and used when sending requests.
+- Put **secrets only in current values**, in variables of type **secret** (masked), or in **Postman Vault** (local encrypted storage referenced as `{{vault:name}}`); never commit real tokens in exported environment files.
+- For CI, inject secrets at runtime (`newman run ... --env-var "password=$PASSWORD"`).
+
+## Dynamic Variables | amber
+- Built-in generators evaluated at send time: **`{{$guid}}`**, **`{{$timestamp}}`** (Unix seconds), **`{{$isoTimestamp}}`**, **`{{$randomInt}}`**, **`{{$randomEmail}}`**, `{{$randomFirstName}}`, `{{$randomUUID}}`, `{{$randomPrice}}` and many more (Faker-based).
+- Useful for unique test data (emails, idempotency keys) so repeated runs do not collide.
+- In scripts use `pm.variables.replaceIn("{{$randomEmail}}")` to generate a value and store it.
+```json
+{
+  "email": "{{$randomEmail}}",
+  "name": "{{$randomFullName}}",
+  "requestedAt": "{{$isoTimestamp}}"
+}
+```
+
+## Interview Q&A | sky | wide
+Q: What variable scopes exist in Postman?
+A: Global, collection, environment, data (from data files) and local (script-level), plus vault secrets.
+Q: Which value is used when the same variable exists in several scopes?
+A: The narrowest scope: local, then data, then environment, then collection, then global.
+Q: What are environments for?
+A: Switching the same collection between targets (local, QA, staging, production) by changing a set of variables such as baseUrl and credentials.
+Q: Initial value vs current value?
+A: The initial value is shared and synced with the team and exports; the current value is local to your machine and used for sending, the right place for secrets.
+Q: How do you generate unique test data?
+A: Dynamic variables like {{$guid}}, {{$timestamp}} and {{$randomEmail}}, or values generated in a pre-request script.
+
+# 05 | Scripts: Pre-request & Post-response | Execution order, the pm API, pre-request use cases, post-response processing, console logging | Scripts
+
+## Where Scripts Run | rose
+- Each request has a **Scripts** tab with **Pre-request** (runs **before** sending) and **Post-response** (runs **after** the response; this used to be the "Tests" tab).
+- Scripts can also be set on the **collection** and **folders**. Order for one request: **collection pre-request → folder pre-request → request pre-request → (send) → collection post-response → folder post-response → request post-response**.
+- Scripts are JavaScript in the Postman **sandbox** with the **`pm`** object, `console`, and built-in libraries via `require` (`crypto-js`, `lodash`, `moment`, `uuid`, `ajv`, `chai`, `cheerio`, `xml2js`, `tv4`).
+- Package Library and `pm.require` allow sharing reusable script packages across a team (in recent Postman versions).
+
+## Pre-request Script Use Cases | blue
+- **Generate dynamic data**: timestamps, UUIDs, random values, idempotency keys.
+- **Compute signatures**: HMAC request signing, hashed values for APIs that require them.
+- **Ensure a valid token**: check expiry and fetch a new one with `pm.sendRequest` before the request runs (sheet 07).
+- **Set or modify** headers, query params or the body programmatically (`pm.request.headers.upsert`).
+```js
+// Pre-request: HMAC-SHA256 signature of method + path + timestamp + body
+const CryptoJS = require('crypto-js');
+const timestamp = Math.floor(Date.now() / 1000).toString();
+const body = pm.request.body && pm.request.body.raw ? pm.variables.replaceIn(pm.request.body.raw) : '';
+const path = pm.request.url.getPathWithQuery();
+const payload = [pm.request.method, path, timestamp, body].join('\n');
+const signature = CryptoJS.HmacSHA256(payload, pm.environment.get('apiSecret')).toString(CryptoJS.enc.Hex);
+
+pm.request.headers.upsert({ key: 'X-Timestamp', value: timestamp });
+pm.request.headers.upsert({ key: 'X-Signature', value: signature });
+pm.variables.set('idempotencyKey', pm.variables.replaceIn('{{$guid}}'));
+```
+
+## The pm API Essentials | green
+- Variables: **`pm.environment.set/get/unset`**, **`pm.collectionVariables.set/get`**, `pm.globals`, **`pm.variables.get/set`** (precedence-aware get, local set), `pm.iterationData.get`.
+- Request: `pm.request.url`, `pm.request.method`, `pm.request.headers`, `pm.request.body`.
+- Response (post-response): **`pm.response.code`**, `pm.response.status`, **`pm.response.json()`**, `pm.response.text()`, **`pm.response.headers.get('Location')`**, **`pm.response.responseTime`**, `pm.response.size()`.
+- **`pm.sendRequest(request, callback)`**: send another HTTP request from a script.
+- Flow control: **`pm.execution.setNextRequest('name')`** (Collection Runner/Newman; `null` stops the run), `pm.execution.skipRequest()` in pre-request scripts.
+- **`pm.test`** and **`pm.expect`** for assertions (sheet 06); `pm.visualizer.set` for custom visualisations.
+
+## Post-response Processing | amber
+- **Extract values** from responses and store them for later requests (ids, tokens, ETags): this is **request chaining**.
+- Log diagnostic information with `console.log` (visible in the Postman Console and Newman output).
+```js
+// Post-response of "Create product"
+const json = pm.response.json();
+pm.collectionVariables.set('productId', json.id);
+pm.collectionVariables.set('productEtag', pm.response.headers.get('ETag'));
+console.log('Created product', json.id, 'in', pm.response.responseTime, 'ms');
+```
+
+## Interview Q&A | sky | wide
+Q: Pre-request vs post-response scripts?
+A: Pre-request scripts run before the request is sent (prepare data, tokens, signatures, headers); post-response scripts run after the response arrives (assertions, extracting values, setting variables).
+Q: In what order do collection, folder and request scripts run?
+A: Pre-request scripts run collection, then folder, then request level; after the response, post-response scripts run in the same collection → folder → request order.
+Q: How do you call another API from a script?
+A: With pm.sendRequest(requestOrUrl, (err, res) => { ... }), for example to fetch a token.
+Q: How do you pass data from one request to the next?
+A: Extract it in the first request's post-response script (pm.response.json()) and store it with pm.collectionVariables.set or pm.environment.set, then reference {{variable}} in the next request.
+Q: Which libraries can Postman scripts use?
+A: Built-in sandbox libraries via require, such as crypto-js, lodash, moment, uuid, ajv, chai and cheerio, plus shared packages from the Package Library.
+
+# 06 | Writing Tests | pm.test, pm.expect, status, header, body and timing assertions, JSON schema validation | Tests
+
+## pm.test and pm.expect | rose
+- **`pm.test("name", () => { ... })`** defines a named test; it **passes unless an assertion throws** inside it. Results appear in **Test Results** and in Runner/Newman reports.
+- **`pm.expect(value)`** uses **Chai BDD** assertions: `.to.equal()`, `.to.eql()` (deep), `.to.be.a('string')`, `.to.include()`, `.to.have.property()`, `.to.be.above()`, `.to.be.oneOf([...])`, `.to.match(/regex/)`, `.to.have.lengthOf()`.
+- Response shorthand: **`pm.response.to.have.status(201)`**, `pm.response.to.be.ok` (2xx), `.to.be.success`, `.to.be.clientError`, **`.to.have.header('Content-Type')`**, `.to.have.body()`, `.to.be.json`.
+- Keep one behaviour per test with a clear name; tests double as **living documentation** of the API contract.
+```js
+pm.test('201 Created with Location header', () => {
+  pm.response.to.have.status(201);
+  pm.response.to.have.header('Location');
+});
+
+pm.test('response body has expected fields', () => {
+  const body = pm.response.json();
+  pm.expect(body).to.have.property('id').that.is.a('number');
+  pm.expect(body.name).to.eql(JSON.parse(pm.request.body.raw).name);
+  pm.expect(body).to.not.have.property('passwordHash');
+  pm.expect(body.status).to.be.oneOf(['ACTIVE', 'DRAFT']);
+});
+
+pm.test('responds within 500 ms', () => {
+  pm.expect(pm.response.responseTime).to.be.below(500);
+});
+
+pm.test('content type is JSON', () => {
+  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');
+});
+```
+
+## JSON Schema Validation | blue
+- Validate the **whole response structure** (types, required fields, formats, no extra properties) instead of asserting field by field.
+- **`pm.response.to.have.jsonSchema(schema)`** validates with Ajv; or `require('ajv')` for full control (older collections used `tv4`).
+- Store schemas in collection variables or generate them from the OpenAPI definition to keep tests in sync with the contract.
+```js
+const productSchema = {
+  type: 'object',
+  required: ['id', 'name', 'price'],
+  properties: {
+    id: { type: 'integer' },
+    name: { type: 'string', minLength: 1 },
+    price: { type: 'number', minimum: 0 },
+    tags: { type: 'array', items: { type: 'string' } }
+  },
+  additionalProperties: false
+};
+
+pm.test('matches the product schema', () => {
+  pm.response.to.have.jsonSchema(productSchema);
+});
+```
+
+## Testing Error Cases and Negative Paths | green
+- Test **validation errors** (missing fields → 400/422 with field errors), **authentication** (no token → 401), **authorization** (wrong role → 403), **not found** (404), **conflicts** (409), **rate limits** (429).
+- Verify the **error format** is consistent (Problem Details: `type`, `title`, `status`, `detail`).
+- Use separate requests (or data-driven iterations) per scenario, named after the expected outcome ("Create product - missing name - 422").
+```js
+pm.test('validation error uses Problem Details', () => {
+  pm.response.to.have.status(422);
+  const problem = pm.response.json();
+  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');
+  pm.expect(problem).to.include.keys('type', 'title', 'status');
+  pm.expect(problem.errors.map(e => e.field)).to.include('name');
+});
+```
+
+## Interview Q&A | sky | wide
+Q: How do you write a test in Postman?
+A: In the Post-response script, call pm.test with a name and a function containing assertions such as pm.response.to.have.status(200) and pm.expect(...) Chai checks.
+Q: pm.expect equal vs eql?
+A: equal checks strict equality (===); eql performs deep equality, needed for objects and arrays.
+Q: How do you validate a response against a JSON schema?
+A: pm.response.to.have.jsonSchema(schema), which uses Ajv, or require('ajv') directly.
+Q: What negative tests would you write for a create endpoint?
+A: Missing or invalid fields (400/422), no token (401), insufficient role (403), duplicate unique value (409), oversized payload, and checks that the error format is consistent.
+Q: How do you assert response time?
+A: pm.expect(pm.response.responseTime).to.be.below(thresholdMs) inside a pm.test.
+
+# 07 | Token Propagation & Request Chaining | Login and save the token, inherited auth, automatic refresh, setNextRequest workflows | Auth Flows
+
+## Login Once, Reuse Everywhere | rose
+- **1.** A **Login** request posts credentials and, in its **post-response script**, extracts the token and stores it in a **collection (or environment) variable**.
+- **2.** The **collection's Authorization** is **Bearer Token `{{accessToken}}`**; every request uses **Inherit auth from parent**, so all of them send the token automatically.
+- **3.** Run Login first (first request of the collection or a setup folder) in the Runner and Newman.
+```js
+// Post-response script of "POST Login"
+pm.test('login succeeded', () => pm.response.to.have.status(200));
+const { access_token, refresh_token, expires_in } = pm.response.json();
+pm.collectionVariables.set('accessToken', access_token);
+pm.collectionVariables.set('refreshToken', refresh_token);
+pm.collectionVariables.set('accessTokenExpiresAt', Date.now() + expires_in * 1000);
+```
+
+## Automatic Token Refresh | blue
+- A **collection-level pre-request script** checks the stored expiry and, when needed, calls the token endpoint with **`pm.sendRequest`**, then saves the new token. Every request in the collection gets a valid token without manual steps.
+- Works for **client credentials** (service APIs) and **refresh-token** flows.
+- Alternatively, the built-in **OAuth 2.0** authorization helper can obtain and auto-refresh tokens.
+```js
+// Collection-level pre-request script
+const expiresAt = Number(pm.collectionVariables.get('accessTokenExpiresAt') || 0);
+if (Date.now() > expiresAt - 30000) {                          // refresh 30 s early
+  pm.sendRequest({
+    url: pm.variables.replaceIn('{{authUrl}}/oauth2/token'),
+    method: 'POST',
+    header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: {
+      mode: 'urlencoded',
+      urlencoded: [
+        { key: 'grant_type', value: 'client_credentials' },
+        { key: 'client_id', value: pm.environment.get('clientId') },
+        { key: 'client_secret', value: pm.environment.get('clientSecret') },
+        { key: 'scope', value: 'orders:read orders:write' }
+      ]
+    }
+  }, (err, res) => {
+    if (err) { console.error('token request failed', err); return; }
+    const json = res.json();
+    pm.collectionVariables.set('accessToken', json.access_token);
+    pm.collectionVariables.set('accessTokenExpiresAt', Date.now() + json.expires_in * 1000);
+  });
+}
+```
+
+## Request Chaining and Workflows | green
+- **Chaining**: each request extracts what the next needs (create customer → `customerId` → create order → `orderId` → pay order → get order and assert status PAID).
+- **`pm.execution.setNextRequest('Request name')`** changes the run order in the Collection Runner and Newman (loops, branching, polling until a job completes); `pm.execution.setNextRequest(null)` stops the run. (Older collections use `postman.setNextRequest`.)
+- Guard loops with a counter variable to avoid infinite runs.
+```js
+// Post-response of "GET Report status": poll until done, at most 10 times
+const attempts = Number(pm.collectionVariables.get('pollAttempts') || 0) + 1;
+pm.collectionVariables.set('pollAttempts', attempts);
+if (pm.response.json().status !== 'DONE' && attempts < 10) {
+  pm.execution.setNextRequest('GET Report status');
+} else {
+  pm.collectionVariables.unset('pollAttempts');
+}
+```
+
+## Interview Q&A | sky | wide
+Q: How do you propagate a bearer token across requests?
+A: Store the token from the login response in a collection variable via a post-response script, set the collection's Authorization to Bearer {{accessToken}}, and let requests inherit auth from the parent.
+Q: How do you refresh tokens automatically?
+A: A collection-level pre-request script checks the expiry and calls the token endpoint with pm.sendRequest, saving the new token; or use the built-in OAuth 2.0 helper with auto-refresh.
+Q: What is request chaining?
+A: Using values extracted from one response (ids, tokens) as inputs to subsequent requests, enabling end-to-end workflow tests.
+Q: How do you control the order of requests in a run?
+A: By the order in the collection, or dynamically with pm.execution.setNextRequest to jump, loop or stop.
+Q: Where should credentials for token requests be stored?
+A: In environment current values, secret-type variables or the Postman Vault, injected in CI via --env-var, never in shared initial values.
+
+@ Advanced
+
+# 08 | Collection Runner & Data-Driven Testing | Running collections, iterations, data files, regression suites, results | Runner
+
+## The Collection Runner | rose
+- Runs **all or selected requests** of a collection or folder **in order**, executing their scripts and tests; ideal for **regression runs** after a deployment.
+- Options: **environment**, **iterations** (repeat the run N times), **delay** between requests, **data file**, keep variable values, persist responses for debugging, run order (drag to reorder or deselect).
+- Results show each request's status, time and **test pass/fail**, exportable as JSON.
+- Runs can also be **scheduled** in the Postman cloud, and collections can be run as simple **performance tests** (virtual users, response-time and error-rate metrics).
+
+## Data-Driven Testing | blue
+- Attach a **CSV or JSON data file**: each row (or object) is one **iteration**, and its columns become **data variables** (`{{email}}`, `{{expectedStatus}}`).
+- Read them in scripts with **`pm.iterationData.get('expectedStatus')`**.
+- One request then covers many cases: valid and invalid inputs, boundary values, different roles.
+```text
+users.csv
+email,password,expectedStatus
+ann@shop.example,Correct#Pass1,200
+ann@shop.example,wrong,401
+,Correct#Pass1,400
+```
+```js
+// Post-response of "POST Login" in a data-driven run
+pm.test(`login with ${pm.iterationData.get('email') || '(empty)'} -> ${pm.iterationData.get('expectedStatus')}`, () => {
+  pm.response.to.have.status(Number(pm.iterationData.get('expectedStatus')));
+});
+```
+
+## Structuring a Regression Suite | green
+- **Setup** folder (login, create test data) → **feature folders** with positive and negative cases → **teardown** folder (delete created data) so runs are **repeatable and independent** of previous state.
+- Use **unique data** per run (dynamic variables) to avoid collisions on shared environments.
+- Keep assertions on contracts (status, schema, key values), not on volatile values (timestamps, generated ids).
+- Version the exported collection and environments (without secrets) in Git alongside the API.
+
+## Interview Q&A | sky | wide
+Q: What does the Collection Runner do?
+A: Executes the requests of a collection or folder in sequence with scripts and tests, supporting environments, iterations, delays and data files, and reports pass/fail results.
+Q: How do you do data-driven testing in Postman?
+A: Provide a CSV or JSON data file to the Runner or Newman; each row is an iteration whose fields are available as {{variables}} and via pm.iterationData.
+Q: How do you keep collection runs repeatable?
+A: Create the test data in a setup step, use unique generated values, clean up in a teardown step, and avoid depending on pre-existing state.
+Q: What are iterations?
+A: Repetitions of the whole run; with a data file there is one iteration per data row.
+
+# 09 | Mock Servers & API Documentation | Examples-based mocks, matching rules, use cases, generating and publishing documentation, OpenAPI | Mocks & Docs
+
+## Mock Servers | rose
+- A **mock server** returns **saved examples** for matching requests, simulating an API that **does not exist yet** or that you do not want to call (third-party, costly, unstable).
+- Created from a collection; each request's **examples** define the responses. The mock gets its own URL (`https://<id>.mock.pstmn.io`); point `{{baseUrl}}` at it.
+- **Matching** uses method, path, query parameters and body; choose a specific example with headers **`x-mock-response-name`** or **`x-mock-response-code`**; add delays to simulate latency.
+- **Private mocks** require a Postman API key header.
+- Use cases: **frontend development in parallel** with the backend, contract-first API design, testing error handling (500, 429) on demand, demos and offline development.
+```http
+GET https://5f1c2b8e.mock.pstmn.io/api/products/42
+x-mock-response-code: 404
+```
+
+## API Documentation | blue
+- Postman **generates documentation from a collection**: requests, descriptions (Markdown at collection, folder and request level), parameters, headers, example requests and responses, and code snippets in many languages.
+- **Publish** documentation as a public web page (with environment selection) or share privately within the team workspace.
+- Good documentation includes authentication instructions, error formats, pagination conventions and a changelog.
+
+## OpenAPI and the API Lifecycle | green
+- **Import an OpenAPI** (or Swagger) definition to generate a collection automatically; keep collections in sync with the spec in the **API Builder**.
+- **Contract testing**: validate responses against the OpenAPI schema; detect drift between implementation and documentation.
+- **Monitors** run a collection on a schedule from the cloud and alert on failures (uptime and correctness checks).
+
+## Interview Q&A | sky | wide
+Q: What is a Postman mock server?
+A: A hosted endpoint that returns the saved examples of a collection's requests based on method, path and parameters, simulating an API before or instead of the real implementation.
+Q: How does a mock decide which example to return?
+A: By matching the request method, path, query and body against saved examples; headers like x-mock-response-code or x-mock-response-name select a specific one.
+Q: When are mocks useful?
+A: Parallel frontend and backend development, contract-first design, simulating errors or slow responses, and avoiding calls to paid or unstable third-party APIs.
+Q: How do you generate API documentation in Postman?
+A: Add Markdown descriptions and saved examples to the collection; Postman renders documentation with code snippets that can be published publicly or shared with the team.
+Q: How do Postman and OpenAPI relate?
+A: Postman can import an OpenAPI definition to create collections, validate responses against it, and keep documentation, mocks and tests aligned with the spec.
+
+# 10 | Newman & CI/CD Integration | Newman CLI, exporting collections, options, reporters, exit codes, GitHub Actions and Jenkins, Postman CLI | Newman & CI
+
+## Newman Basics | rose
+- **Newman** is Postman's **open-source command-line collection runner** (Node.js): it runs exported collections with environments, data files, scripts and tests, without the Postman app.
+- Install: **`npm install -g newman`** (or `npx newman`).
+- Input: an **exported collection JSON** (v2.1) and environment JSON, or a collection URL/UID via the Postman API with an API key.
+- **Exit code is non-zero when any test or request fails**, which makes the CI step fail.
+```bash
+newman run shop-api.postman_collection.json \
+  -e qa.postman_environment.json \
+  -d users.csv -n 3 \
+  --env-var "password=$API_PASSWORD" \
+  --timeout-request 10000 \
+  --bail \
+  --reporters cli,junit,htmlextra \
+  --reporter-junit-export results/newman-junit.xml \
+  --reporter-htmlextra-export results/newman-report.html
+```
+
+## Useful Options and Reporters | blue
+- **`-e`** environment file, **`-g`** globals, **`-d`** data file, **`-n`** iterations, **`--folder "Orders"`** run one folder, **`--env-var key=value`** override or inject secrets, `--delay-request`, `--timeout-request`, **`--bail`** (stop on first failure), `--insecure` (self-signed certificates in test environments), `--verbose`.
+- **Reporters**: **`cli`** (console), **`json`**, **`junit`** (XML that CI servers display as test results), **`htmlextra`** (rich HTML report, `newman-reporter-htmlextra` package).
+- Newman can also be used as a **Node.js library** (`require('newman').run({...}, callback)`) for custom pipelines.
+
+## CI/CD Integration | green
+- Typical pipeline: build → deploy to a test environment → **run Newman API tests** → publish reports → promote only if tests pass.
+- Keep collections and environments **in the repository** (no secrets); inject secrets from the CI secret store.
+```yaml
+# .github/workflows/api-tests.yml
+name: API tests
+on: [push]
+jobs:
+  newman:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g newman newman-reporter-htmlextra
+      - run: >
+          newman run postman/shop-api.postman_collection.json
+          -e postman/qa.postman_environment.json
+          --env-var "password=${{ secrets.API_PASSWORD }}"
+          --reporters cli,junit,htmlextra
+          --reporter-junit-export results/junit.xml
+          --reporter-htmlextra-export results/report.html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: newman-results
+          path: results/
+```
+```text
+// Jenkinsfile (declarative) stage
+stage('API tests') {
+  steps {
+    sh 'newman run postman/shop-api.postman_collection.json -e postman/qa.postman_environment.json --reporters cli,junit --reporter-junit-export results/junit.xml'
+  }
+  post { always { junit 'results/junit.xml' } }
+}
+```
+
+## Postman CLI | amber
+- The **Postman CLI** (`postman` command) is Postman's officially supported runner: `postman login --with-api-key $POSTMAN_API_KEY`, then **`postman collection run <collection-id> -e <environment-id>`**.
+- It runs collections stored in the Postman cloud, reports results back to Postman, and can lint API definitions against governance rules.
+- **Newman** remains popular for fully open-source, file-based pipelines; the Postman CLI suits teams that keep collections in Postman workspaces.
+
+## Interview Q&A | sky | wide
+Q: What is Newman?
+A: Postman's open-source command-line runner that executes exported collections with environments, data files and tests, producing reports and a non-zero exit code on failures for CI.
+Q: How do you run Postman tests in a CI pipeline?
+A: Commit the exported collection and environment, install Newman in the pipeline, run newman run with the environment and secrets via --env-var, and publish JUnit/HTML reports; the step fails if any test fails.
+Q: Which Newman reporters do you use?
+A: cli for logs, junit for CI test result integration, and htmlextra for readable HTML reports.
+Q: How do you keep secrets out of exported environments?
+A: Leave them empty in shared values and pass them at runtime with --env-var from the CI secret store (or use the Postman CLI with vault/cloud environments).
+Q: Newman vs Postman CLI?
+A: Newman is the open-source Node.js runner for exported collection files; the Postman CLI is Postman's supported tool for running cloud-stored collections with results synced back to Postman.
+
+@ Review
+
+# 11 | Rapid-Fire & Tricky Questions | Gotchas, one-liners, big Q&A | Rapid-fire
+
+## Gotchas | rose
+- **Variable not resolving (red `{{var}}`)**: wrong environment selected, typo, or the value is only in another scope.
+- **Old token sent**: environment variable shadows the collection variable (environment wins), or the auth tab is not set to inherit.
+- **Test passes while the API is broken**: assertions outside `pm.test`, or checking only the status code.
+- **Works in the app, fails in Newman**: environment not passed (`-e`), secrets only in local current values, self-signed certificate (`--insecure`), or request order differs.
+- **Duplicate data errors on reruns**: hard-coded emails or ids; use dynamic variables and cleanup.
+- **`pm.response.json()` throws**: the response is not JSON (HTML error page, empty 204 body).
+- **Secrets leaked**: tokens saved in shared initial values or exported environments.
+
+## One-Line Cheat Sheet | blue
+- **Collections → folders → requests**; collection-level **auth, scripts, variables** are inherited.
+- **Params**: query table and **`:path` variables**; **Body**: none, form-data (files), x-www-form-urlencoded, raw JSON, binary, GraphQL.
+- **Response**: status, time breakdown, size, body views, headers, cookies, tests; **Console** for debugging.
+- **Variables**: global, collection, environment, data, local; **narrowest wins**; initial (shared) vs current (local).
+- **Scripts**: Pre-request and Post-response; order collection → folder → request; `pm` API, `pm.sendRequest`.
+- **Tests**: `pm.test` + `pm.expect` (Chai), `pm.response.to.have.status`, `to.have.jsonSchema`.
+- **Token propagation**: login post-response saves token → collection Bearer `{{accessToken}}` → inherit; auto-refresh in collection pre-request.
+- **Runner**: iterations, data files (CSV/JSON), `pm.iterationData`, `pm.execution.setNextRequest`.
+- **Mocks** from examples; **docs** from collections; **monitors** on schedule.
+- **Newman**: `newman run collection -e env -d data --reporters cli,junit,htmlextra`; non-zero exit fails CI.
+
+## How to Answer Well | teal
+- Describe a **real workflow**: environments per stage, login once with token propagation, tests per request, data-driven negative cases, Newman in the pipeline with JUnit reports.
+- Mention **security hygiene** (secrets in current values/vault, `--env-var` in CI) and **repeatability** (setup/teardown, dynamic data).
+- Tie to experience: "Our Newman suite of 180 tests runs after each deployment to QA; a broken contract fails the pipeline before it reaches staging."
+
+## Big Interview Q&A | sky | wide
+Q: How would you automate API regression testing for a microservice?
+A: Build a collection per service with environments for each stage, a setup folder that logs in and creates data, requests with pm.test assertions (status, schema, values) including negative cases, data files for variations, a teardown folder, and run it with Newman in CI after deployment, publishing JUnit and HTML reports.
+Q: How do you test an endpoint protected by OAuth 2.0 client credentials?
+A: Configure the collection's OAuth 2.0 auth helper (or a pre-request script with pm.sendRequest) to fetch a client-credentials token, store it in a variable, and have requests inherit Bearer auth.
+Q: How do you validate API contracts in Postman?
+A: Import the OpenAPI spec, assert responses against JSON schemas with pm.response.to.have.jsonSchema, and run the suite in CI to catch drift.
+Q: How do you test an asynchronous API that returns 202?
+A: Store the job URL from the Location header, poll it with pm.execution.setNextRequest and a bounded counter until the status is complete, then assert the result.
+Q: Postman vs automated tests in code (REST Assured, pytest)?
+A: Postman is fast for exploration, sharing and black-box regression suites runnable by Newman; code-based tests integrate tightly with the codebase, offer full language power and refactoring, and suit complex setups. Many teams use both.
+Q: How do you share Postman work with the team safely?
+A: Team workspaces with collections and environments, Git-exported collections for CI, secrets only in current values or the vault, and documentation published from the collection.
