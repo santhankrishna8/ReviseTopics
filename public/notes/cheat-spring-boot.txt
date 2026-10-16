@@ -1,730 +1,223 @@
-# 01 | Spring Boot Cheat Sheet | Everything on one page for Spring Boot 4 (and 3): setup, DI, configuration, REST, validation, errors, JPA, transactions, security, testing, actuator, async, caching, HTTP clients, messaging, microservices | Spring Boot on one page
+# 01 | Spring Boot Cheat Sheet | Concepts on one page for Spring Boot 4 (and 3): what each part is, why it exists, how it compares with the alternatives, and only the tricky code | Spring Boot on one page
 
-## Create & Run
-```bash
-curl https://start.spring.io/starter.zip \
-  -d dependencies=webmvc,data-jpa,validation -o app.zip
-./mvnw spring-boot:run  # Gradle: ./gradlew bootRun
-./mvnw clean package  # executable jar in target/
-java -jar target/app.jar --server.port=9090 --spring.profiles.active=prod
-./mvnw spring-boot:build-image  # Docker image, no Dockerfile
-```
+## Spring vs Spring Boot vs Spring Cloud
+- **Spring Framework**: the core: IoC container, dependency injection, AOP, Spring MVC, transactions, data access. Powerful but needs a lot of configuration.
+- **Spring Boot**: Spring with **auto-configuration**, **starters**, an **embedded server** (Tomcat) and production features (Actuator): runnable jar, almost no setup. "Opinionated defaults you can override."
+- **Spring Cloud**: microservice tools on top of Boot: discovery, config server, gateway, load balancing, circuit breakers.
+- **vs Jakarta EE / Quarkus / Micronaut**: Boot has the largest ecosystem; Quarkus/Micronaut start faster with less memory (compile-time DI, native images).
 
-## Starters
+## Auto-Configuration & Starters
+> **What:** Boot looks at your **classpath and properties** and creates the beans you probably need (a `DataSource` if a JDBC driver is present, Jackson for JSON, Tomcat for web).
+- Each auto-config class is guarded by **conditions** (`@ConditionalOnClass`, `@ConditionalOnMissingBean`, `@ConditionalOnProperty`): **your own beans always win**.
+- **Starters**: one dependency bringing a tested set of libraries: `spring-boot-starter-webmvc` (Boot 3: `-web`), `-data-jpa`, `-validation`, `-security`, `-actuator`, `-test`. Versions come from the Boot parent BOM.
+- Debug what was applied: run with `--debug` (conditions report) or `/actuator/conditions`.
+
+## @SpringBootApplication
+> **What:** one annotation on the main class = `@Configuration` + `@EnableAutoConfiguration` + `@ComponentScan`.
+- Component scanning covers the main class's **package and sub-packages**, so keep it in the root package.
+- Startup: `SpringApplication.run` → load properties/profiles → create the context → scan + auto-configure beans → start the embedded server → run `CommandLineRunner`s → `ApplicationReadyEvent`.
+
+## IoC & Dependency Injection
+> **What:** **Inversion of Control**: the Spring container creates objects (**beans**) and wires their dependencies, instead of classes creating them with `new`.
+- **Constructor injection** (recommended): `final` fields, explicit dependencies, easy unit tests, no `@Autowired` needed with one constructor.
+- **Field injection** (`@Autowired private X x`): short but hides dependencies and needs reflection in tests. **Setter injection**: optional dependencies.
+- **Why DI**: loose coupling, swap implementations (interfaces), easy mocking, one shared configured instance.
+
+## Stereotype Annotations
 ```text
-spring-boot-starter-webmvc     REST + Tomcat + Jackson (Boot 3: -web)
-spring-boot-starter-data-jpa   Spring Data JPA + Hibernate + HikariCP
-spring-boot-starter-validation Bean Validation
-spring-boot-starter-security   Spring Security
-spring-boot-starter-actuator   health, metrics, info
-spring-boot-starter-cache      @Cacheable
-spring-boot-starter-restclient RestClient, HTTP interfaces (Boot 4)
-spring-boot-starter-aspectj    AOP (Boot 3: -aop)
-spring-boot-starter-test       JUnit 5, Mockito, AssertJ
+@Component       generic Spring bean
+@Service         business logic layer
+@Repository      data access + DB exception translation
+@Controller      MVC controller returning views
+@RestController  @Controller + @ResponseBody (returns JSON)
+@Configuration   class holding @Bean methods
 ```
-- No versions in the pom: the `spring-boot-starter-parent` BOM manages them.
+- **@Component vs @Bean**: `@Component` on your class (found by scanning); `@Bean` method in a `@Configuration` class for third-party classes or custom construction.
 
-## Main Class
-```java
-@SpringBootApplication
-public class CatalogApplication {
-  public static void main(String[] args) {
-    SpringApplication.run(CatalogApplication.class, args);
-  }
-}
-```
-- `@SpringBootApplication` = `@Configuration` + `@EnableAutoConfiguration` + `@ComponentScan` (this package and below: keep it in the **root** package).
-- Auto-config: classes in `AutoConfiguration.imports` applied when `@Conditional`s pass. **Your beans win**. Debug with `--debug`.
+## Choosing Between Beans
+- Several beans of one type → `NoUniqueBeanDefinitionException`. Fix with **`@Primary`** (the default choice) or **`@Qualifier("name")`** (exact pick, wins over `@Primary`).
+- Inject `List<T>` to get all beans of a type; `ObjectProvider<T>` for optional/lazy lookup.
+- Circular dependencies fail at startup (since 2.6): redesign, or break with `@Lazy`.
 
-## Project Layout
+## Bean Scopes & Lifecycle
+- **singleton** (default): one instance per container, shared by all threads → keep it **stateless**.
+- **prototype**: new instance each injection. **request** / **session** / **application**: web scopes (use proxies when injected into singletons).
+- Lifecycle: instantiate → inject → `@PostConstruct` → ready → `@PreDestroy` on shutdown. `BeanPostProcessor`s wrap beans (that's where AOP proxies come from).
+
+## Configuration & Profiles
+- `application.properties` or `application.yml`: `server.port`, `spring.datasource.url`, `spring.jpa.*`, `logging.level.*`, your own `app.*` keys.
+- **`@Value("${app.x:default}")`**: one value. **`@ConfigurationProperties(prefix = "app")`**: binds a whole group into a typed, validatable class/record → preferred for groups.
+- **Profiles**: `application-dev.yml` loaded when `spring.profiles.active=dev`; `@Profile("dev")` beans.
+- **Precedence** (later wins): files in the jar → external config files → environment variables (`SPRING_DATASOURCE_URL`) → `-D` system props → command-line args.
+
+## REST Controllers
+> **What:** `@RestController` classes map HTTP requests to methods and return objects serialised to JSON by Jackson.
+- Mappings: `@GetMapping`, `@PostMapping`, `@PutMapping`, `@PatchMapping`, `@DeleteMapping` (on top of `@RequestMapping("/api/x")`).
+- Inputs: `@PathVariable` (`/users/{id}`), `@RequestParam` (`?page=2`), `@RequestBody` (JSON body), `@RequestHeader`, `@CookieValue`, `MultipartFile`, `Pageable`.
+- Output: return the object (200) or **`ResponseEntity<T>`** to control status and headers (`ResponseEntity.created(uri).body(x)`); `@ResponseStatus(HttpStatus.NO_CONTENT)`.
+- **@Controller vs @RestController**: view names (server-side HTML) vs response body (APIs).
+
+## HTTP Methods & Status Codes
 ```text
-src/main/java/com/acme/catalog/
-  CatalogApplication.java
-  product/  ProductController, ProductService,
-            ProductRepository, Product, dto/
-src/main/resources/
-  application.yml, application-dev.yml,
-  db/migration/V1__init.sql, static/
-src/test/java/...  mirrors main
-```
-
-## Stereotypes & Injection
-```java
-@Service  // also @Component @Repository @Controller
-class ProductService {
-  private final ProductRepository repo;
-  ProductService(ProductRepository repo) {  // constructor injection:
-    this.repo = repo;  // final, testable, no @Autowired
-  }
-  BigDecimal priceWithTax(long id) {
-    return repo.findById(id).map(p -> p.price.multiply(new BigDecimal("1.18")))
-               .orElseThrow();
-  }
-}
-```
-- Avoid field injection (`@Autowired private X x;`): hidden dependencies, hard to test.
-
-## @Configuration & @Bean
-```java
-@Configuration
-class AppConfig {
-  @Bean Clock clock() { return Clock.systemUTC(); }  // third-party object as a bean
-  @Bean @Primary Mapper defaultMapper() { return new Mapper("default"); }
-  @Bean Mapper strictMapper() { return new Mapper("strict"); }
-}
-record Mapper(String mode) {}
-
-@Component
-class UsesMappers {
-  UsesMappers(Mapper primary,  // the @Primary one
-              @Qualifier("strictMapper") Mapper strict,// by bean name
-              List<Mapper> all) { }  // every Mapper bean
-}
-```
-- Resolution: by type → `@Qualifier` → `@Primary` → parameter name. 0 matches or 2+ matches fail at startup.
-
-## Scopes & Lifecycle
-```java
-@Component @Scope("prototype") class ReportBuilder {}  // new per injection
-@Component @RequestScope class RequestCtx {}  // one per HTTP request
-@Component
-class CacheWarmer {
-  @PostConstruct void init() { }  // after injection
-  @PreDestroy void close() { }  // on shutdown
-}
-```
-- Default **singleton** (one per container, shared by all threads): keep beans stateless. Others: `session`, `application`.
-
-## Conditions, Profiles & Runners
-```java
-@Configuration
-class FeatureConfig {
-  @Bean @Profile("dev") Seeder seeder() { return new Seeder(); }
-  @Bean @ConditionalOnProperty(name = "app.search", havingValue = "true")
-  Search search() { return new Search(); }
-  @Bean @ConditionalOnMissingBean Mailer mailer() { return new Mailer(); }
-}
-class Seeder {} class Search {} class Mailer {}
-
-@Component
-class StartupLog implements CommandLineRunner {
-  public void run(String... args) { System.out.println("started"); }
-}
-```
-
-## Events
-```java
-record ProductCreated(long id) {}
-@Component
-class ProductEvents {
-  private final ApplicationEventPublisher publisher;
-  ProductEvents(ApplicationEventPublisher p) { this.publisher = p; }
-  void created(long id) { publisher.publishEvent(new ProductCreated(id)); }
-  @EventListener void on(ProductCreated e) { }  // same thread
-  @TransactionalEventListener void afterCommit(ProductCreated e) { }
-}
-```
-
-## application.yml
-```yaml application.yml
-server.port: 8080
-spring:
-  application.name: catalog
-  datasource:
-    url: jdbc:postgresql://localhost:5432/catalog
-    username: app
-    password: ${DB_PASSWORD}
-  jpa:
-    hibernate.ddl-auto: validate
-    open-in-view: false
-  threads.virtual.enabled: true
-  mvc.problemdetails.enabled: true
-app.catalog.page-size: 20
-logging.level.com.acme: DEBUG
-management.endpoints.web.exposure.include: health,info,metrics
----
-spring.config.activate.on-profile: prod
-server.port: 8443
-```
-
-## @Value & @ConfigurationProperties
-```java
-@ConfigurationProperties(prefix = "app.catalog")
-@Validated
-record CatalogProperties(@Min(1) @Max(100) int pageSize,
-                         @DefaultValue("5s") Duration timeout) {}
-
-@Configuration
-@EnableConfigurationProperties(CatalogProperties.class)
-class PropsConfig {}
-
-@Component
-class Greeter {
-  Greeter(@Value("${app.greeting:Hello}") String greeting,  // default after :
-          CatalogProperties props) { }
-}
-```
-- Typed, validated groups → `@ConfigurationProperties`. One-off value → `@Value`.
-
-## Profiles & Property Order
-- Activate: `spring.profiles.active=dev` (property, `--arg`, env `SPRING_PROFILES_ACTIVE`). `application-dev.yml` overrides `application.yml`.
-- Later wins: jar defaults → profile files → external `./config/` → **env vars** → `-D` system props → **command-line args**.
-- Env names: `SPRING_DATASOURCE_URL` → `spring.datasource.url`. Secrets: env vars, Vault, K8s Secrets, never Git.
-
-## REST Controller
-```java
-@RestController
-@RequestMapping("/products")
-class ProductController {
-  private final ProductCatalog catalog;
-  ProductController(ProductCatalog catalog) { this.catalog = catalog; }
-
-  @GetMapping  // ?category=x&page=0&size=20&sort=price,desc
-  Page<ProductDto> list(@RequestParam(required = false) String category, Pageable pageable) {
-    return catalog.search(category, pageable);
-  }
-  @GetMapping("/{id}")
-  ResponseEntity<ProductDto> get(@PathVariable long id) {
-    return catalog.find(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
-  }
-  @PostMapping
-  ResponseEntity<ProductDto> create(@Valid @RequestBody CreateProduct body, UriComponentsBuilder uri) {
-    ProductDto saved = catalog.create(body);
-    return ResponseEntity.created(uri.path("/products/{id}").build(saved.id())).body(saved);
-  }
-  @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-  void delete(@PathVariable long id) { catalog.delete(id); }
-}
-interface ProductCatalog {
-  Page<ProductDto> search(String category, Pageable p);
-  Optional<ProductDto> find(long id);
-  ProductDto create(CreateProduct body);
-  void delete(long id);
-}
-record ProductDto(long id, String name, BigDecimal price) {}
-record CreateProduct(@NotBlank String name, @NotNull @Positive BigDecimal price) {}
-```
-
-## Request Binding
-- `@PathVariable` URL part · `@RequestParam` query/form (`required`, `defaultValue`) · `@RequestBody` JSON · `@RequestHeader` · `@CookieValue` · `@ModelAttribute` · `MultipartFile` uploads.
-- Also injectable: `Pageable`, `Principal`, `@AuthenticationPrincipal`, `HttpServletRequest`, `Locale`.
-- Return: object (200 JSON) · `ResponseEntity<T>` (status + headers) · `void` + `@ResponseStatus` · `ProblemDetail`.
-
-## HTTP Status Codes
-```text
-200 OK            201 Created (+Location)   204 No Content
-400 Bad Request   401 Unauthorized          403 Forbidden
-404 Not Found     409 Conflict              415 Unsupported Media
-422 Unprocessable 429 Too Many Requests     500 Server Error
-502 Bad Gateway   503 Unavailable           504 Gateway Timeout
-Idempotent: GET PUT DELETE · Safe: GET HEAD OPTIONS
+GET read · POST create · PUT replace · PATCH partial · DELETE
+idempotent: GET PUT DELETE   safe: GET HEAD OPTIONS
+200 OK  201 Created  204 No Content
+400 Bad Request  401 Unauthorized  403 Forbidden
+404 Not Found  409 Conflict  422 Unprocessable  429 Too Many
+500 Server Error  502 Bad Gateway  503 Unavailable
 ```
 
 ## Validation
-```java
-record SignupRequest(
-    @NotBlank @Size(min = 2, max = 50) String name,
-    @NotBlank @Email String email,
-    @NotNull @Min(18) Integer age,
-    @Past LocalDate birthDate,
-    @NotEmpty List<@NotBlank String> tags,
-    @Valid @NotNull Address address) {}  // @Valid cascades
-record Address(@NotBlank String city, @Pattern(regexp = "\\d{6}") String pin) {}
+> **What:** **Jakarta Bean Validation** annotations on DTOs, checked automatically with `@Valid`.
+- Common: `@NotNull`, `@NotBlank` (not null, not only spaces), `@NotEmpty`, `@Size`, `@Min`, `@Max`, `@Positive`, `@Email`, `@Pattern`, `@Past`, `@Future`; custom constraints with `ConstraintValidator`.
+- **@Valid vs @Validated**: `@Valid` (Jakarta) validates and cascades into nested objects; `@Validated` (Spring) adds **groups** and **method validation** on services.
+- A failed `@Valid @RequestBody` → `MethodArgumentNotValidException` → 400.
 
-@Service
-@Validated  // method validation
-class Registration {
-  String register(@Valid SignupRequest req) { return req.email(); }
-}
-```
-- `@Valid` (Jakarta): validate + cascade. `@Validated` (Spring): groups + method validation. Failure → 400.
+## Global Error Handling
+> **What:** a `@RestControllerAdvice` class with `@ExceptionHandler` methods turns exceptions into consistent HTTP responses for all controllers.
+- Return **`ProblemDetail`** (RFC 9457 JSON: `type`, `title`, `status`, `detail`, `instance`) or a `ResponseEntity`.
+- **vs try/catch in every controller**: one place, consistent error format, cleaner controllers.
+- **Tricky**: with `spring.mvc.problemdetails.enabled=true`, Boot's own handler catches MVC exceptions first; extend `ResponseEntityExceptionHandler` and override `handleMethodArgumentNotValid` to customise validation errors. Exceptions thrown in **filters** (incl. Spring Security) never reach `@ControllerAdvice`.
 
-## Custom Constraint
-```java
-@Target({ ElementType.FIELD, ElementType.PARAMETER, ElementType.RECORD_COMPONENT })
-@Retention(RetentionPolicy.RUNTIME)
-@Constraint(validatedBy = SkuValidator.class)
-@interface ValidSku {
-  String message() default "must look like ABC-123";
-  Class<?>[] groups() default {};
-  Class<? extends Payload>[] payload() default {};
-}
-class SkuValidator implements ConstraintValidator<ValidSku, String> {
-  public boolean isValid(String v, ConstraintValidatorContext ctx) {
-    return v == null || v.matches("[A-Z]{3}-\\d{3}");
-  }
-}
-```
+## JPA, Hibernate & Spring Data JPA
+- **JPA**: the Java standard (specification) for mapping objects to tables. **Hibernate**: the most used JPA implementation (the ORM). **Spring Data JPA**: generates repository implementations on top of JPA.
+- **ORM vs JDBC**: work with objects, automatic SQL, caching, dirty checking, less boilerplate; JDBC/`JdbcClient` gives full SQL control and speed for complex queries.
+- Entity annotations: `@Entity`, `@Table`, `@Id`, `@GeneratedValue` (IDENTITY, SEQUENCE), `@Column`, `@Enumerated(EnumType.STRING)`, `@Version` (optimistic lock), `@Transient`.
 
-## Error Handling (ProblemDetail)
-```java
-class ProductNotFoundException extends RuntimeException {
-  ProductNotFoundException(long id) { super("Product " + id + " not found"); }
-}
-@RestControllerAdvice
-class ApiErrors extends ResponseEntityExceptionHandler {
-  @ExceptionHandler(ProductNotFoundException.class)
-  ProblemDetail notFound(ProductNotFoundException ex) {
-    ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-    pd.setTitle("Product not found");
-    return pd;  // application/problem+json
-  }
-  @Override
-  protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
-      HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-    ProblemDetail pd = ex.getBody();
-    pd.setProperty("errors", ex.getBindingResult().getFieldErrors().stream()
-        .collect(Collectors.toMap(FieldError::getField, fe -> String.valueOf(fe.getDefaultMessage()), (a, b) -> a)));
-    return handleExceptionInternal(ex, pd, headers, status, request);
-  }
-}
-```
-- Extend `ResponseEntityExceptionHandler` for built-in MVC errors: otherwise Boot's own handler (with `problemdetails.enabled`) wins. Filter/security errors never reach `@ControllerAdvice`.
+## Entity Relationships
+- `@OneToMany(mappedBy = "x")` / `@ManyToOne` (the **owning side** holds the FK, `@JoinColumn`), `@OneToOne`, `@ManyToMany` (+ `@JoinTable`).
+- **Fetch types**: LAZY (load when accessed) vs EAGER (load immediately). Defaults: `@ManyToOne`/`@OneToOne` EAGER, collections LAZY → set everything LAZY.
+- **Cascade** (`PERSIST`, `MERGE`, `REMOVE`, `ALL`) passes operations to children; `orphanRemoval` deletes children removed from the collection.
+- Entity states: transient → **managed** (changes auto-saved: dirty checking) → detached → removed.
 
-## CORS & API Versioning
-```java
-@Configuration
-class WebConfig implements WebMvcConfigurer {
-  @Override public void addCorsMappings(CorsRegistry r) {
-    r.addMapping("/**").allowedOrigins("https://shop.example.com")
-     .allowedMethods("GET", "POST", "PUT", "DELETE");
-  }
-}
-@RestController
-class OrderController {  // Boot 4 / Spring 7
-  @GetMapping(path = "/orders/{id}", version = "1.0")
-  Map<String, Object> v1(@PathVariable long id) { return Map.of("id", id); }
-  @GetMapping(path = "/orders/{id}", version = "2.0")
-  Map<String, Object> v2(@PathVariable long id) { return Map.of("id", id, "v", 2); }
-}
-// spring.mvc.apiversion.use.header=API-Version   spring.mvc.apiversion.default=1.0
-```
-
-## JPA Entity
-```java
-@Entity
-@Table(name = "products")
-class Product {
-  @Id @GeneratedValue(strategy = GenerationType.IDENTITY) Long id;
-  @Column(nullable = false) String name;
-  @Column(precision = 10, scale = 2) BigDecimal price;
-  @Enumerated(EnumType.STRING) Status status = Status.ACTIVE;  // never ORDINAL
-  @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "category_id")
-  Category category;
-  @Version Long version;  // optimistic locking
-  @Transient String computed;  // not stored
-  protected Product() {}  // JPA needs it
-  Product(String name, BigDecimal price) { this.name = name; this.price = price; }
-  enum Status { ACTIVE, DISCONTINUED }
-}
-```
-
-## Relationships
-```java
-@Entity
-class Category {
-  @Id @GeneratedValue Long id;
-  String name;
-  @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
-  List<Product> products = new ArrayList<>();
-  void add(Product p) { products.add(p); p.category = this; }  // sync both sides
-}
-```
-- Owner side holds the FK (`@ManyToOne` + `@JoinColumn`); other side `mappedBy`. `@ManyToMany` + `@JoinTable`.
-- Defaults: `@ManyToOne`/`@OneToOne` EAGER, collections LAZY → make all LAZY.
-- States: transient → managed (dirty checking) → detached → removed.
-
-## Repositories & Derived Queries
-```java
-interface ProductRepository extends JpaRepository<Product, Long> {
-  List<Product> findByNameContainingIgnoreCase(String part);
-  List<Product> findByPriceBetweenAndStatus(BigDecimal min, BigDecimal max, Product.Status s);
-  Page<Product> findByCategoryName(String category, Pageable pageable);
-  Optional<Product> findFirstByOrderByPriceDesc();
-  long countByStatus(Product.Status status);
-  boolean existsByNameIgnoreCase(String name);
-
-  @Query("select p from Product p where p.price > :min")  // JPQL
-  List<Product> expensive(@Param("min") BigDecimal min);
-  @Query(value = "select * from products where name like concat('%', :q, '%')", nativeQuery = true)
-  List<Product> search(@Param("q") String q);
-  @Modifying @Transactional
-  @Query("update Product p set p.status = :s where p.price < :limit")
-  int discontinue(@Param("limit") BigDecimal limit, @Param("s") Product.Status s);
-  @EntityGraph(attributePaths = "category")  // fixes N+1
-  List<Product> findByStatus(Product.Status status);
-  List<ProductView> findByCategoryId(Long id);  // projection
-}
-interface ProductView { String getName(); BigDecimal getPrice(); }
-```
-- Built in: `save`, `findById`, `findAll(Pageable)`, `existsById`, `count`, `deleteById`, `saveAndFlush`. `PageRequest.of(0, 20, Sort.by("price").descending())`.
+## Spring Data Repositories
+> **What:** declare an interface `extends JpaRepository<Product, Long>` and Spring generates the implementation.
+- Built-in: `save`, `findById`, `findAll`, `findAll(Pageable)`, `deleteById`, `count`, `existsById`, `saveAndFlush`.
+- **Derived queries** from method names: `findByNameContainingIgnoreCase`, `findByPriceBetween`, `findTop3ByOrderByPriceDesc`, `countByStatus`.
+- **@Query**: JPQL (entity names) or `nativeQuery = true` (SQL); `@Modifying` for update/delete. **Projections**: interface or record DTOs with only needed columns.
+- **CrudRepository vs JpaRepository**: basic CRUD vs + paging/sorting, flush, batch operations.
 
 ## @Transactional
-```java
-@Service
-class CatalogAdmin {
-  private final ProductRepository products;
-  CatalogAdmin(ProductRepository products) { this.products = products; }
-  @Transactional
-  void reprice(long id, BigDecimal price) {
-    products.findById(id).orElseThrow().price = price;  // dirty checking, no save()
-  }
-  @Transactional(readOnly = true)
-  List<Product> all() { return products.findAll(); }
-  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  void audit(String msg) throws Exception { }
-}
-```
-- Rolls back on **unchecked** exceptions only (unless `rollbackFor`). Proxy-based: **self-invocation** and `private` methods are ignored.
-- Propagation: `REQUIRED` (default) · `REQUIRES_NEW` · `NESTED` · `SUPPORTS` · `MANDATORY` · `NEVER`.
+> **What:** wraps a method in a database transaction through a **proxy**: commit on success, rollback on failure.
+- Rolls back on **unchecked** exceptions (RuntimeException, Error) only; add `rollbackFor = Exception.class` for checked ones.
+- **Propagation**: `REQUIRED` (default: join or create) · `REQUIRES_NEW` (always a new, independent one) · `NESTED` (savepoint) · `MANDATORY` · `SUPPORTS` · `NEVER`.
+- `readOnly = true` for queries (no dirty checking). Put it on **service** methods.
+- **Doesn't work** for: self-invocation (`this.method()`), `private` methods, objects created with `new`, exceptions caught and swallowed inside.
 
-## N+1 & Lazy Loading
-- **N+1**: 1 query for parents + 1 per parent for children. Fix: `JOIN FETCH`, `@EntityGraph`, `hibernate.default_batch_fetch_size`, DTO projections.
-- `LazyInitializationException`: lazy field touched after the transaction. Fetch inside it; set `open-in-view: false`.
-- `ddl-auto`: `none` · `validate` · `update` · `create` · `create-drop`. Production: `validate` + Flyway/Liquibase.
+## N+1 Problem & Lazy Loading
+> **What:** 1 query loads N parents, then N more queries load each parent's lazy children = N+1 queries.
+- Fix: `JOIN FETCH` in JPQL, `@EntityGraph`, batch fetching (`hibernate.default_batch_fetch_size`), or DTO projections.
+- **LazyInitializationException**: accessing a lazy field after the transaction closed. Fetch what you need inside the transaction; set `spring.jpa.open-in-view=false` so it isn't hidden.
+- `ddl-auto`: `validate` in production + **Flyway/Liquibase** migrations; `update`/`create-drop` only for demos/tests.
 
-## JdbcClient & Flyway
-```java
-@Repository
-class ProductQueries {
-  private final JdbcClient jdbc;
-  ProductQueries(JdbcClient jdbc) { this.jdbc = jdbc; }
-  List<ProductSummary> cheap(BigDecimal max) {
-    return jdbc.sql("select name, price from products where price <= :max")
-               .param("max", max).query(ProductSummary.class).list();
-  }
-}
-record ProductSummary(String name, BigDecimal price) {}
-```
-- Flyway: `db/migration/V1__create_products.sql`, applied once in order (Boot 4: `spring-boot-starter-flyway`).
+## Spring Security
+> **What:** a chain of **servlet filters** in front of your app that handles **authentication** (who are you) and **authorisation** (what may you do).
+- Configure a `SecurityFilterChain` bean: `authorizeHttpRequests(...)` rules (`permitAll`, `hasRole("ADMIN")`, `authenticated()`), `httpBasic`, `formLogin`, `oauth2ResourceServer(jwt)`, `csrf`, `cors`, session policy.
+- Flow: request → filters → `AuthenticationManager` → `UserDetailsService` + `PasswordEncoder` → `SecurityContextHolder`.
+- **401** = not authenticated; **403** = authenticated but not allowed. Method security: `@PreAuthorize("hasRole('ADMIN')")` with `@EnableMethodSecurity`.
+- Passwords: store **BCrypt/Argon2 hashes** only (`PasswordEncoder`).
 
-## Security Filter Chain
-```java
-@Configuration
-@EnableMethodSecurity
-class SecurityConfig {
-  @Bean
-  SecurityFilterChain api(HttpSecurity http) throws Exception {
-    return http
-        .csrf(csrf -> csrf.disable())  // stateless token APIs only
-        .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(a -> a
-            .requestMatchers("/actuator/health/**", "/public/**").permitAll()
-            .requestMatchers("/admin/**").hasRole("ADMIN")
-            .anyRequest().authenticated())  // first match wins
-        .httpBasic(Customizer.withDefaults())
-        .build();
-  }
-}
-```
-- Request → `FilterChainProxy` → `SecurityFilterChain` filters → `DispatcherServlet`. 401 = not logged in, 403 = not allowed.
+## JWT vs Sessions, CSRF & CORS
+- **Session**: server stores login state, browser sends a cookie. **JWT**: signed token carrying claims, sent in `Authorization: Bearer`; stateless, scales across services; hard to revoke before expiry.
+- **OAuth2 / OIDC**: delegated login via an authorisation server (Keycloak, Okta, Google); Boot app acts as a **resource server** validating JWTs.
+- **CSRF**: attack using the browser's automatic cookies. Keep protection for cookie sessions; disable for stateless token APIs.
+- **CORS**: browser rule blocking calls to another origin unless the server allows it (`allowedOrigins`); enable it in the security chain too.
 
-## Users & Passwords
-```java
-@Configuration
-class UsersConfig {
-  @Bean PasswordEncoder encoder() { return PasswordEncoderFactories.createDelegatingPasswordEncoder(); }
-  @Bean UserDetailsService users(PasswordEncoder enc) {  // real apps: load from DB
-    return new InMemoryUserDetailsManager(
-        User.withUsername("ann").password(enc.encode("secret")).roles("USER").build());
-  }
-}
-@Service
-class ReportService {
-  @PreAuthorize("hasRole('ADMIN') or #owner == authentication.name")
-  String report(String owner) { return owner; }
-}
-```
-- Store hashes only (BCrypt/Argon2). `hasRole('X')` = authority `ROLE_X`.
+## Testing
+- **Unit tests**: JUnit 5 + Mockito (`@Mock`, `@InjectMocks`, `when(...).thenReturn`, `verify`), no Spring context: fastest.
+- **Slices**: `@WebMvcTest` (controllers + MockMvc), `@DataJpaTest` (repositories + embedded DB, rollback), `@JsonTest`, `@RestClientTest`.
+- **@SpringBootTest**: full application context (integration tests); with Testcontainers + `@ServiceConnection` for a real database.
+- **@Mock vs @MockitoBean**: plain Mockito mock vs replaces a bean in the Spring context (`@MockBean` was removed in Boot 4).
+- With Spring Security on the classpath, slice tests are secured: use `@WithMockUser` and `.with(csrf())`.
 
-## JWT Resource Server
-```yaml application.yml
-spring.security.oauth2.resourceserver.jwt.issuer-uri: https://auth.example.com/realms/shop
-```
-```java
-@Configuration
-class JwtConfig {
-  @Bean @Order(1)  // specific chains first
-  SecurityFilterChain jwtApi(HttpSecurity http) throws Exception {
-    return http.securityMatcher("/api/**")
-        .authorizeHttpRequests(a -> a.anyRequest().authenticated())
-        .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()))
-        .build();
-  }
-}
-```
-
-## Unit Test (Mockito)
-```java
-@ExtendWith(MockitoExtension.class)
-class ProductServiceTest {
-  @Mock ProductRepository repo;
-  @InjectMocks ProductService service;
-  @Test void addsTax() {
-    when(repo.findById(1L)).thenReturn(Optional.of(new Product("Pen", new BigDecimal("10.00"))));
-    assertThat(service.priceWithTax(1L)).isEqualByComparingTo("11.80");
-    verify(repo).findById(1L);
-  }
-}
-```
-
-## @WebMvcTest
-```java
-@WebMvcTest(ProductController.class)  // web layer only
-@WithMockUser  // security is on in the slice
-class ProductControllerTest {
-  @Autowired MockMvc mvc;
-  @MockitoBean ProductCatalog catalog;  // replaces @MockBean (removed in Boot 4)
-  @Test void notFound() throws Exception {
-    when(catalog.find(42L)).thenReturn(Optional.empty());
-    mvc.perform(get("/products/42")).andExpect(status().isNotFound());
-  }
-  @Test void invalidBody() throws Exception {
-    mvc.perform(post("/products").with(csrf()).contentType(MediaType.APPLICATION_JSON)
-        .content("{\"name\":\"\"}")).andExpect(status().isBadRequest());
-  }
-}
-```
-
-## Other Test Slices
-```java
-@DataJpaTest  // JPA + embedded DB, rollback per test
-class RepoTest {
-  @Autowired ProductRepository repo;
-  @Autowired TestEntityManager em;
-  @Test void finds() {
-    em.persist(new Product("Blue Pen", BigDecimal.ONE));
-    assertThat(repo.findByNameContainingIgnoreCase("pen")).hasSize(1);
-  }
-}
-```
-- `@SpringBootTest(webEnvironment = RANDOM_PORT)` = full app; Boot 4 `@AutoConfigureRestTestClient` + `RestTestClient`. Testcontainers + `@ServiceConnection` for real DBs. Also `@JsonTest`, `@RestClientTest`.
-
-## Actuator
-```properties application.properties
-management.endpoints.web.exposure.include=health,info,metrics,prometheus
-management.endpoint.health.show-details=when-authorized
-info.app.version=1.4.2
-```
-```text
-/actuator/health   UP/DOWN · /health/liveness · /health/readiness
-/actuator/metrics  /actuator/prometheus  /actuator/info
-/actuator/loggers  change levels at runtime
-/actuator/env /beans /mappings /threaddump /heapdump: keep private
-```
-- Only `health` is exposed by default. Liveness = restart me (no DB check) · readiness = send me traffic.
-
-## Health & Metrics
-```java
-@Component
-class InventoryHealth implements HealthIndicator {  // Boot 4: ...boot.health.contributor
-  public Health health() { return Health.up().withDetail("warehouses", 3).build(); }
-}
-@Service
-class Checkout {
-  private final Counter orders;
-  Checkout(MeterRegistry registry) {
-    orders = Counter.builder("orders.placed").tag("channel", "web").register(registry);
-  }
-  void place() { orders.increment(); }
-}
-```
-- Micrometer metrics → Prometheus/Grafana. Tracing: Micrometer Tracing + OpenTelemetry → Zipkin/Jaeger; trace ids in logs.
+## Actuator & Observability
+> **What:** production endpoints under `/actuator`: `health` (UP/DOWN, liveness/readiness for Kubernetes), `info`, `metrics`, `prometheus`, `loggers`, `env`, `beans`, `mappings`, `threaddump`.
+- Only `health` is exposed by default; expose more with `management.endpoints.web.exposure.include`, secure the rest.
+- **Metrics**: Micrometer (counters, timers) → Prometheus/Grafana. **Tracing**: Micrometer Tracing + OpenTelemetry → Zipkin/Jaeger, trace IDs in logs.
+- **Liveness vs readiness**: "restart me" (don't check the DB) vs "send me traffic" (check dependencies).
 
 ## Logging
-```java
-@Service
-class PaymentService {
-  private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
-  void pay(String orderId, BigDecimal amount) {
-    MDC.put("orderId", orderId);  // on every line
-    try {
-      log.info("Charging {} for {}", amount, orderId);
-    } catch (RuntimeException e) {
-      log.error("Payment failed for {}", orderId, e);  // exception last
-      throw e;
-    } finally { MDC.remove("orderId"); }
-  }
-}
-```
-- SLF4J + Logback. Levels TRACE < DEBUG < INFO < WARN < ERROR. JSON logs: `logging.structured.format.console=ecs`.
+- SLF4J API + Logback by default. Levels: TRACE < DEBUG < INFO < WARN < ERROR; set with `logging.level.com.acme=DEBUG`.
+- Use placeholders `log.info("Order {}", id)` (no string building when disabled); pass the exception last to keep the stack trace.
+- **MDC** adds request IDs to every line; JSON structured logs: `logging.structured.format.console=ecs` (3.4+).
 
-## @Async & @Scheduled
-```java
-@Configuration @EnableAsync @EnableScheduling
-class AsyncConfig {}
+## Async, Scheduling & Caching
+- **@Async** (+ `@EnableAsync`): run a method on another thread, return `CompletableFuture`. **Virtual threads**: `spring.threads.virtual.enabled=true`.
+- **@Scheduled** (+ `@EnableScheduling`): `fixedRate`, `fixedDelay`, `cron = "0 0 2 * * MON-FRI"`. In a cluster every instance runs it (use ShedLock).
+- **Caching** (+ `@EnableCaching`): `@Cacheable` (skip method on hit), `@CachePut` (always run, update), `@CacheEvict` (remove). Providers: Caffeine, Redis.
+- All of these use **proxies**: self-invocation and private methods are ignored, like `@Transactional`.
 
-@Service
-class Notifier {
-  @Async CompletableFuture<String> send(String to) {
-    return CompletableFuture.completedFuture("sent " + to);
-  }
-  @Scheduled(fixedRate = 60_000) void heartbeat() { }  // every 60 s
-  @Scheduled(cron = "0 0 2 * * MON-FRI") void nightly() { }// sec min hour dom mon dow
-}
-```
-- Same proxy rules as `@Transactional`. Virtual threads: `spring.threads.virtual.enabled=true`. Clusters: every instance runs `@Scheduled` (use ShedLock).
-
-## Caching
-```java
-@Configuration @EnableCaching
-class CacheConfig {}
-
-@Service
-class PriceService {
-  @Cacheable(cacheNames = "prices", key = "#sku")
-  BigDecimal price(String sku) { return new BigDecimal("10.00"); }
-  @CachePut(cacheNames = "prices", key = "#sku")
-  BigDecimal update(String sku, BigDecimal p) { return p; }
-  @CacheEvict(cacheNames = "prices", key = "#sku")
-  void remove(String sku) { }
-}
-```
-- Default store is an in-memory map; use Caffeine or Redis (`spring.cache.type`).
-
-## RestClient
-```java
-record Stock(String sku, int quantity) {}
-@Service
-class InventoryGateway {
-  private final RestClient http;
-  InventoryGateway(RestClient.Builder builder) {
-    this.http = builder.baseUrl("https://inventory.example.com").build();
-  }
-  @Retryable(maxRetries = 3, delay = 200, multiplier = 2)  // Spring 7 core retry
-  Stock stock(String sku) {
-    return http.get().uri("/stock/{sku}", sku).retrieve()
-        .onStatus(HttpStatusCode::is4xxClientError, (rq, rs) -> {
-          throw new IllegalArgumentException("unknown " + sku); })
-        .body(Stock.class);
-  }
-}
-@Configuration @EnableResilientMethods
-class RetryConfig {}
-```
-- RestTemplate (legacy) → **RestClient** (sync) · **WebClient** (reactive). Set timeouts: `spring.http.clients.read-timeout`.
-
-## HTTP Interface Clients
-```java
-@HttpExchange("/stock")
-interface StockApi {
-  @GetExchange("/{sku}") Stock get(@PathVariable String sku);
-  @PostExchange Stock create(@RequestBody Stock stock);
-}
-@Configuration
-@ImportHttpServices(group = "inventory", types = StockApi.class)
-class HttpServicesConfig {}
-// spring.http.serviceclient.inventory.base-url=https://inventory.example.com
-```
-- Declarative client generated by Spring (Framework 7 registration). Spring Cloud **OpenFeign** = older alternative.
-
-## Kafka
-```java
-record OrderPlaced(String orderId, BigDecimal amount) {}
-@Service
-class OrderEvents {
-  private final KafkaTemplate<String, OrderPlaced> kafka;
-  OrderEvents(KafkaTemplate<String, OrderPlaced> kafka) { this.kafka = kafka; }
-  void publish(OrderPlaced e) { kafka.send("orders", e.orderId(), e); }  // key keeps order
-  @KafkaListener(topics = "orders", groupId = "billing")
-  void on(OrderPlaced e) { }  // make it idempotent
-}
-```
-- `spring.kafka.bootstrap-servers=localhost:9092`. RabbitMQ: `RabbitTemplate` + `@RabbitListener`.
-
-## Microservices Toolkit
+## Calling Other Services
 ```text
-discovery       Eureka / Consul (K8s: Service DNS)
-load balancing  Spring Cloud LoadBalancer, @LoadBalanced
-config          Config Server + spring.config.import
-gateway         Spring Cloud Gateway (routes, filters, rate limit)
-HTTP clients    OpenFeign or @HttpExchange
-resilience      Resilience4j: CircuitBreaker, Retry,
-                RateLimiter, Bulkhead, TimeLimiter
-tracing         Micrometer Tracing + OpenTelemetry
-messaging       Kafka, RabbitMQ
+RestTemplate     old synchronous template (maintenance mode)
+RestClient       modern fluent synchronous client (Boot 3.2+)
+WebClient        reactive, non-blocking (WebFlux)
+@HttpExchange    declarative interface client (Spring 6/7)
+OpenFeign        declarative client from Spring Cloud
+Kafka / RabbitMQ asynchronous messaging, decoupled
 ```
-- Spring Cloud **2025.1** ↔ Boot 4.0 · **2025.0** ↔ Boot 3.5.
-
-## Feign & Circuit Breaker
-```java
-@FeignClient(name = "inventory-service", path = "/stock")  // + @EnableFeignClients
-interface InventoryFeign {
-  @GetMapping("/{sku}") Stock get(@PathVariable("sku") String sku);
-}
-@Service
-class StockFacade {
-  private final InventoryFeign inventory;
-  StockFacade(InventoryFeign inventory) { this.inventory = inventory; }
-  @CircuitBreaker(name = "inventory", fallbackMethod = "unknown")
-  @Retry(name = "inventory")
-  Stock stock(String sku) { return inventory.get(sku); }
-  Stock unknown(String sku, Throwable t) { return new Stock(sku, 0); }
-}
-```
-- States: **CLOSED** (calls pass) → **OPEN** (fail fast, fallback) → **HALF_OPEN** (trial calls) → CLOSED/OPEN.
-
-## API Gateway
-```java
-@Configuration
-class GatewayConfig {
-  @Bean
-  RouteLocator routes(RouteLocatorBuilder b) {
-    return b.routes()
-        .route("orders", r -> r.path("/api/orders/**")
-            .filters(f -> f.stripPrefix(1).retry(3))
-            .uri("lb://order-service"))  // via discovery + load balancer
-        .build();
-  }
-}
-```
-- Gateway = single entry point: routing, auth, rate limiting (Redis token bucket → 429), CORS.
-
-## Distributed Data
-- **Database per service**. No 2PC across services: use a **Saga** (choreography with events, or an orchestrator) with **compensating** actions.
-- **Transactional Outbox**: save the event in the same local transaction, relay it to Kafka. Consumers must be **idempotent**.
+- Always set timeouts; add retries (`@Retryable` in Spring 7 core, or Resilience4j) and circuit breakers for remote calls.
+- **Sync vs async messaging**: REST is simple and immediate but couples availability; messaging decouples services and absorbs load spikes but adds eventual consistency.
 
 ## AOP & Proxies
+> **What:** **Aspect-Oriented Programming** adds cross-cutting behaviour (logging, transactions, security, caching) around methods without changing them.
+- Terms: **aspect** (`@Aspect` class), **advice** (`@Before`, `@After`, `@AfterReturning`, `@AfterThrowing`, `@Around`), **pointcut** (which methods: `execution(* com.acme..*Service.*(..))`), **join point** (a method call).
+- Spring AOP uses **proxies** (CGLIB subclass or JDK interface proxy): only **external calls to public methods** of Spring beans are intercepted. This is why self-calls skip `@Transactional`.
 ```java
-@Aspect
-@Component
-class TimingAspect {
-  @Around("execution(* com.acme..*Service.*(..))")
-  Object time(ProceedingJoinPoint pjp) throws Throwable {
-    long start = System.nanoTime();
-    try { return pjp.proceed(); }
-    finally { System.out.println(pjp.getSignature() + " " + (System.nanoTime() - start)); }
-  }
+@Service
+class OrderService {
+  public void place() { this.save(); }        // self-call: NO transaction
+  @Transactional public void save() { }
 }
 ```
-- Advice: `@Before` `@After` `@AfterReturning` `@AfterThrowing` `@Around`. Proxies (CGLIB/JDK) intercept only **external calls to public methods** → why `@Transactional`/`@Cacheable`/`@Async` ignore self-calls.
 
-## Docker & Kubernetes
-- `./mvnw spring-boot:build-image` or a Dockerfile on a JRE image; `-XX:MaxRAMPercentage=75`.
-- Graceful shutdown is default (3.4+). Probes: `/actuator/health/liveness`, `/readiness` (on by default in Boot 4).
-- Config via ConfigMaps/Secrets → env vars. Scale stateless instances horizontally.
+## Microservices
+> **What:** an application split into small, independently deployable services, each owning its data and doing one business capability.
+- **vs monolith**: independent deploys and scaling, team autonomy, tech freedom; cost: network calls, distributed data, harder debugging and ops. Start with a modular monolith if unsure.
+- Patterns: **API gateway**, **service discovery** (Eureka / Kubernetes DNS), **config server**, **circuit breaker**, **database per service**, **saga**, **outbox**, **CQRS**, **event-driven** communication.
 
-## Versions
-- **2.x**: `javax.*`, Java 8+ (EOL). **3.0** (2022): Java 17, Spring 6, **`jakarta.*`**, Micrometer tracing, native images, `ProblemDetail`.
-- **3.2**: virtual threads, `RestClient`, `JdbcClient`. **3.4**: structured logging, `@MockitoBean`, graceful shutdown default.
-- **4.0** (Nov 2025): Spring 7, Jakarta EE 11, Jackson 3, modular starters, API versioning, HTTP service clients, `@Retryable` in core, `@MockBean` removed. **4.1.1** is current.
+## Spring Cloud Components
+- **Eureka**: service registry (instances register, clients look up). **Spring Cloud LoadBalancer**: client-side load balancing (`@LoadBalanced`).
+- **Config Server**: central configuration from Git (`spring.config.import=configserver:`).
+- **Gateway**: single entry point: routing (`lb://order-service`), auth, rate limiting, CORS.
+- **OpenFeign**: declarative REST clients. **Resilience4j**: circuit breaker, retry, rate limiter, bulkhead, time limiter.
+- Release trains: 2025.0 ↔ Boot 3.5, 2025.1 ↔ Boot 4.0.
 
-## Pitfalls
-- Main class not in the root package → beans not scanned.
-- `@Transactional`/`@Async`/`@Cacheable` on private or self-called methods → ignored.
-- Mutable state in singletons → data leaks between requests.
-- Catching an exception inside `@Transactional` without rethrowing → commits.
-- Returning entities from APIs → lazy errors, JSON recursion: use DTOs.
-- `ddl-auto=update` in production; HTTP clients without timeouts; secrets in Git.
+## Circuit Breaker
+> **What:** stops calling a failing service after a failure threshold, fails fast with a **fallback**, then tests recovery.
+- States: **CLOSED** (normal, counting failures) → **OPEN** (calls rejected immediately) → **HALF_OPEN** (a few trial calls) → back to CLOSED or OPEN.
+- **Why**: prevents cascading failures and thread exhaustion when a dependency is down. Combine with **timeouts**, **retries with backoff** and **bulkheads**.
+
+## Distributed Transactions
+- **2PC** (two-phase commit): strong consistency but blocking, slow, poorly supported across services.
+- **Saga**: a sequence of local transactions with **compensating actions** on failure. **Choreography** (services react to events) vs **orchestration** (a coordinator tells each step).
+- **Transactional outbox**: write the event to an outbox table in the same local transaction, then publish it to Kafka: no lost or phantom events. Consumers must be **idempotent**.
+
+## Deployment
+- Executable jar (`java -jar`), container image (`./mvnw spring-boot:build-image` or a Dockerfile), GraalVM native image (fast start, low memory).
+- Kubernetes: liveness/readiness probes from Actuator, config via ConfigMaps/Secrets (env vars), graceful shutdown (default since 3.4), horizontal scaling of stateless instances.
+
+## Boot Versions
+- **2.x**: `javax.*`, Java 8+ (end of life). **3.0** (2022): Java 17, Spring 6, **`jakarta.*`** packages, Micrometer tracing, native images, ProblemDetail.
+- **3.2**: virtual threads, `RestClient`, `JdbcClient`. **3.4**: structured logging, `@MockitoBean`.
+- **4.0** (Nov 2025): Spring 7, Jakarta EE 11, Jackson 3, modular starters, **API versioning**, HTTP service clients, `@Retryable` in core, `@MockBean` removed. Current: 4.1.1.
+
+## Common Pitfalls
+- Main class not in the root package → beans not found.
+- `@Transactional`/`@Async`/`@Cacheable` on private or self-called methods → silently ignored.
+- Mutable fields in singleton beans → data shared between users' requests.
+- Catching an exception inside `@Transactional` without rethrowing → the transaction commits.
+- Returning JPA entities from APIs → lazy-loading errors, infinite JSON recursion: return DTOs.
+- `ddl-auto=update` in production, HTTP clients without timeouts, secrets committed to Git.
 
 ## Interview One-Liners
-- **Spring vs Spring Boot**: framework vs auto-config + starters + embedded server.
+- **Spring vs Spring Boot**: framework vs auto-configured, runnable apps.
+- **IoC / DI**: the container creates and injects dependencies.
 - **@Component vs @Bean**: scanned class vs factory method.
+- **@Primary vs @Qualifier**: default choice vs exact choice.
 - **@Controller vs @RestController**: views vs JSON body.
-- **Constructor injection**: final fields, explicit, testable.
-- **@Primary vs @Qualifier**: default choice vs exact pick.
-- **REQUIRED vs REQUIRES_NEW**: join vs new transaction.
-- **save vs saveAndFlush**: deferred SQL vs immediate.
-- **@Mock vs @MockitoBean**: plain mock vs replaces a Spring bean.
-- **CSRF**: needed for cookie sessions, off for stateless JWT APIs.
-- **Circuit breaker**: stop calling a failing service, fail fast, retry later.
+- **JPA vs Hibernate vs Spring Data**: spec vs implementation vs repository abstraction.
+- **save vs saveAndFlush**: SQL at commit vs SQL immediately.
+- **REQUIRED vs REQUIRES_NEW**: join vs new independent transaction.
+- **401 vs 403**: not logged in vs not allowed.
+- **Monolith vs microservices**: one deployable vs many independent services.

@@ -60,7 +60,7 @@ export type PageLink = { href: string; label: string; hint: string };
               <p class="callout" [innerHTML]="b.html"></p>
             } @else if (b.k === 'code') {
               @let key = i + '-' + $index;
-              <figure class="code">
+              <figure class="code" [attr.data-lang]="b.lang">
                 <figcaption>
                   <span class="code-title">{{ b.file || 'Example' }}</span>
                   <span class="lang">{{ b.lang }}</span>

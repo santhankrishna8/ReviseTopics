@@ -263,7 +263,7 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 .sheet-view.poster { grid-template-columns: minmax(0, 1fr); }
 .poster .doc { max-width: 1680px; padding: 28px 28px 72px; }
 .poster .doc h1 { margin-top: 22px; }
-.cards { columns: 330px; column-gap: 16px; margin-top: 28px; }
+.cards { columns: 420px; column-gap: 16px; margin-top: 28px; }
 .cards > .sec {
   --c: #0a7a55;
   break-inside: avoid; margin: 0 0 16px; padding: 12px 14px 6px; border: 2px solid var(--c); border-radius: 14px;
@@ -293,6 +293,8 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 .cards .code figcaption { display: none; }
 .cards .code pre { padding: 8px 10px; font-size: .74rem; line-height: 1.55; overflow-x: visible; }
 .cards .code pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cards .code[data-lang="text"] pre { overflow-x: auto; font-size: .7rem; }   /* comparison tables keep their columns */
+.cards .code[data-lang="text"] pre code { white-space: pre; overflow-wrap: normal; }
 .cards .doc :not(pre) > code, .cards :not(pre) > code { font-size: .84em; }
 .poster .doc-foot { margin-top: 40px; }
 
