@@ -2,6 +2,7 @@ import { Component, ElementRef, afterNextRender, computed, effect, signal, untra
 import { Sheet, loadTopic, store } from './notes';
 import { GROUPS, READY } from './topics';
 import { PageLink, SheetView } from './sheet';
+import { ThemeToggle } from './theme-toggle';
 
 type Route = { topic: string; sheet: string; section?: number };
 type Hit = { kind: 'Sheet' | 'Section' | 'Question'; title: string; where: string; href: string; hay: string };
@@ -35,7 +36,7 @@ function byLevel(list: Sheet[]) {
 
 @Component({
   selector: 'app-root',
-  imports: [SheetView],
+  imports: [SheetView, ThemeToggle],
   host: { '(window:hashchange)': 'onHash()', '(window:keydown)': 'onKey($event)' },
   template: `
     <header class="top">
@@ -70,6 +71,7 @@ function byLevel(list: Sheet[]) {
         }
       </div>
 
+      <app-theme-toggle />
       @if (totals().all) {
         <p class="overall"><span class="mono">{{ totals().done }}/{{ totals().all }}</span> sheets revised</p>
       }

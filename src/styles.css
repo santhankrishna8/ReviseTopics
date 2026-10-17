@@ -33,7 +33,41 @@
 
   --header-h: 64px;
   --sidebar-w: 288px;
+  --surface: #ffffff;   /* card and code backgrounds */
+  --code-ink: #1f2328;
+  --marker: #a8a8ae;
   color-scheme: light;
+}
+
+/* Dark theme: toggled by the header switch (data-theme on <html>, saved in localStorage). Base #111827. */
+:root[data-theme="dark"] {
+  --bg: #111827;
+  --rail: #0d131f;
+  --hover: #1f2937;
+  --ink: #f3f4f6;
+  --ink-2: #d1d5db;
+  --muted: #9ca3af;
+  --label: #9ca3af;
+  --line: #1f2937;
+  --line-2: #374151;
+  --green: #047857;
+  --green-hover: #065f46;
+  --green-ink: #34d399;
+  --green-tint: #0d2e27;
+  --amber: #d97706;
+  --amber-tint: #2a2112;
+  --amber-line: #5b4513;
+  --code-bg: #0b1120;
+  --code-head: #1f2937;
+  --tok-k: #ff7b72;
+  --tok-s: #a5d6ff;
+  --tok-c: #8b949e;
+  --tok-n: #79c0ff;
+  --tok-t: #d2a8ff;
+  --surface: #0b1120;
+  --code-ink: #e6edf3;
+  --marker: #6b7280;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -90,6 +124,18 @@ a { color: inherit; }
 .hit-where { font-size: .8rem; color: var(--muted); }
 .results .no-hits { display: block; padding: 14px 12px; color: var(--muted); cursor: default; }
 
+.theme-toggle {
+  position: relative; flex: none; width: 64px; height: 34px; padding: 0; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-2); background: var(--hover); color: var(--ink);
+  transition: background-color .3s var(--ease-out), border-color .3s var(--ease-out);
+}
+.theme-toggle[aria-checked="true"] { background: var(--line-2); }
+.tt-thumb {
+  position: absolute; top: 2px; left: 2px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px;
+  background: var(--bg); box-shadow: 0 1px 3px rgb(0 0 0 / .25); transition: translate .3s cubic-bezier(.16, 1, .3, 1);
+}
+.theme-toggle[aria-checked="true"] .tt-thumb { translate: 28px 0; }
+.tt-thumb svg { width: 16px; height: 16px; }
 .overall { margin: 0; font-size: .88rem; color: var(--muted); white-space: nowrap; }
 .mono { font-family: var(--font-mono); font-weight: 500; color: var(--ink); }
 
@@ -191,7 +237,7 @@ button.topic:hover { background: var(--hover); }
 .sec h2 { margin: 0; font: 700 1.65rem/1.25 var(--font-sans); letter-spacing: -0.02em; text-wrap: balance; }
 .sec ul { margin: 0 0 18px; padding-left: 1.3em; color: var(--ink-2); font-size: 1.04rem; line-height: 1.7; }
 .sec li { margin: 6px 0; padding-left: 4px; text-wrap: pretty; }
-.sec li::marker { color: #a8a8ae; }
+.sec li::marker { color: var(--marker); }
 
 mark { background: none; color: var(--ink); font-weight: 600; }
 .doc :not(pre) > code {
@@ -213,7 +259,7 @@ mark { background: none; color: var(--ink); font-weight: 600; }
   background: var(--bg); color: var(--ink-2); font: 500 .78rem var(--font-mono); cursor: pointer;
 }
 .copy:hover { border-color: var(--muted); color: var(--ink); }
-.code pre { margin: 0; padding: 18px 20px; overflow-x: auto; font: 400 .9rem/1.7 var(--font-mono); color: #1f2328; tab-size: 4; }
+.code pre { margin: 0; padding: 18px 20px; overflow-x: auto; font: 400 .9rem/1.7 var(--font-mono); color: var(--code-ink); tab-size: 4; }
 .code pre code { font: inherit; white-space: pre; }
 /* after the font shorthands above, which reset ligatures: keep -> and == literal */
 code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
@@ -267,7 +313,7 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 .cards > .sec {
   --c: #0a7a55;
   margin: 0; min-width: 0; padding: 12px 14px 6px; border: 2px solid var(--c); border-radius: 14px;
-  background: color-mix(in srgb, var(--c) 5%, #fff);
+  background: color-mix(in srgb, var(--c) 5%, var(--bg));
 }
 .cards > .sec:nth-child(8n+1) { --c: #2563eb; }
 .cards > .sec:nth-child(8n+2) { --c: #d97706; }
@@ -280,7 +326,7 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 .cards .sec-head { margin-bottom: 8px; }
 .cards .sec h2 {
   display: flex; align-items: center; gap: 8px; width: fit-content; padding: 3px 12px 3px 4px; border-radius: 999px;
-  background: color-mix(in srgb, var(--c) 16%, #fff); font-size: 1.02rem; letter-spacing: -0.01em;
+  background: color-mix(in srgb, var(--c) 16%, var(--bg)); font-size: 1.02rem; letter-spacing: -0.01em;
 }
 .cards .num {
   display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 5px; border-radius: 999px;
@@ -289,7 +335,7 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 .cards .sec ul { margin: 0 0 8px; padding-left: 1.1em; font-size: .86rem; line-height: 1.5; }
 .cards .sec li { margin: 3px 0; padding-left: 2px; }
 .cards .callout { margin: 8px 0; padding: 8px 11px; border-radius: 9px; font-size: .84rem; line-height: 1.5; }
-.cards .code { margin: 8px 0; border-radius: 9px; border-color: color-mix(in srgb, var(--c) 30%, var(--line)); background: #fff; }
+.cards .code { margin: 8px 0; border-radius: 9px; border-color: color-mix(in srgb, var(--c) 30%, var(--line)); background: var(--surface); }
 .cards .code figcaption { display: none; }
 .cards .code pre { padding: 8px 10px; font-size: .74rem; line-height: 1.55; overflow-x: visible; }
 .cards .code pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
