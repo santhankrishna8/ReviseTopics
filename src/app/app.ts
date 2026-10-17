@@ -1,6 +1,6 @@
 import { Component, ElementRef, afterNextRender, computed, effect, signal, untracked, viewChild } from '@angular/core';
 import { Sheet, loadTopic, store } from './notes';
-import { GROUPS, READY } from './topics';
+import { GROUPS, READY, Topic } from './topics';
 import { PageLink, SheetView } from './sheet';
 import { ThemeToggle } from './theme-toggle';
 
@@ -8,6 +8,7 @@ type Route = { topic: string; sheet: string; section?: number };
 type Hit = { kind: 'Sheet' | 'Section' | 'Question'; title: string; where: string; href: string; hay: string };
 
 const HOME: Route = { topic: READY[0].id, sheet: '01' };
+const label = (t: Topic) => (t.poster ? `${t.name} Cheat Sheet` : t.name);   // sidebar shows the short name
 const doneKey = (topic: string, n: string) => `rev:${topic}:${n}`;
 
 function parseHash(hash: string): Route | null {
@@ -84,7 +85,13 @@ function byLevel(list: Sheet[]) {
           <ul class="topics">
             @for (t of g.topics; track t.id) {
               <li>
-                @if (t.ready) {
+                @if (t.poster) {
+                  @let here = route().topic === t.id;
+                  <a class="topic direct" [href]="'#/' + t.id + '/01'" [class.active]="here" [attr.aria-current]="here ? 'page' : null">
+                    <span class="topic-name">{{ t.name }}</span>
+                    @if (isDone(t.id, '01')) { <svg class="tick" viewBox="0 0 24 24" aria-label="revised"><path d="M20 6 9 17l-5-5"/></svg> }
+                  </a>
+                } @else if (t.ready) {
                   <button type="button" class="topic" [attr.aria-expanded]="expanded().has(t.id)" (click)="toggle(t.id)">
                     <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
                     <span class="topic-name">{{ t.name }}</span>
@@ -159,7 +166,7 @@ export class App {
     for (const [id, list] of Object.entries(this.sheets())) out[id] = byLevel(list!);
     return out;
   });
-  protected readonly topicName = computed(() => READY.find(t => t.id === this.route().topic)!.name);
+  protected readonly topicName = computed(() => label(READY.find(t => t.id === this.route().topic)!));
   protected readonly poster = computed(() => !!READY.find(t => t.id === this.route().topic)!.poster);
   private readonly position = computed(() => {
     const list = this.sheets()[this.route().topic];
@@ -195,11 +202,11 @@ export class App {
     const hits: Hit[] = [];
     for (const t of READY) {
       for (const s of this.sheets()[t.id] ?? []) {
-        const where = `${t.name} › ${s.short}`;
+        const where = `${label(t)} › ${s.short}`;
         const base = `#/${t.id}/${s.n}`;
-        hits.push({ kind: 'Sheet', title: s.title, where: t.name, href: base, hay: `${t.name} ${s.title} ${s.short} ${s.sub}`.toLowerCase() });
+        hits.push({ kind: 'Sheet', title: s.title, where: label(t), href: base, hay: `${label(t)} ${s.title} ${s.short} ${s.sub}`.toLowerCase() });
         s.sections.forEach((sec, i) => {
-          hits.push({ kind: 'Section', title: sec.title, where, href: `${base}/${i}`, hay: `${sec.title} ${t.name}`.toLowerCase() });
+          hits.push({ kind: 'Section', title: sec.title, where, href: `${base}/${i}`, hay: `${sec.title} ${label(t)}`.toLowerCase() });
           for (const b of sec.blocks) {
             if (b.k === 'qa') for (const p of b.pairs) hits.push({ kind: 'Question', title: p.text, where, href: `${base}/${i}`, hay: `${p.text} ${t.name}`.toLowerCase() });
           }

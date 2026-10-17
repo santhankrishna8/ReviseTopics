@@ -41,9 +41,12 @@ export type PageLink = { href: string; label: string; hint: string };
 
       <div [class.cards]="poster()">
       @for (sec of sheet().sections; track $index; let i = $index) {
-        <section class="sec" [id]="'sec-' + i" [attr.aria-labelledby]="'h-' + i">
+        @if (sec.group) {
+          <h2 class="sec grp" [id]="'sec-' + i" [attr.data-tone]="sec.tone">{{ sec.title }}</h2>
+        } @else {
+        <section class="sec" [id]="'sec-' + i" [attr.data-tone]="sec.tone" [attr.aria-labelledby]="'h-' + i">
           <div class="sec-head">
-            <h2 [id]="'h-' + i">@if (poster()) { <span class="num">{{ i + 1 }}</span> }{{ sec.title }}</h2>
+            <h2 [id]="'h-' + i">@if (poster()) { <span class="num">{{ sec.num }}</span> }{{ sec.title }}</h2>
             @if (sec.isQa) {
               <button type="button" class="quiz" [attr.aria-pressed]="quiz()" (click)="quiz.set(!quiz())"
                       title="Hide answers so you can test yourself">
@@ -58,6 +61,8 @@ export type PageLink = { href: string; label: string; hint: string };
               </ul>
             } @else if (b.k === 'note') {
               <p class="callout" [innerHTML]="b.html"></p>
+            } @else if (b.k === 'tip') {
+              <p class="tip"><span class="tip-label">Remember</span><span [innerHTML]="b.html"></span></p>
             } @else if (b.k === 'code') {
               @let key = i + '-' + $index;
               <figure class="code" [attr.data-lang]="b.lang">
@@ -86,6 +91,7 @@ export type PageLink = { href: string; label: string; hint: string };
             }
           }
         </section>
+        }
       }
       </div>
 

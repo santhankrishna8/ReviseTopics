@@ -1,115 +1,259 @@
-# 01 | SQL Cheat Sheet | Concepts on one page: what each SQL feature is, when to use it, how the alternatives compare, and only the tricky queries | SQL on one page
+# 01 | SQL Interview Cheat Sheet | Every card: a crisp definition you can say out loud, an example query with its result, the key points, and a hook to remember it. Examples use the small company database in the first card. | SQL on one page
 
-## SQL & Relational Databases
-> **What:** **SQL** (Structured Query Language) is the declarative language for relational databases: you say what data you want, the optimiser decides how to get it.
-- **RDBMS**: data in **tables** (rows + columns) linked by **keys**, with constraints and ACID transactions: PostgreSQL, MySQL, SQL Server, Oracle, SQLite.
-- **SQL vs NoSQL**: SQL = fixed schema, joins, strong consistency, complex queries; NoSQL (MongoDB, Redis, Cassandra) = flexible schema, easy horizontal scaling, simpler access patterns.
+### Basics
 
-## SQL Sub-Languages
-- **DDL** (structure): `CREATE`, `ALTER`, `DROP`, `TRUNCATE`.
-- **DML** (rows): `INSERT`, `UPDATE`, `DELETE`, `MERGE`. **DQL**: `SELECT`.
-- **DCL** (permissions): `GRANT`, `REVOKE`. **TCL** (transactions): `BEGIN`, `COMMIT`, `ROLLBACK`, `SAVEPOINT`.
-
-## Logical Execution Order
+## The Example Database
+> Every example below uses this small company database, so you can picture the results.
 ```text
-FROM / JOIN -> WHERE -> GROUP BY -> HAVING -> SELECT
--> DISTINCT -> ORDER BY -> LIMIT
+departments: 1 Engineering (Pune) · 2 Sales (Mumbai) · 3 HR (Delhi) · 4 Legal (no city)
+employees (emp_id, name, dept_id, manager, salary):
+  1 Asha  Eng   -      150000      5 Priya Sales John  90000
+  2 Ravi  Eng   Asha   120000      6 Karan Sales John 115000
+  3 Meena Eng   Asha   120000      7 Neha  HR    -      70000
+  4 John  Sales -      110000      8 Arjun (none) Asha  60000
+customers: 1 Anil · 2 Bina · 3 Chetan · 4 Divya (never ordered)
+orders: 101-106 (amounts 250, 100, 400, 150, 50, 300)
 ```
-- That is why a `SELECT` alias can't be used in `WHERE`, aggregates can't go in `WHERE` (use `HAVING`), and window functions must be wrapped in a subquery/CTE to filter on them. `ORDER BY` can use aliases.
+! Legal has no employees, Arjun has no department, Divya has no orders: perfect for join questions.
 
-## Keys & Constraints
-- **Primary key**: uniquely identifies a row; unique + NOT NULL; one per table (may be composite).
-- **Foreign key**: references another table's key; enforces referential integrity; actions `ON DELETE CASCADE / SET NULL / RESTRICT`.
-- **Unique**: no duplicates but allows NULLs; many per table. **NOT NULL**, **CHECK** (`price >= 0`), **DEFAULT**.
-- **Candidate key**: any minimal unique column set; **surrogate** key (auto id/UUID) vs **natural** key (email).
-- Auto-increment: `GENERATED AS IDENTITY` (PostgreSQL/Oracle), `AUTO_INCREMENT` (MySQL), `IDENTITY(1,1)` (SQL Server).
+## What is SQL? What is an RDBMS?
+> **SQL** (Structured Query Language) is the standard language to **create, read, update and delete** data in relational databases. An **RDBMS** stores data in **tables** of rows and columns, linked by **keys** (MySQL, PostgreSQL, Oracle, SQL Server).
+- **Example:** `SELECT name FROM employees WHERE salary > 100000;` → Asha, Ravi, Meena, John, Karan.
+- SQL is **declarative**: you say what you want, the database decides how to get it.
+! Tables are spreadsheets that can point to each other.
 
-## Data Type Choices
-- `CHAR(n)` fixed length (padded) vs `VARCHAR(n)` variable length vs `TEXT` unlimited.
-- `DECIMAL/NUMERIC(p,s)` exact (money) vs `FLOAT/DOUBLE` approximate (science). Never store money in float.
-- `DATE`, `TIME`, `TIMESTAMP` (no zone) vs `TIMESTAMPTZ` (stored as UTC); `BOOLEAN`; `JSON/JSONB`; `UUID`.
+## SQL vs NoSQL
+> **SQL databases** use fixed schemas, tables, joins and strong **ACID** transactions. **NoSQL databases** (MongoDB, Redis, Cassandra) use flexible formats (documents, key-value, wide-column, graph) and scale out horizontally easily.
+- **Example:** an order in SQL is rows in `orders` + `order_items` joined by keys; in MongoDB it is one document `{ id, customer, items: [...] }`.
+- **Choose SQL** for structured data and complex queries (banking, orders). **Choose NoSQL** for flexible or massive, simple-access data (logs, sessions, product catalogs).
+! SQL = a filing cabinet with strict forms; NoSQL = labelled boxes you can fill however you like.
+
+## Types of SQL Commands
+> SQL commands are grouped by purpose: **DDL** defines structure, **DML** changes data, **DQL** reads data, **DCL** controls access, **TCL** manages transactions.
+```text
+DDL  CREATE, ALTER, DROP, TRUNCATE      structure
+DML  INSERT, UPDATE, DELETE             data
+DQL  SELECT                             read
+DCL  GRANT, REVOKE                      permissions
+TCL  COMMIT, ROLLBACK, SAVEPOINT        transactions
+```
+! Define, Manipulate, Query, Control, Transact.
+
+## Order of Execution
+> SQL is written `SELECT ... FROM ... WHERE ... GROUP BY ... HAVING ... ORDER BY ... LIMIT`, but runs in this order:
+```text
+FROM -> WHERE -> GROUP BY -> HAVING -> SELECT -> ORDER BY -> LIMIT
+```
+- That's why a column **alias** from SELECT can't be used in WHERE, but can be used in ORDER BY.
+! "Fresh Water Goes Here, Simply Order Lemonade."
+
+### Keys & Constraints
+
+## Primary Key vs Foreign Key
+> A **primary key** uniquely identifies each row (unique + not null, one per table). A **foreign key** is a column that **references** the primary key of another table, linking the two and enforcing **referential integrity**.
+```sql
+CREATE TABLE teams (team_id INT PRIMARY KEY, name VARCHAR(50) NOT NULL);
+CREATE TABLE players (
+  player_id INT PRIMARY KEY,
+  team_id INT REFERENCES teams (team_id)     -- foreign key: must exist in teams
+);
+```
+- You can't insert a player with a `team_id` that doesn't exist, or delete a team that still has players (unless `ON DELETE CASCADE`).
+! Primary key = your Aadhaar number; foreign key = writing someone else's number on your form.
+
+## Primary Key vs Unique Key
+> Both prevent duplicates. A **primary key** can't be NULL and there's only **one** per table; a **unique key** allows NULL and a table can have **many**.
+- **Example:** `emp_id` is the primary key; `email` is unique (each email once, but an employee may have none).
+! Primary = the one official ID; unique = other things that also can't repeat.
+
+## Constraints
+> **Constraints** are rules the database enforces on column values: `PRIMARY KEY`, `FOREIGN KEY`, `UNIQUE`, `NOT NULL`, `CHECK` and `DEFAULT`.
+```sql
+CREATE TABLE products (
+  id INT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  price NUMERIC(10, 2) CHECK (price >= 0),
+  status VARCHAR(20) DEFAULT 'active'
+);
+```
+! Constraints are the bouncers of your table: bad data doesn't get in.
 
 ## DELETE vs TRUNCATE vs DROP
+> **DELETE** removes **selected rows** (with WHERE, can roll back, fires triggers). **TRUNCATE** removes **all rows** fast (resets identity). **DROP** removes the **whole table** (structure + data).
 ```text
-           DELETE         TRUNCATE         DROP
-removes    chosen rows    all rows         the table itself
-WHERE      yes            no               no
-speed      slow (logged)  fast             fast
-triggers   fire           don't fire       -
-rollback   yes            PG/SQL Server    no (MySQL/Oracle
-                          only             auto-commit DDL)
-identity   continues      resets           gone
+           DELETE        TRUNCATE        DROP
+removes    some/all rows all rows        table itself
+WHERE      yes           no              no
+speed      slower        fast            fast
+rollback   yes           depends on DB   no
 ```
+! DELETE = erase some lines, TRUNCATE = wipe the whiteboard, DROP = throw the whiteboard away.
 
-## NULL & Three-Valued Logic
-> **What:** `NULL` means *unknown/missing*. Any comparison with NULL is **UNKNOWN** (not true, not false); `WHERE` keeps only TRUE rows.
-- Test with `IS NULL` / `IS NOT NULL`; replace with `COALESCE(x, default)`; `NULLIF(a, b)` returns NULL when equal (avoids divide-by-zero).
-- Aggregates ignore NULLs; `NULL + 1` is NULL; `'a' || NULL` is NULL.
-```sql
-SELECT name FROM employees WHERE email = NULL;   -- 0 rows, always
-SELECT name FROM employees WHERE email IS NULL;  -- Arjun
-SELECT name FROM employees WHERE dept_id <> 1;   -- skips Arjun (NULL dept)!
-SELECT name FROM customers WHERE customer_id NOT IN (SELECT NULL::INT);  -- 0 rows
-```
+### Querying
 
 ## WHERE vs HAVING
-- **WHERE** filters **rows before** grouping; can't use aggregates.
-- **HAVING** filters **groups after** `GROUP BY`; can use `COUNT`, `SUM`...
-- Put conditions in WHERE whenever possible: fewer rows to group = faster.
-
-## Aggregate Functions
-- `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`, `STRING_AGG`/`GROUP_CONCAT`/`LISTAGG`.
-- `COUNT(*)` counts rows · `COUNT(col)` counts non-NULL values · `COUNT(DISTINCT col)` counts unique non-NULL values.
-- `SUM` over zero rows returns **NULL**, not 0 (use `COALESCE`).
-- `GROUP BY` rule: every selected column must be grouped or aggregated. `ROLLUP`/`CUBE` add subtotal rows.
-
-## Joins
-```text
-INNER JOIN   only matching rows from both
-LEFT JOIN    all left rows + matches (else NULLs)
-RIGHT JOIN   all right rows + matches
-FULL JOIN    all rows from both sides
-CROSS JOIN   every combination (cartesian product)
-SELF JOIN    a table joined to itself (manager/employee)
-```
-- **Anti-join** (rows with no match): `LEFT JOIN ... WHERE right.id IS NULL` or `NOT EXISTS`. **Semi-join** (has a match): `EXISTS` / `IN`.
-- **Join vs subquery**: joins combine columns from both tables; subqueries filter or compute values. Optimisers often produce the same plan.
-
-## LEFT JOIN Trap: ON vs WHERE
+> **WHERE** filters **rows before** grouping; **HAVING** filters **groups after** `GROUP BY` and can use aggregates like `COUNT` or `AVG`.
 ```sql
-SELECT c.name, o.order_id FROM customers c
-LEFT JOIN orders o ON o.customer_id = c.customer_id AND o.status = 'placed';
--- keeps every customer: Anil 106, Bina 105, Chetan NULL, Divya NULL
-
-SELECT c.name, o.order_id FROM customers c
-LEFT JOIN orders o ON o.customer_id = c.customer_id
-WHERE o.status = 'placed';
--- Anil 106, Bina 105: the WHERE removed the NULL rows = an INNER join
+SELECT dept_id, COUNT(*) AS staff
+FROM employees
+WHERE salary > 60000          -- rows: drop Arjun first
+GROUP BY dept_id
+HAVING COUNT(*) >= 2;         -- groups: depts with 2+ people -> 1 (3), 2 (3)
 ```
-- Filter the **right** table of a LEFT JOIN in `ON`, not `WHERE`.
+! WHERE checks each person at the door; HAVING checks each team after they've grouped up.
 
-## Set Operations
-- `UNION`: combine results and **remove duplicates** (extra sort/hash). `UNION ALL`: keep everything (faster).
-- `INTERSECT`: rows in both. `EXCEPT` (Oracle `MINUS`): rows in the first but not the second.
-- Same number of columns, compatible types; column names come from the first query.
+## GROUP BY & Aggregate Functions
+> **Aggregate functions** (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) compute one value from many rows; **GROUP BY** splits rows into groups so you get one result per group.
+```sql
+SELECT dept_id, COUNT(*) AS staff, AVG(salary) AS avg_salary
+FROM employees WHERE dept_id IS NOT NULL
+GROUP BY dept_id;
+-- 1: 3, 130000 · 2: 3, 105000 · 3: 1, 70000
+```
+- `COUNT(*)` counts rows; `COUNT(column)` skips NULLs; `COUNT(DISTINCT column)` counts unique values.
+- Every selected column must be in GROUP BY or inside an aggregate.
+! GROUP BY makes piles; aggregates count or sum each pile.
 
-## Subqueries
-> **What:** a query inside another query.
-- **Scalar** (one value): `WHERE salary > (SELECT AVG(salary) FROM employees)`.
-- **Multi-row**: with `IN`, `ANY`, `ALL`. **Derived table**: a subquery in `FROM` (needs an alias).
-- **Correlated**: references the outer row, so it logically runs once per row (e.g. "earns more than their department's average").
-- **EXISTS vs IN**: `EXISTS` stops at the first match and is NULL-safe; `NOT IN` returns nothing if the subquery has a NULL, so prefer `NOT EXISTS`.
+## DISTINCT, ORDER BY & LIMIT
+> **DISTINCT** removes duplicate rows from the result; **ORDER BY** sorts (ASC default, DESC); **LIMIT** returns only the first n rows (`TOP` in SQL Server, `FETCH FIRST` in Oracle).
+```sql
+SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 3;
+-- 150000, 120000, 115000
+```
+! DISTINCT = no repeats, ORDER BY = line up, LIMIT = only the first few.
 
-## CTE (WITH clause)
-> **What:** a named temporary result for one statement: `WITH high AS (SELECT ...) SELECT ... FROM high`.
-- **vs subqueries**: readable, can be referenced several times, can be **recursive**. **vs temp tables**: no storage, exists only for the statement.
-- **Recursive CTE**: anchor query `UNION ALL` recursive step: walks hierarchies (org charts, categories) or generates series.
+## LIKE, IN, BETWEEN & NULL
+> **LIKE** matches patterns (`%` = any characters, `_` = one character); **IN** matches a list; **BETWEEN** matches a range (inclusive); **IS NULL** checks for missing values (`= NULL` never works).
+```sql
+SELECT name FROM employees WHERE name LIKE 'A%';              -- Asha, Arjun
+SELECT name FROM employees WHERE dept_id IN (2, 3);           -- John, Priya, Karan, Neha
+SELECT name FROM employees WHERE salary BETWEEN 90000 AND 115000;   -- John, Priya, Karan
+SELECT name FROM employees WHERE dept_id IS NULL;             -- Arjun
+```
+! NULL means "unknown", and unknown is never equal to anything, not even another NULL.
+
+## CASE Expression
+> **CASE** is SQL's if-else: it returns a value based on conditions, inside SELECT, ORDER BY or UPDATE.
+```sql
+SELECT name,
+  CASE WHEN salary >= 120000 THEN 'Senior'
+       WHEN salary >= 90000 THEN 'Mid'
+       ELSE 'Junior' END AS band
+FROM employees;              -- Asha Senior, Priya Mid, Neha Junior ...
+```
+! CASE = a ladder of if/else conditions; the first true rung wins.
+
+## COALESCE & NULL Handling
+> **COALESCE(a, b, ...)** returns the **first non-NULL** value; use it to show a default instead of NULL.
+```sql
+SELECT name, COALESCE(dept_id::TEXT, 'No department') AS dept
+FROM employees WHERE emp_id = 8;          -- Arjun, No department
+```
+- `IFNULL` (MySQL), `ISNULL` (SQL Server), `NVL` (Oracle) do the same with two values.
+! COALESCE = "if this is empty, use the next one".
+
+### Joins
+
+## Joins Explained
+> A **JOIN** combines rows from two tables based on a related column.
+```text
+INNER JOIN   only matching rows from both tables
+LEFT JOIN    all rows from the left + matches (else NULL)
+RIGHT JOIN   all rows from the right + matches (else NULL)
+FULL JOIN    all rows from both, NULL where no match
+CROSS JOIN   every combination (rows x rows)
+SELF JOIN    a table joined with itself
+```
+! INNER = only couples; LEFT = all from the left, with or without a partner.
+
+## INNER JOIN vs LEFT JOIN
+> **INNER JOIN** returns only rows that match in both tables; **LEFT JOIN** returns every row of the left table, with NULLs where the right table has no match.
+```sql
+SELECT e.name, d.name AS dept
+FROM employees e INNER JOIN departments d ON e.dept_id = d.dept_id;
+-- 7 rows: Arjun is missing (no department)
+
+SELECT e.name, d.name AS dept
+FROM employees e LEFT JOIN departments d ON e.dept_id = d.dept_id;
+-- 8 rows: Arjun appears with dept NULL
+```
+! LEFT JOIN never loses a row from the left table.
+
+## Self Join
+> A **self join** joins a table to **itself**, using two aliases, to compare rows of the same table (e.g. employees and their managers).
+```sql
+SELECT e.name AS employee, m.name AS manager
+FROM employees e JOIN employees m ON e.manager_id = m.emp_id;
+-- Ravi-Asha, Meena-Asha, Priya-John, Karan-John, Arjun-Asha
+```
+! Same table, two name tags: "e" for the employee, "m" for the manager.
+
+## Find Rows With No Match (Anti-Join)
+> To find rows in one table with **no matching row** in another, use `LEFT JOIN ... WHERE right.key IS NULL` or `NOT EXISTS`.
+```sql
+SELECT c.name FROM customers c
+LEFT JOIN orders o ON o.customer_id = c.customer_id
+WHERE o.order_id IS NULL;                      -- Divya: never ordered
+
+SELECT d.name FROM departments d
+WHERE NOT EXISTS (SELECT 1 FROM employees e WHERE e.dept_id = d.dept_id);   -- Legal
+```
+! Join everyone, then keep the ones whose partner seat is empty.
+
+## UNION vs UNION ALL
+> **UNION** combines the results of two queries and **removes duplicates**; **UNION ALL** keeps **all rows** (faster, no duplicate check). Both queries must have the same number and type of columns.
+```sql
+SELECT city FROM customers UNION SELECT location FROM departments;
+-- Pune, Mumbai, Delhi, NULL (each once)
+```
+- `INTERSECT` = rows in both; `EXCEPT` (`MINUS` in Oracle) = rows in the first but not the second.
+! UNION = merge guest lists and cross out duplicates; UNION ALL = just staple them together.
+
+### Subqueries & CTEs
+
+## Subquery
+> A **subquery** is a query inside another query, used to compute a value or a list the outer query needs.
+```sql
+SELECT name, salary FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees);
+-- Asha, Ravi, Meena, John, Karan  (above the 104375 average)
+```
+- A **correlated subquery** refers to the outer row and runs once per row: "employees earning more than their own department's average".
+! Answer the small question first (the average), then the big one.
+
+## EXISTS vs IN
+> **IN** checks whether a value is in a list; **EXISTS** checks whether a subquery returns **any row** and stops at the first match.
+- `NOT IN` returns **no rows at all** if the subquery contains a NULL; `NOT EXISTS` is NULL-safe, so prefer it.
+- **Example:** customers who placed an order: `WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.customer_id)`.
+! EXISTS just asks "is anyone home?"; it doesn't count them.
+
+## CTE (WITH Clause)
+> A **CTE (Common Table Expression)** is a **named temporary result** defined with `WITH`, used to break a complex query into readable steps.
+```sql
+WITH dept_avg AS (
+  SELECT dept_id, AVG(salary) AS avg_sal FROM employees GROUP BY dept_id
+)
+SELECT dept_id, avg_sal FROM dept_avg WHERE avg_sal > 100000;
+-- 1 (130000), 2 (105000)
+```
+- A **recursive CTE** calls itself to walk hierarchies (org charts, category trees).
+! A CTE is a named sticky note: compute it once, refer to it by name.
+
+### Window Functions
 
 ## Window Functions
-> **What:** functions computed over a **set of rows related to the current row** with `OVER (PARTITION BY ... ORDER BY ... frame)`, **without collapsing rows**.
-- **vs GROUP BY**: GROUP BY returns one row per group; a window keeps every row and adds the group value next to it.
-- Ranking: `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `NTILE`. Offset: `LAG`, `LEAD`, `FIRST_VALUE`, `LAST_VALUE`. Aggregates as windows: `SUM(...) OVER (ORDER BY date)` = running total.
-- Frames: `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW` (moving average).
+> A **window function** performs a calculation across a set of rows related to the current row **without collapsing them** into one row (unlike GROUP BY). Syntax: `function() OVER (PARTITION BY ... ORDER BY ...)`.
+```sql
+SELECT name, dept_id, salary,
+  AVG(salary) OVER (PARTITION BY dept_id) AS dept_avg
+FROM employees WHERE dept_id = 2;
+-- John 110000 105000 · Priya 90000 105000 · Karan 115000 105000
+```
+- Common ones: `ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LAG`, `LEAD`, `SUM() OVER` (running total).
+! GROUP BY squashes rows into one; a window keeps every row and adds the group's info next to it.
+
+## ROW_NUMBER vs RANK vs DENSE_RANK
+> All number rows in order. **ROW_NUMBER** gives unique numbers; **RANK** gives ties the same number and **skips** the next; **DENSE_RANK** gives ties the same number **without gaps**.
 ```text
 salary   ROW_NUMBER  RANK  DENSE_RANK
 150000   1           1     1
@@ -117,180 +261,186 @@ salary   ROW_NUMBER  RANK  DENSE_RANK
 120000   3           2     2
 115000   4           4     3
 ```
+! Olympic medals: two golds means no silver (RANK); DENSE_RANK still gives a silver.
 
-## CASE Expressions
-- **Searched**: `CASE WHEN salary > 100000 THEN 'high' ELSE 'low' END`. **Simple**: `CASE dept WHEN 1 THEN 'Eng' END`.
-- Works in `SELECT`, `ORDER BY`, `GROUP BY`, `UPDATE`, and inside aggregates for **pivots**: `SUM(CASE WHEN month = 1 THEN amount END) AS jan`.
-
-## Views vs Materialised Views
-```text
-            table          view             materialised view
-stores      data           only the query   query result
-freshness   live           always current   stale until REFRESH
-speed       -              same as query    fast reads
-use         base data      security,        heavy reports,
-                           simplify queries dashboards
+## LAG, LEAD & Running Total
+> **LAG** reads a value from the **previous** row, **LEAD** from the **next** row; `SUM() OVER (ORDER BY ...)` gives a **running total**.
+```sql
+SELECT order_id, amount,
+  LAG(amount) OVER (ORDER BY order_date) AS previous,
+  SUM(amount) OVER (ORDER BY order_date) AS running_total
+FROM orders;
+-- 101 250 NULL 250 · 102 100 250 350 · 103 400 100 750 ...
 ```
+! LAG looks back, LEAD looks ahead, a running SUM keeps the tally.
 
-## Procedures, Functions & Triggers
-- **Function**: returns a value, used inside SQL (`SELECT f(x)`), usually no transaction control.
-- **Stored procedure**: called with `CALL`/`EXEC`, can return result sets / OUT params, manage transactions, run business logic in the DB.
-- **Trigger**: code that runs automatically `BEFORE`/`AFTER` `INSERT/UPDATE/DELETE` (row or statement level): auditing, derived columns.
-- Languages: PL/pgSQL (PostgreSQL), T-SQL (SQL Server), PL/SQL (Oracle).
-
-## Transactions & ACID
-> **What:** a group of statements that succeed or fail **as one unit**: `BEGIN; ... COMMIT;` or `ROLLBACK;` (`SAVEPOINT` for partial rollback).
-- **Atomicity**: all or nothing. **Consistency**: constraints always hold. **Isolation**: concurrent transactions don't interfere. **Durability**: committed data survives crashes (write-ahead log).
-
-## Isolation Levels
-```text
-level             dirty read  non-repeatable  phantom
-READ UNCOMMITTED  possible    possible        possible
-READ COMMITTED    no          possible        possible
-REPEATABLE READ   no          no              possible*
-SERIALIZABLE      no          no              no
-* PostgreSQL REPEATABLE READ also prevents phantoms
-```
-- **Dirty** = read uncommitted data · **non-repeatable** = same row changes between reads · **phantom** = new rows appear in a range.
-- Defaults: READ COMMITTED (PostgreSQL, SQL Server, Oracle), REPEATABLE READ (MySQL).
-
-## Locking & Concurrency
-- **MVCC**: writers create new row versions; readers see a snapshot and don't block (PostgreSQL, Oracle, InnoDB).
-- **Pessimistic locking**: `SELECT ... FOR UPDATE` locks rows until commit. **Optimistic locking**: a `version` column checked on update; retry on conflict (JPA `@Version`).
-- **Deadlock**: two transactions wait for each other's locks; the DB aborts one. Avoid: lock in a consistent order, keep transactions short, retry.
-- `FOR UPDATE SKIP LOCKED`: job queues where workers take different rows.
+### Database Objects
 
 ## Indexes
-> **What:** a separate sorted structure (usually a **B-tree**) that finds rows without scanning the whole table: O(log n) instead of O(n).
-- **Clustered**: the table rows are physically ordered by it (one per table; InnoDB PK). **Non-clustered**: separate structure pointing to rows (many per table).
-- **Composite** `(a, b)`: serves `a` and `a + b`, **not** `b` alone (leftmost prefix rule). **Covering**: contains every column the query needs (index-only scan). **Unique**, **partial** (`WHERE status = 'open'`), **expression** (`LOWER(email)`).
-- **Trade-off**: faster reads, slower writes and more storage. Index foreign keys and frequent `WHERE`/`JOIN`/`ORDER BY` columns.
+> An **index** is a separate sorted data structure (usually a **B-tree**) that lets the database find rows without scanning the whole table, like a book's index.
+```sql
+CREATE INDEX idx_employees_dept ON employees (dept_id);
+```
+- **Clustered index:** the table rows are physically stored in that order (one per table, usually the primary key). **Non-clustered:** a separate structure pointing to rows (many per table).
+- **Trade-off:** faster reads, slower INSERT/UPDATE/DELETE and extra storage.
+- **Composite index** `(a, b)` helps queries on `a` or `a + b`, not on `b` alone.
+! Without an index you read every page of the book; with one, you jump to the page.
 
-## When an Index Is Not Used
-- Function or math on the column: `WHERE YEAR(d) = 2026` → write `d >= '2026-01-01' AND d < '2027-01-01'` (**sargable**).
-- Leading wildcard `LIKE '%son'`; implicit type conversion; `OR` across different columns.
-- Low selectivity (gender, status), tiny tables, stale statistics.
-- Check with **EXPLAIN** / **EXPLAIN ANALYZE**: look for full scans (Seq Scan / type ALL), bad row estimates, sorts spilling to disk.
+## Views
+> A **view** is a **saved query** that behaves like a virtual table; it stores no data itself.
+```sql
+CREATE VIEW high_earners AS
+SELECT name, salary FROM employees WHERE salary > 100000;
+SELECT * FROM high_earners;          -- Asha, Ravi, Meena, John, Karan
+```
+- **Uses:** simplify complex queries, hide sensitive columns (security). A **materialized view** stores the result and must be refreshed.
+! A view is a window into the table, not a copy of it.
 
-## Query Optimisation Tips
-- Select only needed columns (no `SELECT *`), filter early, index join/filter columns.
-- Avoid N+1 queries from the app; batch inserts; use keyset pagination (`WHERE id > last`) instead of big `OFFSET`.
-- `EXISTS` instead of `COUNT(*) > 0`; `UNION ALL` instead of `UNION` when duplicates are impossible.
-- Keep statistics fresh (`ANALYZE`), use connection pooling, cache hot reads.
+## Stored Procedure vs Function
+> A **stored procedure** is saved SQL logic you run with `CALL`/`EXEC`; it can modify data and manage transactions. A **function** returns a value and can be used inside a query.
+- **Procedure example:** `CALL give_raise(dept_id => 3, percent => 10);`
+- **Function example:** `SELECT name, annual_salary(salary) FROM employees;`
+! Procedure = a task you run; function = a calculator you use inside a query.
 
-## Normalisation
-> **What:** organising tables to remove redundancy and **update/insert/delete anomalies**.
-- **1NF**: atomic values, no repeating groups (no comma lists in a column).
-- **2NF**: 1NF + no **partial dependency** on part of a composite key.
-- **3NF**: 2NF + no **transitive dependency** (non-key column depending on another non-key column).
-- **BCNF**: every determinant is a candidate key.
-- **Denormalisation**: deliberately duplicate data for faster reads (reporting, OLAP). **OLTP** = many small normalised transactions; **OLAP** = large analytical queries (star schema).
+## Trigger
+> A **trigger** is SQL code that runs **automatically** when an `INSERT`, `UPDATE` or `DELETE` happens on a table.
+- **Example:** after any salary update, insert the old and new salary into an `audit_log` table.
+- Use carefully: hidden logic can surprise developers and slow writes.
+! A trigger is a motion-sensor light: it switches on by itself when something happens.
+
+### Transactions
+
+## Transactions & ACID
+> A **transaction** is a group of SQL statements that succeed or fail **as one unit** (`BEGIN ... COMMIT`, or `ROLLBACK` to undo). **ACID** describes its guarantees.
+- **Atomicity:** all or nothing (money transfer: debit and credit both happen or neither).
+- **Consistency:** data always follows the rules (constraints).
+- **Isolation:** concurrent transactions don't interfere.
+- **Durability:** once committed, data survives crashes.
+```sql
+BEGIN;
+UPDATE accounts SET balance = balance - 500 WHERE id = 1;
+UPDATE accounts SET balance = balance + 500 WHERE id = 2;
+COMMIT;                  -- or ROLLBACK if anything failed
+```
+! A bank transfer: either both sides change, or nothing does.
+
+## Isolation Levels
+> **Isolation levels** control how much one transaction can see of others' uncommitted or changing data, trading safety for speed.
+```text
+READ UNCOMMITTED  can see uncommitted data (dirty reads)
+READ COMMITTED    only committed data (most common default)
+REPEATABLE READ   rows you read won't change (MySQL default)
+SERIALIZABLE      as if transactions ran one by one (safest, slowest)
+```
+- **Dirty read:** reading data that is later rolled back. **Non-repeatable read:** the same row changes between reads. **Phantom read:** new rows appear in a repeated query.
+! Higher isolation = fewer surprises, more waiting.
+
+## Deadlock & Locking
+> A **deadlock** is when two transactions each hold a lock the other needs, so both wait forever; the database detects it and **aborts one**.
+- **Example:** T1 updates account 1 then account 2, while T2 updates account 2 then account 1 at the same moment: each waits for the other.
+- **Avoid:** access tables in a consistent order, keep transactions short, add proper indexes.
+- **Optimistic locking** (version column, retry on conflict) vs **pessimistic locking** (`SELECT ... FOR UPDATE` locks the row).
+! Two people in a narrow corridor, each waiting for the other to step back.
+
+### Design & Performance
+
+## Normalization
+> **Normalization** organises tables to **remove redundant data** and avoid insert/update/delete anomalies, by splitting data into related tables.
+- **Example:** `orders(order_id, customer_name, customer_city)` repeats the city on every order; split into `customers(id, name, city)` + `orders(order_id, customer_id)` so a city is stored once.
+- **1NF:** each column holds a single (atomic) value; no repeating groups (no "phone1, phone2" or comma lists).
+- **2NF:** 1NF + every non-key column depends on the **whole** primary key (no partial dependency).
+- **3NF:** 2NF + non-key columns depend **only on the key**, not on other non-key columns (store `city` in an `addresses` table, not next to `zip_code`).
+- **Denormalization:** deliberately adding redundancy for faster reads (reports, dashboards).
+! "The key, the whole key, and nothing but the key."
 
 ## Relationships
-- **One-to-one**: FK + UNIQUE (user ↔ profile).
-- **One-to-many**: FK on the "many" side (customer → orders).
-- **Many-to-many**: a **junction table** with two FKs (students ↔ courses via enrolments).
+> Tables relate as **one-to-one** (user ↔ profile), **one-to-many** (department → employees, foreign key on the "many" side) or **many-to-many** (students ↔ courses, via a **junction table** with two foreign keys).
+! Many-to-many always needs a middle table.
 
-## Upsert & MERGE
-- **Upsert** = insert, or update if the row exists. PostgreSQL `INSERT ... ON CONFLICT (id) DO UPDATE`; MySQL `ON DUPLICATE KEY UPDATE`; SQL Server/Oracle/PostgreSQL 15+ `MERGE` (matched → update, not matched → insert).
-- `RETURNING` (PostgreSQL) / `OUTPUT` (SQL Server) return the changed rows.
-
-## Scaling: Partitioning, Sharding, Replication
-- **Partitioning**: split one big table inside one database (by range/list/hash, e.g. per month); queries prune partitions.
-- **Sharding**: split data across **multiple servers** by a shard key (e.g. customer_id); scales writes, complicates joins.
-- **Replication**: copies of the same data on other servers: read replicas (scale reads) and failover (availability). Sync = safe but slower; async = fast but may lag.
+## Query Optimization
+> To speed up a slow query: check its **execution plan** (`EXPLAIN`), add the right **indexes**, and avoid patterns that prevent index use.
+- Select only needed columns (avoid `SELECT *`); filter early with WHERE; index columns used in WHERE, JOIN and ORDER BY.
+- Avoid functions on indexed columns: `WHERE YEAR(order_date) = 2026` → `WHERE order_date >= '2026-01-01' AND order_date < '2027-01-01'`.
+- Avoid leading wildcards (`LIKE '%son'`); use `EXISTS` over large `IN` lists; use pagination.
+! EXPLAIN is the X-ray: look for full table scans.
 
 ## SQL Injection
-- **What**: user input changes the meaning of a query (`' OR 1=1 --`).
-- **Prevent**: **parameterised queries / prepared statements** (`WHERE id = ?`), ORMs, least-privilege DB users, input validation. Never concatenate input into SQL.
+> **SQL injection** is an attack where user input is inserted into a query and changes its meaning, e.g. entering `' OR '1'='1` as a password.
+- **Prevent** with **parameterized queries / prepared statements** (`WHERE email = ?`), ORMs, least-privilege DB users and input validation. Never build SQL by concatenating user input.
+! Treat user input as data, never as code.
 
-## The Sample Data (for the queries below)
-```text
-employees: Asha 150000 (Eng), Ravi 120000 (Eng, mgr Asha),
-  Meena 120000 (Eng, mgr Asha), John 110000 (Sales),
-  Priya 90000 (Sales, mgr John), Karan 115000 (Sales, mgr John),
-  Neha 70000 (HR), Arjun 60000 (no dept, no email, mgr Asha)
-customers: Anil, Bina, Chetan, Divya (no orders)
-orders: 101-106, statuses placed/shipped/delivered/cancelled
-```
+### Classic Interview Queries
 
-## Nth Highest Salary
+## Second Highest Salary
 ```sql
 SELECT MAX(salary) FROM employees
-WHERE salary < (SELECT MAX(salary) FROM employees);   -- 2nd: 120000
+WHERE salary < (SELECT MAX(salary) FROM employees);          -- 120000
 
 SELECT DISTINCT salary FROM employees
-ORDER BY salary DESC OFFSET 1 LIMIT 1;                 -- 2nd: 120000
-
-SELECT salary FROM (
-  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS r
-  FROM employees) t
-WHERE r = 3 LIMIT 1;                                   -- Nth (3rd): 115000
+ORDER BY salary DESC LIMIT 1 OFFSET 1;                       -- 120000
 ```
-- Use `DENSE_RANK` so ties (two 120000s) count once.
+- **Nth highest** (any N) with DENSE_RANK so ties count once:
+```sql
+SELECT DISTINCT salary FROM (
+  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk FROM employees
+) t WHERE rnk = 3;                                           -- 115000
+```
+! Find the max, then the max of everything below it.
 
 ## Find & Delete Duplicates
 ```sql
 SELECT salary, COUNT(*) FROM employees
-GROUP BY salary HAVING COUNT(*) > 1;          -- 120000 appears 2 times
-
-CREATE TEMP TABLE emails (id INT, email TEXT);
-INSERT INTO emails VALUES (1, 'a@x'), (2, 'b@x'), (3, 'a@x');
-DELETE FROM emails WHERE id IN (
-  SELECT id FROM (
-    SELECT id, ROW_NUMBER() OVER (PARTITION BY email ORDER BY id) AS rn
-    FROM emails) t
-  WHERE rn > 1);                              -- keeps ids 1 and 2
+GROUP BY salary HAVING COUNT(*) > 1;            -- 120000 appears 2 times
 ```
+- **Delete duplicates, keep one:** number each copy with `ROW_NUMBER() OVER (PARTITION BY email ORDER BY id)` and delete rows where the number is greater than 1.
+! GROUP BY the duplicate column, HAVING COUNT(*) > 1.
 
-## Top N per Group
+## Highest Salary in Each Department
 ```sql
 SELECT dept_id, name, salary FROM (
-  SELECT e.*, DENSE_RANK() OVER (
-    PARTITION BY dept_id ORDER BY salary DESC) AS r
-  FROM employees e) ranked
-WHERE r <= 2;
--- Eng: Asha, Ravi, Meena (tie) · Sales: Karan, John · HR: Neha · NULL: Arjun
+  SELECT dept_id, name, salary,
+    RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS rnk
+  FROM employees WHERE dept_id IS NOT NULL
+) t WHERE rnk = 1;                -- 1 Asha, 2 Karan, 3 Neha
 ```
+- Change `rnk = 1` to `rnk <= 3` for "top 3 per department".
+! PARTITION BY = restart the ranking for each department.
 
-## Self-Join Classics
+## Employees Earning More Than Their Manager
 ```sql
-SELECT e.name, m.name AS manager FROM employees e
-JOIN employees m ON m.emp_id = e.manager_id
-WHERE e.salary > m.salary;                 -- Karan (115000) > John (110000)
-
-SELECT c.name FROM customers c
-WHERE NOT EXISTS (SELECT 1 FROM orders o
-                  WHERE o.customer_id = c.customer_id);   -- never ordered: Divya
+SELECT e.name, e.salary, m.name AS manager, m.salary AS manager_salary
+FROM employees e JOIN employees m ON e.manager_id = m.emp_id
+WHERE e.salary > m.salary;       -- Karan 115000 > John 110000
 ```
+! Self join, then compare the two columns.
 
-## Running Total
+## Count Employees per Department (incl. empty)
 ```sql
-SELECT order_id, amount,
-  SUM(amount) OVER (ORDER BY order_date) AS running_total
-FROM orders;                    -- 250, 350, 750, 900, 950, 1250
+SELECT d.name, COUNT(e.emp_id) AS staff
+FROM departments d LEFT JOIN employees e ON e.dept_id = d.dept_id
+GROUP BY d.name ORDER BY staff DESC;
+-- Engineering 3, Sales 3, HR 1, Legal 0
 ```
+- `COUNT(e.emp_id)` gives 0 for Legal; `COUNT(*)` would wrongly give 1.
+! LEFT JOIN keeps empty departments; COUNT the joined column, not *.
 
 ## Dialect Differences
 ```text
-task     PostgreSQL   MySQL           SQL Server  Oracle
-first n  LIMIT        LIMIT           TOP         FETCH FIRST
-auto id  IDENTITY     AUTO_INCREMENT  IDENTITY    IDENTITY
-concat   ||           CONCAT          +           ||
-null     COALESCE     IFNULL          ISNULL      NVL
-now      NOW()        NOW()           GETDATE()   SYSDATE
-agg text STRING_AGG   GROUP_CONCAT    STRING_AGG  LISTAGG
-upsert   ON CONFLICT  ON DUPLICATE    MERGE       MERGE
+task         MySQL           PostgreSQL     SQL Server   Oracle
+first n      LIMIT n         LIMIT n        TOP n        FETCH FIRST n
+auto id      AUTO_INCREMENT  IDENTITY       IDENTITY     IDENTITY
+null value   IFNULL          COALESCE       ISNULL       NVL
+now          NOW()           NOW()          GETDATE()    SYSDATE
 ```
+! The ideas are the same everywhere; only a few function names change.
 
 ## Interview One-Liners
-- **WHERE vs HAVING**: rows before grouping vs groups after.
-- **UNION vs UNION ALL**: dedupe vs keep all (faster).
-- **Primary key vs unique key**: not null + one per table vs nullable + many.
-- **RANK vs DENSE_RANK vs ROW_NUMBER**: 1,2,2,4 · 1,2,2,3 · 1,2,3,4.
-- **Clustered vs non-clustered index**: physical order vs separate pointer structure.
-- **DELETE vs TRUNCATE**: logged row removal with WHERE vs fast wipe of all rows.
-- **View vs materialised view**: stored query vs stored result.
-- **Correlated subquery**: references the outer row, evaluated per row.
-- **ACID**: atomicity, consistency, isolation, durability.
-- **Normalisation**: remove redundancy and anomalies; 3NF is the usual target.
+- **WHERE vs HAVING:** filter rows before grouping vs groups after.
+- **DELETE vs TRUNCATE:** selected rows, can roll back vs all rows, fast.
+- **UNION vs UNION ALL:** removes duplicates vs keeps all.
+- **Primary vs unique key:** one, not null vs many, nullable.
+- **Clustered vs non-clustered index:** physical row order vs separate pointer list.
+- **INNER vs LEFT JOIN:** only matches vs all left rows.
+- **View:** a saved query, no stored data.
+- **Normalization:** remove redundancy by splitting tables (1NF, 2NF, 3NF).
+- **ACID:** atomicity, consistency, isolation, durability.

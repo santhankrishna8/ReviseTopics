@@ -51,11 +51,11 @@ export const GROUPS: { name: string; topics: Topic[] }[] = [
     { id: 'buzzwords', name: 'Engineering Buzzwords', ready: true },
   ] },
   { name: 'Cheat Sheets', topics: [
-    { id: 'cheat-java', name: 'Java Cheat Sheet', ready: true, poster: true },
-    { id: 'cheat-angular', name: 'Angular Cheat Sheet', ready: true, poster: true },
-    { id: 'cheat-typescript', name: 'TypeScript Cheat Sheet', ready: true, poster: true },
-    { id: 'cheat-sql', name: 'SQL Cheat Sheet', ready: true, poster: true },
-    { id: 'cheat-spring-boot', name: 'Spring Boot Cheat Sheet', ready: true, poster: true },
+    { id: 'cheat-java', name: 'Java', ready: true, poster: true },
+    { id: 'cheat-angular', name: 'Angular', ready: true, poster: true },
+    { id: 'cheat-typescript', name: 'TypeScript', ready: true, poster: true },
+    { id: 'cheat-sql', name: 'SQL', ready: true, poster: true },
+    { id: 'cheat-spring-boot', name: 'Spring Boot', ready: true, poster: true },
   ] },
 ];
 export const READY = GROUPS.flatMap(g => g.topics).filter(t => t.ready);

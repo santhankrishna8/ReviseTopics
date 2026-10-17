@@ -2,16 +2,18 @@
 //   @ Level                          level for the sheets that follow (Beginner, Intermediate, ...)
 //   # 01 | Title | subtitle | short  a sheet (short = sidebar label)
 //   ## Section title | colour | wide a section (colour/wide are legacy and ignored)
-//   - bullet   > callout   Q: question   A: answer   ```lang [file] ... ```
+//   ### Group title                  a group heading between sections (used by cheat sheet posters)
+//   - bullet   > callout   ! tip ("Remember")   Q: question   A: answer   ```lang [file] ... ```
 // Inline: `code` and **keyword** (rendered as a highlighter mark).
 
 export type QA = { q: string; a: string; text: string };
 export type Block =
   | { k: 'ul'; items: string[] }
   | { k: 'note'; html: string }
+  | { k: 'tip'; html: string }
   | { k: 'code'; lang: string; file: string; text: string; html: string }
   | { k: 'qa'; pairs: QA[] };
-export type Section = { title: string; blocks: Block[]; isQa: boolean };
+export type Section = { title: string; blocks: Block[]; isQa: boolean; group?: boolean; num?: number; tone?: number };   // num: card number; tone: accent of its group
 export type Sheet = { n: string; title: string; sub: string; short: string; level: string; sections: Section[]; minutes: number };
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -56,6 +58,11 @@ export function parse(raw: string): Sheet[] {
       continue;
     }
     if (!sheet) continue;
+    if (line.startsWith('### ')) {
+      sec = { title: line.slice(4).trim(), blocks: [], isQa: false, group: true };
+      sheet.sections.push(sec);
+      continue;
+    }
     if (line.startsWith('## ')) {
       sec = { title: line.slice(3).split('|')[0].trim(), blocks: [], isQa: false };
       sheet.sections.push(sec);
@@ -69,14 +76,19 @@ export function parse(raw: string): Sheet[] {
       sec.blocks.push(code);
       continue;
     }
-    const body = line.slice(line.startsWith('- ') || line.startsWith('> ') ? 2 : 3);
+    const body = line.slice(/^[->!] /.test(line) ? 2 : 3);
     words += body.split(/\s+/).length;
     if (line.startsWith('- ')) add({ k: 'ul', items: [inline(body)] });
     else if (line.startsWith('> ')) add({ k: 'note', html: inline(body) });
+    else if (line.startsWith('! ')) add({ k: 'tip', html: inline(body) });
     else if (line.startsWith('Q: ')) { sec.isQa = true; add({ k: 'qa', pairs: [{ q: inline(body), a: '', text: plain(body) }] }); }
     else if (line.startsWith('A: ')) { const last = sec.blocks.at(-1); if (last?.k === 'qa') last.pairs.at(-1)!.a = inline(body); }
   }
   finish();
+  for (const sh of sheets) {
+    let n = 0, g = -1;
+    for (const x of sh.sections) { if (x.group) g++; else x.num = ++n; x.tone = Math.max(g, 0) % 8; }
+  }
   return sheets;
 }
 
