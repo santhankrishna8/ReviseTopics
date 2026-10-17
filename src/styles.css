@@ -263,10 +263,10 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 .sheet-view.poster { grid-template-columns: minmax(0, 1fr); }
 .poster .doc { max-width: 1680px; padding: 28px 28px 72px; }
 .poster .doc h1 { margin-top: 22px; }
-.cards { columns: 420px; column-gap: 16px; margin-top: 28px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 16px; margin-top: 28px; }   /* row order: 1 | 2, 3 | 4 ... */
 .cards > .sec {
   --c: #0a7a55;
-  break-inside: avoid; margin: 0 0 16px; padding: 12px 14px 6px; border: 2px solid var(--c); border-radius: 14px;
+  margin: 0; min-width: 0; padding: 12px 14px 6px; border: 2px solid var(--c); border-radius: 14px;
   background: color-mix(in srgb, var(--c) 5%, #fff);
 }
 .cards > .sec:nth-child(8n+1) { --c: #2563eb; }
