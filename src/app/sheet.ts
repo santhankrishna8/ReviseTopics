@@ -13,7 +13,6 @@ export type PageLink = { href: string; label: string; hint: string };
           <span>{{ topicName() }}</span>
           <span class="sep" aria-hidden="true">/</span>
           <span class="here" aria-current="page">{{ sheet().short }}</span>
-          <span class="pill">{{ sheet().minutes }} min read</span>
         </nav>
         <button type="button" class="btn btn-outline" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -21,23 +20,15 @@ export type PageLink = { href: string; label: string; hint: string };
         </button>
       </div>
 
-      @if (!poster()) {
-      <div class="pager">
-        @if (prev(); as p) {
-          <a class="btn btn-green" [href]="p.href" [attr.aria-label]="'Previous: ' + p.label">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Previous
-          </a>
-        } @else { <span></span> }
-        @if (next(); as n) {
-          <a class="btn btn-green" [href]="n.href" [attr.aria-label]="'Next: ' + n.label">
-            Next<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-          </a>
-        }
-      </div>
-      }
-
-      <h1>{{ sheet().title }}</h1>
-      @if (sheet().sub) { <p class="lede">{{ sheet().sub }}</p> }
+      <header class="doc-head">
+        <h1>{{ sheet().title }}</h1>
+        @if (sheet().sub) { <p class="lede">{{ sheet().sub }}</p> }
+        <p class="meta">
+          @if (sheet().level) { <span>{{ sheet().level }}</span> }
+          <span>{{ sheet().minutes }} min read</span>
+          @if (!poster()) { <span>{{ sheet().sections.length }} sections</span> }
+        </p>
+      </header>
 
       <div [class.cards]="poster()">
       @for (sec of sheet().sections; track $index; let i = $index) {

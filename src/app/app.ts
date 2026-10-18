@@ -45,8 +45,8 @@ function byLevel(list: Sheet[]) {
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
       <a class="logo" href="#/{{ home.topic }}/{{ home.sheet }}" aria-label="ReviseNotes home">
-        <span class="logo-mark" aria-hidden="true">R</span>
-        <span class="logo-text">Revise<span>Notes</span></span>
+        <img class="logo-mark" src="icon.svg" alt="" width="28" height="28" />
+        <span class="logo-text">ReviseNotes</span>
       </a>
 
       <div class="search" (focusout)="onSearchBlur($event)">
@@ -74,7 +74,10 @@ function byLevel(list: Sheet[]) {
 
       <app-theme-toggle />
       @if (totals().all) {
-        <p class="overall"><span class="mono">{{ totals().done }}/{{ totals().all }}</span> sheets revised</p>
+        <p class="overall">
+          <span class="meter" aria-hidden="true"><span [style.width.%]="(totals().done / totals().all) * 100"></span></span>
+          <span><b>{{ totals().done }}</b> of {{ totals().all }} revised</span>
+        </p>
       }
     </header>
 
@@ -106,11 +109,10 @@ function byLevel(list: Sheet[]) {
                         @for (s of l.sheets; track s.n) {
                           @let current = route().topic === t.id && sheet()?.n === s.n;
                           <li>
-                            <a [href]="'#/' + t.id + '/' + s.n" [class.active]="current" [attr.aria-current]="current ? 'page' : null">
+                            @let revised = isDone(t.id, s.n);
+                            <a [href]="'#/' + t.id + '/' + s.n" [class.active]="current" [class.done]="revised" [attr.aria-current]="current ? 'page' : null">
                               <span>{{ s.short }}</span>
-                              @if (isDone(t.id, s.n)) {
-                                <svg class="tick" viewBox="0 0 24 24" aria-label="revised"><path d="M20 6 9 17l-5-5"/></svg>
-                              }
+                              @if (revised) { <span class="sr-only">(revised)</span> }
                             </a>
                           </li>
                         }
@@ -139,7 +141,7 @@ function byLevel(list: Sheet[]) {
           <div class="state" role="alert">
             <h1>Couldn't load {{ topicName() }}</h1>
             <p>{{ error() }}</p>
-            <button type="button" class="btn btn-green" (click)="retry()">Try again</button>
+            <button type="button" class="btn btn-primary" (click)="retry()">Try again</button>
           </div>
         } @else {
           <div class="state skeleton" aria-busy="true" aria-label="Loading notes">
