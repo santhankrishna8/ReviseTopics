@@ -161,6 +161,7 @@ body.resizing { cursor: col-resize; user-select: none; }
 #sidebar {
   display: block; position: sticky; top: var(--header-h); height: calc(100dvh - var(--header-h));
   margin: 0; padding: 8px 12px 64px; width: auto; max-height: none; overflow-y: auto; overscroll-behavior: contain;
+  overflow-anchor: none;   /* keep the clicked topic still when its list opens; anchoring pinned a row below it instead */
   background: var(--rail); color: var(--ink); border: 0;
   scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
 }

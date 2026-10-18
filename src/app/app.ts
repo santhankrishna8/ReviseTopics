@@ -253,7 +253,8 @@ export class App {
       });
       store.set('last', `${r.topic}/${r.sheet}`);
     });
-    effect(() => { this.sheet(); this.expanded(); untracked(() => this.revealActive()); });
+    // Only when the sheet changes: tracking expanded() too made opening any topic jump the sidebar back to the current sheet.
+    effect(() => { this.sheet(); untracked(() => this.revealActive()); });
     effect(() => {
       const s = this.sheet();
       document.title = s ? `${s.title} · ${this.topicName()} · ReviseNotes` : 'ReviseNotes';
@@ -288,7 +289,8 @@ export class App {
       const nav = this.sidebar().nativeElement;
       const a = nav.querySelector<HTMLElement>('a.active');
       if (!a) return;
-      const top = a.offsetTop, bottom = top + a.offsetHeight;
+      // measured against the sidebar itself: offsetTop is relative to the positioned .sheets list, not the sidebar
+      const top = a.getBoundingClientRect().top - nav.getBoundingClientRect().top + nav.scrollTop, bottom = top + a.offsetHeight;
       if (center || top < nav.scrollTop || bottom > nav.scrollTop + nav.clientHeight) nav.scrollTop = top - nav.clientHeight / 2;
     });
   }
