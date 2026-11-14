@@ -1,0 +1,120 @@
+# 01 | Docker Interview Cheat Sheet | Images, containers, Dockerfile, networking, volumes and Compose with the commands you use daily. | Docker on one page
+
+### Core
+
+## Container vs VM
+> A **container** packages an app with its dependencies and shares the host **kernel**; a **VM** runs a full guest OS on a hypervisor. Containers start in seconds and are lightweight.
+- Isolation uses Linux **namespaces** (what a process sees) and **cgroups** (how much it can use).
+! Containers virtualize the OS, VMs virtualize the hardware.
+
+## Image, Container, Registry
+- **Image:** read-only, layered template. **Container:** running (or stopped) instance of an image with a writable layer. **Registry:** Docker Hub, ECR, GHCR.
+- Layers are cached; unchanged layers are reused.
+! Image = class, container = object.
+
+## Essential Commands
+```bash
+docker build -t app:1.0 .             docker run -d --name web -p 8080:80 -e ENV=prod app:1.0
+docker ps -a        docker logs -f web        docker exec -it web sh        docker stop web && docker rm web
+docker images       docker pull nginx         docker push user/app:1.0      docker system prune
+docker run --rm -v "$PWD":/app app:1.0      # remove container on exit, bind mount
+```
+! `-p host:container` maps a port; `-d` runs in the background.
+
+### Dockerfile
+
+## Writing a Dockerfile
+```dockerfile
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY target/app.jar app.jar
+EXPOSE 8080
+USER 1001
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+- `RUN` executes at build time; `CMD` is the default command (overridable); `ENTRYPOINT` is the fixed executable; `COPY` over `ADD`.
+- Order layers from **least to most frequently changing** (copy dependency files first) for cache hits. Use `.dockerignore`.
+! Rarely changing layers first.
+
+## Multi-stage Builds
+```dockerfile
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /src
+COPY pom.xml .
+RUN mvn -q dependency:go-offline
+COPY src ./src
+RUN mvn -q package -DskipTests
+
+FROM eclipse-temurin:21-jre
+COPY --from=build /src/target/app.jar /app.jar
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+```
+- Build tools stay in the build stage, so the final image is small and safer.
+! Build fat, ship thin.
+
+## Image Best Practices
+- Small base (`alpine`, `distroless`, `-slim`), pin versions (no `latest` in prod), run as **non-root**, no secrets in layers, one process per container, add a `HEALTHCHECK`, scan images (Trivy).
+! Small, pinned, non-root.
+
+### Runtime
+
+## Volumes & Data
+- Container filesystems are **ephemeral**. **Volume** (managed by Docker, best for data), **bind mount** (host path, dev), **tmpfs** (memory).
+```bash
+docker volume create pgdata && docker run -v pgdata:/var/lib/postgresql/data postgres:16
+```
+! Data you care about lives in a volume.
+
+## Networking
+- **bridge** (default, containers talk by name on user-defined networks), **host** (shares host network), **none**. Publish ports with `-p`.
+- Containers on the same user-defined network resolve each other by **service name**.
+! `localhost` inside a container is the container itself.
+
+## Docker Compose
+```yaml
+services:
+  api:
+    build: .
+    ports: ["8080:8080"]
+    environment: [SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/app]
+    depends_on: { db: { condition: service_healthy } }
+  db:
+    image: postgres:16
+    environment: { POSTGRES_PASSWORD: secret }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "postgres"], interval: 5s }
+volumes: { pgdata: {} }
+```
+- `docker compose up -d`, `down -v`, `logs -f`, `ps`.
+! One YAML for your whole local stack.
+
+## Debugging & Cleanup
+- `docker logs`, `docker inspect`, `docker stats`, `docker exec -it <c> sh`. Exit code 137 = killed (often OOM). Clean with `docker system prune -a`.
+! Read logs first, then exec in.
+
+### More Docker
+
+## Security, Limits & Registries
+```bash
+docker run --memory=512m --cpus=1 --read-only --cap-drop=ALL --user 1001 app
+docker login ghcr.io && docker tag app ghcr.io/me/app:1.0 && docker push ghcr.io/me/app:1.0
+docker buildx build --platform linux/amd64,linux/arm64 -t me/app --push .
+```
+- Never mount `docker.sock` into containers, scan images, use secrets (BuildKit `--mount=type=secret`) not `ENV`, set resource limits, pin by digest.
+! Least privilege: non-root, read-only, no extra capabilities.
+
+### Must-Know Questions
+
+## Docker Questions
+Q*: Image vs container?
+A: An image is an immutable layered template; a container is a running instance with a writable layer.
+Q*: CMD vs ENTRYPOINT?
+A: ENTRYPOINT sets the executable that always runs; CMD supplies default arguments that `docker run` can override. Together they compose the final command.
+Q*: How do you keep data after a container is removed?
+A: Use named volumes or bind mounts.
+Q*: Why multi-stage builds?
+A: They keep compilers and build tools out of the final image, making it smaller and more secure.
+Q: How do containers talk to each other?
+A: Through a user-defined network using service names as DNS, or via published ports from the host.
+Q: How do you reduce image size?
+A: Slim base images, multi-stage builds, combine and clean layers, `.dockerignore`.

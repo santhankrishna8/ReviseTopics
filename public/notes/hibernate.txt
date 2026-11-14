@@ -99,11 +99,11 @@ count = 2
 - Rule of thumb: an ORM for **rich domain models and CRUD-heavy** services; SQL-centric tools for **reporting, bulk and complex queries**. Many projects use both.
 
 ## Interview Q&A | sky | wide
-Q: Who created Hibernate and why?
+Q*: Who created Hibernate and why?
 A: Gavin King, in 2001, as a simpler alternative to EJB 2 entity beans: it persisted plain Java objects to relational tables.
-Q: Why did the packages change from javax.persistence to jakarta.persistence?
+Q*: Why did the packages change from javax.persistence to jakarta.persistence?
 A: Java EE moved to the Eclipse Foundation as Jakarta EE, and the javax namespace could not be reused, so Jakarta Persistence 3.0 renamed it. Spring Boot 3 and Hibernate 6 use jakarta.persistence.
-Q: JDBC vs JPA?
+Q*: JDBC vs JPA?
 A: With JDBC you write SQL and map rows by hand. JPA maps objects to tables, generates the SQL and tracks changes automatically, behind a standard API with interchangeable providers.
 Q: Why does an entity need a no-argument constructor?
 A: The JPA provider instantiates entities by reflection when it loads rows, and it creates proxy subclasses for lazy loading. The specification requires a public or protected no-arg constructor.
@@ -153,11 +153,11 @@ Your code  ->  Spring Data JPA repositories  ->  JPA API (EntityManager)  ->  Hi
 - Log SQL while learning: `spring.jpa.show-sql=true` or `logging.level.org.hibernate.SQL=debug` (plus `org.hibernate.orm.jdbc.bind=trace` for parameters).
 
 ## Interview Q&A | sky | wide
-Q: What is ORM?
+Q*: What is ORM?
 A: Object-relational mapping: a technique and tooling that maps classes to tables and objects to rows, generating SQL and managing identity, relationships, change tracking and caching.
-Q: What is the object-relational impedance mismatch?
+Q*: What is the object-relational impedance mismatch?
 A: The set of differences between object models and relational tables: granularity, inheritance, identity, associations, navigation and data types.
-Q: JPA vs Hibernate?
+Q*: JPA vs Hibernate?
 A: JPA (Jakarta Persistence) is the standard specification and API; Hibernate is an implementation of it with extra proprietary features. Code against JPA, use Hibernate features where needed.
 Q: What is the persistence context?
 A: The set of managed entities tracked by an EntityManager, guaranteeing one instance per row, acting as a first-level cache and unit of work flushed to the database.
@@ -249,11 +249,11 @@ public int hashCode() { return getClass().hashCode(); }   // stable before and a
 ```
 
 ## Interview Q&A | sky | wide
-Q: What are the requirements for a JPA entity?
+Q*: What are the requirements for a JPA entity?
 A: @Entity, a primary key (@Id), a public or protected no-argument constructor, and a non-final class and persistent methods so the provider can create proxies.
-Q: IDENTITY vs SEQUENCE?
+Q*: IDENTITY vs SEQUENCE?
 A: IDENTITY relies on an auto-increment column, so ids are known only after insert and JDBC batch inserts are disabled; SEQUENCE fetches ids in advance (in blocks with an allocation size), enabling batching and better performance.
-Q: What does @Transient do?
+Q*: What does @Transient do?
 A: Excludes a field from persistence: it is not mapped to a column.
 Q: Why use EnumType.STRING?
 A: ORDINAL stores the enum's position, which silently corrupts data when constants are added or reordered; STRING stores the name.
@@ -340,11 +340,11 @@ public class Course {
 - Never use `CascadeType.REMOVE` on many-to-many (deleting a student would delete shared courses).
 
 ## Interview Q&A | sky | wide
-Q: What is the owning side of a relationship?
+Q*: What is the owning side of a relationship?
 A: The side whose changes Hibernate uses to write the foreign key (or join table); in one-to-many/many-to-one it is the @ManyToOne side. The other side uses mappedBy and is ignored for writes.
-Q: What does mappedBy mean?
+Q*: What does mappedBy mean?
 A: It marks the inverse side of a bidirectional relationship and names the field on the owning side that maps it.
-Q: Why add helper methods like addItem?
+Q*: Why add helper methods like addItem?
 A: To keep both sides of a bidirectional association consistent in memory, since only the owning side is persisted but the object graph should stay correct.
 Q: How do you map a many-to-many with extra columns?
 A: Replace it with an association entity (e.g. Enrolment) holding two @ManyToOne relationships and the extra fields.
@@ -386,11 +386,11 @@ public OrderDetailsDto getDetails(Long id) {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What are the default fetch types?
+Q*: What are the default fetch types?
 A: @ManyToOne and @OneToOne default to EAGER; @OneToMany and @ManyToMany default to LAZY.
-Q: Why prefer LAZY fetching?
+Q*: Why prefer LAZY fetching?
 A: EAGER always loads associations even when unused, cannot be turned off per query, and often causes N+1 queries; LAZY plus explicit fetching per use case gives control.
-Q: orphanRemoval vs CascadeType.REMOVE?
+Q*: orphanRemoval vs CascadeType.REMOVE?
 A: REMOVE deletes children when the parent is deleted; orphanRemoval also deletes a child as soon as it is removed from the parent's collection.
 Q: What causes LazyInitializationException?
 A: Accessing a lazy association after the EntityManager/Session is closed; fetch it within the transaction or map to DTOs before leaving the service layer.
@@ -443,11 +443,11 @@ public void rename(Long id, String newName) {
 - Large batch jobs must **`flush()` and `clear()`** periodically, otherwise the context keeps every entity and memory grows.
 
 ## Interview Q&A | sky | wide
-Q: Describe the JPA entity lifecycle states.
+Q*: Describe the JPA entity lifecycle states.
 A: Transient (new, not tracked), managed/persistent (tracked by an open persistence context), detached (previously managed, no longer tracked) and removed (scheduled for deletion).
-Q: persist vs merge?
+Q*: persist vs merge?
 A: persist makes a new instance managed and returns nothing; merge copies the state of a detached or new instance onto a managed instance and returns that managed copy, leaving the argument detached.
-Q: find vs getReference?
+Q*: find vs getReference?
 A: find queries (or uses the context) and returns the entity or null; getReference returns an uninitialised proxy without querying, throwing EntityNotFoundException later if the row does not exist.
 Q: What is dirty checking?
 A: Hibernate's comparison of managed entities against their loaded snapshot at flush time, generating UPDATE statements automatically for changed entities.
@@ -519,11 +519,11 @@ List<ProductRow> findRows(@Param("status") ProductStatus status);
 ```
 
 ## Interview Q&A | sky | wide
-Q: CrudRepository vs JpaRepository?
+Q*: CrudRepository vs JpaRepository?
 A: CrudRepository provides basic CRUD; JpaRepository extends the list and paging variants and adds JPA-specific methods like flush, saveAndFlush, deleteAllInBatch and getReferenceById.
-Q: How do derived query methods work?
+Q*: How do derived query methods work?
 A: Spring Data parses the method name (find...By, keywords like And, Between, Containing, OrderBy) and builds the JPQL query automatically.
-Q: JPQL vs native query?
+Q*: JPQL vs native query?
 A: JPQL works with entities and is database-portable; native queries are plain SQL for database-specific features and fine-tuned queries.
 Q: What does @Modifying do?
 A: Marks a @Query as an UPDATE or DELETE; such bulk queries bypass the persistence context, so clear it (clearAutomatically) to avoid stale entities, and run inside a transaction.
@@ -591,11 +591,11 @@ List<Order> findWithItemsByIdIn(@Param("ids") List<Long> ids);
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is the N+1 problem?
+Q*: What is the N+1 problem?
 A: Running one query to load N entities and then one additional query per entity to load an association, causing N+1 database round trips.
-Q: How do you detect N+1 queries?
+Q*: How do you detect N+1 queries?
 A: Enable SQL logging or Hibernate statistics, look for repeated statements, and add tests or tooling that assert the number of queries per use case.
-Q: How do you fix N+1 in Spring Data JPA?
+Q*: How do you fix N+1 in Spring Data JPA?
 A: Use JOIN FETCH queries, @EntityGraph on repository methods, batch fetching (@BatchSize or default_batch_fetch_size), or DTO projections; avoid EAGER mappings and OSIV.
 Q: JOIN FETCH vs @EntityGraph?
 A: Both load associations in the same query; JOIN FETCH is written in JPQL, @EntityGraph declares attribute paths on the method (or as named graphs) without writing the query.
@@ -653,11 +653,11 @@ spring:
 - Always measure hit ratios (Hibernate statistics, cache metrics) and define eviction and TTL.
 
 ## Interview Q&A | sky | wide
-Q: First-level vs second-level cache?
+Q*: First-level vs second-level cache?
 A: The first-level cache is the mandatory per-session persistence context; the second-level cache is optional, shared across sessions at the SessionFactory level, and backed by a cache provider.
-Q: What does the second-level cache store?
+Q*: What does the second-level cache store?
 A: Entity state by id (and optionally collection ids), not the entity objects themselves; loads by id and association navigation can then avoid SQL.
-Q: How does the query cache work and why is it rarely useful?
+Q*: How does the query cache work and why is it rarely useful?
 A: It caches the result ids of a query for given parameters and relies on the L2 cache for entities; it is invalidated whenever any involved table changes, so it suits only repeated queries on stable data.
 Q: Which concurrency strategy for reference data?
 A: READ_ONLY for data that never changes; READ_WRITE for updatable data requiring consistency; NONSTRICT_READ_WRITE when brief staleness is acceptable.
@@ -721,11 +721,11 @@ class AuditService {
 - Programmatic alternative: **`TransactionTemplate`** for fine-grained control.
 
 ## Interview Q&A | sky | wide
-Q: How does @Transactional work internally?
+Q*: How does @Transactional work internally?
 A: Spring wraps the bean in a proxy; when a transactional method is called through it, a transaction manager begins or joins a transaction, binds resources to the thread, invokes the method, then commits or rolls back depending on the outcome.
-Q: REQUIRED vs REQUIRES_NEW?
+Q*: REQUIRED vs REQUIRES_NEW?
 A: REQUIRED joins the existing transaction (one shared outcome); REQUIRES_NEW suspends it and runs an independent transaction that commits or rolls back separately.
-Q: Which exceptions trigger rollback by default?
+Q*: Which exceptions trigger rollback by default?
 A: RuntimeException and Error. Checked exceptions commit unless rollbackFor is specified.
 Q: Why is my @Transactional ignored?
 A: The method is called from within the same class (self-invocation), it is private, the object is not a Spring bean, or the exception is caught inside the method.
@@ -797,11 +797,11 @@ public void transfer(Long fromId, Long toId, BigDecimal amount) {
 - **Atomic SQL** is often simplest for counters: `UPDATE inventory SET quantity = quantity - :n WHERE sku = :sku AND quantity >= :n` (check the affected row count).
 
 ## Interview Q&A | sky | wide
-Q: Optimistic vs pessimistic locking?
+Q*: Optimistic vs pessimistic locking?
 A: Optimistic locking detects conflicts at write time using a version column and fails the losing transaction; pessimistic locking prevents conflicts by locking rows when they are read so other transactions wait.
-Q: How does @Version work?
+Q*: How does @Version work?
 A: Hibernate adds the version to the WHERE clause of updates and increments it; if no row matches because another transaction changed it, an OptimisticLockException is thrown.
-Q: What SQL does PESSIMISTIC_WRITE produce?
+Q*: What SQL does PESSIMISTIC_WRITE produce?
 A: SELECT ... FOR UPDATE (database-specific), taking an exclusive row lock held until the transaction ends.
 Q: How do you handle an OptimisticLockException?
 A: Roll back and retry the business operation with fresh data (bounded retries), or return 409/412 so the client reloads and reapplies changes.
@@ -845,11 +845,11 @@ A: When contention on the same rows is high and failing late is costly, such as 
 - Tie to experience: "The order history page ran 301 queries; an `@EntityGraph` plus batch size 50 brought it to 3 and p95 from 1.8 s to 120 ms."
 
 ## Big Interview Q&A | sky | wide
-Q: Walk through what happens when you call orderRepository.save(order) for a new order with items.
+Q*: Walk through what happens when you call orderRepository.save(order) for a new order with items.
 A: Spring Data sees a new entity and calls persist; the order becomes managed, CascadeType.PERSIST makes items managed too, ids are generated (immediately for IDENTITY, from the sequence otherwise), and at flush/commit Hibernate issues INSERTs for the order and items (batched if configured).
-Q: How would you design entities for orders and order items?
+Q*: How would you design entities for orders and order items?
 A: Order as aggregate root with a LAZY @ManyToOne to Customer, a bidirectional @OneToMany(mappedBy, cascade ALL, orphanRemoval) to OrderItem with add/remove helpers, @Version for concurrency, money as BigDecimal with precision, enums as STRING, and SEQUENCE ids.
-Q: How do you make a slow JPA screen fast?
+Q*: How do you make a slow JPA screen fast?
 A: Inspect the SQL; remove N+1 with fetch joins, entity graphs or batch fetching; use DTO projections and pagination; add indexes for filters and sorts; use readOnly transactions; cache reference data; consider native SQL for reports.
 Q: What are the trade-offs of using an ORM?
 A: Higher productivity, portability and automatic change tracking, against hidden or inefficient SQL, a learning curve (lifecycle, lazy loading, flushing) and less control for complex queries.

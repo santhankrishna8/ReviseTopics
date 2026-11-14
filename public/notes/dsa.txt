@@ -1,0 +1,2376 @@
+@ Beginner
+# 00 | DSA Basics: Start Here | What data structures and algorithms are, why interviews test them, the study order, a 7-step method for solving any problem, reading constraints to pick a complexity, how to practise on LeetCode so it sticks | Start Here
+
+## What DSA Actually Is
+> A **data structure** is how you store data so the operations you need are fast. An **algorithm** is the step-by-step recipe that works on it. Pick the right box, then the right recipe.
+- **Data structure** = a way to organise data in memory: array, linked list, stack, queue, hash map, tree, heap, graph, trie.
+- **Algorithm** = a finite sequence of steps that turns input into output: sorting, searching, traversing, optimising.
+- They come in pairs. A hash map makes "have I seen this?" O(1). A heap makes "give me the smallest" O(log n). Choosing the structure usually **is** the solution.
+- Real life: your phone contacts are **sorted** (binary search), browser back button is a **stack**, a printer queue is a **queue**, Google Maps is a **graph** with **Dijkstra**, autocomplete is a **trie**.
+! Data structure = the box. Algorithm = the recipe. Interviews test whether you pick the right box.
+
+## Why Interviews Ask DSA
+- It shows you can **break a fuzzy problem into steps**, reason about **efficiency**, and **write correct code under pressure**.
+- The interviewer cares about your **thinking out loud** as much as the final code. A clear brute force plus a reasoned improvement beats silent perfect code.
+- Almost every problem is one of about **15 patterns** (two pointers, sliding window, BFS, DP ...). Learn the patterns, not 1000 problems.
+! Patterns, not problems. 150 well-understood problems beat 600 memorised ones.
+
+## The Order to Study (this topic, top to bottom)
+- **Foundations**: Big-O → Java toolkit → arrays and strings → hashing.
+- **Array patterns**: two pointers → sliding window → prefix sum → recursion.
+- **Linear structures**: linked list → stack → queue and deque → binary search → sorting.
+- **Non-linear structures**: binary tree → BST → heap → backtracking → graphs → greedy.
+- **Advanced**: dynamic programming (1D, then 2D) → advanced graphs → trie → bits and math → segment tree → string algorithms.
+- **Review**: the pattern finder (sheet 27) and the summary (sheet 28). Read those two again the night before an interview.
+
+## The 7-Step Method for Any Problem
+> **Understand → Examples → Brute force → Optimise → Code → Test → Complexity.** Say each step out loud in an interview.
+- **1. Understand**: restate the problem in your own words. Ask: input size? negatives? duplicates? empty input? sorted? return what exactly?
+- **2. Examples**: work one normal example and one edge case **by hand**. Edge cases: empty, one element, all same, negatives, already sorted, max size.
+- **3. Brute force**: say the simplest correct idea and its complexity, even if slow. It proves you understand the problem.
+- **4. Optimise**: ask "what work am I repeating?" Then reach for a pattern (sheet 27 has the full lookup table).
+- **5. Code**: clean names, small helper methods, no clever one-liners.
+- **6. Test**: dry-run your code on the example line by line. Then the edge cases.
+- **7. Complexity**: state time and space, and why.
+! When stuck at step 4, ask: can sorting help? can a hash map remember something? can two pointers or a window avoid the inner loop?
+
+## Read the Constraints to Pick the Complexity
+> LeetCode gives `n`. About **10^8 simple operations per second** is the budget. The constraint tells you which complexity the intended solution has.
+```text
+n (input size)        target complexity     typical technique
+n <= 10               O(n!), O(2^n * n)     permutations, brute backtracking
+n <= 20               O(2^n)                subsets, bitmask
+n <= 500              O(n^3)                triple loop, interval DP
+n <= 5,000            O(n^2)                double loop, 2D DP
+n <= 100,000 (10^5)   O(n log n) or O(n)    sort, heap, binary search, hash map
+n <= 10^6             O(n)                  one pass, prefix sum, sliding window
+n >= 10^9             O(log n) or O(1)      binary search on the answer, math
+```
+! 10^5 means "not O(n^2)". That one rule saves most wrong starts.
+
+## Brute Force to Optimal: a First Example
+- Problem (**1. Two Sum**): return indices of two numbers that add up to `target`.
+- Brute force: try every pair. O(n^2) time, O(1) space.
+- Optimal: while scanning, remember each value's index in a hash map and ask "have I already seen `target - x`?". O(n) time, O(n) space.
+- That trade (**spend memory to save time**) is the most common optimisation in all of DSA.
+```java BruteTwoSum.java
+class Solution {
+  public int[] twoSum(int[] nums, int target) {
+    for (int i = 0; i < nums.length; i++)
+      for (int j = i + 1; j < nums.length; j++)
+        if (nums[i] + nums[j] == target) return new int[] {i, j};
+    return new int[0];   // the problem guarantees an answer exists
+  }
+}
+```
+```java TwoSum.java
+class Solution {
+  public int[] twoSum(int[] nums, int target) {
+    Map<Integer, Integer> seen = new HashMap<>();   // value -> index
+    for (int i = 0; i < nums.length; i++) {
+      Integer j = seen.get(target - nums[i]);
+      if (j != null) return new int[] {j, i};
+      seen.put(nums[i], i);
+    }
+    return new int[0];
+  }
+}
+```
+
+## How to Practise So It Sticks
+- **Learn the sheet → do the problems in its "Do these next" list, in order.** Easy ones build the template, Medium ones are the real interview level.
+- **25-minute rule**: stuck for 25 minutes? Read a hint or the solution, then **close it and write it yourself** from scratch.
+- **Re-solve** each problem after 1 day, 3 days and 7 days (spaced repetition). If you cannot, it goes back on the list.
+- Keep a one-line note per problem: "pattern + the key trick". Example: "560: prefix sum + hash map of counts, look up sum - k".
+- Explain every solution out loud as if to an interviewer. If you cannot explain it, you do not own it yet.
+! Solve, then re-solve after 1, 3 and 7 days. Recognition fades; re-solving builds memory.
+
+## Vocabulary You Must Know
+- **Subarray / substring**: contiguous. **Subsequence**: keeps order, may skip. **Subset**: any selection, order irrelevant.
+- **In-place**: O(1) extra space, modifies the input. **Stable sort**: equal elements keep their original order.
+- **Amortized O(1)**: occasionally slow (an `ArrayList` resize) but O(1) on average over many operations.
+- **Brute force**: try everything. **Greedy**: take the best local choice. **DP**: reuse answers to overlapping subproblems.
+- **Monotonic**: always increasing or always decreasing (monotonic stack, monotonic queue).
+- **Invariant**: something your loop keeps true every iteration ("everything left of `slow` is non-zero"). Stating it makes code correct.
+
+## Explain It Like This (to an interviewer)
+> "First I'll restate the problem and check edge cases. The brute force is checking every pair, O(n^2). We repeat work looking up complements, so I'll store values in a hash map as I go. That makes it one pass: O(n) time, O(n) space. Let me code it, then dry-run it on the example."
+- Talk in this order: **problem → brute force → bottleneck → better idea → complexity → code → test.**
+- If you hit a wall, say what you are trying. Silence is the only real failure.
+
+## Do These Next (warm-up, in order)
+- **1480. Running Sum of 1d Array** (Easy): one loop, `nums[i] += nums[i - 1]`.
+- **1672. Richest Customer Wealth** (Easy): sum each row, track the max.
+- **412. Fizz Buzz** (Easy): loops and conditions, warm-up for clean code.
+- **1. Two Sum** (Easy): the hash map trick above. Write it from memory.
+- **9. Palindrome Number** (Easy): reverse half the number with `% 10` and `/ 10`.
+
+## Interview Q&A
+Q*: What is the difference between a data structure and an algorithm?
+A: A data structure organises data so certain operations are efficient (a hash map gives O(1) lookup). An algorithm is the procedure that solves the problem using it. The right structure often makes the algorithm trivial.
+Q*: How do you approach a problem you have never seen?
+A: Restate it, do examples and edge cases by hand, state a brute force with its complexity, find the repeated work, apply a pattern to remove it, code, dry-run and give the final complexity.
+Q*: How do constraints help?
+A: About 10^8 operations fit in a second. n up to 10^5 rules out O(n^2), so I look for O(n log n) or O(n): sorting, hashing, two pointers, a heap or binary search.
+Q: Subarray vs subsequence vs subset?
+A: Subarray is contiguous. Subsequence keeps the original order but can skip elements. Subset is any selection where order does not matter. An array of n has n(n+1)/2 subarrays but 2^n subsequences.
+Q: Why does a hash map make Two Sum O(n)?
+A: Instead of an inner loop searching for the complement, each element asks the map "have I seen target - x?" in O(1) average time, so one pass is enough.
+
+# 01 | Big-O: Time & Space Complexity | What Big-O measures, the growth table, rules for simplifying, counting loops, logarithms explained simply, recursion and the recursion tree, space complexity, amortized analysis, best/average/worst case | Big-O
+
+## The Idea
+> Big-O answers one question: **when the input doubles, how much slower does my code get?** It describes growth, not seconds.
+- **Time complexity** = how the number of steps grows with input size `n`.
+- **Space complexity** = how much **extra** memory grows with `n` (the input itself usually does not count).
+- Big-O is the **upper bound** for large `n`: we keep the fastest-growing term and drop constants.
+- Formally: f(n) is O(g(n)) if f(n) <= c * g(n) for some constant c and all large enough n. **Θ (theta)** is the tight bound, **Ω (omega)** the lower bound. In interviews "Big-O" usually means the tight worst case.
+! Big-O is about growth: double the input, see what happens to the work.
+
+## The Growth Table (memorise the order)
+```text
+Big-O        name           n = 1,000 means about    example
+O(1)         constant       1 step                   array index, HashMap get
+O(log n)     logarithmic    10 steps                 binary search, balanced tree
+O(n)         linear         1,000 steps              one loop, linear search
+O(n log n)   linearithmic   10,000 steps             merge sort, Arrays.sort
+O(n^2)       quadratic      1,000,000 steps          nested loops over pairs
+O(2^n)       exponential    more than atoms in sky   all subsets
+O(n!)        factorial      even worse               all permutations
+```
+! 1 < log n < n < n log n < n^2 < 2^n < n!
+
+## Rules for Simplifying
+- **Drop constants**: O(2n) → O(n). O(n/2) → O(n).
+- **Keep the dominant term**: O(n^2 + n) → O(n^2). O(n + log n) → O(n).
+- **Different inputs, different letters**: looping over array `a` then array `b` is **O(a + b)**. Nested over both is **O(a * b)**, not O(n^2).
+- **Sequential steps add**, **nested steps multiply**.
+- Sorting first then one pass: O(n log n + n) = **O(n log n)**.
+
+## Counting Loops
+```java Loops.java
+class Loops {
+  static int single(int n) {          // O(n)
+    int c = 0;
+    for (int i = 0; i < n; i++) c++;
+    return c;
+  }
+  static int nested(int n) {          // O(n^2): n * n
+    int c = 0;
+    for (int i = 0; i < n; i++)
+      for (int j = 0; j < n; j++) c++;
+    return c;
+  }
+  static int triangle(int n) {        // still O(n^2): n(n-1)/2 pairs
+    int c = 0;
+    for (int i = 0; i < n; i++)
+      for (int j = i + 1; j < n; j++) c++;
+    return c;
+  }
+  static int halving(int n) {         // O(log n): n, n/2, n/4 ... 1
+    int c = 0;
+    for (int i = n; i > 1; i /= 2) c++;
+    return c;
+  }
+  static int nLogN(int n) {           // O(n log n): n outer * log n inner
+    int c = 0;
+    for (int i = 0; i < n; i++)
+      for (int j = 1; j < n; j *= 2) c++;
+    return c;
+  }
+}
+```
+- A loop that **multiplies or divides** its counter by a constant is **O(log n)**.
+- A loop that adds 1 is O(n), however many statements are inside it (as long as each is O(1)).
+
+## Logarithms in One Minute
+> **log2(n) = how many times you can halve n before reaching 1.** log2(1,000,000) is about 20.
+- Binary search on 1 million items needs about **20** comparisons. On 1 billion, about **30**.
+- Any algorithm that **throws away half the input each step** is O(log n).
+- The base does not matter in Big-O (log2 n and log10 n differ by a constant), so we write O(log n).
+
+## Recursion: Count the Calls
+> Time of recursion ≈ **number of calls × work per call**. Draw the recursion tree.
+- Each call makes **one** recursive call on n - 1 → n calls → **O(n)** (factorial, linked list recursion).
+- Each call halves the input once → **O(log n)** (binary search, fast power).
+- Each call makes **two** calls on n - 1 → about 2^n calls → **O(2^n)** (naive Fibonacci).
+- **Space** of recursion = the **maximum depth** of the call stack, not the total calls. Naive Fibonacci is O(2^n) time but **O(n) space**.
+- Divide and conquer (merge sort): log n levels, O(n) work per level → **O(n log n)**.
+```java FibComplexity.java
+class FibComplexity {
+  static long naive(int n) {                    // O(2^n) time, O(n) stack space
+    return n < 2 ? n : naive(n - 1) + naive(n - 2);
+  }
+  static long memo(int n, long[] cache) {       // O(n) time, O(n) space: each n solved once
+    if (n < 2) return n;
+    if (cache[n] != 0) return cache[n];
+    return cache[n] = memo(n - 1, cache) + memo(n - 2, cache);
+  }
+}
+```
+! Recursion time = calls × work per call. Recursion space = deepest stack.
+
+## Space Complexity
+- Count **extra** memory: new arrays, maps, sets, the recursion stack.
+- `int[] copy = new int[n]` → O(n). A `HashMap` holding up to n entries → O(n). A few variables → O(1).
+- **Output space** is usually not counted (returning a list of n answers is fine), but say so.
+- Recursion uses the stack: depth `d` → O(d) space. A balanced tree recursion is O(log n), a skewed one O(n).
+
+## Amortized Analysis
+- `ArrayList.add` is **amortized O(1)**: when full, it grows by 50% and copies (O(n)), but that happens so rarely that n adds cost O(n) total.
+- `HashMap.put` is amortized O(1) average for the same reason (resizing) plus good hashing.
+- Monotonic stack problems: each element is pushed once and popped once, so a nested `while` inside a `for` is still **O(n) total**.
+! A while-loop inside a for-loop is not automatically O(n^2). Count how many times each element can be processed in total.
+
+## Best, Average, Worst Case
+- **Quick sort**: average O(n log n), worst O(n^2) (bad pivots). **HashMap get**: average O(1), worst O(log n) in Java 8+ (bins turn into red-black trees), O(n) in older designs.
+- **Linear search**: best O(1) (first element), worst O(n).
+- Interviews mean **worst case** unless you say otherwise. Say "average O(1)" for hashing explicitly.
+
+## Common Complexities of Java Operations
+```text
+operation                                   time
+array[i], ArrayList.get(i)                  O(1)
+ArrayList.add(x) at end                     O(1) amortized
+ArrayList.add(0, x) / remove(0)             O(n)  (shifts everything)
+LinkedList add/remove at ends               O(1)
+LinkedList.get(i)                           O(n)
+HashMap / HashSet get, put, contains        O(1) average
+TreeMap / TreeSet get, put, floor, ceiling  O(log n)
+PriorityQueue offer, poll                   O(log n); peek O(1)
+ArrayDeque push, pop, offer, poll           O(1)
+Arrays.sort(int[]) / Collections.sort       O(n log n)
+String concatenation in a loop with +       O(n^2) total: use StringBuilder
+s.substring(i, j)                           O(j - i)  (copies)
+```
+
+## Explain It Like This
+> "There are two nested loops over n, so this is O(n^2) time. The map can hold every element, so O(n) space. Sorting first would make it O(n log n) and let me use two pointers with O(1) extra space."
+- Always give **both** time and space, and the reason (which loop, which structure).
+
+## Do These Next
+- **217. Contains Duplicate** (Easy): compare O(n^2) pairs, O(n log n) sort, O(n) HashSet. Say all three.
+- **509. Fibonacci Number** (Easy): write the O(2^n) and O(n) versions, then the O(1)-space loop.
+- **268. Missing Number** (Easy): O(n) with the sum formula n(n+1)/2, O(1) space.
+- **704. Binary Search** (Easy): your first O(log n) algorithm.
+
+## Interview Q&A
+Q*: What does O(n) mean?
+A: The running time grows linearly with the input size: double the input, roughly double the time. Constants and lower terms are dropped because Big-O describes growth for large n.
+Q*: Is a nested loop always O(n^2)?
+A: No. If the inner loop is bounded by a constant it is O(n). If the outer and inner loops run over different inputs it is O(a * b). In monotonic stack code the inner while pops each element at most once, so the total is O(n).
+Q*: What is the time and space complexity of naive recursive Fibonacci?
+A: Time O(2^n) because each call branches into two. Space O(n) because the deepest chain of calls is n frames.
+Q: What is amortized complexity?
+A: The average cost per operation over a sequence. ArrayList.add is O(n) when it resizes, but resizes are rare enough that n adds cost O(n) in total, so each is amortized O(1).
+Q: Why is binary search O(log n)?
+A: Each comparison discards half of the remaining range, and you can only halve n about log2(n) times before one element remains.
+Q: Worst case of HashMap.get in Java 8+?
+A: Average O(1). If many keys collide into one bucket, Java converts the bucket into a red-black tree once it holds 8 entries (and the table has at least 64 buckets), so the worst case is O(log n) instead of O(n).
+
+# 02 | Java Toolkit for DSA | The collections you will use in every problem, which one to pick, arrays and Arrays utilities, strings and StringBuilder, char tricks, comparators and sorting, integer overflow, and the Java traps that fail tests | Java Toolkit
+
+## Pick the Right Collection
+> **Need lookup? HashMap/HashSet. Need order? TreeMap. Need min/max fast? PriorityQueue. Need stack or queue? ArrayDeque.**
+```text
+need                                       use                      key ops (time)
+index access, dynamic size                 ArrayList                get O(1), add O(1)*
+"seen before?" / count things              HashSet / HashMap        O(1) average
+sorted keys, floor/ceiling, range          TreeMap / TreeSet        O(log n)
+smallest or largest repeatedly             PriorityQueue            offer/poll O(log n)
+stack (LIFO)                               ArrayDeque push/pop      O(1)
+queue (FIFO), BFS                          ArrayDeque offer/poll    O(1)
+both ends (deque, sliding window max)      ArrayDeque               O(1) at both ends
+fixed size, primitives, speed              int[] / boolean[]        O(1)
+```
+! Never use Stack or Vector (old, synchronized). Use ArrayDeque for both stacks and queues.
+
+## HashMap Patterns You Will Write 100 Times
+```java MapPatterns.java
+String s = "banana";
+Map<Character, Integer> count = new HashMap<>();
+for (char c : s.toCharArray()) count.merge(c, 1, Integer::sum);       // frequency count
+System.out.println(count);                                             // {a=3, b=1, n=2}
+
+Map<String, List<String>> groups = new HashMap<>();
+for (String w : List.of("eat", "tea", "tan")) {
+  char[] key = w.toCharArray();
+  Arrays.sort(key);
+  groups.computeIfAbsent(new String(key), k -> new ArrayList<>()).add(w);   // group by key
+}
+System.out.println(groups);                                            // {aet=[eat, tea], ant=[tan]}
+
+int b = count.getOrDefault('z', 0);                                    // 0 if missing
+for (Map.Entry<Character, Integer> e : count.entrySet())               // iterate entries
+  if (e.getValue() > 1) System.out.println(e.getKey() + " repeats");
+```
+- `merge(key, 1, Integer::sum)` = "add 1, starting from 0". `computeIfAbsent` = "get the list, creating it if missing".
+- `getOrDefault` avoids a `NullPointerException` when unboxing a missing value.
+
+## Stack, Queue, Deque: All ArrayDeque
+```java DequeDemo.java
+Deque<Integer> stack = new ArrayDeque<>();
+stack.push(1); stack.push(2);
+System.out.println(stack.pop() + " " + stack.peek());     // 2 1   (LIFO)
+
+Queue<Integer> queue = new ArrayDeque<>();
+queue.offer(1); queue.offer(2);
+System.out.println(queue.poll() + " " + queue.peek());    // 1 2   (FIFO)
+
+Deque<Integer> dq = new ArrayDeque<>();
+dq.offerFirst(1); dq.offerLast(2);
+System.out.println(dq.peekFirst() + " " + dq.peekLast()); // 1 2   (both ends)
+```
+- `ArrayDeque` does **not allow null**. Use `peek()` (returns null when empty) or check `isEmpty()` first. `pop()` on an empty deque throws.
+
+## PriorityQueue (Heap)
+```java HeapDemo.java
+PriorityQueue<Integer> min = new PriorityQueue<>();                  // smallest first
+PriorityQueue<Integer> max = new PriorityQueue<>(Collections.reverseOrder());
+for (int x : new int[] {5, 1, 8, 3}) { min.offer(x); max.offer(x); }
+System.out.println(min.peek() + " " + max.peek());                   // 1 8
+
+PriorityQueue<int[]> byDist = new PriorityQueue<>((p, q) -> Integer.compare(p[1], q[1]));
+byDist.offer(new int[] {7, 30});
+byDist.offer(new int[] {9, 10});
+System.out.println(byDist.poll()[0]);                                // 9 (smallest second field)
+```
+- Iterating a `PriorityQueue` does **not** give sorted order. Only repeated `poll()` does.
+- Use `Integer.compare(a, b)`, never `a - b` in comparators: subtraction overflows for large or negative values.
+
+## TreeMap and TreeSet (Sorted)
+```java TreeDemo.java
+TreeMap<Integer, String> tm = new TreeMap<>(Map.of(10, "a", 20, "b", 30, "c"));
+System.out.println(tm.floorKey(25));     // 20  greatest key <= 25
+System.out.println(tm.ceilingKey(25));   // 30  smallest key >= 25
+System.out.println(tm.firstKey() + " " + tm.lastKey());   // 10 30
+System.out.println(tm.headMap(20));      // {10=a}  keys < 20
+
+TreeSet<Integer> ts = new TreeSet<>(List.of(4, 1, 9));
+System.out.println(ts.higher(4) + " " + ts.lower(4));     // 9 1
+```
+
+## Arrays and the Arrays Class
+```java ArraysDemo.java
+int[] a = {5, 2, 9, 1};
+Arrays.sort(a);                                  // [1, 2, 5, 9]  dual-pivot quicksort for primitives
+System.out.println(Arrays.toString(a));
+System.out.println(Arrays.binarySearch(a, 5));   // 2 (index; negative if missing)
+
+int[] filled = new int[3];
+Arrays.fill(filled, -1);                         // [-1, -1, -1]  handy for DP memo
+int[] copy = Arrays.copyOfRange(a, 1, 3);        // [2, 5]   from inclusive, to exclusive
+int[][] grid = new int[2][3];                    // 2 rows, 3 columns, all 0
+
+Integer[] boxed = {3, 1, 2};
+Arrays.sort(boxed, Collections.reverseOrder());  // descending needs objects, not int[]
+int[][] intervals = {{5, 6}, {1, 3}, {2, 4}};
+Arrays.sort(intervals, (x, y) -> Integer.compare(x[0], y[0]));   // sort by start
+System.out.println(Arrays.deepToString(intervals));               // [[1, 3], [2, 4], [5, 6]]
+int sum = Arrays.stream(a).sum();
+System.out.println(sum + " " + Arrays.toString(copy) + " " + Arrays.toString(filled) + grid.length);
+```
+
+## Strings, StringBuilder and chars
+```java StringDemo.java
+String s = "Hello";
+char c = s.charAt(1);                       // 'e'
+int idx = c - 'a';                          // 4: maps 'a'..'z' to 0..25 (array of 26 counts)
+char up = Character.toUpperCase(c);         // 'E'
+boolean ok = Character.isLetterOrDigit('7');
+
+StringBuilder sb = new StringBuilder();
+for (int i = 0; i < 3; i++) sb.append(i);   // O(1) amortized per append
+sb.reverse();                               // "210"
+System.out.println(sb + " " + idx + up + ok);
+
+System.out.println("a,b,c".split(",").length);         // 3
+System.out.println(String.join("-", List.of("x", "y")));   // x-y
+System.out.println("abc".equals("ab" + "c"));          // true: compare content with equals
+char[] arr = "dcba".toCharArray(); Arrays.sort(arr);    // sort the letters of a word
+System.out.println(new String(arr));                    // abcd  (an anagram key)
+```
+- Strings are **immutable**: `s += x` in a loop copies the whole string each time (O(n^2)). Use `StringBuilder`.
+- **`==` compares references** for strings and boxed numbers. Always use `.equals()`.
+- `new int[26]` indexed by `c - 'a'` is faster than a `HashMap` for lowercase letters.
+
+## Overflow and Number Traps
+```java NumberTraps.java
+int big = Integer.MAX_VALUE;                 // 2_147_483_647, about 2.1 * 10^9
+System.out.println(big + 1);                 // -2147483648: silent overflow
+long safe = (long) big + 1;                  // 2147483648: cast BEFORE the operation
+int lo = 2_000_000_000, hi = 2_100_000_000;
+int midBad = (lo + hi) / 2;                  // overflows to a negative number
+int mid = lo + (hi - lo) / 2;                // safe midpoint: always use this
+System.out.println(midBad < 0 ? "overflowed" : "fine");
+System.out.println(mid + " " + safe);
+
+Integer x = 1000, y = 1000;
+System.out.println(x == y);                  // false: different Integer objects (cache is -128..127)
+System.out.println(x.equals(y));             // true
+System.out.println(-7 / 2 + " " + -7 % 2);   // -3 -1: Java truncates toward zero
+System.out.println(Math.floorMod(-7, 2));    // 1: use for "always non-negative" modulo
+final int MOD = 1_000_000_007;               // answers "modulo 10^9 + 7": take % after every step
+```
+! Sums of many ints, products, and (lo + hi): use long or lo + (hi - lo) / 2.
+
+## Java Traps That Fail LeetCode Tests
+- Comparing `Integer` objects from a map with `==`: works for -128..127, fails above. Use `.equals()` or unbox to `int`.
+- `list.remove(i)` on a `List<Integer>` removes **by index**. To remove the value use `list.remove(Integer.valueOf(i))`.
+- Modifying a collection while iterating it with for-each throws `ConcurrentModificationException`. Use an `Iterator` and `it.remove()`.
+- `Arrays.asList(int[])` gives a list with **one** element (the array). Use `Arrays.stream(a).boxed().toList()`.
+- Returning `List<List<Integer>>`: add a **copy** (`new ArrayList<>(path)`), not the list you keep mutating.
+- Deep recursion (10^5 levels) can `StackOverflowError`. Convert to an iterative loop with an explicit stack.
+
+## Explain It Like This
+> "I'll use a HashMap from value to index for O(1) lookups, and an ArrayDeque as the stack. Sums can exceed 2^31, so I keep them in a long."
+- Name the structure **and the reason**: "TreeMap because I need the closest key below x in O(log n)".
+
+## Do These Next
+- **1773. Count Items Matching a Rule** (Easy): string equals and loops.
+- **387. First Unique Character in a String** (Easy): `int[26]` counts, then a second pass.
+- **20. Valid Parentheses** (Easy): ArrayDeque as a stack.
+- **1046. Last Stone Weight** (Easy): max-heap with `Collections.reverseOrder()`.
+- **705. Design HashSet** (Easy): see what a set is doing underneath (buckets).
+
+## Interview Q&A
+Q*: Why ArrayDeque instead of Stack?
+A: Stack extends Vector, which synchronizes every call and exposes index access that breaks LIFO. ArrayDeque is faster, unsynchronized and offers stack (push/pop) and queue (offer/poll) operations at both ends in O(1).
+Q*: HashMap vs TreeMap?
+A: HashMap gives O(1) average get/put with no order. TreeMap is a red-black tree: O(log n) operations but keys stay sorted, with floorKey, ceilingKey, headMap and tailMap for range questions.
+Q*: Why does Integer == fail above 127?
+A: Autoboxing reuses cached Integer objects only for -128 to 127. Larger values are separate objects, so == compares references and returns false. Use equals or unbox.
+Q: Why use StringBuilder?
+A: Strings are immutable, so concatenating in a loop copies the string each time (O(n^2) total). StringBuilder appends into a growable buffer in amortized O(1).
+Q: How do you avoid overflow when computing a midpoint?
+A: Use lo + (hi - lo) / 2 instead of (lo + hi) / 2, and cast to long before multiplying or adding values that can exceed 2^31 - 1.
+Q: How do you make a max-heap in Java?
+A: new PriorityQueue<>(Collections.reverseOrder()), or a comparator such as (a, b) -> Integer.compare(b, a).
+
+# 03 | Arrays & Strings | How arrays live in memory, the cost of each operation, in-place techniques with a write pointer, the reverse trick for rotation, 2D matrix traversal (rotate, spiral), character counting with int[26], and string building | Arrays & Strings
+
+## The Idea
+> An array is a row of **numbered lockers side by side in memory**. Jumping to locker i is instant. Squeezing a new locker into the middle means shifting everyone after it.
+- **Contiguous memory**: element i lives at `base + i * size`, so `a[i]` is **O(1)**.
+- Insert or delete in the middle: **O(n)** (shift the rest). At the end of an `ArrayList`: amortized O(1).
+- Search an **unsorted** array: O(n). **Sorted**: O(log n) with binary search.
+- Java arrays have a **fixed length**. `ArrayList` wraps an array and grows by 50% when full.
+- A Java `String` is an immutable sequence of `char`. Treat it like a read-only `char[]`: `s.charAt(i)`, `s.length()`.
+! Arrays: O(1) to read by index, O(n) to insert in the middle.
+
+## Technique 1: The Write Pointer (in-place filtering)
+> Keep a **slow** index `w` = "next place to write a keeper". Scan with a fast index. Copy keepers to `w`. Everything before `w` is the answer.
+```java MoveZeroes.java
+class Solution {
+  public void moveZeroes(int[] nums) {         // LeetCode 283
+    int w = 0;                                 // invariant: nums[0..w) are the non-zeros, in order
+    for (int x : nums) if (x != 0) nums[w++] = x;
+    while (w < nums.length) nums[w++] = 0;
+  }
+  public int removeDuplicates(int[] nums) {    // LeetCode 26, sorted input
+    if (nums.length == 0) return 0;
+    int w = 1;
+    for (int i = 1; i < nums.length; i++)
+      if (nums[i] != nums[w - 1]) nums[w++] = nums[i];
+    return w;                                  // first w elements are unique
+  }
+}
+```
+- O(n) time, O(1) space. The same idea solves "remove element", "remove duplicates", "move zeroes".
+
+## Technique 2: Reverse Tricks
+- **Reverse a range in place**: swap `a[i]` and `a[j]`, move both inward. O(n), O(1).
+- **Rotate right by k**: reverse the whole array, reverse the first k, reverse the rest. Remember `k %= n`.
+```java RotateArray.java
+class Solution {
+  public void rotate(int[] nums, int k) {      // LeetCode 189: [1,2,3,4,5,6,7], k=3 -> [5,6,7,1,2,3,4]
+    int n = nums.length;
+    k %= n;
+    reverse(nums, 0, n - 1);                   // [7,6,5,4,3,2,1]
+    reverse(nums, 0, k - 1);                   // [5,6,7,4,3,2,1]
+    reverse(nums, k, n - 1);                   // [5,6,7,1,2,3,4]
+  }
+  static void reverse(int[] a, int i, int j) {
+    while (i < j) { int t = a[i]; a[i++] = a[j]; a[j--] = t; }
+  }
+}
+```
+! Rotate by k = reverse all, reverse first k, reverse the rest.
+
+## Technique 3: Counting Characters with int[26]
+```java Anagram.java
+class Solution {
+  public boolean isAnagram(String s, String t) {   // LeetCode 242
+    if (s.length() != t.length()) return false;
+    int[] count = new int[26];                     // 'a'..'z' -> 0..25
+    for (int i = 0; i < s.length(); i++) {
+      count[s.charAt(i) - 'a']++;
+      count[t.charAt(i) - 'a']--;
+    }
+    for (int c : count) if (c != 0) return false;
+    return true;
+  }
+}
+```
+- Faster than a `HashMap<Character,Integer>` and O(1) space (26 is a constant). For any Unicode, fall back to a `HashMap`.
+
+## Technique 4: 2D Arrays (Matrices)
+- `int[][] grid = new int[rows][cols]`. Rows: `grid.length`. Columns: `grid[0].length`.
+- **Four neighbours** of `(r, c)`: up, down, left, right. Store them as direction arrays and check bounds.
+- **Rotate 90° clockwise in place** = **transpose** (swap `m[i][j]` with `m[j][i]`) then **reverse each row**.
+- **Spiral order**: keep four boundaries (`top`, `bottom`, `left`, `right`) and shrink them after each side.
+```java Matrix.java
+class Solution {
+  static final int[][] DIRS = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};   // up, down, left, right
+
+  public void rotate(int[][] m) {                 // LeetCode 48
+    int n = m.length;
+    for (int i = 0; i < n; i++)
+      for (int j = i + 1; j < n; j++) { int t = m[i][j]; m[i][j] = m[j][i]; m[j][i] = t; }
+    for (int[] row : m)
+      for (int l = 0, r = n - 1; l < r; l++, r--) { int t = row[l]; row[l] = row[r]; row[r] = t; }
+  }
+
+  public List<Integer> spiralOrder(int[][] m) {   // LeetCode 54
+    List<Integer> out = new ArrayList<>();
+    int top = 0, bottom = m.length - 1, left = 0, right = m[0].length - 1;
+    while (top <= bottom && left <= right) {
+      for (int c = left; c <= right; c++) out.add(m[top][c]);
+      top++;
+      for (int r = top; r <= bottom; r++) out.add(m[r][right]);
+      right--;
+      if (top <= bottom) { for (int c = right; c >= left; c--) out.add(m[bottom][c]); bottom--; }
+      if (left <= right) { for (int r = bottom; r >= top; r--) out.add(m[r][left]); left++; }
+    }
+    return out;
+  }
+}
+```
+! Rotate 90° clockwise = transpose, then reverse each row.
+
+## Strings: Building and Comparing
+```java StringBasics.java
+class Solution {
+  public String longestCommonPrefix(String[] strs) {   // LeetCode 14
+    String prefix = strs[0];
+    for (String s : strs)
+      while (!s.startsWith(prefix)) prefix = prefix.substring(0, prefix.length() - 1);
+    return prefix;
+  }
+  public String reverseWords(String s) {               // LeetCode 151
+    String[] words = s.trim().split("\\s+");            // split on one or more spaces
+    StringBuilder sb = new StringBuilder();
+    for (int i = words.length - 1; i >= 0; i--) {
+      sb.append(words[i]);
+      if (i > 0) sb.append(' ');
+    }
+    return sb.toString();
+  }
+}
+```
+
+## Common Mistakes
+- Off-by-one: the last index is `n - 1`. Loops `i < n`, not `i <= n`.
+- Forgetting `k %= n` when rotating (k can be larger than n).
+- Comparing strings with `==`. Building strings with `+` in a loop.
+- Modifying the array you are still reading from without a separate write index.
+
+## Explain It Like This
+> "I'll do it in place with a write pointer: everything before `w` is the cleaned result, so one pass gives O(n) time and O(1) extra space."
+
+## Do These Next
+- **1929. Concatenation of Array** (Easy): array indexing warm-up.
+- **26. Remove Duplicates from Sorted Array** (Easy): write pointer.
+- **283. Move Zeroes** (Easy): write pointer then fill zeros.
+- **242. Valid Anagram** (Easy): `int[26]`.
+- **14. Longest Common Prefix** (Easy): shrink the prefix.
+- **189. Rotate Array** (Medium): the triple reverse.
+- **151. Reverse Words in a String** (Medium): split and StringBuilder.
+- **48. Rotate Image** (Medium): transpose and reverse.
+- **54. Spiral Matrix** (Medium): four boundaries.
+- **73. Set Matrix Zeroes** (Medium): use the first row and column as markers for O(1) space.
+
+## Interview Q&A
+Q*: Why is array access O(1)?
+A: Elements are stored contiguously, so the address of element i is base + i * elementSize: one arithmetic step, whatever the size.
+Q*: How do you remove elements in place?
+A: Use a write pointer. Scan every element; copy the ones you keep to index w and increment w. The first w elements are the result. O(n) time, O(1) space.
+Q*: How do you rotate an array by k in O(1) extra space?
+A: Reverse the whole array, then reverse the first k elements, then the remaining n - k, after taking k modulo n.
+Q: How do you rotate a square matrix 90 degrees clockwise in place?
+A: Transpose it (swap across the main diagonal), then reverse every row.
+Q: Why int[26] instead of a HashMap for letters?
+A: Index arithmetic (c - 'a') is a direct O(1) array access with no hashing or boxing, and the space is a constant 26.
+
+# 04 | Hashing: HashMap & HashSet | How a hash table works inside (hashCode, buckets, equals, load factor, treeification), the five hashing patterns (seen-set, frequency, complement, grouping key, index map), longest consecutive sequence, top-k with bucket sort, custom keys | Hashing
+
+## The Idea
+> A hash map is a **coat check**: hand over your coat (key), get a ticket number (hash) that says exactly which hook it hangs on. Finding it again is instant, no searching.
+- **HashSet**: "have I seen x?" in **O(1) average**. **HashMap**: "what value belongs to key k?" in O(1) average.
+- The trade: **spend O(n) memory to turn an O(n) search into O(1)**.
+! Whenever you write an inner loop that searches for something, ask: could a HashMap remember it instead?
+
+## How It Works Inside (Java HashMap)
+- `key.hashCode()` → spread the bits → **bucket index** = `hash & (capacity - 1)` (capacity is a power of 2).
+- Each bucket holds the entries whose hashes land there (**collisions**). Lookup walks that bucket and uses **`equals()`** to find the exact key.
+- **Load factor 0.75**: when size > capacity × 0.75, the table **doubles** and rehashes (amortized O(1)).
+- Java 8+: a bucket with **8 or more** entries (and a table of at least 64 buckets) becomes a **red-black tree**, so the worst case is O(log n).
+- Keys must have a **consistent `equals` and `hashCode`**: equal objects must return equal hash codes. `String`, `Integer`, `List` and records already do.
+- **Never mutate a key** after inserting it: its hash changes and the map cannot find it.
+! Equal keys must have equal hashCodes. Records get both for free, so use a record as a composite key.
+
+## Pattern 1: Seen-Set (duplicates)
+```java SeenSet.java
+class Solution {
+  public boolean containsDuplicate(int[] nums) {   // LeetCode 217
+    Set<Integer> seen = new HashSet<>();
+    for (int x : nums) if (!seen.add(x)) return true;   // add returns false if already present
+    return false;
+  }
+}
+```
+
+## Pattern 2: Frequency Count, then Bucket Sort (Top K)
+> Count with a map, then put each number into a bucket **indexed by its frequency**. Frequencies are at most n, so no sorting is needed: O(n).
+```java TopKFrequent.java
+class Solution {
+  @SuppressWarnings("unchecked")
+  public int[] topKFrequent(int[] nums, int k) {   // LeetCode 347
+    Map<Integer, Integer> freq = new HashMap<>();
+    for (int x : nums) freq.merge(x, 1, Integer::sum);
+    List<Integer>[] buckets = new List[nums.length + 1];   // buckets[f] = numbers seen f times
+    for (var e : freq.entrySet()) {
+      int f = e.getValue();
+      if (buckets[f] == null) buckets[f] = new ArrayList<>();
+      buckets[f].add(e.getKey());
+    }
+    int[] out = new int[k];
+    int i = 0;
+    for (int f = nums.length; f > 0 && i < k; f--)
+      if (buckets[f] != null) for (int x : buckets[f]) if (i < k) out[i++] = x;
+    return out;
+  }
+}
+```
+
+## Pattern 3: Grouping by a Key
+- Anagrams share the same **sorted letters** (or the same 26-count signature). Use that as the map key.
+```java GroupAnagrams.java
+class Solution {
+  public List<List<String>> groupAnagrams(String[] strs) {   // LeetCode 49
+    Map<String, List<String>> groups = new HashMap<>();
+    for (String s : strs) {
+      char[] c = s.toCharArray();
+      Arrays.sort(c);                                        // "eat" -> "aet"
+      groups.computeIfAbsent(new String(c), k -> new ArrayList<>()).add(s);
+    }
+    return new ArrayList<>(groups.values());
+  }
+}
+```
+- Sorting each word costs O(k log k). A 26-count key (`Arrays.toString(count)`) makes it O(k).
+
+## Pattern 4: Only Start From Sequence Starts (Longest Consecutive)
+> Put everything in a set. A number `x` **starts** a run only if `x - 1` is not in the set. Count upward from starts only, so each number is visited at most twice: **O(n)**.
+```java LongestConsecutive.java
+class Solution {
+  public int longestConsecutive(int[] nums) {       // LeetCode 128
+    Set<Integer> set = new HashSet<>();
+    for (int x : nums) set.add(x);
+    int best = 0;
+    for (int x : set) {
+      if (set.contains(x - 1)) continue;            // not a start
+      int len = 1;
+      while (set.contains(x + len)) len++;
+      best = Math.max(best, len);
+    }
+    return best;
+  }
+}
+```
+
+## Pattern 5: Complement / Index Map
+- Two Sum (sheet 00): map value → index, look up `target - x`.
+- "Count pairs with difference k" and "subarray sum equals k" (sheet 07) are the same move: **look up what you need before inserting yourself**.
+
+## Composite Keys
+```java CompositeKey.java
+record Point(int r, int c) {}                       // equals + hashCode generated
+class Demo {
+  static int countDistinct(int[][] pts) {
+    Set<Point> set = new HashSet<>();
+    for (int[] p : pts) set.add(new Point(p[0], p[1]));
+    return set.size();
+  }
+  static String keyOf(int r, int c) { return r + "," + c; }   // the quick string alternative
+  static long packed(int r, int c) { return (long) r << 32 | (c & 0xffffffffL); }   // fastest: one long
+}
+```
+- Do **not** use `int[]` as a key: arrays use identity equality, so two equal arrays are different keys.
+
+## Common Mistakes
+- Using an `int[]` or a mutable object as a key.
+- `map.get(k) + 1` when the key is missing → `NullPointerException`. Use `merge` or `getOrDefault`.
+- Assuming a `HashMap` iterates in insertion order. It does not. Use `LinkedHashMap` for insertion order, `TreeMap` for sorted.
+- Saying "O(1)" without "average": the worst case is O(log n) in Java 8+.
+
+## Explain It Like This
+> "I'll trade memory for time: a HashMap from value to its count gives O(1) average lookups, so the whole thing is one pass, O(n) time and O(n) space."
+
+## Do These Next
+- **217. Contains Duplicate** (Easy): seen-set.
+- **242. Valid Anagram** (Easy): counts.
+- **1. Two Sum** (Easy): complement map.
+- **383. Ransom Note** (Easy): counts with `int[26]`.
+- **205. Isomorphic Strings** (Easy): two maps, both directions.
+- **290. Word Pattern** (Easy): same as 205 with words.
+- **49. Group Anagrams** (Medium): grouping key.
+- **347. Top K Frequent Elements** (Medium): bucket sort by frequency.
+- **36. Valid Sudoku** (Medium): sets per row, column and box.
+- **128. Longest Consecutive Sequence** (Medium): start-of-run check.
+- **380. Insert Delete GetRandom O(1)** (Medium): map value → index plus an ArrayList, swap with last on delete.
+
+## Interview Q&A
+Q*: How does a HashMap work internally?
+A: It hashes the key, maps the hash to a bucket in an array, and stores entries there. Collisions share a bucket and are told apart with equals. When size exceeds capacity times the load factor (0.75) it doubles and rehashes. Since Java 8 a crowded bucket becomes a red-black tree.
+Q*: What happens if you override equals but not hashCode?
+A: Two equal objects can get different hash codes and land in different buckets, so the map treats them as different keys: lookups fail and duplicates appear in sets.
+Q*: HashMap vs Hashtable vs ConcurrentHashMap?
+A: HashMap is unsynchronized and allows one null key. Hashtable is legacy and synchronizes every method. ConcurrentHashMap is the thread-safe choice, with fine-grained locking and no null keys or values.
+Q: How do you find the longest consecutive sequence in O(n)?
+A: Put all numbers in a set, and only start counting from numbers whose predecessor is missing. Each number is touched a constant number of times.
+Q: Why is top-k frequent O(n) with buckets?
+A: A frequency is between 1 and n, so numbers can be placed in an array indexed by frequency and read from the highest bucket down, with no comparison sort.
+
+# 05 | Two Pointers | Opposite-ends pointers on sorted data, same-direction fast/slow pointers, merging two arrays from the back, 3Sum with duplicate skipping, container with most water, trapping rain water, Dutch national flag | Two Pointers
+
+## The Idea
+> Two fingers on the array. Each step, **move the finger that cannot be part of a better answer**. One pass instead of checking every pair: O(n^2) → **O(n)**.
+- **Opposite ends** (`l = 0`, `r = n - 1`, move inward): sorted pair sums, palindromes, container with most water.
+- **Same direction** (slow and fast): write pointer for in-place filtering (sheet 03), cycle detection (sheet 09).
+- **Two inputs**: one pointer per array, merging sorted arrays.
+- Usually needs **sorted input** or a property that tells you which pointer to move.
+! Two pointers works when you can always tell which pointer to move and be sure you skipped nothing better.
+
+## Template: Opposite Ends on a Sorted Array
+```java TwoSumSorted.java
+class Solution {
+  public int[] twoSum(int[] numbers, int target) {   // LeetCode 167, 1-indexed answer
+    int l = 0, r = numbers.length - 1;
+    while (l < r) {
+      int sum = numbers[l] + numbers[r];
+      if (sum == target) return new int[] {l + 1, r + 1};
+      if (sum < target) l++;            // need bigger: only moving l can increase the sum
+      else r--;                         // need smaller
+    }
+    return new int[0];
+  }
+}
+```
+- Why it is safe: if `sum < target`, pairing `numbers[l]` with anything left of `r` is even smaller, so `l` can be discarded forever.
+
+## Palindrome Check
+```java Palindrome.java
+class Solution {
+  public boolean isPalindrome(String s) {           // LeetCode 125: letters and digits only, ignore case
+    int l = 0, r = s.length() - 1;
+    while (l < r) {
+      while (l < r && !Character.isLetterOrDigit(s.charAt(l))) l++;
+      while (l < r && !Character.isLetterOrDigit(s.charAt(r))) r--;
+      if (Character.toLowerCase(s.charAt(l)) != Character.toLowerCase(s.charAt(r))) return false;
+      l++; r--;
+    }
+    return true;
+  }
+}
+```
+
+## 3Sum: Fix One, Two-Pointer the Rest
+> Sort. For each `i`, find pairs in `(i, n)` summing to `-nums[i]` with two pointers. **Skip equal neighbours** to avoid duplicate triplets. O(n^2).
+```java ThreeSum.java
+class Solution {
+  public List<List<Integer>> threeSum(int[] nums) {   // LeetCode 15
+    Arrays.sort(nums);
+    List<List<Integer>> out = new ArrayList<>();
+    for (int i = 0; i < nums.length - 2; i++) {
+      if (i > 0 && nums[i] == nums[i - 1]) continue;  // same first number = same triplets
+      if (nums[i] > 0) break;                         // sorted: no way to reach 0
+      int l = i + 1, r = nums.length - 1;
+      while (l < r) {
+        int sum = nums[i] + nums[l] + nums[r];
+        if (sum < 0) l++;
+        else if (sum > 0) r--;
+        else {
+          out.add(List.of(nums[i], nums[l], nums[r]));
+          while (l < r && nums[l] == nums[l + 1]) l++;   // skip duplicates
+          while (l < r && nums[r] == nums[r - 1]) r--;
+          l++; r--;
+        }
+      }
+    }
+    return out;
+  }
+}
+```
+
+## Container With Most Water
+> Area = width × the **shorter** wall. Moving the taller wall inward can only shrink the width without raising the limit, so **always move the shorter wall**.
+```java Container.java
+class Solution {
+  public int maxArea(int[] h) {                     // LeetCode 11
+    int l = 0, r = h.length - 1, best = 0;
+    while (l < r) {
+      best = Math.max(best, (r - l) * Math.min(h[l], h[r]));
+      if (h[l] < h[r]) l++; else r--;
+    }
+    return best;
+  }
+}
+```
+
+## Trapping Rain Water (two-pointer version)
+> Water above a bar = `min(maxLeft, maxRight) - height`. Whichever side has the **smaller max** is the limiting side, so its water is already known: process that side and move inward.
+```java TrapWater.java
+class Solution {
+  public int trap(int[] h) {                        // LeetCode 42
+    int l = 0, r = h.length - 1, leftMax = 0, rightMax = 0, water = 0;
+    while (l < r) {
+      if (h[l] < h[r]) {
+        leftMax = Math.max(leftMax, h[l]);
+        water += leftMax - h[l];
+        l++;
+      } else {
+        rightMax = Math.max(rightMax, h[r]);
+        water += rightMax - h[r];
+        r--;
+      }
+    }
+    return water;
+  }
+}
+```
+
+## Merge From the Back, and the Dutch Flag
+```java MergeAndColors.java
+class Solution {
+  public void merge(int[] a, int m, int[] b, int n) {   // LeetCode 88: a has room for m + n
+    int i = m - 1, j = n - 1, w = m + n - 1;            // fill from the back: nothing gets overwritten
+    while (j >= 0) a[w--] = (i >= 0 && a[i] > b[j]) ? a[i--] : b[j--];
+  }
+  public void sortColors(int[] a) {                     // LeetCode 75: 0s, 1s, 2s in one pass
+    int lo = 0, mid = 0, hi = a.length - 1;             // [0,lo) = 0s, [lo,mid) = 1s, (hi,end] = 2s
+    while (mid <= hi) {
+      if (a[mid] == 0) swap(a, lo++, mid++);
+      else if (a[mid] == 2) swap(a, mid, hi--);         // do not advance mid: the swapped-in value is unchecked
+      else mid++;
+    }
+  }
+  static void swap(int[] a, int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }
+}
+```
+
+## Common Mistakes
+- Forgetting to sort first (opposite-ends logic needs order).
+- Missing the duplicate skip in 3Sum, or skipping at the wrong time (skip only **after** recording a triplet).
+- `while (l <= r)` when the pair must be two different elements: use `l < r`.
+
+## Explain It Like This
+> "The array is sorted, so if the sum is too small, the left element can never work with anything smaller on the right. I move left forward. Each step discards one element, so it's O(n) time and O(1) space."
+
+## Do These Next
+- **344. Reverse String** (Easy): swap inward.
+- **125. Valid Palindrome** (Easy): skip non-alphanumerics.
+- **977. Squares of a Sorted Array** (Easy): biggest square is at one of the ends; fill from the back.
+- **88. Merge Sorted Array** (Easy): fill from the back.
+- **167. Two Sum II - Input Array Is Sorted** (Medium): the template.
+- **15. 3Sum** (Medium): fix one, two-pointer the rest, skip duplicates.
+- **11. Container With Most Water** (Medium): move the shorter wall.
+- **75. Sort Colors** (Medium): three pointers.
+- **16. 3Sum Closest** (Medium): track the closest sum.
+- **18. 4Sum** (Medium): two fixed loops plus two pointers, use long for the sum.
+- **42. Trapping Rain Water** (Hard): the limiting side.
+
+## Interview Q&A
+Q*: When does the two-pointer technique apply?
+A: When the data is sorted or has a property that tells you which pointer to move without missing a better answer, such as pair sums in a sorted array, palindromes, or partitioning in place.
+Q*: Why is it correct to move the left pointer when the sum is too small?
+A: The array is sorted, so every element left of r is at most numbers[r]. The current left element with any of them gives a sum no larger, so the left element cannot be in any valid pair and can be discarded.
+Q*: How do you avoid duplicate triplets in 3Sum?
+A: Sort first, skip an index i whose value equals the previous one, and after recording a triplet move l and r past equal values.
+Q: Complexity of 3Sum?
+A: O(n log n) to sort plus O(n) two-pointer work for each of n fixed elements: O(n^2) time, O(1) extra space besides the output (sorting may use O(log n)).
+Q: Why move the shorter wall in Container With Most Water?
+A: Area is limited by the shorter wall. Moving the taller one makes the width smaller and the limit can only stay the same or fall, so it can never improve. Only moving the shorter wall might.
+
+# 06 | Sliding Window | Fixed-size windows, variable-size windows, the expand-then-shrink template, the "at most K" trick, longest substring without repeats, character replacement, minimum window substring, when a window fails and prefix sums are needed | Sliding Window
+
+## The Idea
+> A window is a **subarray you slide along**: add the element entering on the right, remove the one leaving on the left. You never rebuild it, so each element enters and leaves once: **O(n)**.
+- Use it for **contiguous** subarray or substring questions: "longest / shortest / count of subarrays such that ...".
+- **Fixed size k**: add `a[r]`, remove `a[r - k]`.
+- **Variable size**: expand `r` every step; **while the window is invalid, shrink `l`**; then record the answer.
+- Requires **monotonic validity**: shrinking a valid window keeps it valid (or growing an invalid one keeps it invalid). Sums with **negative numbers** break this. Use prefix sums there (sheet 07).
+! Sliding window = contiguous + "longest/shortest/count" + the condition only gets better or worse as the window grows.
+
+## Fixed Window
+```java FixedWindow.java
+class Solution {
+  public double findMaxAverage(int[] nums, int k) {   // LeetCode 643
+    int sum = 0;
+    for (int i = 0; i < k; i++) sum += nums[i];
+    int best = sum;
+    for (int r = k; r < nums.length; r++) {
+      sum += nums[r] - nums[r - k];                   // add the new, drop the old
+      best = Math.max(best, sum);
+    }
+    return (double) best / k;
+  }
+}
+```
+
+## Variable Window Template (Longest Valid)
+```java LongestNoRepeat.java
+class Solution {
+  public int lengthOfLongestSubstring(String s) {     // LeetCode 3
+    Map<Character, Integer> count = new HashMap<>();
+    int l = 0, best = 0;
+    for (int r = 0; r < s.length(); r++) {
+      char c = s.charAt(r);
+      count.merge(c, 1, Integer::sum);                // 1. expand
+      while (count.get(c) > 1) {                      // 2. shrink while invalid
+        count.merge(s.charAt(l), -1, Integer::sum);
+        l++;
+      }
+      best = Math.max(best, r - l + 1);               // 3. record (window is valid here)
+    }
+    return best;
+  }
+}
+```
+! Expand right, shrink left while invalid, record. That is the whole template.
+
+## Longest Repeating Character Replacement
+> A window is valid if `windowLength - countOfMostFrequentChar <= k` (the other letters can be replaced). Track the max frequency seen; it never needs to decrease for the answer to stay correct.
+```java CharReplacement.java
+class Solution {
+  public int characterReplacement(String s, int k) {  // LeetCode 424
+    int[] count = new int[26];
+    int l = 0, maxFreq = 0, best = 0;
+    for (int r = 0; r < s.length(); r++) {
+      maxFreq = Math.max(maxFreq, ++count[s.charAt(r) - 'A']);
+      while (r - l + 1 - maxFreq > k) count[s.charAt(l++) - 'A']--;
+      best = Math.max(best, r - l + 1);
+    }
+    return best;
+  }
+}
+```
+
+## Shortest Valid Window
+- For "shortest", record the answer **inside** the shrink loop (while the window is still valid).
+```java MinWindowSum.java
+class Solution {
+  public int minSubArrayLen(int target, int[] nums) { // LeetCode 209, positive numbers
+    int l = 0, sum = 0, best = Integer.MAX_VALUE;
+    for (int r = 0; r < nums.length; r++) {
+      sum += nums[r];
+      while (sum >= target) {                         // valid: try to shrink
+        best = Math.min(best, r - l + 1);
+        sum -= nums[l++];
+      }
+    }
+    return best == Integer.MAX_VALUE ? 0 : best;
+  }
+}
+```
+
+## Minimum Window Substring (the classic Hard)
+> Count what `t` needs. Expand until every needed char is covered (`missing == 0`), then shrink from the left as far as possible, recording the smallest window.
+```java MinWindow.java
+class Solution {
+  public String minWindow(String s, String t) {        // LeetCode 76
+    int[] need = new int[128];
+    for (char c : t.toCharArray()) need[c]++;
+    int missing = t.length(), l = 0, bestL = 0, bestLen = Integer.MAX_VALUE;
+    for (int r = 0; r < s.length(); r++) {
+      if (need[s.charAt(r)]-- > 0) missing--;          // this char was still needed
+      while (missing == 0) {
+        if (r - l + 1 < bestLen) { bestLen = r - l + 1; bestL = l; }
+        if (++need[s.charAt(l++)] > 0) missing++;       // we just gave up a needed char
+      }
+    }
+    return bestLen == Integer.MAX_VALUE ? "" : s.substring(bestL, bestL + bestLen);
+  }
+}
+```
+
+## Counting Subarrays: the "At Most K" Trick
+- "Number of subarrays with **exactly** K distinct" = `atMost(K) - atMost(K - 1)`.
+- With a valid window `[l, r]`, there are `r - l + 1` valid subarrays **ending at r**. Add that each step.
+```java AtMostK.java
+class Solution {
+  public int subarraysWithKDistinct(int[] nums, int k) {   // LeetCode 992
+    return atMost(nums, k) - atMost(nums, k - 1);
+  }
+  static int atMost(int[] nums, int k) {
+    Map<Integer, Integer> count = new HashMap<>();
+    int l = 0, total = 0;
+    for (int r = 0; r < nums.length; r++) {
+      count.merge(nums[r], 1, Integer::sum);
+      while (count.size() > k) {                           // too many distinct: shrink
+        if (count.merge(nums[l], -1, Integer::sum) == 0) count.remove(nums[l]);
+        l++;
+      }
+      total += r - l + 1;                                  // every subarray ending at r inside the window
+    }
+    return total;
+  }
+}
+```
+
+## Common Mistakes
+- Using a window on sums with **negative** numbers (validity is not monotonic). Use prefix sum + hash map instead.
+- Recording "longest" inside the shrink loop, or "shortest" outside it.
+- Forgetting to undo the left element's contribution when shrinking.
+
+## Explain It Like This
+> "It's a contiguous substring problem, so I'll use a sliding window. I expand the right end each step and shrink the left while the window has a repeat. Each index enters and leaves once, so O(n) time, and the map holds at most the alphabet size."
+
+## Do These Next
+- **643. Maximum Average Subarray I** (Easy): fixed window.
+- **1456. Maximum Number of Vowels in a Substring of Given Length** (Medium): fixed window with counts.
+- **209. Minimum Size Subarray Sum** (Medium): shortest window.
+- **3. Longest Substring Without Repeating Characters** (Medium): the template.
+- **1004. Max Consecutive Ones III** (Medium): window with at most k zeros.
+- **904. Fruit Into Baskets** (Medium): at most 2 distinct.
+- **424. Longest Repeating Character Replacement** (Medium): length - maxFreq <= k.
+- **567. Permutation in String** (Medium): fixed window of counts.
+- **438. Find All Anagrams in a String** (Medium): same as 567, collect indices.
+- **992. Subarrays with K Different Integers** (Hard): atMost(K) - atMost(K - 1).
+- **76. Minimum Window Substring** (Hard): need-counts and a missing counter.
+
+## Interview Q&A
+Q*: When do you use a sliding window?
+A: For contiguous subarray or substring problems asking for a longest, shortest or count, where the validity condition changes monotonically as the window grows or shrinks.
+Q*: Why is a variable sliding window O(n) despite the inner while loop?
+A: The left pointer only moves forward and never past the right one, so across the whole run each index is added once and removed once: at most 2n steps.
+Q*: Why doesn't a sliding window work for subarray sum equals k with negative numbers?
+A: Adding an element might lower the sum and removing one might raise it, so you cannot decide whether to expand or shrink. Prefix sums with a hash map solve it in O(n).
+Q: How do you count subarrays with exactly k distinct elements?
+A: Count subarrays with at most k distinct minus those with at most k - 1. Each at-most count is a sliding window adding r - l + 1 per step.
+Q: Fixed vs variable window?
+A: Fixed: the size k is given, so add the entering element and remove the one k steps back. Variable: the size depends on a condition, so expand every step and shrink while invalid.
+
+# 07 | Prefix Sum & Kadane | Prefix sums for O(1) range sums, subarray sum equals k with a hash map of prefix counts, 2D prefix sums, difference arrays for range updates, prefix and suffix products, Kadane's algorithm for maximum subarray | Prefix Sum & Kadane
+
+## The Idea
+> Write down a **running total**. The sum of any range is then **one subtraction**: total up to the right end minus total before the left end.
+- `prefix[i]` = sum of the first `i` elements (`prefix[0] = 0`). Then **sum(l..r) = prefix[r + 1] - prefix[l]**.
+- Building it is O(n) once; every range query is then **O(1)**.
+- Extra slot at the front (`n + 1` long) removes the special case for `l = 0`.
+! Range sum = prefix[r + 1] - prefix[l]. The extra leading zero saves an if.
+
+## Range Sum Query
+```java NumArray.java
+class NumArray {                                    // LeetCode 303
+  private final long[] prefix;
+  NumArray(int[] nums) {
+    prefix = new long[nums.length + 1];
+    for (int i = 0; i < nums.length; i++) prefix[i + 1] = prefix[i] + nums[i];
+  }
+  int sumRange(int l, int r) { return (int) (prefix[r + 1] - prefix[l]); }
+}
+```
+
+## Subarray Sum Equals K (prefix sum + hash map)
+> A subarray `(j, i]` sums to k exactly when `prefix[i] - prefix[j] = k`, i.e. an **earlier prefix equal to `prefix[i] - k`**. Count earlier prefixes in a map. Works with negative numbers, unlike a window.
+```java SubarraySumK.java
+class Solution {
+  public int subarraySum(int[] nums, int k) {      // LeetCode 560
+    Map<Integer, Integer> seen = new HashMap<>();
+    seen.put(0, 1);                                 // the empty prefix: subarrays starting at index 0
+    int sum = 0, count = 0;
+    for (int x : nums) {
+      sum += x;
+      count += seen.getOrDefault(sum - k, 0);       // look up first ...
+      seen.merge(sum, 1, Integer::sum);             // ... then record yourself
+    }
+    return count;
+  }
+}
+```
+- Variants: longest subarray with sum k (map prefix → **first index**), equal 0s and 1s (treat 0 as -1, find sum 0), divisible by k (map **prefix % k**, using `Math.floorMod`).
+! seen.put(0, 1) first: it counts subarrays that start at index 0.
+
+## Prefix and Suffix Products
+```java ProductExceptSelf.java
+class Solution {
+  public int[] productExceptSelf(int[] nums) {     // LeetCode 238: no division, O(1) extra space
+    int n = nums.length;
+    int[] out = new int[n];
+    out[0] = 1;
+    for (int i = 1; i < n; i++) out[i] = out[i - 1] * nums[i - 1];   // product of everything left
+    int right = 1;
+    for (int i = n - 1; i >= 0; i--) {
+      out[i] *= right;                                               // times everything right
+      right *= nums[i];
+    }
+    return out;
+  }
+}
+```
+
+## Difference Array (many range updates, one read)
+> To add `v` to every index in `[l, r]`: `diff[l] += v; diff[r + 1] -= v`. A prefix sum of `diff` at the end applies all updates. Each update is **O(1)** instead of O(r - l).
+```java CarPooling.java
+class Solution {
+  public boolean carPooling(int[][] trips, int capacity) {   // LeetCode 1094: [passengers, from, to]
+    int[] diff = new int[1002];
+    for (int[] t : trips) { diff[t[1]] += t[0]; diff[t[2]] -= t[0]; }   // drop off at "to"
+    int load = 0;
+    for (int d : diff) if ((load += d) > capacity) return false;
+    return true;
+  }
+}
+```
+
+## 2D Prefix Sum
+- `P[r + 1][c + 1] = grid[r][c] + P[r][c + 1] + P[r + 1][c] - P[r][c]`.
+- Sum of rectangle `(r1, c1)` to `(r2, c2)` = `P[r2+1][c2+1] - P[r1][c2+1] - P[r2+1][c1] + P[r1][c1]` (inclusion-exclusion).
+
+## Kadane's Algorithm (Maximum Subarray)
+> Walk left to right keeping the best sum **ending here**. If the running sum so far is negative, it can only hurt, so **start fresh** at the current element.
+```java Kadane.java
+class Solution {
+  public int maxSubArray(int[] nums) {             // LeetCode 53
+    int cur = nums[0], best = nums[0];
+    for (int i = 1; i < nums.length; i++) {
+      cur = Math.max(nums[i], cur + nums[i]);       // extend or restart
+      best = Math.max(best, cur);
+    }
+    return best;
+  }
+  public int maxSubarraySumCircular(int[] nums) {  // LeetCode 918
+    int total = 0, curMax = 0, curMin = 0, best = Integer.MIN_VALUE, worst = Integer.MAX_VALUE;
+    for (int x : nums) {
+      curMax = Math.max(x, curMax + x); best = Math.max(best, curMax);
+      curMin = Math.min(x, curMin + x); worst = Math.min(worst, curMin);
+      total += x;
+    }
+    return best < 0 ? best : Math.max(best, total - worst);   // all negative: no wrap possible
+  }
+}
+```
+- Kadane is the simplest **dynamic programming**: `best ending at i = max(a[i], best ending at i-1 + a[i])`.
+! Kadane: if what you are carrying is negative, drop it and restart.
+
+## Common Mistakes
+- Forgetting `seen.put(0, 1)` in subarray-sum counting.
+- Recording your own prefix **before** looking up (counts empty subarrays when k = 0).
+- Negative modulo in Java (`-1 % 5 == -1`). Use `Math.floorMod`.
+- Overflow in prefix sums: use `long`.
+
+## Explain It Like This
+> "Sum of subarray j+1..i is prefix[i] minus prefix[j]. So for each i, I need how many earlier prefixes equal prefix[i] - k. A hash map counts them as I go: one pass, O(n) time and space, and it works with negatives."
+
+## Do These Next
+- **1480. Running Sum of 1d Array** (Easy): build a prefix.
+- **303. Range Sum Query - Immutable** (Easy): the template.
+- **724. Find Pivot Index** (Easy): left sum vs total - left - x.
+- **53. Maximum Subarray** (Medium): Kadane.
+- **238. Product of Array Except Self** (Medium): prefix and suffix products.
+- **560. Subarray Sum Equals K** (Medium): prefix + map. Must-do.
+- **525. Contiguous Array** (Medium): 0 as -1, first index of each prefix.
+- **974. Subarray Sums Divisible by K** (Medium): map of prefix mod k.
+- **304. Range Sum Query 2D - Immutable** (Medium): 2D prefix.
+- **1094. Car Pooling** (Medium): difference array.
+- **918. Maximum Sum Circular Subarray** (Medium): max vs total - min.
+- **152. Maximum Product Subarray** (Medium): track both max and min ending here (a negative flips them).
+
+## Interview Q&A
+Q*: What is a prefix sum and why use it?
+A: prefix[i] is the sum of the first i elements. After O(n) preprocessing, any range sum is prefix[r + 1] - prefix[l] in O(1).
+Q*: How do you count subarrays summing to k in O(n)?
+A: Keep a running sum and a map of how many times each prefix sum has occurred, starting with {0: 1}. At each index add map[sum - k] to the answer, then record sum.
+Q*: Explain Kadane's algorithm.
+A: Track the best subarray sum ending at the current index: either the element alone or the element plus the best ending at the previous index. The answer is the maximum of those values. O(n) time, O(1) space.
+Q: What is a difference array?
+A: An array where a range update [l, r] += v becomes diff[l] += v and diff[r + 1] -= v. Taking its prefix sum afterwards applies every update, so k updates cost O(k + n) instead of O(k * n).
+Q: How do you handle the circular maximum subarray?
+A: The answer is either a normal Kadane maximum or the total minus the minimum subarray (the wrap-around case). If every number is negative, return the normal maximum.
+
+# 08 | Recursion | Base case and recursive case, the call stack, trusting the recursive call, drawing the recursion tree, fast power by halving, take-or-skip recursion (the seed of backtracking), when to convert to iteration | Recursion
+
+## The Idea
+> Recursion = **solve a smaller copy of the same problem, then use its answer**. Like Russian dolls: open one, there is a smaller one inside, until the smallest that does not open (the base case).
+- Every recursive function needs: **1) a base case** that returns without recursing, and **2) a recursive case** that moves **closer** to the base case.
+- **Trust the call** (the "leap of faith"): assume `f(n - 1)` already returns the right answer, and only ask "how do I build `f(n)` from it?".
+- Each call gets its own **stack frame** (its own local variables). Frames pile up until a base case returns, then unwind.
+! Base case first. Then trust f(smaller) and build f(n) from it.
+
+## The Call Stack
+```java Factorial.java
+class Recur {
+  static long factorial(int n) {
+    if (n <= 1) return 1;            // base case
+    return n * factorial(n - 1);     // recursive case: smaller input
+  }
+  static int sumDigits(int n) {      // 1234 -> 1 + 2 + 3 + 4 = 10
+    if (n < 10) return n;
+    return n % 10 + sumDigits(n / 10);
+  }
+}
+```
+- `factorial(4)` waits for `factorial(3)`, which waits for `factorial(2)` ... the stack is 4 frames deep, then multiplies on the way back: 1 → 2 → 6 → 24.
+- No base case (or not moving toward it) = **`StackOverflowError`**. Java's default stack handles roughly 10^4 to 10^5 frames depending on frame size.
+
+## Draw the Recursion Tree
+- Each node = one call. Children = the calls it makes.
+- **Time** ≈ number of nodes × work per node. **Space** = height of the tree (the deepest stack).
+- Two calls each on `n - 1` → about 2^n nodes. One call on `n / 2` → about log n nodes.
+
+## Fast Power: Halve the Problem
+> `x^n = (x^(n/2))^2`, times one more `x` if n is odd. Each call halves n: **O(log n)** instead of O(n).
+```java FastPow.java
+class Solution {
+  public double myPow(double x, int n) {          // LeetCode 50
+    long e = n;                                   // -Integer.MIN_VALUE overflows int: use long
+    if (e < 0) { x = 1 / x; e = -e; }
+    return pow(x, e);
+  }
+  static double pow(double x, long e) {
+    if (e == 0) return 1;
+    double half = pow(x, e / 2);                  // compute ONCE and reuse
+    return e % 2 == 0 ? half * half : half * half * x;
+  }
+}
+```
+- Calling `pow(x, e/2) * pow(x, e/2)` (twice) would bring it back to O(n). Store the half.
+
+## Take or Skip: the Seed of Backtracking
+> For every element, branch twice: **take it** or **skip it**. Every leaf of that tree is one subset. That is how all 2^n subsets are generated.
+```java SubsetsRecursion.java
+class Solution {
+  public List<List<Integer>> subsets(int[] nums) { // LeetCode 78 (sheet 17 goes deeper)
+    List<List<Integer>> out = new ArrayList<>();
+    go(nums, 0, new ArrayList<>(), out);
+    return out;
+  }
+  static void go(int[] nums, int i, List<Integer> path, List<List<Integer>> out) {
+    if (i == nums.length) { out.add(new ArrayList<>(path)); return; }   // copy!
+    path.add(nums[i]);                // take
+    go(nums, i + 1, path, out);
+    path.remove(path.size() - 1);     // undo
+    go(nums, i + 1, path, out);       // skip
+  }
+}
+```
+
+## Reverse In Place, Recursively
+```java ReverseRecursive.java
+class Solution {
+  public void reverseString(char[] s) {           // LeetCode 344
+    swap(s, 0, s.length - 1);
+  }
+  static void swap(char[] s, int l, int r) {
+    if (l >= r) return;
+    char t = s[l]; s[l] = s[r]; s[r] = t;
+    swap(s, l + 1, r - 1);
+  }
+}
+```
+
+## Recursion vs Iteration
+- Anything recursive can be written with a loop and an **explicit stack** (that is what the JVM does for you).
+- Prefer recursion for **trees, graphs (DFS), backtracking, divide and conquer**: the code mirrors the structure.
+- Prefer loops for simple linear recursion on huge inputs (avoid stack overflow) and when an O(1)-space loop exists (Fibonacci).
+- **Tail recursion** (the recursive call is the last action) is **not** optimised by the JVM. Do not rely on it in Java.
+
+## Memoization Preview
+- If the recursion tree repeats the **same subproblem** (Fibonacci computes `fib(3)` many times), cache results: `memo[n]`. That turns exponential into polynomial and is **top-down dynamic programming** (sheet 20).
+
+## Common Mistakes
+- Missing or unreachable base case.
+- Adding `path` itself to the result instead of a copy.
+- Forgetting to **undo** a change after the recursive call (`path.remove`).
+- Recomputing the same call twice in one expression (fast power).
+
+## Explain It Like This
+> "Base case: when n is 0 the answer is 1. Otherwise I trust the recursive call for n/2 and square it, multiplying by x once more if n is odd. The depth is log n, so O(log n) time and stack space."
+
+## Do These Next
+- **509. Fibonacci Number** (Easy): plain recursion, then add memo.
+- **1137. N-th Tribonacci Number** (Easy): same with three terms.
+- **344. Reverse String** (Easy): recursive two-pointer swap.
+- **231. Power of Two** (Easy): divide by 2 recursively (then learn the bit trick in sheet 24).
+- **326. Power of Three** (Easy): same idea with 3.
+- **50. Pow(x, n)** (Medium): fast power, handle negative and Integer.MIN_VALUE.
+- **779. K-th Symbol in Grammar** (Medium): the answer for row n depends on row n - 1.
+- **1922. Count Good Numbers** (Medium): fast power with modulo.
+- **78. Subsets** (Medium): take or skip.
+
+## Interview Q&A
+Q*: What are the two parts of every recursive function?
+A: A base case that returns without recursing, and a recursive case that calls itself on a strictly smaller input so it eventually reaches the base case.
+Q*: What causes a StackOverflowError?
+A: Too many nested calls, usually a missing base case or very deep recursion (for example 10^5 levels). Each call adds a stack frame and the thread's stack is limited.
+Q*: How do you find the time complexity of a recursive function?
+A: Count the calls (draw the recursion tree or write a recurrence) and multiply by the work per call. For example T(n) = 2T(n/2) + O(n) is O(n log n).
+Q: Does Java optimise tail recursion?
+A: No. The JVM does not perform tail-call elimination, so deep tail recursion still overflows. Convert it to a loop.
+Q: Recursion vs iteration?
+A: Recursion is clearer for self-similar structures (trees, divide and conquer, backtracking) but uses stack space. Iteration avoids overflow and is often faster; any recursion can become iteration with an explicit stack.
+
+# 09 | Linked List | Nodes and pointers, array vs linked list, the dummy-node trick, reversing a list, fast and slow pointers (middle, cycle, cycle start), merging, remove nth from end, palindrome and reorder, add two numbers, copy with random pointer, LRU cache | Linked List
+
+## The Idea
+> A linked list is a **treasure hunt**: each clue (node) holds a value and tells you where the next clue is. You can only reach clue 5 by walking through clues 1 to 4.
+- A **node** = `val` + a reference `next`. The list is just a reference to the **head** (or `null` when empty).
+- **Doubly linked list**: nodes also hold `prev`, so you can walk both ways and unlink a node in O(1) when you hold it.
+- **Singly linked list** is what LeetCode uses. It is defined for you exactly like this:
+```java ListNode.java
+class ListNode {
+  int val;
+  ListNode next;
+  ListNode() {}
+  ListNode(int val) { this.val = val; }
+  ListNode(int val, ListNode next) { this.val = val; this.next = next; }
+}
+```
+! Linked list = value + next pointer. Everything below is just moving pointers carefully.
+
+## Array vs Linked List
+```text
+operation                   array / ArrayList        linked list
+access by index             O(1)                     O(n)
+insert / delete at head     O(n) (shift)             O(1)
+insert / delete at tail     O(1) amortized           O(1) (O(n) to delete, singly)
+insert after a known node   O(n)                     O(1)
+search by value             O(n)                     O(n)
+memory                      compact, cache-friendly  pointer per node, scattered
+```
+- In real Java code `ArrayList` almost always wins (CPU cache). Linked lists matter for **interviews** and for structures built from them (LRU cache, queues, hash chains).
+
+## Technique 1: Dummy Node
+> Put a fake node **before** the head. Now the head is not a special case: inserting or deleting the first node works like any other.
+```java DummyNode.java
+class Solution {
+  public ListNode removeElements(ListNode head, int val) {      // LeetCode 203
+    ListNode dummy = new ListNode(0, head), cur = dummy;
+    while (cur.next != null) {
+      if (cur.next.val == val) cur.next = cur.next.next;        // unlink
+      else cur = cur.next;
+    }
+    return dummy.next;
+  }
+  public ListNode mergeTwoLists(ListNode a, ListNode b) {       // LeetCode 21
+    ListNode dummy = new ListNode(), tail = dummy;
+    while (a != null && b != null) {
+      if (a.val <= b.val) { tail.next = a; a = a.next; }
+      else { tail.next = b; b = b.next; }
+      tail = tail.next;
+    }
+    tail.next = a != null ? a : b;                              // attach the leftover
+    return dummy.next;
+  }
+  public ListNode deleteDuplicates(ListNode head) {             // LeetCode 83, sorted list
+    for (ListNode cur = head; cur != null && cur.next != null; ) {
+      if (cur.val == cur.next.val) cur.next = cur.next.next;
+      else cur = cur.next;
+    }
+    return head;
+  }
+}
+```
+! Head might change? Use a dummy node and return dummy.next.
+
+## Technique 2: Reverse a List (memorise this 3-step loop)
+> For each node: **1. save next, 2. flip the arrow, 3. step forward.** `prev` ends up as the new head.
+```java Reverse.java
+class Solution {
+  public ListNode reverseList(ListNode head) {                  // LeetCode 206
+    ListNode prev = null, cur = head;
+    while (cur != null) {
+      ListNode next = cur.next;     // 1. save
+      cur.next = prev;              // 2. flip
+      prev = cur;                   // 3. advance both
+      cur = next;
+    }
+    return prev;
+  }
+  public ListNode reverseRecursive(ListNode head) {
+    if (head == null || head.next == null) return head;         // base case
+    ListNode newHead = reverseRecursive(head.next);             // trust: the rest is reversed
+    head.next.next = head;                                      // the node after me points back to me
+    head.next = null;
+    return newHead;
+  }
+}
+```
+- Iterative: O(n) time, **O(1)** space. Recursive: O(n) time, O(n) stack.
+! Reverse: save next, flip arrow, advance. Draw three boxes and arrows until it is automatic.
+
+## Technique 3: Fast and Slow Pointers (Floyd)
+> Slow moves 1 step, fast moves 2. When fast reaches the end, slow is at the **middle**. If there is a **cycle**, fast eventually laps slow and they meet.
+```java FastSlow.java
+class Solution {
+  public ListNode middleNode(ListNode head) {                   // LeetCode 876 (second middle if even)
+    ListNode slow = head, fast = head;
+    while (fast != null && fast.next != null) { slow = slow.next; fast = fast.next.next; }
+    return slow;
+  }
+  public boolean hasCycle(ListNode head) {                      // LeetCode 141
+    ListNode slow = head, fast = head;
+    while (fast != null && fast.next != null) {
+      slow = slow.next; fast = fast.next.next;
+      if (slow == fast) return true;
+    }
+    return false;
+  }
+  public ListNode detectCycle(ListNode head) {                  // LeetCode 142: where the cycle starts
+    ListNode slow = head, fast = head;
+    while (fast != null && fast.next != null) {
+      slow = slow.next; fast = fast.next.next;
+      if (slow == fast) {
+        slow = head;                                            // restart one pointer at the head
+        while (slow != fast) { slow = slow.next; fast = fast.next; }   // both move 1 step
+        return slow;
+      }
+    }
+    return null;
+  }
+}
+```
+- **Why the cycle start works**: let `a` = distance from head to cycle start, `b` = start to meeting point, `c` = rest of the cycle. Slow walked `a + b`, fast walked `2(a + b)`. Fast walked a whole number of extra laps: `a + b = k(b + c)`, so `a = (k-1)(b + c) + c`. Walking `a` steps from the head and `c` steps from the meeting point land on the **same node: the cycle start**.
+
+## Remove Nth From End, and Intersection
+```java NthFromEnd.java
+class Solution {
+  public ListNode removeNthFromEnd(ListNode head, int n) {      // LeetCode 19
+    ListNode dummy = new ListNode(0, head), fast = dummy, slow = dummy;
+    for (int i = 0; i < n; i++) fast = fast.next;               // open a gap of n nodes
+    while (fast.next != null) { fast = fast.next; slow = slow.next; }
+    slow.next = slow.next.next;                                 // slow stands just before the victim
+    return dummy.next;
+  }
+  public ListNode getIntersectionNode(ListNode a, ListNode b) { // LeetCode 160
+    ListNode p = a, q = b;
+    while (p != q) {                                            // each walks lenA + lenB in total
+      p = (p == null) ? b : p.next;
+      q = (q == null) ? a : q.next;
+    }
+    return p;                                                   // the intersection, or null (both reach the end together)
+  }
+}
+```
+
+## Palindrome and Reorder (middle + reverse + merge)
+> Three small tools in a row: **find the middle, reverse the second half, then compare or interleave.**
+```java PalindromeList.java
+class Solution {
+  public boolean isPalindrome(ListNode head) {                  // LeetCode 234
+    ListNode slow = head, fast = head;
+    while (fast != null && fast.next != null) { slow = slow.next; fast = fast.next.next; }
+    ListNode second = reverse(slow);                            // reverse from the middle
+    for (ListNode a = head, b = second; b != null; a = a.next, b = b.next)
+      if (a.val != b.val) return false;
+    return true;
+  }
+  public void reorderList(ListNode head) {                      // LeetCode 143: 1-2-3-4-5 -> 1-5-2-4-3
+    if (head == null || head.next == null) return;
+    ListNode slow = head, fast = head;
+    while (fast.next != null && fast.next.next != null) { slow = slow.next; fast = fast.next.next; }
+    ListNode second = reverse(slow.next);
+    slow.next = null;                                           // cut the list in two
+    for (ListNode a = head, b = second; b != null; ) {
+      ListNode an = a.next, bn = b.next;
+      a.next = b; b.next = an;                                  // interleave
+      a = an; b = bn;
+    }
+  }
+  private static ListNode reverse(ListNode head) {
+    ListNode prev = null;
+    while (head != null) { ListNode next = head.next; head.next = prev; prev = head; head = next; }
+    return prev;
+  }
+}
+```
+
+## Add Two Numbers and Reverse in K-Groups
+```java AddNumbers.java
+class Solution {
+  public ListNode addTwoNumbers(ListNode a, ListNode b) {       // LeetCode 2: digits stored in reverse order
+    ListNode dummy = new ListNode(), tail = dummy;
+    int carry = 0;
+    while (a != null || b != null || carry != 0) {
+      int sum = carry + (a != null ? a.val : 0) + (b != null ? b.val : 0);
+      tail.next = new ListNode(sum % 10);
+      carry = sum / 10;
+      tail = tail.next;
+      if (a != null) a = a.next;
+      if (b != null) b = b.next;
+    }
+    return dummy.next;
+  }
+  public ListNode reverseKGroup(ListNode head, int k) {         // LeetCode 25
+    ListNode dummy = new ListNode(0, head), groupPrev = dummy;
+    while (true) {
+      ListNode kth = groupPrev;
+      for (int i = 0; i < k && kth != null; i++) kth = kth.next;
+      if (kth == null) break;                                   // fewer than k nodes left: leave them
+      ListNode groupNext = kth.next, prev = groupNext, cur = groupPrev.next;
+      while (cur != groupNext) { ListNode nx = cur.next; cur.next = prev; prev = cur; cur = nx; }
+      ListNode oldFirst = groupPrev.next;                       // now the tail of the reversed group
+      groupPrev.next = kth;
+      groupPrev = oldFirst;
+    }
+    return dummy.next;
+  }
+}
+```
+
+## Copy List With Random Pointer
+> Two passes with a map **old node → its copy**: first create all copies, then wire `next` and `random` by looking the targets up in the map.
+```java CopyRandom.java
+class Node {
+  int val;
+  Node next, random;
+  Node(int val) { this.val = val; }
+}
+class Solution {
+  public Node copyRandomList(Node head) {                       // LeetCode 138
+    Map<Node, Node> copy = new HashMap<>();
+    for (Node p = head; p != null; p = p.next) copy.put(p, new Node(p.val));
+    for (Node p = head; p != null; p = p.next) {
+      copy.get(p).next = copy.get(p.next);                      // get(null) is null: ends the list
+      copy.get(p).random = copy.get(p.random);
+    }
+    return copy.get(head);
+  }
+}
+```
+
+## LRU Cache: Hash Map + Doubly Linked List
+> The classic design question. A **map** gives O(1) lookup. A **doubly linked list** keeps usage order: most recent at the front, least recent at the back. Hit → move the node to the front. Full → drop the node at the back.
+```java LRUCache.java
+class LRUCache {                                                // LeetCode 146: get and put in O(1)
+  private static class Node { int key, val; Node prev, next; Node(int k, int v) { key = k; val = v; } }
+  private final int capacity;
+  private final Map<Integer, Node> map = new HashMap<>();
+  private final Node head = new Node(0, 0), tail = new Node(0, 0);   // sentinels: no null checks
+
+  LRUCache(int capacity) { this.capacity = capacity; head.next = tail; tail.prev = head; }
+
+  int get(int key) {
+    Node n = map.get(key);
+    if (n == null) return -1;
+    unlink(n); addFront(n);                                     // now the most recently used
+    return n.val;
+  }
+  void put(int key, int value) {
+    Node n = map.get(key);
+    if (n != null) { n.val = value; unlink(n); addFront(n); return; }
+    if (map.size() == capacity) { Node lru = tail.prev; unlink(lru); map.remove(lru.key); }
+    n = new Node(key, value);
+    map.put(key, n); addFront(n);
+  }
+  private void unlink(Node n) { n.prev.next = n.next; n.next.prev = n.prev; }
+  private void addFront(Node n) { n.next = head.next; n.prev = head; head.next.prev = n; head.next = n; }
+}
+```
+- The node stores its **key** too, so when evicting the tail you know which map entry to remove.
+- **Java shortcut** (say it, then still know the long version): `LinkedHashMap` in access-order mode.
+```java LruShortcut.java
+class LRUCache<K, V> extends LinkedHashMap<K, V> {
+  private final int capacity;
+  LRUCache(int capacity) { super(16, 0.75f, true); this.capacity = capacity; }   // true = access order
+  @Override protected boolean removeEldestEntry(Map.Entry<K, V> eldest) { return size() > capacity; }
+}
+```
+
+## Common Mistakes
+- Losing the rest of the list: always **save `next` before** you overwrite `cur.next`.
+- `NullPointerException` from `fast.next.next`: the loop test must be `fast != null && fast.next != null`.
+- Forgetting to return `dummy.next` (not `dummy`), or to set the last node's `next = null` after cutting.
+- Not handling empty list, one node, and two nodes. Test those three every time.
+
+## Explain It Like This
+> "I use fast and slow pointers. Fast moves two steps and slow moves one, so if there's a cycle fast catches slow inside it; if not, fast hits null. It's O(n) time and O(1) space, unlike a HashSet of visited nodes which would be O(n) space."
+
+## Do These Next
+- **206. Reverse Linked List** (Easy): the 3-step loop. Do iterative **and** recursive.
+- **21. Merge Two Sorted Lists** (Easy): dummy node.
+- **141. Linked List Cycle** (Easy): fast and slow.
+- **876. Middle of the Linked List** (Easy): fast and slow.
+- **83. Remove Duplicates from Sorted List** (Easy): compare with `next`.
+- **203. Remove Linked List Elements** (Easy): dummy node.
+- **160. Intersection of Two Linked Lists** (Easy): the switch-heads trick.
+- **234. Palindrome Linked List** (Easy): middle, reverse, compare.
+- **19. Remove Nth Node From End of List** (Medium): gap of n.
+- **2. Add Two Numbers** (Medium): carry loop.
+- **142. Linked List Cycle II** (Medium): the algebra above.
+- **143. Reorder List** (Medium): middle + reverse + interleave.
+- **24. Swap Nodes in Pairs** (Medium): dummy node, swap two at a time.
+- **138. Copy List with Random Pointer** (Medium): map old → new.
+- **146. LRU Cache** (Medium): must-do design question.
+- **25. Reverse Nodes in k-Group** (Hard): reverse a group, reconnect.
+
+## Interview Q&A
+Q*: Array vs linked list?
+A: Arrays give O(1) index access and are cache-friendly but inserting in the middle shifts elements. Linked lists insert or delete in O(1) once you hold the node but need O(n) to reach it and use extra memory for pointers.
+Q*: How do you detect a cycle in a linked list?
+A: Floyd's algorithm: a slow pointer moving one step and a fast pointer moving two. If they ever meet there is a cycle; if fast reaches null there is not. O(n) time and O(1) space.
+Q*: How do you find where the cycle begins?
+A: After the pointers meet, put one pointer back at the head and move both one step at a time. They meet at the cycle's first node, because the distance from the head to the start equals the distance from the meeting point around to the start (modulo whole laps).
+Q: How do you reverse a linked list?
+A: Walk the list keeping prev and cur. For each node save cur.next, point cur.next at prev, then advance prev and cur. When cur is null, prev is the new head. O(n) time, O(1) space.
+Q: Why use a dummy node?
+A: It removes the special case for the head. Insertions and deletions at the front are handled by the same code as in the middle, and you return dummy.next at the end.
+Q: Design an LRU cache.
+A: A hash map from key to node for O(1) lookup plus a doubly linked list ordered by recency. get moves the node to the front; put inserts at the front and, when over capacity, removes the tail node and its map entry. Both operations are O(1).
+
+# 10 | Stack | LIFO, valid parentheses, min stack, evaluating expressions, the monotonic stack for next greater element, daily temperatures, largest rectangle in a histogram, decode string, asteroid collision, simplify path | Stack
+
+## The Idea
+> A stack is a **stack of plates**: you only add to the top and only take from the top (Last In, First Out). Whatever you put down most recently is what you must deal with first.
+- Operations: `push`, `pop`, `peek`: all **O(1)**.
+- In Java use **`ArrayDeque`** (`push` / `pop` / `peek`), never the old `Stack` class.
+- Where stacks appear: the **call stack** (recursion), **undo/redo**, browser back button, matching brackets, parsing expressions, DFS.
+- Use a stack when the **most recent unfinished thing** is the one you must resolve next (a bracket opened last must close first).
+! "Match the most recent one" or "next greater/smaller element" → think stack.
+
+## Matching Brackets (the "push the expected closer" trick)
+```java ValidParentheses.java
+class Solution {
+  public boolean isValid(String s) {                // LeetCode 20
+    Deque<Character> stack = new ArrayDeque<>();
+    for (char c : s.toCharArray()) {
+      if (c == '(') stack.push(')');                // push the closer we now expect
+      else if (c == '[') stack.push(']');
+      else if (c == '{') stack.push('}');
+      else if (stack.isEmpty() || stack.pop() != c) return false;
+    }
+    return stack.isEmpty();                         // leftover openers = invalid
+  }
+}
+```
+
+## Min Stack: Remember the Minimum at Each Level
+> Store each value with **the minimum so far** next to it. `getMin` is then just a peek.
+```java MinStack.java
+class MinStack {                                    // LeetCode 155: every operation O(1)
+  private final Deque<int[]> st = new ArrayDeque<>();   // {value, min of everything beneath and including}
+  void push(int x) { st.push(new int[] {x, st.isEmpty() ? x : Math.min(x, st.peek()[1])}); }
+  void pop() { st.pop(); }
+  int top() { return st.peek()[0]; }
+  int getMin() { return st.peek()[1]; }
+}
+```
+
+## Expressions: Reverse Polish Notation
+```java EvalRPN.java
+class Solution {
+  public int evalRPN(String[] tokens) {             // LeetCode 150: ["2","1","+","3","*"] -> 9
+    Deque<Integer> st = new ArrayDeque<>();
+    for (String t : tokens) {
+      switch (t) {
+        case "+" -> st.push(st.pop() + st.pop());
+        case "*" -> st.push(st.pop() * st.pop());
+        case "-" -> { int b = st.pop(), a = st.pop(); st.push(a - b); }   // order matters
+        case "/" -> { int b = st.pop(), a = st.pop(); st.push(a / b); }
+        default -> st.push(Integer.parseInt(t));
+      }
+    }
+    return st.pop();
+  }
+}
+```
+- Operands go on the stack; an operator pops the **top two** (the second pop is the **left** operand).
+
+## The Monotonic Stack (the big pattern)
+> Keep a stack whose values are always **increasing or decreasing**. When a new element breaks the order, **pop** the elements it beats; popping is the moment you learn their answer ("the next greater element of the popped one is me").
+- Each element is pushed once and popped once, so even with a `while` inside a `for` the total is **O(n)**.
+- **Next greater** element: keep a stack of values still **waiting** for something bigger (decreasing stack). **Next smaller**: the mirror.
+- Store **indices** (not values) when the answer needs distance or position.
+```java MonotonicStack.java
+class Solution {
+  public int[] dailyTemperatures(int[] t) {         // LeetCode 739: days until a warmer day
+    int[] out = new int[t.length];
+    Deque<Integer> st = new ArrayDeque<>();         // indices of days still waiting for a warmer day
+    for (int i = 0; i < t.length; i++) {
+      while (!st.isEmpty() && t[st.peek()] < t[i]) {
+        int j = st.pop();
+        out[j] = i - j;                             // day i is the answer for day j
+      }
+      st.push(i);
+    }
+    return out;
+  }
+  public int[] nextGreaterElements(int[] a) {       // LeetCode 503: circular array
+    int n = a.length;
+    int[] out = new int[n];
+    Arrays.fill(out, -1);
+    Deque<Integer> st = new ArrayDeque<>();
+    for (int i = 0; i < 2 * n; i++) {               // walk the array twice to simulate the circle
+      int x = a[i % n];
+      while (!st.isEmpty() && a[st.peek()] < x) out[st.pop()] = x;
+      if (i < n) st.push(i);
+    }
+    return out;
+  }
+}
+```
+! Monotonic stack: pop everything the new element beats; the pop is where you record its answer.
+
+## Largest Rectangle in a Histogram
+> For each bar, the widest rectangle using it as the **shortest** bar stretches until a **shorter bar on each side**. A stack of increasing heights finds both boundaries: a bar is popped exactly when a shorter bar to its right arrives, and the new top of the stack is the shorter bar on its left.
+```java Histogram.java
+class Solution {
+  public int largestRectangleArea(int[] h) {        // LeetCode 84
+    Deque<Integer> st = new ArrayDeque<>();         // indices with increasing heights
+    int best = 0, n = h.length;
+    for (int i = 0; i <= n; i++) {
+      int cur = (i == n) ? 0 : h[i];                // a final height-0 bar flushes the stack
+      while (!st.isEmpty() && h[st.peek()] >= cur) {
+        int height = h[st.pop()];
+        int left = st.isEmpty() ? -1 : st.peek();   // first shorter bar on the left
+        best = Math.max(best, height * (i - left - 1));
+      }
+      st.push(i);
+    }
+    return best;
+  }
+}
+```
+
+## Decode String, Asteroids, Simplify Path
+```java StackStrings.java
+class Solution {
+  public String decodeString(String s) {            // LeetCode 394: "3[a2[c]]" -> "accaccacc"
+    Deque<StringBuilder> strs = new ArrayDeque<>();
+    Deque<Integer> counts = new ArrayDeque<>();
+    StringBuilder cur = new StringBuilder();
+    int k = 0;
+    for (char c : s.toCharArray()) {
+      if (Character.isDigit(c)) k = k * 10 + (c - '0');
+      else if (c == '[') { strs.push(cur); counts.push(k); cur = new StringBuilder(); k = 0; }
+      else if (c == ']') { StringBuilder prev = strs.pop(); prev.append(cur.toString().repeat(counts.pop())); cur = prev; }
+      else cur.append(c);
+    }
+    return cur.toString();
+  }
+  public int[] asteroidCollision(int[] asteroids) { // LeetCode 735: positive = right, negative = left
+    Deque<Integer> st = new ArrayDeque<>();
+    for (int a : asteroids) {
+      boolean alive = true;
+      while (alive && a < 0 && !st.isEmpty() && st.peek() > 0) {   // right-mover meets left-mover
+        if (st.peek() < -a) st.pop();                              // top explodes, keep fighting
+        else { if (st.peek() == -a) st.pop(); alive = false; }     // equal: both explode, else new one dies
+      }
+      if (alive) st.push(a);
+    }
+    int[] out = new int[st.size()];
+    for (int i = out.length - 1; i >= 0; i--) out[i] = st.pop();
+    return out;
+  }
+  public String simplifyPath(String path) {         // LeetCode 71
+    Deque<String> st = new ArrayDeque<>();
+    for (String p : path.split("/")) {
+      if (p.isEmpty() || p.equals(".")) continue;
+      if (p.equals("..")) st.pollLast();            // go up one level (nothing happens at the root)
+      else st.addLast(p);
+    }
+    return "/" + String.join("/", st);
+  }
+}
+```
+
+## Stack and DFS
+- Recursion uses the call stack. **Iterative DFS** uses your own stack: push the start, then loop `pop → visit → push unvisited neighbours`. (Sheet 14 and sheet 18 use it.)
+- Any recursive algorithm can be made iterative with an explicit stack, which avoids `StackOverflowError` on very deep inputs.
+
+## Common Mistakes
+- Calling `pop()` or `peek()` on an empty stack: check `isEmpty()` first (`pop` throws, `peek` returns null).
+- Using `java.util.Stack` (synchronized, slow). Use `ArrayDeque`.
+- In the monotonic stack: choosing `<` vs `<=` wrongly with duplicates. Decide what equal values should do and test `[2, 2]`.
+- Forgetting leftovers: elements still on the stack at the end have **no** next greater element.
+
+## Explain It Like This
+> "I need the next warmer day for every day, so I keep a stack of days still waiting. When a warmer day arrives it resolves every colder day on top of the stack. Each day is pushed and popped once, so O(n) time."
+
+## Do These Next
+- **20. Valid Parentheses** (Easy): push the expected closer.
+- **155. Min Stack** (Medium): store the running minimum.
+- **496. Next Greater Element I** (Easy): monotonic stack plus a map.
+- **1047. Remove All Adjacent Duplicates In String** (Easy): stack as a StringBuilder.
+- **844. Backspace String Compare** (Easy): stack, or two pointers from the back.
+- **150. Evaluate Reverse Polish Notation** (Medium): pop two for each operator.
+- **739. Daily Temperatures** (Medium): the monotonic stack template.
+- **503. Next Greater Element II** (Medium): circular, loop twice.
+- **394. Decode String** (Medium): two stacks (counts and strings).
+- **735. Asteroid Collision** (Medium): collide while top is positive and new is negative.
+- **71. Simplify Path** (Medium): split on `/`.
+- **901. Online Stock Span** (Medium): monotonic stack with counts.
+- **84. Largest Rectangle in Histogram** (Hard): increasing stack, flush with a sentinel.
+
+## Interview Q&A
+Q*: What is a stack and where is it used?
+A: A Last-In-First-Out structure with O(1) push, pop and peek. It backs the call stack, undo, bracket matching, expression evaluation and iterative DFS.
+Q*: Why prefer ArrayDeque over Stack in Java?
+A: Stack extends Vector, so every method is synchronized and it exposes index operations that break the LIFO contract. ArrayDeque is faster, unsynchronized and designed for stack and queue use.
+Q*: What is a monotonic stack?
+A: A stack kept in increasing or decreasing order. When a new element would break the order you pop the elements it beats, and that pop is exactly where you learn their next greater or smaller element. Because each element is pushed and popped once, it is O(n).
+Q: How do you implement a stack that returns the minimum in O(1)?
+A: Store with each element the minimum of everything at or below it (or keep a second stack of minimums). getMin reads the top's stored minimum.
+Q: Why is the nested while loop in the monotonic stack still O(n)?
+A: Each element is pushed once and popped at most once, so the inner loop runs at most n times in total across all iterations of the outer loop.
+
+# 11 | Queue & Deque | FIFO, ArrayDeque as a queue, queue from two stacks, stack from a queue, circular queue, the monotonic deque for sliding window maximum, recent-calls counter, and why queues power BFS | Queue & Deque
+
+## The Idea
+> A queue is a **ticket line**: first in, first out. New people join at the back, service happens at the front. The oldest waiting item is always next.
+- Operations: `offer` (add at back), `poll` (remove front), `peek` (look at front): all **O(1)** with `ArrayDeque`.
+- A **deque** (double-ended queue, say "deck") adds and removes at **both ends**: `offerFirst`, `offerLast`, `pollFirst`, `pollLast`, `peekFirst`, `peekLast`.
+- Queues give you **order of arrival**. They power **BFS** (level by level), task scheduling, buffers, "recent N events" windows.
+- Use `Queue<Integer> q = new ArrayDeque<>()`. Avoid `LinkedList` as a queue (more memory, slower).
+! Stack = most recent first. Queue = oldest first. Deque = both ends.
+
+## Queue API You Need
+```java QueueApi.java
+Queue<String> q = new ArrayDeque<>();
+q.offer("a"); q.offer("b"); q.offer("c");          // add at the back
+System.out.println(q.peek() + " " + q.size());      // a 3  (front, not removed)
+System.out.println(q.poll() + " " + q.poll());      // a b  (FIFO order)
+System.out.println(q);                              // [c]
+
+Deque<Integer> dq = new ArrayDeque<>();
+dq.offerFirst(2); dq.offerFirst(1); dq.offerLast(3);
+System.out.println(dq);                             // [1, 2, 3]
+System.out.println(dq.pollFirst() + " " + dq.pollLast());   // 1 3
+```
+- `poll()` / `peek()` return **null** when empty. `remove()` / `element()` **throw**. Prefer `poll` and `peek`, and check `isEmpty()`.
+
+## Queue From Two Stacks (amortized O(1))
+> An `in` stack takes new items. When asked for the front and `out` is empty, **pour all of `in` into `out`**: the order flips, so the oldest item ends up on top. Each item is moved at most once, so every operation is **amortized O(1)**.
+```java MyQueue.java
+class MyQueue {                                     // LeetCode 232
+  private final Deque<Integer> in = new ArrayDeque<>(), out = new ArrayDeque<>();
+  void push(int x) { in.push(x); }
+  int pop() { move(); return out.pop(); }
+  int peek() { move(); return out.peek(); }
+  boolean empty() { return in.isEmpty() && out.isEmpty(); }
+  private void move() {                             // only refill when out is empty, or order breaks
+    if (out.isEmpty()) while (!in.isEmpty()) out.push(in.pop());
+  }
+}
+```
+
+## Stack From One Queue
+> After adding a new item, **rotate** the queue so the new item moves to the front: poll and re-offer the `size - 1` items that were ahead of it.
+```java MyStack.java
+class MyStack {                                     // LeetCode 225
+  private final Queue<Integer> q = new ArrayDeque<>();
+  void push(int x) {
+    q.offer(x);
+    for (int i = q.size() - 1; i > 0; i--) q.offer(q.poll());   // newest travels to the front
+  }
+  int pop() { return q.poll(); }
+  int top() { return q.peek(); }
+  boolean empty() { return q.isEmpty(); }
+}
+```
+
+## Circular Queue (ring buffer)
+> A fixed array where `head` and `size` wrap around with `% capacity`. No shifting ever: enqueue writes at `(head + size) % cap`, dequeue just advances `head`.
+```java CircularQueue.java
+class MyCircularQueue {                             // LeetCode 622
+  private final int[] a;
+  private int head = 0, size = 0;
+  MyCircularQueue(int k) { a = new int[k]; }
+  boolean enQueue(int v) { if (isFull()) return false; a[(head + size++) % a.length] = v; return true; }
+  boolean deQueue() { if (isEmpty()) return false; head = (head + 1) % a.length; size--; return true; }
+  int Front() { return isEmpty() ? -1 : a[head]; }
+  int Rear() { return isEmpty() ? -1 : a[(head + size - 1) % a.length]; }
+  boolean isEmpty() { return size == 0; }
+  boolean isFull() { return size == a.length; }
+}
+```
+- Keeping a `size` counter (instead of only `head` and `tail`) avoids the classic "full vs empty look the same" bug.
+
+## A Moving Time Window: Number of Recent Calls
+```java RecentCounter.java
+class RecentCounter {                               // LeetCode 933: calls in the last 3000 ms
+  private final Queue<Integer> q = new ArrayDeque<>();
+  int ping(int t) {
+    q.offer(t);
+    while (q.peek() < t - 3000) q.poll();           // drop everything older than the window
+    return q.size();
+  }
+}
+```
+
+## The Monotonic Deque: Sliding Window Maximum
+> You want the max of every window of size k. Keep a deque of **indices whose values decrease from front to back**. The **front is always the current max**. A new value **evicts every smaller value from the back** (they can never be a maximum again), and the front is dropped when it slides out of the window.
+```java SlidingMax.java
+class Solution {
+  public int[] maxSlidingWindow(int[] nums, int k) {   // LeetCode 239
+    int n = nums.length;
+    int[] out = new int[n - k + 1];
+    Deque<Integer> dq = new ArrayDeque<>();            // indices, values decreasing front to back
+    for (int i = 0; i < n; i++) {
+      if (!dq.isEmpty() && dq.peekFirst() <= i - k) dq.pollFirst();            // front left the window
+      while (!dq.isEmpty() && nums[dq.peekLast()] <= nums[i]) dq.pollLast();   // smaller ones are useless
+      dq.offerLast(i);
+      if (i >= k - 1) out[i - k + 1] = nums[dq.peekFirst()];
+    }
+    return out;
+  }
+}
+```
+- Each index enters and leaves the deque once: **O(n)** total, versus O(n log k) with a heap and O(nk) brute force.
+! Monotonic deque = monotonic stack that can also drop from the front when things expire.
+
+## Queues and BFS (preview)
+- **BFS** explores a graph or tree **level by level**: poll a node, offer its unvisited neighbours. The queue's FIFO order guarantees closer nodes are processed before farther ones, which is why BFS finds the **shortest path in an unweighted graph**.
+- Full templates: level-order on trees (sheet 14) and graphs, grids, multi-source BFS (sheet 18).
+
+## Common Mistakes
+- Using `LinkedList`/`Stack` instead of `ArrayDeque`.
+- Calling `poll`/`peek` and forgetting they return `null` (unboxing null into an `int` throws `NullPointerException`).
+- Moving items from `in` to `out` when `out` is **not** empty, which breaks FIFO order.
+- In the monotonic deque, storing **values** instead of **indices**, so you cannot tell when the front has left the window.
+
+## Explain It Like This
+> "I keep a deque of candidate indices in decreasing value order. Anything smaller than the new element can never be the window maximum again, so I pop it from the back. The front is the max; I drop it when it slides out. Each index is added and removed once: O(n)."
+
+## Do These Next
+- **232. Implement Queue using Stacks** (Easy): two stacks, move only when `out` is empty.
+- **225. Implement Stack using Queues** (Easy): rotate after each push.
+- **933. Number of Recent Calls** (Easy): poll old timestamps.
+- **622. Design Circular Queue** (Medium): modulo arithmetic.
+- **1700. Number of Students Unable to Eat Lunch** (Easy): queue simulation.
+- **239. Sliding Window Maximum** (Hard): the monotonic deque. Must-do.
+- **1438. Longest Continuous Subarray With Absolute Diff Less Than or Equal to Limit** (Medium): two monotonic deques (max and min) plus a window.
+- **862. Shortest Subarray with Sum at Least K** (Hard): prefix sums plus a monotonic deque, once you are comfortable.
+
+## Interview Q&A
+Q*: Stack vs queue?
+A: A stack is LIFO: the most recently added element comes out first. A queue is FIFO: the oldest element comes out first. Stacks fit nesting and backtracking; queues fit ordering by arrival and level-by-level traversal.
+Q*: How do you implement a queue with two stacks?
+A: Push onto an input stack. For pop or peek, if the output stack is empty, pour the whole input stack into it, which reverses the order so the oldest element is on top. Each element moves at most once, so operations are amortized O(1).
+Q*: What is a deque and when is it useful?
+A: A double-ended queue with O(1) insertion and removal at both ends. It is the right structure for sliding-window problems where you add at the back and expire from the front, such as sliding window maximum.
+Q: How does the monotonic deque find the sliding window maximum in O(n)?
+A: It keeps indices with decreasing values. New elements remove smaller ones from the back because they can never be a maximum while the newer, larger element is in the window. The front is the maximum and is removed when its index leaves the window. Every index is pushed and popped once.
+Q: Why does BFS use a queue?
+A: FIFO order processes nodes in increasing distance from the start, so the first time BFS reaches a node it has used the fewest edges.
+
+# 12 | Binary Search | The loop template, avoiding off-by-one and overflow, first/last position and lower/upper bound, rotated arrays, peak finding, binary search on the answer (Koko, ship packages), square root, median of two sorted arrays, TreeMap-based time store | Binary Search
+
+## The Idea
+> Guess the middle of a **sorted** range. Too high? Throw away the upper half. Too low? Throw away the lower half. Each guess halves the range, so 1 billion items need only about **30** guesses: **O(log n)**.
+- Needs a **sorted** array, or any **yes/no condition that flips exactly once** (`false false false true true true`).
+- That second form is the real power: you can binary search **an answer** (a speed, a capacity, a day), not just an index.
+! Binary search works whenever the check is monotonic: once true, it stays true.
+
+## Template 1: Find an Exact Value
+```java BinarySearch.java
+class Solution {
+  public int search(int[] a, int target) {       // LeetCode 704
+    int lo = 0, hi = a.length - 1;               // search range is [lo, hi], both inclusive
+    while (lo <= hi) {                           // <=: a range of one element is still unchecked
+      int mid = lo + (hi - lo) / 2;              // never (lo + hi) / 2: it can overflow
+      if (a[mid] == target) return mid;
+      if (a[mid] < target) lo = mid + 1;         // target is to the right: +1 because mid is ruled out
+      else hi = mid - 1;
+    }
+    return -1;
+  }
+}
+```
+
+## Template 2: First Index Where a Condition Is True (the one to memorise)
+> Range is `[lo, hi)`. If `ok(mid)` is true the answer is `mid` **or earlier**, so `hi = mid`. Else the answer is **after** mid, so `lo = mid + 1`. Stop when `lo == hi`. This single loop does lower bound, upper bound, insert position, first/last occurrence, and answer-searching.
+```java FirstTrue.java
+class Solution {
+  // smallest i in [lo, hi) with ok(i) == true, or hi if there is none
+  static int firstTrue(int lo, int hi, IntPredicate ok) {
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (ok.test(mid)) hi = mid;                // mid might be the answer: keep it
+      else lo = mid + 1;
+    }
+    return lo;
+  }
+  static int lowerBound(int[] a, int x) { return firstTrue(0, a.length, i -> a[i] >= x); }   // first >= x
+  static int upperBound(int[] a, int x) { return firstTrue(0, a.length, i -> a[i] > x); }    // first > x
+
+  public int searchInsert(int[] a, int target) { return lowerBound(a, target); }   // LeetCode 35
+  public int[] searchRange(int[] a, int target) {                                  // LeetCode 34
+    int first = lowerBound(a, target);
+    if (first == a.length || a[first] != target) return new int[] {-1, -1};
+    return new int[] {first, upperBound(a, target) - 1};
+  }
+}
+```
+! lower bound = first index with a[i] >= x. upper bound = first index with a[i] > x. Count of x = upper - lower.
+
+## Rotated Sorted Array
+> After rotating, **one half of any range is still sorted**. Find which half is sorted, check whether the target lies inside it, and keep that half or discard it.
+```java Rotated.java
+class Solution {
+  public int search(int[] a, int target) {         // LeetCode 33, distinct values
+    int lo = 0, hi = a.length - 1;
+    while (lo <= hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (a[mid] == target) return mid;
+      if (a[lo] <= a[mid]) {                       // left half is sorted
+        if (a[lo] <= target && target < a[mid]) hi = mid - 1; else lo = mid + 1;
+      } else {                                     // right half is sorted
+        if (a[mid] < target && target <= a[hi]) lo = mid + 1; else hi = mid - 1;
+      }
+    }
+    return -1;
+  }
+  public int findMin(int[] a) {                    // LeetCode 153
+    int lo = 0, hi = a.length - 1;
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (a[mid] > a[hi]) lo = mid + 1;            // the minimum is to the right of mid
+      else hi = mid;                               // mid could be the minimum
+    }
+    return a[lo];
+  }
+}
+```
+
+## Peak Element and 2D Matrix
+```java PeakAndMatrix.java
+class Solution {
+  public int findPeakElement(int[] a) {            // LeetCode 162: any index bigger than its neighbours
+    int lo = 0, hi = a.length - 1;
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (a[mid] < a[mid + 1]) lo = mid + 1;       // rising: a peak must exist on the right
+      else hi = mid;                               // falling: a peak is at mid or on the left
+    }
+    return lo;
+  }
+  public boolean searchMatrix(int[][] m, int target) {   // LeetCode 74: rows sorted, row starts increasing
+    int cols = m[0].length, lo = 0, hi = m.length * cols - 1;
+    while (lo <= hi) {                             // treat the matrix as one flat sorted array
+      int mid = lo + (hi - lo) / 2, v = m[mid / cols][mid % cols];
+      if (v == target) return true;
+      if (v < target) lo = mid + 1; else hi = mid - 1;
+    }
+    return false;
+  }
+}
+```
+
+## Binary Search on the Answer
+> Ask "**what is the smallest value that works?**" Write a `feasible(x)` check (usually a simple greedy loop). If it is monotonic, binary search `x`. Complexity: O(n log range).
+```java OnTheAnswer.java
+class Solution {
+  public int minEatingSpeed(int[] piles, int h) {   // LeetCode 875: smallest bananas/hour to finish in h hours
+    int lo = 1, hi = Arrays.stream(piles).max().getAsInt();
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (hours(piles, mid) <= h) hi = mid;          // fast enough: try slower
+      else lo = mid + 1;
+    }
+    return lo;
+  }
+  static long hours(int[] piles, int speed) {
+    long t = 0;
+    for (int p : piles) t += (p + speed - 1) / speed;   // ceiling division
+    return t;
+  }
+  public int shipWithinDays(int[] w, int days) {    // LeetCode 1011: smallest ship capacity
+    int lo = Arrays.stream(w).max().getAsInt(), hi = Arrays.stream(w).sum();
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (daysNeeded(w, mid) <= days) hi = mid; else lo = mid + 1;
+    }
+    return lo;
+  }
+  static int daysNeeded(int[] w, int cap) {
+    int d = 1, load = 0;
+    for (int x : w) { if (load + x > cap) { d++; load = 0; } load += x; }
+    return d;
+  }
+}
+```
+! Words like "minimum possible maximum", "smallest speed/capacity", "at least ... days" usually mean binary search on the answer.
+
+## Square Root (last index where a condition is true)
+```java Sqrt.java
+class Solution {
+  public int mySqrt(int x) {                       // LeetCode 69
+    long lo = 0, hi = x;
+    while (lo < hi) {
+      long mid = (lo + hi + 1) / 2;                // round UP when moving lo = mid, or the loop never ends
+      if (mid * mid <= x) lo = mid; else hi = mid - 1;
+    }
+    return (int) lo;
+  }
+}
+```
+- When you keep `lo = mid` you must use the **upper** middle `(lo + hi + 1) / 2`, otherwise `lo` never moves for a two-element range.
+
+## Median of Two Sorted Arrays (Hard, O(log(min(m, n))))
+> Binary search how many elements `i` to take from the **smaller** array for the left half. The rest of the left half (`j = half - i`) comes from the other array. The split is correct when `aLeft <= bRight` and `bLeft <= aRight`.
+```java MedianTwoArrays.java
+class Solution {
+  public double findMedianSortedArrays(int[] a, int[] b) {   // LeetCode 4
+    if (a.length > b.length) return findMedianSortedArrays(b, a);   // always search the smaller array
+    int m = a.length, n = b.length, half = (m + n + 1) / 2, lo = 0, hi = m;
+    while (lo <= hi) {
+      int i = lo + (hi - lo) / 2, j = half - i;
+      int aLeft = i == 0 ? Integer.MIN_VALUE : a[i - 1], aRight = i == m ? Integer.MAX_VALUE : a[i];
+      int bLeft = j == 0 ? Integer.MIN_VALUE : b[j - 1], bRight = j == n ? Integer.MAX_VALUE : b[j];
+      if (aLeft <= bRight && bLeft <= aRight) {
+        if ((m + n) % 2 == 1) return Math.max(aLeft, bLeft);
+        return (Math.max(aLeft, bLeft) + (double) Math.min(aRight, bRight)) / 2;
+      }
+      if (aLeft > bRight) hi = i - 1; else lo = i + 1;
+    }
+    throw new IllegalArgumentException("arrays are not sorted");
+  }
+}
+```
+
+## A Time-Based Store (TreeMap floor)
+```java TimeMap.java
+class TimeMap {                                    // LeetCode 981: value at the latest time <= t
+  private final Map<String, TreeMap<Integer, String>> m = new HashMap<>();
+  void set(String key, String value, int t) { m.computeIfAbsent(key, k -> new TreeMap<>()).put(t, value); }
+  String get(String key, int t) {
+    TreeMap<Integer, String> tm = m.get(key);
+    if (tm == null) return "";
+    var e = tm.floorEntry(t);                      // greatest key <= t: a binary search inside the tree
+    return e == null ? "" : e.getValue();
+  }
+}
+```
+
+## Common Mistakes
+- `(lo + hi) / 2` overflow: use `lo + (hi - lo) / 2`.
+- Infinite loops: `lo = mid` with the lower middle. Use `lo = mid + 1`, or the upper middle.
+- Mixing the two templates: with `[lo, hi]` use `<=` and `mid ± 1`; with `[lo, hi)` use `<` and `hi = mid`.
+- Binary searching data that is not sorted or a check that is not monotonic.
+- Duplicates: `a[mid] == target` finds **a** match, not the first one. Use lower bound.
+
+## Explain It Like This
+> "The array is sorted, so I compare the middle with the target and discard the half that cannot contain it. The search range halves every step, so it's O(log n) time and O(1) space."
+
+## Do These Next
+- **704. Binary Search** (Easy): template 1.
+- **35. Search Insert Position** (Easy): lower bound.
+- **69. Sqrt(x)** (Easy): last true, upper middle.
+- **278. First Bad Version** (Easy): first true.
+- **34. Find First and Last Position of Element in Sorted Array** (Medium): lower and upper bound.
+- **74. Search a 2D Matrix** (Medium): flatten the index.
+- **153. Find Minimum in Rotated Sorted Array** (Medium): compare mid with hi.
+- **33. Search in Rotated Sorted Array** (Medium): find the sorted half.
+- **162. Find Peak Element** (Medium): follow the slope.
+- **875. Koko Eating Bananas** (Medium): binary search on the answer.
+- **1011. Capacity To Ship Packages Within D Days** (Medium): binary search on the answer.
+- **981. Time Based Key-Value Store** (Medium): TreeMap floorEntry or manual binary search.
+- **4. Median of Two Sorted Arrays** (Hard): partition search.
+
+## Interview Q&A
+Q*: Why is binary search O(log n)?
+A: Each comparison discards half of the remaining candidates, so after k steps n / 2^k items remain; it ends when that reaches 1, at k = log2 n.
+Q*: Why compute mid as lo + (hi - lo) / 2?
+A: (lo + hi) can exceed Integer.MAX_VALUE and overflow to a negative number. lo + (hi - lo) / 2 stays within range and gives the same midpoint.
+Q*: What is binary search on the answer?
+A: When the question asks for the smallest or largest value satisfying a condition that is monotonic (once it works it keeps working), binary search the value space and test each candidate with a feasibility check, usually a greedy O(n) loop.
+Q: How do you search a rotated sorted array?
+A: At each step one half is sorted. Compare a[lo] with a[mid] to find which one; if the target lies within the sorted half's range, search it, otherwise search the other half. It stays O(log n).
+Q: How do you find the first occurrence of a duplicate value?
+A: Use lower bound: the first index whose value is greater than or equal to the target, then check that the element there equals the target.
+
+# 13 | Sorting | Why sorting matters, the comparison table, insertion sort, merge sort, quicksort with partitioning, quickselect for kth largest, counting sort, stability, what Java uses, custom comparators, and "sort first" as a problem-solving move | Sorting
+
+## The Idea
+> Sorting is **putting things in order so every later question becomes easier**: duplicates sit together, two pointers work, binary search works, intervals line up. Much of DSA is "sort first, then something simple".
+- Comparison sorts cannot beat **O(n log n)** in the worst case (there are n! orderings and each comparison halves the possibilities, so you need log2(n!) ≈ n log n comparisons).
+- **Stable** sort: equal elements keep their original relative order (matters when sorting records by a second key).
+- **In-place**: uses O(1) (or O(log n) stack) extra space.
+! In an interview: know merge sort and quicksort by heart, know the table below, and know what Java uses.
+
+## The Comparison Table
+```text
+sort       best        average     worst       space     stable
+bubble     O(n)        O(n^2)      O(n^2)      O(1)      yes
+selection  O(n^2)      O(n^2)      O(n^2)      O(1)      no
+insertion  O(n)        O(n^2)      O(n^2)      O(1)      yes
+merge      O(n log n)  O(n log n)  O(n log n)  O(n)      yes
+quick      O(n log n)  O(n log n)  O(n^2)      O(log n)  no
+heap       O(n log n)  O(n log n)  O(n log n)  O(1)      no
+counting   O(n + k)    O(n + k)    O(n + k)    O(k)      yes
+```
+- **Insertion sort** is the best for tiny or nearly sorted inputs (real libraries use it for small chunks).
+- **Quick sort** is usually fastest in practice (cache-friendly) but needs a good pivot to avoid O(n^2).
+
+## What Java Uses
+- `Arrays.sort(int[])` and other primitives: **dual-pivot quicksort** (O(n log n) average, in-place, not stable: stability is meaningless for primitives).
+- `Arrays.sort(Object[])`, `Collections.sort`, `List.sort`: **TimSort** (a merge sort and insertion sort hybrid): **stable**, O(n log n), O(n) space, very fast on already-ordered data (O(n) best case).
+- You almost never write your own sort in practice. In interviews you must know **how** they work and **when** to reach for them.
+
+## Insertion Sort (simplest correct sort)
+```java Sorts.java
+class Sorts {
+  static void insertionSort(int[] a) {
+    for (int i = 1; i < a.length; i++) {
+      int x = a[i], j = i - 1;
+      while (j >= 0 && a[j] > x) { a[j + 1] = a[j]; j--; }      // shift bigger items right
+      a[j + 1] = x;                                             // drop x into the gap
+    }
+  }
+
+  // Merge sort: split in half, sort each half, merge the two sorted halves.
+  static void mergeSort(int[] a) { sort(a, new int[a.length], 0, a.length - 1); }
+  private static void sort(int[] a, int[] tmp, int lo, int hi) {
+    if (lo >= hi) return;
+    int mid = lo + (hi - lo) / 2;
+    sort(a, tmp, lo, mid);
+    sort(a, tmp, mid + 1, hi);
+    int i = lo, j = mid + 1, k = lo;
+    while (i <= mid && j <= hi) tmp[k++] = a[i] <= a[j] ? a[i++] : a[j++];   // <= keeps it stable
+    while (i <= mid) tmp[k++] = a[i++];
+    while (j <= hi) tmp[k++] = a[j++];
+    System.arraycopy(tmp, lo, a, lo, hi - lo + 1);
+  }
+
+  // Quick sort with 3-way partitioning: split into  < pivot | == pivot | > pivot  (the Dutch flag of sheet 05).
+  // Equal items are never touched again, so many duplicates cannot make it slow or overflow the stack.
+  static void quickSort(int[] a) { quick(a, 0, a.length - 1, new Random()); }
+  private static void quick(int[] a, int lo, int hi, Random rnd) {
+    if (lo >= hi) return;
+    int pivot = a[lo + rnd.nextInt(hi - lo + 1)];                   // random pivot defeats worst-case input
+    int lt = lo, i = lo, gt = hi;                                   // [lo,lt) < pivot, [lt,i) == pivot, (gt,hi] > pivot
+    while (i <= gt) {
+      if (a[i] < pivot) swap(a, lt++, i++);
+      else if (a[i] > pivot) swap(a, i, gt--);                      // do not advance i: the swapped-in item is unchecked
+      else i++;
+    }
+    quick(a, lo, lt - 1, rnd);
+    quick(a, gt + 1, hi, rnd);
+  }
+  static void swap(int[] a, int i, int j) { int t = a[i]; a[i] = a[j]; a[j] = t; }
+
+  // Quickselect: same partition, but keep only the side that holds index n - k. O(n) average.
+  static int kthLargest(int[] nums, int k) {                        // LeetCode 215
+    int target = nums.length - k, lo = 0, hi = nums.length - 1;     // k-th largest = index n - k when sorted
+    Random rnd = new Random();
+    while (true) {
+      int pivot = nums[lo + rnd.nextInt(hi - lo + 1)];
+      int lt = lo, i = lo, gt = hi;
+      while (i <= gt) {
+        if (nums[i] < pivot) swap(nums, lt++, i++);
+        else if (nums[i] > pivot) swap(nums, i, gt--);
+        else i++;
+      }
+      if (target < lt) hi = lt - 1;                                 // the answer is among the smaller items
+      else if (target > gt) lo = gt + 1;                            // ... among the larger items
+      else return nums[target];                                     // ... or inside the equal block: done
+    }
+  }
+
+  // Counting sort: for small non-negative integers (values 0..max).
+  static void countingSort(int[] a, int max) {
+    int[] count = new int[max + 1];
+    for (int x : a) count[x]++;
+    int w = 0;
+    for (int v = 0; v <= max; v++) while (count[v]-- > 0) a[w++] = v;
+  }
+}
+```
+
+## How Merge Sort Works (say this out loud)
+- **Divide**: split the array into two halves until each has one element (a single element is already sorted).
+- **Conquer**: sort the halves recursively.
+- **Combine**: merge two sorted halves with two pointers, always taking the smaller front element. O(n) per level.
+- **log n levels × O(n) per level = O(n log n)**, **always** (no bad inputs), but needs an O(n) temporary array.
+- Also the way to **count inversions** (pairs out of order): while merging, whenever you take from the right half, all remaining left items form inversions with it.
+
+## How Quicksort Works
+- **Partition** around a pivot so everything smaller is on the left and everything larger on the right. The pivot is then in its **final position**.
+- Recurse on the two sides. Average depth log n → O(n log n). A terrible pivot every time (sorted input with first-element pivot) gives depth n → **O(n^2)**.
+- Fixes: a **random pivot** (as in the code) or median-of-three.
+- **Duplicates are the second trap.** The textbook two-way partition (Lomuto) puts all items equal to the pivot on one side, so an array of equal values splits as 0 and n - 1 every time: O(n^2) time and a **stack overflow** (this was tested on 100,000 equal values). The code above uses **3-way partitioning** (less than, equal to, greater than: the Dutch flag from sheet 05), which finishes an all-equal array in one pass.
+! Merge sort: predictable, stable, extra memory. Quicksort: fast in practice, in place, risky pivot.
+
+## Quickselect: kth Largest Without Fully Sorting
+> You only need the one element that would land at index `n - k`. After a partition the pivot is at its final spot `p`. If `p` is the target, done. Otherwise **only keep the side containing the target**. Work: n + n/2 + n/4 ... = **O(n) average** (O(n^2) worst case, made unlikely by the random pivot).
+- Alternative for kth largest: a **min-heap of size k** (O(n log k), sheet 16), simpler to write, safe worst case.
+
+## Custom Ordering With Comparators
+```java Comparators.java
+class Solution {
+  public String largestNumber(int[] nums) {                     // LeetCode 179
+    String[] s = new String[nums.length];
+    for (int i = 0; i < s.length; i++) s[i] = String.valueOf(nums[i]);
+    Arrays.sort(s, (x, y) -> (y + x).compareTo(x + y));         // which concatenation is bigger?
+    return s[0].equals("0") ? "0" : String.join("", s);         // all zeros -> "0"
+  }
+  public int[][] sortByFrequencyThenValue(int[] nums) {
+    Map<Integer, Integer> freq = new HashMap<>();
+    for (int x : nums) freq.merge(x, 1, Integer::sum);
+    List<int[]> pairs = new ArrayList<>();
+    for (var e : freq.entrySet()) pairs.add(new int[] {e.getKey(), e.getValue()});
+    pairs.sort(Comparator.<int[]>comparingInt(p -> p[1]).reversed().thenComparingInt(p -> p[0]));   // freq desc, value asc
+    return pairs.toArray(new int[0][]);
+  }
+}
+```
+- A comparator returns **negative** (first goes before second), **zero** (equal) or **positive**. Use `Integer.compare(a, b)`, never `a - b` (overflow).
+- `Comparator.comparingInt(...).thenComparing(...)` chains keys. `.reversed()` flips.
+- Sorting an array of arrays by one column: `Arrays.sort(intervals, (a, b) -> Integer.compare(a[0], b[0]))`.
+
+## "Sort First" as a Move
+- Duplicates become **neighbours** (find duplicates, 3Sum, group things).
+- **Two pointers** and **binary search** become possible.
+- **Intervals** line up by start time (merge intervals, meeting rooms: sheet 19).
+- **Greedy** choices often need the data sorted (activity selection, assigning cookies).
+- Cost: O(n log n). If n is large and only the top k matter, use a heap or quickselect instead.
+! Stuck on an array problem? Ask: "would sorting make this easy?"
+
+## Common Mistakes
+- Writing `(a, b) -> a - b` in a comparator (overflow). Use `Integer.compare`.
+- Sorting an `int[]` in descending order with `Collections.reverseOrder()`: that needs `Integer[]` (boxed).
+- Forgetting sorting is not stable for primitives (irrelevant) but **is** stable for objects, so sorting by two keys can be done as two passes.
+- Quicksort on sorted data with a fixed first/last pivot: O(n^2) and stack overflow.
+- Modifying the input when the problem says not to: copy first.
+
+## Explain It Like This
+> "I'll sort the array first, O(n log n), so equal values are adjacent and I can finish with one linear pass. The sort dominates, so overall O(n log n) time and O(1) extra space apart from the sort's own stack."
+
+## Do These Next
+- **912. Sort an Array** (Medium): implement merge sort or quicksort yourself. Do both.
+- **88. Merge Sorted Array** (Easy): the merge step on its own (done in sheet 05).
+- **75. Sort Colors** (Medium): Dutch flag (sheet 05).
+- **1122. Relative Sort Array** (Easy): counting sort or a custom comparator.
+- **242. Valid Anagram** (Easy): sort both strings and compare (then do the O(n) count version).
+- **179. Largest Number** (Medium): the concatenation comparator.
+- **215. Kth Largest Element in an Array** (Medium): quickselect (and later the heap version).
+- **148. Sort List** (Medium): merge sort on a linked list (middle with fast/slow, then merge two lists).
+- **347. Top K Frequent Elements** (Medium): bucket sort (sheet 04).
+- **493. Reverse Pairs** (Hard): count inversions during merge sort.
+
+## Interview Q&A
+Q*: Which sorting algorithm would you use and why?
+A: In practice the library sort (Arrays.sort or List.sort): dual-pivot quicksort for primitives and TimSort for objects. If I must pick one to implement, merge sort for guaranteed O(n log n) and stability, or quicksort with a random pivot for in-place speed.
+Q*: Merge sort vs quicksort?
+A: Merge sort is always O(n log n) and stable but uses O(n) extra space. Quicksort is O(n log n) on average, in place and cache-friendly, but O(n^2) in the worst case with bad pivots and not stable.
+Q*: What does it mean for a sort to be stable, and why does it matter?
+A: Equal elements keep their original relative order. It lets you sort by one key and then another, for example sort employees by name and then stably by department.
+Q: Why can't a comparison sort beat O(n log n)?
+A: There are n! possible orderings and each comparison has two outcomes, so a decision tree needs at least log2(n!) levels, which is Θ(n log n).
+Q: How do you find the kth largest element faster than sorting?
+A: Quickselect: partition around a pivot and recurse only into the side containing the target index, O(n) on average. Or keep a min-heap of size k, O(n log k).
+Q: How does Java sort objects?
+A: With TimSort, a stable merge sort and insertion sort hybrid that exploits existing runs, so nearly sorted input is sorted in close to O(n).
+

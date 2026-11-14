@@ -3,10 +3,10 @@
 //   # 01 | Title | subtitle | short  a sheet (short = sidebar label)
 //   ## Section title | colour | wide a section (colour/wide are legacy and ignored)
 //   ### Group title                  a group heading between sections (used by cheat sheet posters)
-//   - bullet   > callout   ! tip ("Remember")   Q: question   A: answer   ```lang [file] ... ```
+//   - bullet   > callout   ! tip ("Remember")   Q: question   Q*: must-know question   A: answer   ```lang [file] ... ```
 // Inline: `code` and **keyword** (rendered as a highlighter mark).
 
-export type QA = { q: string; a: string; text: string };
+export type QA = { q: string; a: string; text: string; must?: boolean };   // must: written as "Q*:"
 export type Block =
   | { k: 'ul'; items: string[] }
   | { k: 'note'; html: string }
@@ -44,7 +44,7 @@ export function parse(raw: string): Sheet[] {
 
   for (const line of raw.split('\n')) {
     if (code) {
-      if (line.startsWith('```')) { code.text = lines.join('\n'); code.html = highlight(code.text, code.lang); code = undefined; }
+      if (line.startsWith('```')) { code.text = lines.join('\n'); code = undefined; }
       else { lines.push(line); words += line.split(/\s+/).length; }
       continue;
     }
@@ -71,17 +71,18 @@ export function parse(raw: string): Sheet[] {
     if (!sec || !line.trim()) continue;
     if (line.startsWith('```')) {
       const [lang = 'text', file = ''] = line.slice(3).trim().split(/\s+/);
-      code = { k: 'code', lang: lang || 'text', file, text: '', html: '' };
+      let h: string | undefined;   // highlighted lazily, on first render
+      code = { k: 'code', lang: lang || 'text', file, text: '', get html() { return h ??= highlight(this.text, this.lang); } };
       lines = [];
       sec.blocks.push(code);
       continue;
     }
-    const body = line.slice(/^[->!] /.test(line) ? 2 : 3);
+    const body = line.slice(line.startsWith('Q*: ') ? 4 : /^[->!] /.test(line) ? 2 : 3);
     words += body.split(/\s+/).length;
     if (line.startsWith('- ')) add({ k: 'ul', items: [inline(body)] });
     else if (line.startsWith('> ')) add({ k: 'note', html: inline(body) });
     else if (line.startsWith('! ')) add({ k: 'tip', html: inline(body) });
-    else if (line.startsWith('Q: ')) { sec.isQa = true; add({ k: 'qa', pairs: [{ q: inline(body), a: '', text: plain(body) }] }); }
+    else if (line.startsWith('Q: ') || line.startsWith('Q*: ')) { sec.isQa = true; add({ k: 'qa', pairs: [{ q: inline(body), a: '', text: plain(body), must: line.startsWith('Q*') }] }); }
     else if (line.startsWith('A: ')) { const last = sec.blocks.at(-1); if (last?.k === 'qa') last.pairs.at(-1)!.a = inline(body); }
   }
   finish();

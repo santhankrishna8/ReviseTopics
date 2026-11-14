@@ -84,11 +84,11 @@ await client.close();
 - **vs Firestore**: a serverless document database with real-time listeners and security rules for client apps (see the Firestore topic). MongoDB is the server-side, general-purpose choice with aggregation and sharding under your control.
 
 ## Interview Q&A | sky | wide
-Q: What is MongoDB?
+Q*: What is MongoDB?
 A: A general-purpose, open-source (SSPL) document database that stores BSON documents in collections, with a flexible schema, rich queries, secondary indexes, aggregation, ACID transactions, and built-in replication and sharding.
-Q: What does NoSQL mean, and what are its main families?
+Q*: What does NoSQL mean, and what are its main families?
 A: "Not only SQL": non-relational databases. The main families are document (MongoDB), key-value (Redis, DynamoDB), wide-column (Cassandra) and graph (Neo4j).
-Q: Map SQL terms to MongoDB.
+Q*: Map SQL terms to MongoDB.
 A: Database to database, table to collection, row to document, column to field, primary key to _id, JOIN to embedding or $lookup, GROUP BY to $group.
 Q: How do you create a database or collection?
 A: You do not have to: `use shop` switches to it, and the database and collection are created on the first insert. db.createCollection() exists for options such as validation, capped size or time series.
@@ -166,11 +166,11 @@ db.customers.insertOne({ name: "Ann" })    // MongoServerError: Document failed 
 - **9.0 `constraint`**: guarantees that **every existing document** also satisfies the validator. Switch from `strict` after running `collMod` with `prepareConstraintValidationLevel: true`; the switch fails, naming the first offending `_id`, if any document violates the rules. `warn` is not allowed with it.
 
 ## Interview Q&A | sky | wide
-Q: JSON vs BSON?
+Q*: JSON vs BSON?
 A: JSON is a text format. BSON is MongoDB's binary encoding of JSON-like documents: faster to scan because values carry lengths, and richer in types (int, long, double, Decimal128, date, ObjectId, binary).
-Q: What is an ObjectId made of?
+Q*: What is an ObjectId made of?
 A: 12 bytes: a 4-byte timestamp in seconds, a 5-byte random value unique per machine and process, and a 3-byte incrementing counter. Clients generate it without coordination, and it sorts roughly by creation time.
-Q: What is the maximum document size?
+Q*: What is the maximum document size?
 A: 16 MiB. Larger binary content goes to GridFS or object storage, and growing arrays should be split out (bucket or reference patterns).
 Q: Is MongoDB schemaless?
 A: It has a flexible schema: documents in a collection can differ. You can still enforce structure with $jsonSchema validation (strict or moderate level, error or warn action), and in 9.0 with the constraint level that also covers existing documents.
@@ -244,11 +244,11 @@ db.products.estimatedDocumentCount()                     // fast count of the wh
 - **`countDocuments(filter)`** runs an aggregation and is exact; **`estimatedDocumentCount()`** reads collection metadata and takes no filter. The old `count()` is deprecated in the drivers.
 
 ## Interview Q&A | sky | wide
-Q: insertMany ordered vs unordered?
+Q*: insertMany ordered vs unordered?
 A: Ordered (the default) stops at the first failing document, keeping the earlier inserts. Unordered tries every document and reports all errors at the end, which is faster for bulk loads.
-Q: updateOne vs replaceOne?
+Q*: updateOne vs replaceOne?
 A: updateOne applies update operators to chosen fields; replaceOne swaps the entire document (except _id) for a new one.
-Q: What is an upsert?
+Q*: What is an upsert?
 A: An update with { upsert: true } that inserts a new document when no document matches, built from the filter's equality fields and the update; $setOnInsert sets fields only in that case.
 Q: Why can modifiedCount be 0 when matchedCount is 1?
 A: The matched document already had the values the update would set, so MongoDB did not modify it.
@@ -326,11 +326,11 @@ db.products.find({ $where: "this.price > 20" })          // JavaScript predicate
 - **`$where`** runs JavaScript per document. It cannot use indexes and works in `find` but not in aggregation-based helpers such as `countDocuments` ("$where is not allowed in this context"). In **9.0** it is no longer deprecated and runs on a WebAssembly engine that evaluates local dates in UTC; prefer `$expr` anyway.
 
 ## Interview Q&A | sky | wide
-Q: How do you query a field inside an embedded document?
+Q*: How do you query a field inside an embedded document?
 A: With dot notation in quotes, such as { "brand.country": "IN" }. Matching { brand: { country: "IN" } } instead requires the embedded document to be exactly equal, with the same fields in the same order.
-Q: $elemMatch vs plain conditions on an array?
+Q*: $elemMatch vs plain conditions on an array?
 A: Plain conditions can each be met by different elements; $elemMatch requires a single element to satisfy all of them.
-Q: What does { x: null } match?
+Q*: What does { x: null } match?
 A: Documents where x is null and documents where x does not exist. Use { x: { $type: "null" } } for explicit nulls only.
 Q: When can a regex query use an index?
 A: When it is a case-sensitive prefix match anchored with ^. Other patterns, and case-insensitive ones, examine every key in the index or every document.
@@ -395,11 +395,11 @@ db.carts.updateOne({ _id: 1 }, [
 - Every update to a single document is **atomic** and isolated: other readers see the document either before or after it.
 
 ## Interview Q&A | sky | wide
-Q: $push vs $addToSet?
+Q*: $push vs $addToSet?
 A: $push always appends, so duplicates are possible. $addToSet appends only when an identical value is not already in the array.
-Q: How do you update one element inside an array?
+Q*: How do you update one element inside an array?
 A: Match it in the filter and use the positional $ (items.$.qty), or use $[identifier] with arrayFilters to update every element meeting a condition. $[] updates all elements.
-Q: How do you keep an array from growing forever?
+Q*: How do you keep an array from growing forever?
 A: $push with $each plus $slice (and optionally $sort) keeps only the newest or top N elements; otherwise move the data to its own collection.
 Q: Why use $inc instead of reading, adding and writing?
 A: $inc is applied atomically on the server, so concurrent updates are not lost; read-modify-write in the application races.
@@ -462,11 +462,11 @@ db.students.aggregate([{ $lookup: { from: "courses", localField: "courseIds", fo
 - **Case-insensitive lookups without a collation index**, and **separating data that is always accessed together**.
 
 ## Interview Q&A | sky | wide
-Q: When do you embed and when do you reference?
+Q*: When do you embed and when do you reference?
 A: Embed data that is read together, bounded in size and owned by the parent (1:1, 1:few). Reference when the child set is large or unbounded, changes independently, is shared, or is queried on its own (1:many, 1:squillions, N:N).
-Q: How do you model a many-to-many relationship?
+Q*: How do you model a many-to-many relationship?
 A: Store an array of referenced ids on one or both sides (students.courseIds), or a separate link collection when the relationship has its own attributes, and resolve it with $lookup or a second query.
-Q: Why are unbounded arrays an anti-pattern?
+Q*: Why are unbounded arrays an anti-pattern?
 A: The document keeps growing towards the 16 MiB limit, every update rewrites a larger document, and multikey indexes on the array explode. Reference the children instead, or bucket them.
 Q: What is the extended reference pattern?
 A: Copying a few frequently needed fields of a referenced document (such as the customer's name in an order) so common reads avoid a join, at the cost of updating the copies.
@@ -528,11 +528,11 @@ db.orders.aggregate([{ $unwind: { path: "$items", preserveNullAndEmptyArrays: tr
 - Check plans with **`db.orders.explain("executionStats").aggregate([...])`**; aim for an index-backed `$match` and `$sort` at the start.
 
 ## Interview Q&A | sky | wide
-Q: What is the aggregation pipeline?
+Q*: What is the aggregation pipeline?
 A: An array of stages that documents flow through in order, each filtering, reshaping, grouping, sorting or joining them. It is MongoDB's framework for analytics and transformations, the counterpart of SQL GROUP BY and JOIN.
-Q: Why put $match first?
+Q*: Why put $match first?
 A: At the start of the pipeline it can use indexes, and it reduces the number of documents every later stage must process.
-Q: What does $unwind do, and what happens to empty arrays?
+Q*: What does $unwind do, and what happens to empty arrays?
 A: It emits one document per array element. Documents with an empty, null or missing array are dropped unless preserveNullAndEmptyArrays is true.
 Q: How do you implement SQL HAVING?
 A: Add a $match after the $group stage, filtering on the accumulated fields.
@@ -607,11 +607,11 @@ db.customer_stats.find()      // [ { _id: 'ann', n: 2 }, { _id: 'bo', n: 2 }, { 
 ```
 
 ## Interview Q&A | sky | wide
-Q: How do you join collections in MongoDB?
+Q*: How do you join collections in MongoDB?
 A: With $lookup in an aggregation, a left outer join that puts the matching documents in an array. Use the equality form with localField and foreignField, or the pipeline form with let and $expr for other conditions, then $unwind for 1:1 results.
-Q: Is $lookup expensive?
+Q*: Is $lookup expensive?
 A: It runs a query against the foreign collection for each input document, so index the foreignField, $match first to reduce the input, and prefer embedding for data that is always read together.
-Q: What is $facet used for?
+Q*: What is $facet used for?
 A: Computing several aggregations over the same filtered input in one query, such as paginated results plus total count plus category counts for a search page.
 Q: $merge vs $out?
 A: $out replaces the target collection completely. $merge upserts results into an existing collection with configurable behaviour, which suits incrementally refreshed materialised views.
@@ -675,11 +675,11 @@ db.products.find({ category: "pens", price: { $lt: 5 } }, { _id: 0, category: 1,
 - Index builds in recent versions hold an exclusive lock only briefly at the start and end; on replica sets they build on all data-bearing members at once.
 
 ## Interview Q&A | sky | wide
-Q: What is the ESR rule?
+Q*: What is the ESR rule?
 A: Order compound index fields as Equality fields first, then Sort fields, then Range fields. The index then narrows to the equality values, returns them already sorted, and range-filters within that order, avoiding an in-memory sort.
-Q: Can a compound index { a: 1, b: 1 } serve a query on b alone?
+Q*: Can a compound index { a: 1, b: 1 } serve a query on b alone?
 A: No. Only its prefixes (a, or a and b) can use it; a query on b alone scans the collection unless another index exists.
-Q: What is a multikey index?
+Q*: What is a multikey index?
 A: An index on an array field, with one key per element. A compound index may include at most one array field per document ("cannot index parallel arrays").
 Q: How does a TTL index work?
 A: A background thread runs every 60 seconds and deletes documents whose indexed date is older than expireAfterSeconds. It must be a single-field index on a date, and deletion is approximate in time.
@@ -732,11 +732,11 @@ rs.status().members.map(m => m.name + " " + m.stateStr)
 - **Rollback**: if a primary accepted writes that never reached a majority and then failed, those writes are **rolled back** (saved to rollback files) when it rejoins. **`w: "majority"`** writes are never rolled back.
 
 ## Interview Q&A | sky | wide
-Q: What is a replica set?
+Q*: What is a replica set?
 A: A group of mongod processes holding the same data: one primary takes writes, secondaries replicate its oplog, and an election automatically promotes a secondary if the primary fails.
-Q: How does a MongoDB election work?
+Q*: How does a MongoDB election work?
 A: If secondaries miss the primary's heartbeats for electionTimeoutMillis (10 s by default), an eligible member runs a pre-vote, then an election, and wins with votes from a majority of voting members. The Raft-based protocol favours the most up-to-date member, and priorities influence the outcome.
-Q: Why use an odd number of members?
+Q*: Why use an odd number of members?
 A: A majority of voting members is needed to elect a primary. Three members tolerate one failure; four still tolerate only one, so the fourth adds no fault tolerance for elections.
 Q: What is an arbiter and should you use one?
 A: A voting member with no data that only breaks ties. It is cheap, but in a PSA set losing the data-bearing secondary blocks majority writes, so three data-bearing members are recommended.
@@ -799,11 +799,11 @@ await transfer("A", "B", 1000);        // Error: Insufficient funds; both balanc
 - Together with the driver waiting for a new primary during server selection (`serverSelectionTimeoutMS`, 30 s by default), they hide most failovers from applications.
 
 ## Interview Q&A | sky | wide
-Q: What does w: "majority" guarantee?
+Q*: What does w: "majority" guarantee?
 A: The write has been applied by a majority of data-bearing voting members, so it survives the primary's failure and will not be rolled back.
-Q: If a write concern times out, was the write applied?
+Q*: If a write concern times out, was the write applied?
 A: Yes, it may have been: wtimeout only stops waiting for acknowledgements. The primary already applied the write, and it may still replicate.
-Q: What is the default write concern?
+Q*: What is the default write concern?
 A: Since 5.0, an implicit w: "majority" for most deployments, but w: 1 for replica sets with arbiters where the data-bearing voting members do not exceed a voting majority (PSA). It can be overridden with setDefaultRWConcern.
 Q: Read concern local vs majority vs linearizable?
 A: local returns the node's latest data, which could be rolled back; majority returns only majority-committed data; linearizable also guarantees the read reflects all writes acknowledged before it began, and works only on the primary.
@@ -857,11 +857,11 @@ db.orders.find({ customerId: { $gt: "c4" } })                                   
 - Sorting, `$group` and `$lookup` across shards add merge work on `mongos` or a chosen shard. Design queries and the shard key together.
 
 ## Interview Q&A | sky | wide
-Q: What are the components of a sharded cluster?
+Q*: What are the components of a sharded cluster?
 A: Shards (each a replica set holding part of the data), mongos routers that applications connect to, and a config server replica set storing the metadata about which shard owns which ranges.
-Q: What makes a good shard key?
+Q*: What makes a good shard key?
 A: High cardinality, low frequency, values that do not increase monotonically, and presence in the most common queries so they target a single shard.
-Q: Hashed vs ranged sharding?
+Q*: Hashed vs ranged sharding?
 A: Ranged keeps adjacent key values together, so range queries are efficient, but monotonic keys create a hot shard. Hashed spreads values evenly, ideal for monotonic keys, but range queries on the key are broadcast to every shard.
 Q: What is a chunk, and what does the balancer do?
 A: A chunk is a contiguous range of shard key values on one shard (128 MB by default). The balancer migrates ranges to keep data evenly distributed and, since 6.0.3, balances by data size without automatic splitting.
@@ -927,11 +927,11 @@ for await (const change of stream) {
 - Change streams are **not a message queue**: there are no consumer groups or acknowledgements. Scale-out consumers need partitioning (for example by `$match` on a key hash), or use Kafka downstream.
 
 ## Interview Q&A | sky | wide
-Q: What is a change stream?
+Q*: What is a change stream?
 A: A resumable cursor over majority-committed change events for a collection, database or deployment, built on the oplog. It needs a replica set or sharded cluster.
-Q: How do you continue after a consumer restarts?
+Q*: How do you continue after a consumer restarts?
 A: Persist each event's _id (the resume token) and reopen the stream with resumeAfter (or startAfter after an invalidate). It works as long as that point is still in the oplog.
-Q: fullDocument "updateLookup" vs post-images?
+Q*: fullDocument "updateLookup" vs post-images?
 A: updateLookup reads the document's current state when the event is processed, which may include later changes. Post-images (whenAvailable or required, with changeStreamPreAndPostImages enabled) give the document exactly as it was after that change.
 Q: Can change stream consumers see changes that get rolled back?
 A: No. Change streams return only majority-committed changes.
@@ -975,11 +975,11 @@ A: Publishing domain events to other microservices or Kafka, invalidating caches
 - For any design question, start from the **access patterns**, then the **document shape**, **indexes**, and finally the **shard key**.
 
 ## Big Interview Q&A | sky | wide
-Q: Design the data model for an e-commerce order system in MongoDB.
+Q*: Design the data model for an e-commerce order system in MongoDB.
 A: Orders embed line items (with name and price at purchase time), the shipping address and a customer summary (extended reference). Products are their own collection with the 10 latest reviews embedded and the rest in a reviews collection referencing productId. Index orders on { customerId: 1, placedAt: -1 } and products by category and price (ESR). Use a transaction only for stock reservation plus order creation, and shard orders on a hashed customerId when the data outgrows one replica set.
-Q: When would you choose MongoDB over PostgreSQL?
+Q*: When would you choose MongoDB over PostgreSQL?
 A: When data is naturally hierarchical or varies in shape, when the access patterns read whole aggregates, and when horizontal write scaling is needed. Prefer PostgreSQL for heavily relational data with many ad-hoc joins and strong constraints, although both now cover much of the other's ground.
-Q: How do you find and fix a slow query?
+Q*: How do you find and fix a slow query?
 A: Enable the database profiler or check the slow-query log (Atlas: Query Profiler and Performance Advisor), run explain("executionStats"), look for COLLSCAN, in-memory SORT and a high keys- or docs-examined to nReturned ratio, then add or reorder an index (ESR), project fewer fields, or reshape the document.
 Q: How does MongoDB provide high availability and durability?
 A: Replica sets with automatic Raft-based elections for availability; w: "majority" with journaling so acknowledged writes survive failover; read concern majority to avoid reading data that could roll back; retryable writes so failovers are transparent.

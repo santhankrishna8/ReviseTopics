@@ -106,11 +106,11 @@ export class App {
 - **AngularJS vs Angular**: JavaScript vs TypeScript; controllers and `$scope` vs components; digest-cycle dirty checking vs compiled templates with signals and targeted change detection; `ng-repeat` vs `@for`; no CLI vs a full CLI; end of life vs actively developed.
 
 ## Interview Q&A | sky | wide
-Q: What is Angular?
+Q*: What is Angular?
 A: A TypeScript-based framework from Google for building single-page applications, including components, templates, dependency injection, routing, forms, HTTP and a CLI.
-Q: What is the difference between AngularJS and Angular?
+Q*: What is the difference between AngularJS and Angular?
 A: AngularJS (1.x) is the original JavaScript framework built on scopes and the digest cycle, now end of life. Angular (2+) is a TypeScript rewrite built on components, with a compiler, DI hierarchy, CLI and signals.
-Q: What is a single-page application?
+Q*: What is a single-page application?
 A: A web app that loads one HTML page and updates views in the browser with JavaScript as the user navigates, instead of requesting a new page from the server each time.
 Q: What is the Angular CLI?
 A: The command-line tool (`ng`) to create projects, generate code, serve with live reload, build, test, add libraries and run version migrations.
@@ -200,11 +200,11 @@ export const appConfig: ApplicationConfig = {
 - **Environment-specific config**: `fileReplacements` per build configuration, or runtime config fetched at startup.
 
 ## Interview Q&A | sky | wide
-Q: What is Angular and how does it differ from AngularJS?
+Q*: What is Angular and how does it differ from AngularJS?
 A: Angular is a TypeScript, component-based framework with DI, a router, forms, HttpClient and a CLI. AngularJS (1.x) was a JavaScript MVC framework built on scopes and a digest cycle, now end-of-life.
-Q: What is a component made of?
+Q*: What is a component made of?
 A: A class with state and logic, a template, styles, and @Component metadata such as selector, imports, changeDetection and providers.
-Q: What is AOT and why is it the default?
+Q*: What is AOT and why is it the default?
 A: Ahead-of-Time compilation converts templates to JavaScript at build time, giving faster startup, smaller bundles without the compiler, earlier template errors and better security.
 Q: What is Ivy?
 A: Angular's compiler and rendering engine since v9. It compiles each component into efficient instructions independently, enabling tree shaking, smaller bundles and faster builds.
@@ -266,11 +266,11 @@ export const routes: Routes = [
 - Interview angle: explain both, say new code is standalone, and show you can maintain module-based code.
 
 ## Interview Q&A | sky | wide
-Q: What is an NgModule and what are its main properties?
+Q*: What is an NgModule and what are its main properties?
 A: A class decorated with @NgModule that defines a compilation context: declarations (its components, directives, pipes), imports (modules it depends on), exports (what it shares), providers (services) and bootstrap (the root component).
-Q: What are standalone components?
+Q*: What are standalone components?
 A: Components that list their template dependencies in their own `imports` array and need no NgModule. They are the default since Angular 19.
-Q: Why did Angular move to standalone?
+Q*: Why did Angular move to standalone?
 A: Less boilerplate, clearer dependency graphs, simpler lazy loading per component and better tree shaking. NgModules added an indirection that confused many teams.
 Q: What is the forRoot/forChild pattern?
 A: forRoot registers a module's providers once at the app root (singletons such as the router service); forChild configures the module for feature modules without re-providing those singletons.
@@ -337,11 +337,11 @@ export class Stepper { readonly value = model(1); }
 - Built-in **XSRF** support in HttpClient reads the `XSRF-TOKEN` cookie and sends an `X-XSRF-TOKEN` header for mutating same-origin requests.
 
 ## Interview Q&A | sky | wide
-Q: Property binding vs attribute binding?
+Q*: Property binding vs attribute binding?
 A: Property binding sets a DOM property (`[value]`, `[disabled]`); attribute binding (`[attr.x]`) sets an HTML attribute, needed for attributes with no property such as aria-* and colspan.
-Q: What are the four kinds of data binding?
+Q*: What are the four kinds of data binding?
 A: Interpolation and property binding (component to view), event binding (view to component), and two-way binding combining both.
-Q: How does two-way binding work?
+Q*: How does two-way binding work?
 A: `[(x)]` is sugar for `[x]="v"` plus `(xChange)="v = $event"`. ngModel implements it for form controls, and model() creates it for your own components.
 Q: Why avoid calling methods in templates?
 A: They run on every change detection check of that view; expensive methods slow the app. Use computed signals or pure pipes, which recalculate only when inputs change.
@@ -445,11 +445,11 @@ export class Highlight {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Structural vs attribute directives?
+Q*: Structural vs attribute directives?
 A: Structural directives add, remove or repeat DOM (control flow, *ngIf, *ngFor); attribute directives change the appearance or behaviour of an existing element (NgClass, custom highlight).
-Q: Why is `track` required in `@for`?
+Q*: Why is `track` required in `@for`?
 A: It identifies items so Angular can reuse and move existing DOM nodes instead of destroying and recreating them, which keeps performance and DOM state (focus, inputs) intact.
-Q: What is `@defer`?
+Q*: What is `@defer`?
 A: A template block that lazy-loads its dependencies into a separate chunk and renders them on a trigger such as idle, viewport or interaction, with placeholder, loading and error states.
 Q: What does the `*` in `*ngIf` mean?
 A: It is microsyntax for wrapping the host element in an ng-template that the directive renders conditionally.
@@ -540,11 +540,11 @@ export class CartStore {
 ```
 
 ## Interview Q&A | sky | wide
-Q: How do parent and child components communicate?
+Q*: How do parent and child components communicate?
 A: Parent to child through inputs; child to parent through outputs; two-way through model(); the parent can also query a child with viewChild; unrelated components share state through a service.
-Q: `input()` vs `@Input()`?
+Q*: `input()` vs `@Input()`?
 A: input() returns a read-only signal, works with computed and effect, and supports required and transforms without ngOnChanges. @Input is the decorator form that sets a property and needs ngOnChanges or setters to react.
-Q: What is EventEmitter?
+Q*: What is EventEmitter?
 A: An Angular class extending RxJS Subject used with @Output to emit events. In new code use output(); in services use Subject or signals.
 Q: viewChild vs contentChild?
 A: viewChild queries elements in the component's own template; contentChild queries content projected into it from the parent.
@@ -607,11 +607,11 @@ export class ChildPanel {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is dependency injection in Angular?
+Q*: What is dependency injection in Angular?
 A: A design pattern where classes request dependencies from an injector rather than creating them, which Angular resolves through a hierarchy of injectors using registered providers.
-Q: What does `providedIn: 'root'` do?
+Q*: What does `providedIn: 'root'` do?
 A: Registers the service in the root environment injector as an application-wide singleton and makes it tree-shakable.
-Q: `inject()` vs constructor injection?
+Q*: `inject()` vs constructor injection?
 A: Both resolve dependencies. inject() works in field initialisers and functions (guards, interceptors, factories), plays well with inheritance, and is the modern default; it must run in an injection context.
 Q: Explain hierarchical injectors.
 A: Element injectors follow the component tree (component and directive providers); environment injectors cover root and lazy routes. Lookup walks up element injectors, then environment injectors, ending in NullInjectorError.
@@ -690,11 +690,11 @@ export const productResolver: ResolveFn<Product> = (route) => inject(ProductApi)
 - **Location strategies**: path (HTML5 history, needs the server to fall back to `index.html` for deep links) vs **hash** (`#/path`, works on any static host).
 
 ## Interview Q&A | sky | wide
-Q: How do you lazy-load a feature?
+Q*: How do you lazy-load a feature?
 A: Use loadComponent or loadChildren with a dynamic import in the route; the bundler splits it into a chunk that loads on first navigation. Preloading strategies can fetch it in the background.
-Q: Route params vs query params?
+Q*: Route params vs query params?
 A: Route params are part of the path and identify a resource (/users/42); query params are optional key-value state like filters and paging (?page=2).
-Q: Why does my detail page not update when the id changes?
+Q*: Why does my detail page not update when the id changes?
 A: The router reuses the component instance for the same route, so reading the snapshot once is stale. Subscribe to paramMap, use toSignal, or bind the param as an input.
 Q: What guards exist?
 A: CanActivate, CanActivateChild, CanDeactivate, CanMatch (and deprecated CanLoad), written as functions or classes, returning boolean, UrlTree/RedirectCommand, or async versions.
@@ -826,11 +826,11 @@ export class Login {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Template-driven vs reactive forms?
+Q*: Template-driven vs reactive forms?
 A: Template-driven forms build the model implicitly from ngModel directives in the template: quick for simple forms but asynchronous and harder to test. Reactive forms define FormControl/FormGroup in code: synchronous, explicit, typed, testable and suited to complex or dynamic forms.
-Q: `setValue` vs `patchValue`?
+Q*: `setValue` vs `patchValue`?
 A: setValue requires a value for every control and throws otherwise; patchValue updates only the controls provided.
-Q: `value` vs `getRawValue()`?
+Q*: `value` vs `getRawValue()`?
 A: value omits disabled controls; getRawValue includes them.
 Q: How do you write a custom validator?
 A: A function returning ValidatorFn: it receives an AbstractControl and returns null when valid or an errors object such as `{ mismatch: true }`. Apply it at control or group level.
@@ -889,11 +889,11 @@ export class TruncatePipe implements PipeTransform {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a pipe?
+Q*: What is a pipe?
 A: A template function that transforms a value for display, such as date, currency or a custom truncate, written with the | operator.
-Q: Pure vs impure pipe?
+Q*: Pure vs impure pipe?
 A: A pure pipe re-executes only when its input reference or primitive value changes; an impure pipe runs on every change detection cycle. Pipes are pure by default.
-Q: Why does my pure pipe not update after `array.push()`?
+Q*: Why does my pure pipe not update after `array.push()`?
 A: The array reference did not change, so Angular skips the pure pipe. Create a new array (`[...items, x]`) or use signals.
 Q: What does the async pipe do?
 A: Subscribes to an Observable or Promise, renders the latest value, triggers change detection on emissions, and unsubscribes on destroy.
@@ -995,11 +995,11 @@ it('loads products', () => {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Why do Angular HTTP calls not fire?
+Q*: Why do Angular HTTP calls not fire?
 A: HttpClient returns cold Observables; the request is sent only when something subscribes (subscribe, async pipe, toSignal).
-Q: Do you need to unsubscribe from HttpClient calls?
+Q*: Do you need to unsubscribe from HttpClient calls?
 A: They complete after one response, so there is no leak, but unsubscribing (or switchMap) cancels in-flight requests you no longer need.
-Q: What is an HTTP interceptor?
+Q*: What is an HTTP interceptor?
 A: A function (or class) in the request pipeline that can modify requests and responses: attach auth headers, handle errors globally, show loaders, cache or log.
 Q: Why must you clone the request in an interceptor?
 A: HttpRequest objects are immutable so they can be retried and shared safely; clone({ setHeaders }) creates a modified copy.
@@ -1086,11 +1086,11 @@ export class Ticker {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Observable vs Promise?
+Q*: Observable vs Promise?
 A: Observables are lazy, can emit many values, are cancellable and composable with operators; Promises are eager, resolve once, cannot be cancelled and are always asynchronous.
-Q: Cold vs hot observable?
+Q*: Cold vs hot observable?
 A: A cold observable creates its producer for each subscriber (each HTTP subscription sends a request); a hot observable shares one producer among subscribers (events, Subjects).
-Q: Subject vs BehaviorSubject vs ReplaySubject?
+Q*: Subject vs BehaviorSubject vs ReplaySubject?
 A: Subject emits only future values; BehaviorSubject needs an initial value and gives the current value to new subscribers; ReplaySubject replays a configurable number of past values.
 Q: How do you avoid memory leaks with subscriptions?
 A: Prefer the async pipe or toSignal; otherwise use takeUntilDestroyed, take(1), or unsubscribe in ngOnDestroy.
@@ -1165,11 +1165,11 @@ vm$ = combineLatest([this.filters$, this.products$]).pipe(
 ```
 
 ## Interview Q&A | sky | wide
-Q: switchMap vs mergeMap vs concatMap vs exhaustMap?
+Q*: switchMap vs mergeMap vs concatMap vs exhaustMap?
 A: switchMap cancels the previous inner observable (search); mergeMap runs all in parallel (independent requests); concatMap queues them in order (sequential saves); exhaustMap ignores new values while one is running (login button).
-Q: Which operator for a search box and why?
+Q*: Which operator for a search box and why?
 A: debounceTime and distinctUntilChanged to limit requests, then switchMap so outdated requests are cancelled and only the latest results show.
-Q: combineLatest vs forkJoin?
+Q*: combineLatest vs forkJoin?
 A: combineLatest emits every time any source emits once all have emitted (live combinations); forkJoin emits once when all sources complete (parallel one-shot requests).
 Q: Why did my stream stop after an HTTP error?
 A: An error terminates the observable. Put catchError inside the inner switchMap observable so the outer stream continues.
@@ -1252,11 +1252,11 @@ readonly results = toSignal(
 ```
 
 ## Interview Q&A | sky | wide
-Q: What are signals?
+Q*: What are signals?
 A: Reactive primitives that hold a value and track who reads them, so Angular knows exactly which computations and views to update when the value changes.
-Q: signal vs computed vs effect?
+Q*: signal vs computed vs effect?
 A: signal is writable state; computed is a read-only, lazily evaluated, memoised derivation; effect runs side effects when the signals it reads change.
-Q: Why should you not set signals inside an effect?
+Q*: Why should you not set signals inside an effect?
 A: It creates hidden data flow, extra change detection cycles and possible loops. Derive values with computed or linkedSignal instead.
 Q: Signals vs RxJS?
 A: Signals model synchronous state and derived values with automatic dependency tracking; RxJS models streams of events over time with powerful operators. Use toSignal and toObservable to bridge them.
@@ -1326,11 +1326,11 @@ constructor() {
 ```
 
 ## Interview Q&A | sky | wide
-Q: How does Angular change detection work?
+Q*: How does Angular change detection work?
 A: Angular walks the component tree from the root, re-evaluates template bindings and updates changed DOM. Runs are scheduled by zone.js after async events in older apps, or by signals, events and markForCheck in zoneless apps.
-Q: What is OnPush?
+Q*: What is OnPush?
 A: A strategy where a component is checked only when marked dirty: new input references, events in its template, signals it reads, or markForCheck. In Angular 22 it is the default; the always-check strategy is now called Eager.
-Q: markForCheck vs detectChanges?
+Q*: markForCheck vs detectChanges?
 A: markForCheck flags the view and ancestors for the next CD run; detectChanges runs CD immediately on this view and its children.
 Q: Why does my OnPush component not update?
 A: The parent mutated an input object instead of replacing it, or state changed outside Angular (third-party callback, setTimeout in zoneless) without a signal or markForCheck.
@@ -1397,11 +1397,11 @@ export class MapView {
 - Using browser APIs (`window`, `document`, `localStorage`) in constructors in **SSR** apps: use `afterNextRender` or `isPlatformBrowser`.
 
 ## Interview Q&A | sky | wide
-Q: List the lifecycle hooks in order.
+Q*: List the lifecycle hooks in order.
 A: ngOnChanges, ngOnInit, ngDoCheck, ngAfterContentInit, ngAfterContentChecked, ngAfterViewInit, ngAfterViewChecked, ngOnDestroy (after the constructor).
-Q: Constructor vs ngOnInit?
+Q*: Constructor vs ngOnInit?
 A: The constructor is for dependency injection and runs before inputs are set; ngOnInit runs once after the first input binding and is where initialisation logic belongs.
-Q: When is ngOnChanges called?
+Q*: When is ngOnChanges called?
 A: Before ngOnInit and whenever a decorator-based input's reference changes, with a SimpleChanges map; it is not called for signal inputs.
 Q: AfterContent vs AfterView?
 A: AfterContent hooks fire when projected content (ng-content) and content queries are ready; AfterView hooks fire when the component's own view and view queries are ready.
@@ -1462,11 +1462,11 @@ export const serverRoutes: ServerRoute[] = [
 ```
 
 ## Interview Q&A | sky | wide
-Q: How do you improve Angular application performance?
+Q*: How do you improve Angular application performance?
 A: Lazy-load routes and @defer heavy parts, keep bundles in budget, use OnPush with signals and immutable data, track items in @for, avoid template methods, virtualise long lists, optimise images with NgOptimizedImage, and add SSR or prerendering for faster first paint.
-Q: What is SSR and why use it?
+Q*: What is SSR and why use it?
 A: Rendering the app's HTML on the server so users and crawlers get content immediately: better SEO, link previews and LCP. The client then hydrates it.
-Q: What is hydration?
+Q*: What is hydration?
 A: The process where the client-side app attaches to server-rendered DOM, reusing nodes and adding event listeners instead of re-rendering from scratch.
 Q: What is incremental hydration?
 A: Server-rendered @defer blocks stay as static HTML and hydrate only when a trigger fires (viewport, interaction), reducing the JavaScript run up front. It is on by default with provideClientHydration in v22.
@@ -1525,11 +1525,11 @@ A: Explicit dimensions, lazy loading by default, priority for the LCP image, res
 - For RxJS questions, **name the operator and the failure it prevents** (race conditions, duplicate submits, leaks).
 
 ## Big Interview Q&A | sky | wide
-Q: Explain the Angular architecture in one minute.
+Q*: Explain the Angular architecture in one minute.
 A: An Angular app is a tree of components (template, class, styles) composed with directives and pipes, wired with dependency injection to services, navigated by the router, compiled ahead of time by Ivy, and kept in sync with the DOM by change detection driven by signals (or zone.js in older apps).
-Q: What is the difference between a component and a directive?
+Q*: What is the difference between a component and a directive?
 A: A component is a directive with a template that renders its own view; a directive adds behaviour or structure to an existing element without its own template.
-Q: How would you structure a large Angular application?
+Q*: How would you structure a large Angular application?
 A: Feature-based folders with lazy-loaded routes, standalone components, a core area for app-wide singletons (auth, interceptors), shared UI components, state in signal services or NgRx per feature, strict TypeScript and templates, and budgets plus lint rules in CI.
 Q: How do you secure an Angular app?
 A: Rely on built-in sanitisation and never bypass it for user data, keep tokens in HttpOnly cookies or memory, use interceptors for auth headers, guard routes for UX but enforce authorisation on the server, enable XSRF protection and a Content Security Policy.

@@ -1,0 +1,239 @@
+# 01 | DSA Interview Cheat Sheet | Problem wording to technique, with the template, complexity and a hook for each pattern. Java snippets. Read the day before. | DSA on one page
+
+### Complexity & Toolkit
+
+## Big-O in One Card
+> **Big-O** describes how time or memory grows with input size **n**, ignoring constants. Drop constants and lower terms.
+```text
+O(1) < O(log n) < O(n) < O(n log n) < O(n^2) < O(2^n) < O(n!)
+n = 10^5 -> need O(n log n) or better.   n = 20 -> 2^n is fine.   n = 10^3 -> O(n^2) is fine.
+```
+- Sorting is **O(n log n)**; hash lookup is **O(1) average**; heap push/pop **O(log n)**; BFS/DFS **O(V+E)**.
+- **Space** counts the recursion stack too (depth of recursion = O(depth)).
+! Read the constraint first: it tells you the complexity you are allowed.
+
+## Java Collections to Reach For
+```java
+Map<String,Integer> m = new HashMap<>();   m.merge(k, 1, Integer::sum);   // counting
+Set<Integer> seen = new HashSet<>();       // seen.add(x) returns false if present
+Deque<Integer> st = new ArrayDeque<>();    // stack: push/pop; queue: offer/poll
+PriorityQueue<int[]> pq = new PriorityQueue<>((a,b) -> a[0]-b[0]);   // min-heap
+TreeMap<Integer,Integer> tm = new TreeMap<>();   // floorKey, ceilingKey in O(log n)
+Arrays.sort(a);  Collections.sort(list);  Arrays.fill(dp, -1);
+```
+! `ArrayDeque` beats `Stack` and `LinkedList`. Use `Integer.compare`, never `a-b` on large values.
+
+### Patterns (wording to technique)
+
+## Hash Map: Two Sum / Frequency
+> **Wording:** "find a pair", "count", "first duplicate", "group anagrams". Trade memory for O(1) lookup.
+```java
+Map<Integer,Integer> idx = new HashMap<>();
+for (int i = 0; i < a.length; i++) {
+    if (idx.containsKey(t - a[i])) return new int[]{idx.get(t - a[i]), i};
+    idx.put(a[i], i);
+}
+```
+- O(n) time, O(n) space. Anagram key: sorted string or 26-count array.
+! "Have I seen the complement?" is one map lookup.
+
+## Two Pointers
+> **Wording:** sorted array, pair with a target, palindrome, remove duplicates in place, merge two sorted lists.
+```java
+int l = 0, r = a.length - 1;
+while (l < r) {
+    int s = a[l] + a[r];
+    if (s == t) return true;
+    if (s < t) l++; else r--;
+}
+```
+- Fast/slow variant: cycle detection, middle of a list. O(n) time, O(1) space.
+! Sorted + pair = two pointers; one moves per step, so it never goes quadratic.
+
+## Sliding Window
+> **Wording:** "longest/shortest **contiguous** subarray/substring with a condition". Expand right, shrink left while invalid.
+```java
+int l = 0, best = 0; Map<Character,Integer> cnt = new HashMap<>();
+for (int r = 0; r < s.length(); r++) {
+    cnt.merge(s.charAt(r), 1, Integer::sum);
+    while (cnt.size() > k) {                    // window invalid: shrink
+        char c = s.charAt(l++);
+        if (cnt.merge(c, -1, Integer::sum) == 0) cnt.remove(c);
+    }
+    best = Math.max(best, r - l + 1);
+}
+```
+- Each element enters and leaves once: **O(n)**. Fixed size k: add right, remove `r-k`.
+! Contiguous + longest/shortest = window.
+
+## Prefix Sum & Kadane
+> **Prefix sum:** `pre[i]` = sum of first i items, so a range sum is `pre[r+1]-pre[l]` in O(1). **Kadane:** best subarray ending here.
+```java
+int cur = a[0], best = a[0];
+for (int i = 1; i < a.length; i++) { cur = Math.max(a[i], cur + a[i]); best = Math.max(best, cur); }
+// subarray sum == k: map of prefix sum -> count; ans += map.get(sum - k)
+```
+! "Subarray sum equals k" = prefix sum + hash map; "max subarray" = Kadane.
+
+## Binary Search
+> **Wording:** sorted, rotated, "minimum x such that...", search on the answer. Halve the range each step: O(log n).
+```java
+int lo = 0, hi = n - 1;
+while (lo <= hi) {
+    int mid = lo + (hi - lo) / 2;              // no overflow
+    if (a[mid] == t) return mid;
+    if (a[mid] < t) lo = mid + 1; else hi = mid - 1;
+}
+// first true: lo=0, hi=n; while (lo<hi){mid=(lo+hi)/2; if(ok(mid)) hi=mid; else lo=mid+1;}
+```
+! If a yes/no test flips once across a range, binary search the answer (capacity, speed, days).
+
+## Stack & Monotonic Stack
+> **Stack** for matching and "most recent first". **Monotonic stack** answers "next greater/smaller element" in O(n).
+```java
+int[] res = new int[n]; Arrays.fill(res, -1); Deque<Integer> st = new ArrayDeque<>();
+for (int i = 0; i < n; i++) {
+    while (!st.isEmpty() && a[st.peek()] < a[i]) res[st.pop()] = a[i];
+    st.push(i);
+}
+```
+- Valid parentheses: push opens, pop and match on close; stack must be empty at the end.
+! "Next greater", "daily temperatures", "histogram" = monotonic stack.
+
+## Linked List
+> Use a **dummy head** to avoid edge cases; reverse with three pointers; find the middle and cycles with **slow/fast**.
+```java
+ListNode prev = null;
+while (cur != null) { ListNode nxt = cur.next; cur.next = prev; prev = cur; cur = nxt; }
+return prev;
+```
+- Cycle: fast moves 2, slow moves 1; they meet iff a cycle exists. Merge sorted lists: dummy + tail pointer.
+! Save `next` before you overwrite it.
+
+## Trees: DFS & BFS
+> **DFS** (recursion) for depth, path and validity questions. **BFS** (queue, level by level) for levels and shortest steps.
+```java
+int depth(TreeNode n) { return n == null ? 0 : 1 + Math.max(depth(n.left), depth(n.right)); }
+// BFS: int sz = q.size(); for (i < sz) { node = q.poll(); push children; }  // one level per outer loop
+```
+- Inorder of a **BST is sorted**. Validate a BST with min/max bounds, not just the parent. LCA: if both sides return non-null, this node is the answer.
+! Trees are recursion: base case null, combine children's answers.
+
+## Heap / Top K
+> **Wording:** "k largest", "k most frequent", "merge k sorted", "median of a stream".
+```java
+PriorityQueue<Integer> pq = new PriorityQueue<>();      // min-heap of size k
+for (int x : a) { pq.offer(x); if (pq.size() > k) pq.poll(); }   // top = kth largest
+```
+- O(n log k). Median of a stream: max-heap (lower half) + min-heap (upper half).
+! k largest = min-heap of size k.
+
+## Graphs: BFS, DFS, Union-Find
+> Build an **adjacency list**. BFS gives shortest path in unweighted graphs; DFS explores components; **Union-Find** answers connectivity.
+```java
+Queue<int[]> q = new ArrayDeque<>(); q.offer(new int[]{r, c}); seen[r][c] = true;
+int[][] dirs = {{1,0},{-1,0},{0,1},{0,-1}};
+while (!q.isEmpty()) { int[] p = q.poll();
+    for (int[] d : dirs) { int nr = p[0]+d[0], nc = p[1]+d[1];
+        if (nr>=0 && nc>=0 && nr<R && nc<C && !seen[nr][nc]) { seen[nr][nc] = true; q.offer(new int[]{nr,nc}); } } }
+```
+- **Topological sort** (Kahn): repeatedly take nodes with indegree 0; fewer than n taken means a cycle. **Dijkstra**: min-heap on distance, no negative edges.
+! Mark visited when you **enqueue**, not when you dequeue.
+
+## Backtracking
+> **Wording:** "all subsets / permutations / combinations / paths". Choose, explore, **undo**.
+```java
+void go(int start, List<Integer> cur) {
+    res.add(new ArrayList<>(cur));                        // copy!
+    for (int i = start; i < a.length; i++) { cur.add(a[i]); go(i + 1, cur); cur.remove(cur.size() - 1); }
+}
+```
+- Subsets 2^n, permutations n!. Skip duplicates: sort, then `if (i > start && a[i] == a[i-1]) continue;`.
+! Add a **copy** of the list, and always undo the choice.
+
+## Dynamic Programming
+> **Wording:** "count ways", "min/max cost", "can we reach", with overlapping subproblems. Define state, recurrence, base case, order.
+```java
+int[] dp = new int[n + 1]; dp[0] = 1; dp[1] = 1;
+for (int i = 2; i <= n; i++) dp[i] = dp[i-1] + dp[i-2];       // climbing stairs
+// coin change: dp[a] = min(dp[a], dp[a - c] + 1) for each coin c
+// LCS: dp[i][j] = a[i-1]==b[j-1] ? dp[i-1][j-1]+1 : max(dp[i-1][j], dp[i][j-1])
+```
+- Top-down = recursion + memo; bottom-up = table. Often reduce space to the last row.
+! Write the recurrence in words first; if it needs the future, rethink the state.
+
+## Greedy & Intervals
+> Take the locally best choice when an **exchange argument** proves it safe. Intervals: **sort by start** (or end), then sweep.
+```java
+Arrays.sort(iv, (x, y) -> x[0] - y[0]);
+for (int[] c : iv) { if (out.isEmpty() || out.getLast()[1] < c[0]) out.add(c); else out.getLast()[1] = Math.max(out.getLast()[1], c[1]); }
+```
+- Max non-overlapping meetings: sort by **end time**. Jump game: track furthest reach.
+! Sorting is the first move in almost every interval problem.
+
+## Bit Tricks
+```java
+x & 1          // odd?          x & (x-1)  // clear lowest set bit
+x & -x         // lowest set bit        a ^ a == 0, a ^ 0 == a   // find the single number
+1 << k         // k-th bit      Integer.bitCount(x)
+```
+! XOR cancels pairs: the lone unpaired element survives.
+
+### Quick Pattern Finder
+
+## Wording to Technique
+```text
+sorted array / pair target ........ two pointers or binary search
+longest/shortest substring ........ sliding window
+subarray sum ...................... prefix sum + map
+next greater / histogram .......... monotonic stack
+k largest / stream median ......... heap
+shortest path, unweighted ......... BFS
+connected components / cycles ..... DFS or union-find
+all combinations / permutations ... backtracking
+count ways / min cost ............. DP
+schedule / merge intervals ........ sort + greedy
+prefix lookup / autocomplete ...... trie
+```
+! Name the pattern out loud before you code; interviewers score that.
+
+### More DSA Topics
+
+## Trie, Union-Find & Segment Tree
+```java
+class Trie { Trie[] next = new Trie[26]; boolean end; }          // insert/search/startsWith in O(L)
+int find(int x) { return p[x] == x ? x : (p[x] = find(p[x])); }   // union-find with path compression
+// Fenwick: update i += i & -i;  query i -= i & -i  -> O(log n) prefix sums with updates
+```
+- Trie for prefix/autocomplete; **union-find** for connectivity and Kruskal; **segment tree/Fenwick** for range queries with updates.
+! Prefix search means trie; dynamic connectivity means union-find.
+
+## Shortest Paths & Spanning Trees
+- **BFS:** unweighted. **Dijkstra:** non-negative weights, O((V+E) log V) with a heap. **Bellman-Ford:** negative edges, O(VE). **Floyd-Warshall:** all pairs, O(V^3). **Kruskal/Prim:** minimum spanning tree. **0-1 BFS** with a deque for 0/1 weights.
+! Negative edge means Bellman-Ford.
+
+## String Algorithms
+- **KMP** (prefix function) and **Z-function** match in O(n+m); **Rabin-Karp** uses rolling hash; **Manacher** finds palindromes in O(n); expand-around-centre is O(n^2).
+! Use a prefix function to avoid re-comparing characters.
+
+## Sorting & Recursion Notes
+- Insertion O(n^2) fast on nearly sorted data; counting/radix O(n+k) for small ranges; quickselect O(n) average. **Stable** sorts keep equal elements in order. Recursion depth costs stack space; convert deep recursion to iteration.
+! Know the stable and in-place status of each sort.
+
+### Must-Know Questions
+
+## DSA Questions
+Q*: What is the time complexity of HashMap get/put and why can it degrade?
+A: O(1) average. With many collisions it degrades to O(n), or O(log n) in Java 8+ where a long bucket becomes a balanced tree.
+Q*: Array vs linked list?
+A: Array: O(1) index, O(n) insert in the middle, contiguous memory. Linked list: O(1) insert/delete given the node, O(n) access, extra pointer memory.
+Q*: BFS vs DFS, and when to use each?
+A: BFS (queue) finds the shortest path in an unweighted graph and level order. DFS (stack/recursion) suits components, cycles, paths and backtracking. Both are O(V+E).
+Q*: How do you detect a cycle in a linked list?
+A: Floyd's slow/fast pointers: if fast meets slow there is a cycle. O(n) time, O(1) space.
+Q*: Explain DP in one line.
+A: Break a problem into overlapping subproblems, define a state and recurrence, and store results (memo or table) so each is computed once.
+Q*: Quicksort vs mergesort?
+A: Quicksort: average O(n log n), worst O(n^2), in place, not stable. Mergesort: always O(n log n), stable, needs O(n) extra space.
+Q: How do you find the kth largest element?
+A: A min-heap of size k gives O(n log k); quickselect gives O(n) average.

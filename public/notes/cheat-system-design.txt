@@ -1,0 +1,166 @@
+# 01 | System Design Interview Cheat Sheet | The framework, the building blocks, the trade-offs and the numbers, each with a hook. Read before the interview. | System Design on one page
+
+### Framework
+
+## The 6-Step Framework
+> Drive the interview: **requirements, estimate, API, data model, high-level design, deep dive + trade-offs**.
+- **1. Requirements:** functional (what it does) and non-functional (scale, latency, availability, consistency). Ask, don't assume.
+- **2. Estimate:** users, QPS, storage, bandwidth.
+- **3. API:** the 3-5 key endpoints. **4. Data model:** entities and access patterns drive the DB choice.
+- **5. High-level design:** client, LB, services, cache, DB, queue. **6. Deep dive:** bottlenecks, scaling, failure.
+! Clarify, size, sketch, then zoom into the hardest part.
+
+## Back-of-Envelope Numbers
+```text
+1 day = 86,400 s (~10^5)     1M req/day ~ 12 QPS       100M req/day ~ 1,200 QPS
+Peak ~ 2-3x average          1 KB x 1M = 1 GB          1 char = 1 byte, 1 int = 4 bytes
+Memory read ~100 ns | SSD ~100 us | same-DC round trip ~0.5 ms | cross-continent ~150 ms
+```
+- Read-heavy: cache and replicate. Write-heavy: shard and queue.
+! Round aggressively; the order of magnitude matters, not the digits.
+
+### Building Blocks
+
+## Load Balancer
+> Spreads traffic across servers and removes failed ones. **L4** routes on IP/port (fast); **L7** routes on URL/headers (smart).
+- Algorithms: round robin, least connections, IP hash, consistent hashing.
+- Keep services **stateless** (session in Redis/JWT) so any server can serve any request. Run LBs in pairs to avoid a single point of failure.
+! Stateless servers + a load balancer = horizontal scaling.
+
+## Caching
+> Keep hot data in fast memory (Redis, Memcached, CDN). Fewer DB hits, lower latency.
+- **Cache-aside:** app reads cache, on miss reads DB and fills cache (most common). **Write-through:** write to cache and DB together. **Write-back:** write to cache, flush later (fast, risk of loss).
+- Eviction: **LRU**, LFU, TTL. Problems: **stampede** (many misses at once: lock or jitter TTLs), **stale data** (TTL or invalidate on write).
+! "There are only two hard things: cache invalidation and naming things."
+
+## Database: SQL vs NoSQL
+> **SQL** for relations, transactions and ad-hoc queries. **NoSQL** for scale-out, flexible schema, simple access patterns.
+- Key-value (Redis, DynamoDB), document (MongoDB), wide-column (Cassandra), graph (Neo4j), search (Elasticsearch).
+- Start with **PostgreSQL/MySQL** unless scale or shape says otherwise.
+! Choose by access pattern, not fashion.
+
+## Replication & Sharding
+> **Replication** copies data to more nodes (availability, read scale). **Sharding** splits data across nodes (write and storage scale).
+- Replication: leader-follower (reads from followers, may lag), multi-leader, leaderless.
+- Sharding: hash (even spread, hard range queries) or range (range queries, hot spots). Use **consistent hashing** so adding a node moves little data. Cross-shard joins and transactions are costly.
+! Replicate for reads and safety, shard for writes and size.
+
+## CAP, Consistency & ACID vs BASE
+> During a **network partition** you choose **C**onsistency or **A**vailability (partition tolerance is not optional).
+- **CP:** refuse some requests to stay correct (banking, inventory). **AP:** answer with possibly stale data (feeds, likes).
+- **Eventual consistency:** replicas converge given time. **ACID** for transactions; **BASE** (basically available, soft state, eventual) for scale.
+! Money = CP, social feed = AP.
+
+## Message Queues & Event Streaming
+> Decouple producers and consumers, absorb spikes, enable async work. **Kafka** (log, replay, high throughput), **RabbitMQ/SQS** (task queues).
+- Delivery: at-most-once, **at-least-once** (default, make consumers **idempotent**), exactly-once (costly).
+- Use for emails, order events, analytics, fan-out. Dead-letter queue for poison messages.
+! Anything slow or retryable goes behind a queue.
+
+## CDN, Object Storage, Search
+- **CDN** caches static files near users. **Object storage** (S3) for images and video, with the URL in the DB. **Elasticsearch** for full-text search, fed from the DB via events.
+! Never store blobs in the relational DB.
+
+## Rate Limiting & API Gateway
+> **Rate limiting** protects services from abuse: token bucket (allows bursts), leaky bucket, fixed/sliding window counters in Redis.
+- **API gateway:** single entry for auth, rate limit, routing, logging. Return **429** with `Retry-After`.
+! Limit per user/IP/API key at the edge.
+
+## Microservices vs Monolith
+> Start with a **modular monolith**; split when teams and scale demand it.
+- Microservices: independent deploy and scale, but network failures, distributed transactions (use **saga**), observability cost.
+- Resilience: timeouts, retries with backoff, **circuit breaker**, bulkheads.
+! Don't pay the distribution tax before you need it.
+
+### Classic Designs
+
+## URL Shortener
+- Generate a unique 7-char **base62** key (counter/ID service or hash + collision check), store `key -> longUrl`.
+- Read-heavy: cache hot keys; **301/302** redirect; key-value store; analytics async via queue.
+! 62^7 is about 3.5 trillion keys.
+
+## News Feed / Twitter
+- **Fan-out on write** (push to followers' feeds, fast reads) vs **on read** (pull, cheap writes). **Hybrid**: push for normal users, pull for celebrities.
+- Feeds in Redis lists, posts in a sharded DB, media in object storage + CDN.
+! Celebrities break fan-out on write.
+
+## Chat / Notification System
+- **WebSockets** for live delivery; presence in Redis; messages persisted by (chat_id, time); offline users get push (APNs/FCM) via a queue.
+- Ordering per conversation with a sequence number; ack + retry for reliability.
+! Persistent connection + per-chat ordering.
+
+### Low-Level Design: SOLID
+
+## SOLID Principles
+> Five rules for classes that are easy to change: **S**ingle responsibility, **O**pen/closed, **L**iskov substitution, **I**nterface segregation, **D**ependency inversion.
+- **S:** a class has one reason to change (split `Invoice` from `InvoicePrinter`).
+- **O:** open for extension, closed for modification: add a new `Strategy` instead of editing an `if/else` chain.
+- **L:** a subclass must be usable wherever the parent is (a `Square` that breaks `Rectangle.setWidth` violates it).
+- **I:** many small interfaces beat one fat one. **D:** depend on abstractions; inject dependencies instead of `new`-ing them.
+! SOLID = fewer reasons to touch old code.
+
+## Layered vs Clean vs Hexagonal
+- **Layered:** controller -> service -> repository -> DB; simple, but the domain depends on the DB. **Hexagonal (ports and adapters) / Clean:** the domain sits in the centre; DB, web and queues are adapters behind interfaces, so dependencies point inward.
+- Benefit: swap infrastructure and test the domain without a DB.
+! Dependencies point toward the domain.
+
+### Design Patterns
+
+## Creational: Singleton, Factory, Builder
+```java
+class Config { private static final Config I = new Config(); private Config() {} static Config get() { return I; } }   // Singleton (or enum)
+Shape s = ShapeFactory.of("circle");                                  // Factory: hides which class is created
+Pizza p = new Pizza.Builder().size(12).cheese().build();            // Builder: many optional parts
+```
+- **Singleton:** one instance (thread-safe via enum or holder class; hurts testing). **Factory Method / Abstract Factory:** create objects without naming concrete classes. **Builder:** step-by-step construction; **Prototype:** clone.
+! Factory chooses the type, Builder assembles the parts.
+
+## Structural: Adapter, Decorator, Facade, Proxy, Composite
+- **Adapter:** make an incompatible interface fit (legacy API wrapper). **Decorator:** add behaviour by wrapping (`new BufferedReader(new FileReader(..))`). **Facade:** one simple entry to a complex subsystem. **Proxy:** stand-in that controls access (lazy load, cache, auth; Spring AOP). **Composite:** treat a tree of objects like one (folders and files).
+! Adapter changes the interface, Decorator adds behaviour, Proxy controls access.
+
+## Behavioural: Strategy, Observer, Command, State, Template
+```java
+interface Discount { double apply(double p); }
+class Checkout { Discount d; double total(double p) { return d.apply(p); } }     // Strategy: swap algorithms at runtime
+subject.subscribe(e -> notifyUser(e));                                           // Observer: one-to-many events
+```
+- **Strategy:** interchangeable algorithms. **Observer:** subscribers notified of changes (event listeners, Kafka). **Command:** request as an object (undo, queues). **State:** behaviour changes with state (order status). **Template Method:** fixed skeleton, steps overridden. **Iterator:** traverse without exposing structure. **Chain of Responsibility:** pass a request along handlers (filters).
+! Many `if/else` on a type means Strategy or State.
+
+## LLD Interview Approach
+- Clarify requirements, list entities and relationships, define interfaces, apply patterns only where they pay, handle concurrency, then code the core flow (parking lot, elevator, ATM, BookMyShow, LRU cache).
+- **Seat booking concurrency:** hold a seat with a TTL, lock the row (`SELECT ... FOR UPDATE`) or use optimistic versioning, confirm on payment, release on timeout.
+! Entities first, patterns second.
+
+### More System Design Concepts
+
+## PACELC, Consistency Models & Strangler Fig
+- **PACELC:** if Partitioned choose A or C; Else (normal operation) choose Latency or Consistency. Dynamo-style: PA/EL; banking DB: PC/EC.
+- Consistency levels: strong, **eventual**, read-your-writes, causal. **Strangler fig:** migrate a monolith by routing features one at a time to new services behind a facade.
+! Even without partitions you trade latency for consistency.
+
+## Distributed Patterns
+- **Saga:** a chain of local transactions with compensating actions. **Outbox:** write the event in the same DB transaction, then publish it. **CQRS:** separate read and write models. **Event sourcing:** store events, derive state. **Idempotency keys:** make retries safe. **Two-phase commit:** strong but blocking, rarely used.
+! Saga for cross-service workflows; outbox for reliable events.
+
+## Counting, Unique IDs & Probabilistic Structures
+- **Unique IDs:** UUID, DB sequence, **Snowflake** (time + machine + sequence, sortable). **Bloom filter:** "definitely not present" membership; **HyperLogLog:** approximate distinct counts; **Count-Min Sketch:** frequencies.
+- **Consistent hashing:** hash ring plus virtual nodes, so adding a node moves only about 1/N of the keys.
+! Approximate answers use a fraction of the memory.
+
+### Must-Know Questions
+
+## System Design Questions
+Q*: How do you scale a system from 1 user to millions?
+A: Single server, then separate DB, add a load balancer with stateless app servers, cache, read replicas, CDN, queues for async work, then shard and split services.
+Q*: Explain CAP theorem.
+A: In a distributed system with partitions, you can have only two of consistency, availability and partition tolerance; since partitions happen, you trade C against A.
+Q*: How do you handle a hot key or hot shard?
+A: Cache it, replicate it, split the key (add a suffix), use a better shard key or consistent hashing with virtual nodes.
+Q*: Why make consumers idempotent?
+A: At-least-once delivery can redeliver messages; idempotent handlers make duplicates harmless (use unique IDs or upserts).
+Q: Cache-aside vs write-through?
+A: Cache-aside fills the cache on read misses and is simplest; write-through updates cache and DB on every write for fresher cache at higher write cost.
+Q: How do you ensure high availability?
+A: Remove single points of failure: redundancy across zones, health checks, failover, replication, graceful degradation.

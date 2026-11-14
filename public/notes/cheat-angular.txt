@@ -157,6 +157,16 @@ export class Search {
 - **Benefits:** reusable, easy-to-test UI components; logic in one place.
 ! Smart = the chef; dumb = the waiter who just serves what's given.
 
+## model() & Signal-Based Inputs/Outputs
+```ts
+count = input.required<number>();        // signal input
+label = input('x', { alias: 'text' });
+saved = output<string>();                // replaces EventEmitter
+value = model(0);                        // two-way: <app-x [(value)]="v" />
+```
+- `viewChild()`, `contentChild()` signal queries replace the decorators. Read signals by calling them: `count()`.
+! `model()` = input + output for `[(banana)]`.
+
 ### Services & Dependency Injection
 
 ## Services
@@ -189,6 +199,10 @@ export class ProductPage {
 - `useClass` (swap implementation), `useValue` (config object), `useFactory` (computed), `useExisting` (alias). `InjectionToken` for non-class values like an API URL.
 - Providing a service in a component's `providers` gives **each component instance its own copy**.
 ! Ask your parent; if they don't have it, they ask theirs, up to the root.
+
+## Resolution Modifiers & Migration
+- `inject(Service, { optional: true, self: true, skipSelf: true, host: true })` limit where DI looks. Migrate NgModules gradually: standalone components can import modules and vice versa; use `ng generate @angular/core:standalone`.
+! `skipSelf` asks the parent injector.
 
 ### Signals & RxJS
 
@@ -252,6 +266,15 @@ exhaustMap  ignores new until done       login / submit button
 - HTTP calls complete by themselves; `interval`, `fromEvent`, Subjects and form `valueChanges` don't.
 ! Leaving the room? Turn off the tap (unsubscribe).
 
+## linkedSignal, resource & httpResource
+```ts
+sel = linkedSignal(() => this.items()[0]);              // writable, resets when the source changes
+user = httpResource(() => `/api/users/${this.id()}`);   // .value(), .isLoading(), .error(), .reload()
+data = resource({ params: () => ({ id: this.id() }), loader: ({ params }) => fetchUser(params.id) });
+```
+- Async state as signals; refetches when the signals they read change.
+! Signals in, async state out.
+
 ### Routing
 
 ## Routing Basics
@@ -300,6 +323,10 @@ export const authGuard: CanActivateFn = () =>
 - **Order:** guards run first, then resolvers, then the component is created.
 - **Trade-off:** the page waits for data (no flash of empty content) vs fetching in `ngOnInit` (page shows immediately with a loading state).
 ! Resolver = the waiter brings your food before you sit down.
+
+## Router Events, ChangeDetectorRef & NgZone
+- `router.events` (`NavigationStart/End/Error`); `withComponentInputBinding()` binds route params to inputs. `cdr.markForCheck()` marks an OnPush path dirty; `detectChanges()` runs now; `ngZone.runOutsideAngular()` skips change detection for hot handlers.
+! `markForCheck` for OnPush, `runOutsideAngular` for scroll handlers.
 
 ### Forms
 
@@ -407,6 +434,22 @@ ngOnDestroy          cleanup: unsubscribe, clear timers
 - **NgOptimizedImage** (`<img ngSrc="hero.jpg" width="800" height="400" priority>`): lazy-loads images, prioritises the main image, prevents layout shift.
 - **AOT** compilation (default) compiles templates at build time; **SSR + hydration** for faster first paint and SEO.
 ! Load less, check less, render less.
+
+## Signal Forms, Zoneless & DestroyRef
+- **Signal Forms** (newer API) bind form state to signals. **Zoneless:** `provideZonelessChangeDetection()`, change detection runs on signal changes and events, not zone.js patching.
+```ts
+private destroyRef = inject(DestroyRef);
+ngOnInit() { this.destroyRef.onDestroy(() => cleanup()); stream$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(); }
+afterNextRender(() => measure());       // browser-only DOM work
+```
+! `takeUntilDestroyed` is the modern unsubscribe.
+
+## SSR, Hydration & NgOptimizedImage
+- **SSR/prerender:** `ng add @angular/ssr`; server renders HTML for SEO and fast first paint. **Hydration** (`provideClientHydration()`, incremental hydration with `@defer`) reuses server DOM instead of rebuilding it. Avoid direct `window`/`document` on the server (use `afterNextRender` or `isPlatformBrowser`).
+```html
+<img ngSrc="hero.jpg" width="800" height="400" priority />      <!-- lazy loading, srcset, prevents layout shift -->
+```
+! SSR for first paint, hydration to avoid re-rendering.
 
 ### Testing & Security
 

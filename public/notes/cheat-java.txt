@@ -105,6 +105,10 @@ int sum = Integer.MAX_VALUE + 1;   // -2147483648 (silent overflow)
 - For objects: **upcasting** (`Animal a = new Dog()`) is automatic; **downcasting** needs a cast and can throw `ClassCastException` (check with `instanceof`).
 ! Water into a bigger glass is fine; into a smaller one, some spills.
 
+## Packages, Imports & Best Practices
+- Packages group classes and control package-private access; `import static` brings in static members; the `module-info.java` module system adds strong encapsulation. Practices: favour immutability, program to interfaces, small classes, try-with-resources, never swallow exceptions, `equals`+`hashCode` together, prefer composition.
+! Override `hashCode` whenever you override `equals`.
+
 ### OOP
 
 ## Class & Object
@@ -281,6 +285,16 @@ new HashSet<>(List.of(new Point(1, 2))).contains(new Point(1, 2));   // true
 ```
 ! hashCode finds the drawer; equals finds the file in the drawer.
 
+## Annotations
+```java
+@Retention(RetentionPolicy.RUNTIME) @Target(ElementType.METHOD)
+@interface Audit { String value() default ""; }
+@Audit("save") void save() {}
+for (Method m : cls.getDeclaredMethods()) if (m.isAnnotationPresent(Audit.class)) { /* read via reflection */ }
+```
+- Built-ins: `@Override`, `@Deprecated`, `@FunctionalInterface`, `@SuppressWarnings`. Frameworks (Spring, JPA) read annotations at runtime through **reflection**; **retention** SOURCE/CLASS/RUNTIME decides when they exist.
+! Annotations are metadata; something else acts on them.
+
 ### Exceptions
 
 ## Exception Handling
@@ -429,6 +443,14 @@ static <T> T firstOf(List<T> list) { return list.get(0); }   // generic method
 - **Example:** `new ArrayList<String>().getClass() == new ArrayList<Integer>().getClass()` is `true`: at runtime both are just `ArrayList`.
 - **Consequences:** you can't do `new T()`, `List<int>` (use `Integer`), or `instanceof List<String>`.
 ! Generic labels are removed before shipping: the JVM only sees plain boxes.
+
+## Generics: Wildcards & Variance
+- Generics are **invariant**: `List<Integer>` is not a `List<Number>`. `List<? extends Number>` reads (producer), `List<? super Integer>` writes (consumer): **PECS**. **Type erasure:** generic types vanish at runtime, so no `new T()` or `instanceof List<String>`.
+! Producer Extends, Consumer Super.
+
+## HashMap Internals: Collisions, Treeify, Resize
+- Index = `(n-1) & hash`; collisions chain in a bucket; a bucket becomes a **red-black tree** at 8 entries (table size at least 64). Resize doubles capacity at **load factor 0.75**, rehashing keys. `ConcurrentHashMap` locks per bin (CAS), no null keys.
+! Good `hashCode` keeps buckets short.
 
 ### Java 8+ Functional Programming
 
@@ -648,6 +670,14 @@ void demo() {
 - **Example:** the first time your code uses `OrderService`, the Application class loader loads `OrderService.class`; `String` always comes from the Bootstrap loader.
 - `ClassNotFoundException`: class not found when loading by name. `NoClassDefFoundError`: class was present at compile time but missing at runtime.
 ! Ask your boss first; only handle it yourself if the boss can't.
+
+## Serialization
+```java
+class User implements Serializable { private static final long serialVersionUID = 1L; String name; transient String password; }
+new ObjectOutputStream(out).writeObject(user);
+```
+- `transient` fields are skipped; `serialVersionUID` guards versions. Native serialization is **insecure and fragile**, so prefer JSON (Jackson), Protobuf or Avro.
+! Don't deserialize untrusted data.
 
 ### Design Patterns & Principles
 

@@ -56,11 +56,11 @@ gh repo create shop-api --private --source=. --push   # the same in one step wit
 - The Git skills are identical everywhere; the differences are in review workflow, CI syntax, permissions and integrations.
 
 ## Interview Q&A | sky | wide
-Q: What is the difference between Git and GitHub?
+Q*: What is the difference between Git and GitHub?
 A: Git is the version control tool that tracks history locally; GitHub is a hosting platform for Git repositories that adds pull requests, code review, issues, Actions CI/CD, security tooling and access control.
-Q: Who owns GitHub and when was it founded?
+Q*: Who owns GitHub and when was it founded?
 A: It was founded in 2008 by Tom Preston-Werner, Chris Wanstrath, PJ Hyett and Scott Chacon, and acquired by Microsoft in 2018.
-Q: What is a pull request?
+Q*: What is a pull request?
 A: A proposal to merge changes from one branch into another, where the team discusses, reviews and runs automated checks before merging.
 Q: Fork vs clone?
 A: A fork is a server-side copy of a repository under your own account (used to contribute without write access); a clone is a local copy of any repository on your machine.
@@ -112,11 +112,11 @@ git log -1 --show-signature                                     # Good "git" sig
 - **Archive** a repository to make it read-only; **transfer** it to another owner (redirects are kept).
 
 ## Interview Q&A | sky | wide
-Q: How do you authenticate Git operations with GitHub?
+Q*: How do you authenticate Git operations with GitHub?
 A: Over HTTPS with a personal access token (preferably fine-grained, managed by Git Credential Manager or gh), or over SSH with a key pair whose public key is added to the account. Account passwords are not accepted.
-Q: Fine-grained vs classic personal access tokens?
+Q*: Fine-grained vs classic personal access tokens?
 A: Fine-grained tokens are limited to selected repositories, carry specific permissions and must expire. Classic tokens use broad scopes across all accessible repositories. Prefer fine-grained tokens or GitHub Apps.
-Q: Why sign commits?
+Q*: Why sign commits?
 A: Git lets anyone set any author name and email. A signature made with your GPG or SSH key proves the commit came from you, and GitHub marks it Verified; rules can require it.
 Q: What belongs in .gitignore?
 A: Build output, dependency folders, IDE files, logs and secrets such as .env files: anything generated or sensitive that should not be versioned.
@@ -178,11 +178,11 @@ Rebase and merge        * Add cart step 3        the 3 commits replayed on top o
 - Keep PRs **small and focused** (a few hundred lines): they are reviewed faster and more thoroughly, and conflict less.
 
 ## Interview Q&A | sky | wide
-Q: How do you contribute to an open-source project on GitHub?
+Q*: How do you contribute to an open-source project on GitHub?
 A: Fork the repository, clone your fork, add the original as upstream, create a branch, commit and push to your fork, then open a pull request to the upstream repository and respond to review.
-Q: How do you keep a fork up to date?
+Q*: How do you keep a fork up to date?
 A: Fetch upstream, fast-forward your main to upstream/main and push it to your fork (or use the Sync fork button), then merge or rebase your feature branches onto it.
-Q: Merge commit vs squash vs rebase merge?
+Q*: Merge commit vs squash vs rebase merge?
 A: A merge commit keeps all commits and adds a merge commit (non-linear history). Squash combines the PR into one new commit. Rebase replays each commit onto the base with new SHAs, giving linear history without a merge commit.
 Q: How do you close an issue automatically from a PR?
 A: Put a keyword such as "Closes #42" in the PR description (or a commit message); the issue closes when the PR merges into the default branch.
@@ -243,11 +243,11 @@ Adds the cart endpoint. Closes #42, related to acme/web#7.
 - **GFM** adds **task lists** (`- [ ]`), **tables**, **@mentions** (people and teams), **references** (`#42`, `org/repo#7`, commit SHAs autolink), **fenced code** with syntax highlighting, **alerts** (`> [!NOTE]`, `[!WARNING]`), Mermaid diagrams and emoji.
 
 ## Interview Q&A | sky | wide
-Q: What review states can a reviewer submit?
+Q*: What review states can a reviewer submit?
 A: Comment (feedback without a decision), Approve, or Request changes, which blocks merging when approvals are required until the reviewer approves or the review is dismissed.
-Q: What is CODEOWNERS?
+Q*: What is CODEOWNERS?
 A: A file mapping path patterns to responsible users or teams. They are automatically requested for review on PRs touching those paths, and with branch rules their approval can be required. The last matching pattern wins.
-Q: What are suggested changes?
+Q*: What are suggested changes?
 A: Review comments containing replacement code that the PR author can apply as a commit with one click.
 Q: How do you organise work on GitHub?
 A: Issues with labels, assignees, milestones and sub-issues, issue forms for consistent reports, and Projects boards or tables with custom fields and automation.
@@ -283,11 +283,11 @@ A: Correctness and edge cases, design and maintainability, tests, security (inpu
 - **Environments** (`production`, `staging`) add their own protection for deployments: **required reviewers**, a **wait timer**, **deployment branch and tag rules** (only `main` may deploy to production), and environment-scoped **secrets** (sheet 06).
 
 ## Interview Q&A | sky | wide
-Q: How do you prevent direct pushes to main?
+Q*: How do you prevent direct pushes to main?
 A: With a branch protection rule or ruleset on main requiring pull requests, approvals and passing status checks, and blocking force pushes and deletions, with a minimal bypass list.
-Q: Rulesets vs branch protection rules?
+Q*: Rulesets vs branch protection rules?
 A: Rulesets are newer: they can target branches and tags, be layered, defined at organisation level, have bypass lists and evaluate mode, and include extra rules such as commit metadata and push restrictions. Classic rules are one per branch pattern in one repository.
-Q: What problem does a merge queue solve?
+Q*: What problem does a merge queue solve?
 A: In busy repositories each merge makes other PRs out of date; the queue tests each PR combined with main and the PRs ahead of it and merges them in order, keeping main green without manual rebasing.
 Q: What are required status checks?
 A: CI jobs (or other checks) that must succeed on a PR's latest commit before it can be merged.
@@ -396,11 +396,11 @@ jobs:
 - Scheduled workflows in **public** repositories are **disabled after 60 days** without repository activity.
 
 ## Interview Q&A | sky | wide
-Q: Explain the structure of a GitHub Actions workflow.
+Q*: Explain the structure of a GitHub Actions workflow.
 A: A YAML file in .github/workflows with a name, on (triggering events), optional permissions, env and concurrency, and jobs. Each job has runs-on (the runner), optional needs, strategy and environment, and a list of steps that either run shell commands or use actions.
-Q: How do jobs share data?
+Q*: How do jobs share data?
 A: Each job runs on a fresh runner, so files are passed with upload-artifact and download-artifact, and small values with job outputs via needs.<job>.outputs.
-Q: Cache vs artifact?
+Q*: Cache vs artifact?
 A: A cache speeds up future runs by restoring dependencies by key and may be evicted; an artifact stores outputs of a run (reports, binaries) for download or for later jobs, with a retention period.
 Q: How do you run tests on several Java versions?
 A: With a matrix strategy (matrix: java: [17, 21]) and ${{ matrix.java }} in setup-java; GitHub creates one job per value.
@@ -537,11 +537,11 @@ runs:
 - **Self-hosted runners**: never use them for **public** repositories (any fork PR could run code on your machine); prefer **ephemeral** runners (one job each) and isolate them from production networks.
 
 ## Interview Q&A | sky | wide
-Q: How do you deploy from GitHub Actions without storing cloud keys?
+Q*: How do you deploy from GitHub Actions without storing cloud keys?
 A: Use OIDC: give the job id-token: write, configure the cloud provider to trust GitHub's OIDC issuer with conditions on repository and branch or environment, and exchange the token for short-lived credentials (aws-actions/configure-aws-credentials with role-to-assume).
-Q: What are environments used for?
+Q*: What are environments used for?
 A: Deployment targets with protection rules (required reviewers, wait timers, allowed branches) and their own secrets, so production deploys need approval and only main can deploy.
-Q: Reusable workflow vs composite action?
+Q*: Reusable workflow vs composite action?
 A: A reusable workflow is called at job level and contains whole jobs with their own runners; a composite action is used as a step and bundles several steps within one job.
 Q: What is script injection in Actions and how do you prevent it?
 A: Untrusted input (PR titles, branch names, issue bodies) interpolated with ${{ }} directly into run: scripts becomes executable code. Pass it through env variables and quote it in the shell.
@@ -622,11 +622,11 @@ jobs:
 - **Dependency review** shows dependency changes and their vulnerabilities in a PR, and can fail the PR.
 
 ## Interview Q&A | sky | wide
-Q: What does Dependabot do?
+Q*: What does Dependabot do?
 A: It raises alerts for vulnerable dependencies, opens PRs to upgrade to patched versions (security updates), and, configured in dependabot.yml, regularly opens PRs to keep dependencies and actions current (version updates).
-Q: What is CodeQL?
+Q*: What is CodeQL?
 A: GitHub's semantic code analysis engine that models code as a queryable database and finds vulnerability patterns; it powers code scanning alerts in the Security tab and on pull requests.
-Q: What is push protection?
+Q*: What is push protection?
 A: Secret scanning applied at push time: it rejects a push containing a recognised secret, so the secret never lands in the repository.
 Q: A developer committed an AWS key. What do you do?
 A: Revoke and rotate the key immediately, check access logs for misuse, then remove it from the code and history, and enable push protection to prevent repeats.
@@ -690,11 +690,11 @@ jobs:
 - **GitHub Pages** hosts static sites (docs, SPAs) from a branch or, preferably, from an Actions workflow (`actions/upload-pages-artifact@v5` + `actions/deploy-pages@v5`, with `pages: write` and `id-token: write`), on `<user>.github.io` or a custom domain with HTTPS.
 
 ## Interview Q&A | sky | wide
-Q: REST vs GraphQL API on GitHub?
+Q*: REST vs GraphQL API on GitHub?
 A: REST has many resource endpoints, simple and cacheable, with date-based versions. GraphQL has one endpoint where a query fetches exactly the nested data needed in one request, and always requires authentication.
-Q: What are GitHub's API rate limits?
+Q*: What are GitHub's API rate limits?
 A: 60 requests per hour unauthenticated, 5,000 per hour for an authenticated user token, 1,000 per hour per repository for GITHUB_TOKEN in Actions, with higher limits for GitHub Apps on large installations.
-Q: GitHub App vs OAuth app vs PAT?
+Q*: GitHub App vs OAuth app vs PAT?
 A: A GitHub App is installed on specific repositories with fine-grained permissions, acts as its own bot and uses short-lived tokens; an OAuth app acts on behalf of a signed-in user; a PAT is a user's own credential for scripts. Prefer Apps for integrations.
 Q: How do you secure a webhook receiver?
 A: Use HTTPS, verify the X-Hub-Signature-256 HMAC with the shared secret, reply quickly and process asynchronously, and make processing idempotent because deliveries can be repeated.
@@ -720,11 +720,11 @@ A: An Actions workflow logs in to ghcr.io with GITHUB_TOKEN (packages: write) an
 - Use it responsibly: **review every suggestion** like a teammate's code, keep tests and CI as the gate, avoid pasting secrets, and use organisation policies (content exclusions, public-code filtering) to manage risk.
 
 ## Interview Q&A | sky | wide
-Q: What is GitHub Flow?
+Q*: What is GitHub Flow?
 A: A lightweight workflow where main is always deployable: create a short-lived branch, push commits, open a pull request, review with CI checks, deploy, and merge into main.
-Q: GitHub Flow vs GitFlow?
+Q*: GitHub Flow vs GitFlow?
 A: GitHub Flow uses only main plus short-lived feature branches and suits continuous deployment. GitFlow adds develop, release and hotfix branches for scheduled, versioned releases, at the cost of more merging.
-Q: How does semantic versioning work?
+Q*: How does semantic versioning work?
 A: MAJOR.MINOR.PATCH: increment MAJOR for breaking changes, MINOR for backwards-compatible features, PATCH for backwards-compatible fixes.
 Q: How do you automate releases on GitHub?
 A: Conventional commits plus a tool such as release-please, or a workflow triggered by tags or published releases that builds, tests, publishes packages and images, and generates release notes from merged PRs.
@@ -760,11 +760,11 @@ A: Treat suggestions as untrusted code: review them, keep tests and required che
 - Tie it to experience: "We required two approvals and the CI checks via a ruleset, deployed with OIDC to AWS from a protected production environment, and let Dependabot patch updates auto-merge after CI."
 
 ## Big Interview Q&A | sky | wide
-Q: Design a GitHub setup for a team of 10 working on a Spring Boot service and an Angular front end.
+Q*: Design a GitHub setup for a team of 10 working on a Spring Boot service and an Angular front end.
 A: One repository (or two) with a ruleset on main requiring PRs, one or two approvals, CODEOWNERS for backend and frontend paths, required CI checks and linear history; GitHub Flow with small PRs and squash merges; CI workflows with matrices and caching; CodeQL, Dependabot and push protection on; deployments through environments with OIDC; releases tagged with semantic versions and generated notes.
-Q: How do you secure GitHub Actions in an organisation?
+Q*: How do you secure GitHub Actions in an organisation?
 A: Read-only default GITHUB_TOKEN with explicit permissions per job, OIDC instead of stored cloud keys, environments with reviewers for production, actions allow-listed and pinned to SHAs, untrusted input passed via env, no pull_request_target with checkout of fork code, ephemeral and isolated self-hosted runners, and secret scanning with push protection.
-Q: A PR is approved but cannot be merged. What do you check?
+Q*: A PR is approved but cannot be merged. What do you check?
 A: Failing or pending required status checks, unresolved conversations, a branch that is out of date or has conflicts, missing Code Owner approval, approvals dismissed by new commits, signed-commit or linear-history rules, or a merge queue requirement.
 Q: How would you speed up a slow CI pipeline?
 A: Cache dependencies, split tests into parallel matrix jobs, use paths filters to skip unaffected parts, cancel superseded runs with concurrency, use larger or Arm runners where it pays, and reuse build outputs through artifacts instead of rebuilding.

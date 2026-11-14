@@ -1,0 +1,101 @@
+# 01 | Maven Interview Cheat Sheet | pom.xml, lifecycle, dependencies, scopes, plugins and the commands you run daily. | Maven on one page
+
+### Basics
+
+## What is Maven?
+> A **build and dependency management tool** for Java. A `pom.xml` (Project Object Model) describes the project; Maven follows **convention over configuration** and downloads libraries from **Maven Central**.
+```text
+src/main/java      src/main/resources      src/test/java      src/test/resources      pom.xml      target/
+```
+! Standard layout, one pom, everything else is automatic.
+
+## Minimal pom.xml
+```xml
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.acme</groupId>
+  <artifactId>orders</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+  <properties><java.version>21</java.version></properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId>
+      <version>5.11.0</version><scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
+```
+- Coordinates: **groupId : artifactId : version** (GAV) identify any artifact.
+! GAV is the address of every library.
+
+### Build
+
+## Lifecycle & Phases
+```text
+validate -> compile -> test -> package -> verify -> install -> deploy      (clean lifecycle: clean)
+```
+- Running a phase runs all phases before it: `mvn package` compiles and tests first.
+- `install` copies the artifact to `~/.m2` (local repo); `deploy` uploads to a remote repo.
+! `mvn clean install` is the daily driver.
+
+## Commands
+```bash
+mvn clean install            mvn test            mvn package -DskipTests      mvn -q verify
+mvn -pl service -am install  # build one module and what it needs      mvn dependency:tree      mvn -o ... # offline
+mvn test -Dtest=OrderServiceTest#create       mvn versions:display-dependency-updates
+```
+! `dependency:tree` solves most "which version?" mysteries.
+
+## Dependency Scopes
+- **compile** (default, everywhere), **provided** (compile only, runtime supplied: servlet API), **runtime** (not needed to compile: JDBC driver), **test** (tests only), **import** (BOM in dependencyManagement).
+! Pick the narrowest scope.
+
+## Transitive Dependencies & Conflicts
+- Dependencies pull in their own dependencies. On version conflicts Maven picks the **nearest** definition (shortest path), then first declared.
+- Fix with `dependencyManagement`, `<exclusions>`, or a **BOM** (e.g. `spring-boot-dependencies`).
+```xml
+<dependency><groupId>x</groupId><artifactId>y</artifactId>
+  <exclusions><exclusion><groupId>bad</groupId><artifactId>lib</artifactId></exclusion></exclusions></dependency>
+```
+! Nearest wins, not newest.
+
+### Structure
+
+## Plugins & Goals
+- Plugins do the work; **goals** are tasks (`compiler:compile`). Common: `maven-compiler-plugin`, `surefire` (unit tests), `failsafe` (integration tests), `spring-boot-maven-plugin` (executable jar), `jacoco` (coverage).
+```xml
+<plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
+```
+! Phases are when; plugin goals are what.
+
+## Parent POM, Modules & Profiles
+- **Inheritance:** child `<parent>` inherits dependencies, plugins, properties. **Multi-module:** parent with `<modules>` builds in dependency order. **Profiles** switch config (`-Pprod`).
+- **SNAPSHOT** = moving development version; releases are immutable.
+! Parent for sharing, modules for splitting, profiles for environments.
+
+## Maven vs Gradle
+- Maven: XML, strict conventions, predictable. Gradle: Groovy/Kotlin DSL, faster incremental builds, more flexible. Both are fine; know one deeply.
+! Maven is declarative, Gradle is programmable.
+
+### More Maven
+
+## Settings, Repositories & Releases
+- `~/.m2/settings.xml` holds mirrors, server credentials and proxies. Repositories: local `~/.m2`, central, private (Nexus/Artifactory). Release: `maven-release-plugin` or CI bumping versions; `mvn versions:set -DnewVersion=1.2.0`. `mvn -T 4 package` builds in parallel. **Effective POM:** `mvn help:effective-pom`.
+! `help:effective-pom` shows what Maven really uses.
+
+### Must-Know Questions
+
+## Maven Questions
+Q*: Explain the Maven build lifecycle.
+A: Phases run in order: validate, compile, test, package, verify, install, deploy; invoking a phase executes all earlier ones.
+Q*: `install` vs `package` vs `deploy`?
+A: `package` builds the jar/war; `install` also puts it in the local `~/.m2`; `deploy` publishes it to a remote repository.
+Q*: How are dependency version conflicts resolved?
+A: The nearest definition in the dependency tree wins; override with `dependencyManagement` or exclusions.
+Q*: What is a SNAPSHOT version?
+A: An in-development version that can change; Maven re-fetches it, unlike immutable release versions.
+Q: What is a BOM?
+A: A POM of managed dependency versions imported to keep related libraries consistent.
+Q: Where are dependencies stored?
+A: In the local repository `~/.m2/repository`, downloaded from Maven Central or configured remote repositories.

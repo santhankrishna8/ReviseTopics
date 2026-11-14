@@ -457,3 +457,22 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, ::details-content { transition: none !important; animation: none !important; }
 }
+
+/* quick revise: keep definitions, tips and questions only */
+.quick .sec ul, .quick .sec .code { display: none; }
+.bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn[aria-pressed="true"] { background: var(--accent-tint); color: var(--accent-ink); }
+.rate { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; color: var(--muted); }
+.rate small { font-size: .82rem; }
+.data-actions { display: flex; gap: 8px; padding: 0 12px 24px; }
+.due a.shaky { color: var(--accent-ink); font-weight: 600; }
+@media print {
+  .top, #sidebar, .resizer, .toc, .doc-bar, .doc-foot, .copy, .quiz { display: none !important; }
+  .layout { display: block !important; }
+  .main, .doc { padding: 0 !important; max-width: none !important; }
+  .sec, .qa, .code { break-inside: avoid; }
+  .cards { columns: 2; column-gap: 12px; }
+}
+
+.star { color: var(--accent); font-size: .85rem; margin-right: -4px; }
+.must-only .qa:not(.must) { display: none; }

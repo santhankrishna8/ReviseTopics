@@ -58,11 +58,11 @@ bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic orders -
 - In Kafka 4.x the console producer's `--property` flag is **deprecated** in favour of **`--reader-property`**, and the consumer's formatting options are `--formatter-property`.
 
 ## Interview Q&A | sky | wide
-Q: What is Apache Kafka?
+Q*: What is Apache Kafka?
 A: A distributed event streaming platform: a cluster of brokers storing ordered, replicated, partitioned logs of events that producers append to and consumers read from at their own pace, with retention and replay.
-Q: Who created Kafka and why?
+Q*: Who created Kafka and why?
 A: Jay Kreps, Neha Narkhede and Jun Rao at LinkedIn, to move large volumes of activity data and logs between systems in real time; it became an Apache project in 2011-2012.
-Q: Kafka vs RabbitMQ?
+Q*: Kafka vs RabbitMQ?
 A: Kafka is a distributed log: consumers pull, track their own offsets, messages are retained and replayable, ordering is per partition, and throughput is very high. RabbitMQ is a traditional broker: it pushes messages, deletes them on acknowledgement and offers flexible routing; it suits task queues and complex routing.
 Q: Why is Kafka so fast?
 A: Sequential disk appends, batching and compression, the OS page cache, zero-copy transfer from disk to network, and parallelism through partitions spread across brokers.
@@ -110,11 +110,11 @@ Event-driven:    Order service ──"OrderPlaced"──▶ [ Kafka topic: order
 - **Dual writes**: saving to the database and publishing to Kafka separately can diverge when one fails; use the **outbox pattern** or CDC.
 
 ## Interview Q&A | sky | wide
-Q: What is event-driven architecture?
+Q*: What is event-driven architecture?
 A: An architecture where services communicate by producing and reacting to events, things that have happened, through a broker, instead of calling each other synchronously, giving loose coupling and independent scaling.
-Q: Event vs command?
+Q*: Event vs command?
 A: An event states a fact that already happened and can have many consumers; a command requests an action and has one intended handler.
-Q: How does Kafka support both queues and pub/sub?
+Q*: How does Kafka support both queues and pub/sub?
 A: Within one consumer group, partitions are divided among consumers so each record is processed once (queue-like); different consumer groups each read the entire topic independently (pub/sub).
 Q: What are the challenges of event-driven systems?
 A: Eventual consistency, duplicate and out-of-order events, schema evolution, harder debugging and tracing, and keeping database writes and published events consistent.
@@ -167,11 +167,11 @@ Topic: orders  PartitionCount: 3  ReplicationFactor: 1  Configs: min.insync.repl
 - `kafka-topics.sh --describe` shows each partition's leader, replicas and ISR (output above).
 
 ## Interview Q&A | sky | wide
-Q: What is a topic, a partition and an offset?
+Q*: What is a topic, a partition and an offset?
 A: A topic is a named stream of records; it's split into partitions, which are ordered, append-only logs; an offset is a record's sequential position within its partition.
-Q: Does Kafka guarantee ordering?
+Q*: Does Kafka guarantee ordering?
 A: Only within a single partition. Records with the same key go to the same partition and are therefore ordered relative to each other.
-Q: Why does Kafka use partitions?
+Q*: Why does Kafka use partitions?
 A: For parallelism (different consumers read different partitions) and scalability (partitions are spread over brokers), plus per-partition ordering.
 Q: What is the replication factor and the ISR?
 A: The replication factor is how many copies of each partition exist on different brokers; the ISR is the set of replicas fully in sync with the leader, from which a new leader is chosen on failure.
@@ -302,11 +302,11 @@ group.protocol              classic    "consumer" enables the new KIP-848 rebala
 - Values in the table are the client defaults seen on 4.x clients; Spring Kafka sets `enable.auto.commit=false` because its listener container commits for you.
 
 ## Interview Q&A | sky | wide
-Q: What does acks mean on a producer?
+Q*: What does acks mean on a producer?
 A: How many acknowledgements the producer waits for: 0 (none, fastest, may lose data), 1 (the leader wrote it) or all (every in-sync replica has it, most durable; the default since 3.0).
-Q: Is KafkaProducer.send() synchronous?
+Q*: Is KafkaProducer.send() synchronous?
 A: No. It batches the record and returns a Future; call get() to block or pass a callback to handle the result asynchronously.
-Q: How do you increase producer throughput?
+Q*: How do you increase producer throughput?
 A: Larger batches and linger.ms, compression (lz4 or zstd), enough partitions, and asynchronous sends with callbacks.
 Q: What is the consumer poll loop?
 A: The consumer repeatedly calls poll() to fetch batches from its assigned partitions, processes them, and commits offsets; poll also drives group membership.
@@ -361,11 +361,11 @@ billing  orders  2          3               4               1
 - Used through `KafkaShareConsumer` and managed with `kafka-share-groups.sh`. On clusters with fewer than 3 brokers, set `share.coordinator.state.topic.replication.factor` and `share.coordinator.state.topic.min.isr` to 1 before using them.
 
 ## Interview Q&A | sky | wide
-Q: What is a consumer group?
+Q*: What is a consumer group?
 A: Consumers sharing a group.id that divide a topic's partitions among themselves, each partition read by one consumer of the group, so each record is processed once per group; different groups read independently.
-Q: What happens if a group has more consumers than partitions?
+Q*: What happens if a group has more consumers than partitions?
 A: The extra consumers are idle. Parallelism within a group is limited by the number of partitions (unless you use share groups).
-Q: What is consumer lag and why monitor it?
+Q*: What is consumer lag and why monitor it?
 A: The number of records between the group's committed offset and the end of the partition. Growing lag means consumers are falling behind and events are being processed late.
 Q: What triggers a rebalance?
 A: Consumers joining or leaving (including crashes detected by missed heartbeats or exceeding max.poll.interval.ms), partition count changes, or subscription changes.
@@ -415,11 +415,11 @@ Partition:2  Offset:2  ann    order-101 shipped
 - **How many partitions?** Target throughput ÷ per-partition throughput (producer and consumer), the maximum consumer parallelism you need, and headroom for growth. Dozens are normal; thousands per broker add overhead (more files, slower leader elections, larger metadata).
 
 ## Interview Q&A | sky | wide
-Q: How does Kafka decide which partition a record goes to?
+Q*: How does Kafka decide which partition a record goes to?
 A: An explicit partition if given; otherwise, with a key, murmur2(key) mod partition count; without a key, the sticky partitioner fills a batch on one partition before moving on.
-Q: How do you guarantee ordering for all events of one order?
+Q*: How do you guarantee ordering for all events of one order?
 A: Use the order id as the key so they all land in the same partition, keep idempotence enabled on the producer, and process each partition sequentially on the consumer.
-Q: What happens to ordering when you add partitions?
+Q*: What happens to ordering when you add partitions?
 A: The key-to-partition mapping changes for many keys, so new records for a key may go to a different partition than its old ones and can be consumed out of order relative to them.
 Q: What is a hot partition and how do you fix it?
 A: A partition receiving disproportionate traffic because of a skewed key; fix it with a finer-grained key, key salting or splitting traffic into another topic.
@@ -485,11 +485,11 @@ billing   orders    2          0
 - Programmatically: `consumer.seek(partition, offset)`, `seekToBeginning`, `offsetsForTimes`.
 
 ## Interview Q&A | sky | wide
-Q: What does committing an offset mean?
+Q*: What does committing an offset mean?
 A: Recording, for a group and partition, the offset of the next record to consume, so a restarted or newly assigned consumer resumes from there.
-Q: Auto-commit vs manual commit?
+Q*: Auto-commit vs manual commit?
 A: Auto-commit periodically commits offsets returned by poll, which is simple but can commit before processing finishes; manual commits (commitSync or commitAsync) commit only after records are processed, giving at-least-once control.
-Q: commitSync vs commitAsync?
+Q*: commitSync vs commitAsync?
 A: commitSync blocks and retries until success or a fatal error; commitAsync doesn't block or retry, so it's faster. Use async in the loop and sync on shutdown and rebalance.
 Q: How do you get at-least-once and at-most-once delivery?
 A: At-least-once: process, then commit (duplicates possible on failure). At-most-once: commit, then process (records can be lost on failure).
@@ -536,11 +536,11 @@ Created topic customer-profiles.                                                
 ```
 
 ## Interview Q&A | sky | wide
-Q: How long does Kafka keep messages?
+Q*: How long does Kafka keep messages?
 A: Until the topic's retention removes them: by default 7 days (retention.ms), optionally limited by size (retention.bytes), or kept per key with compaction; consumption doesn't delete records.
-Q: What is log compaction?
+Q*: What is log compaction?
 A: A cleanup policy that keeps at least the latest record for each key and removes older ones, so the topic holds the current state of every key; null-value tombstones delete keys.
-Q: When would you use a compacted topic?
+Q*: When would you use a compacted topic?
 A: For latest-state data such as customer profiles or configuration, Kafka Streams changelogs and KTables, and rebuilding caches or read models on start-up.
 Q: What is a tombstone?
 A: A record with a key and a null value in a compacted topic, signalling that the key is deleted; compaction later removes earlier values and eventually the tombstone itself.
@@ -639,11 +639,11 @@ producer.commitTransaction();                                                   
 - For **database to Kafka**, use the **transactional outbox** (write the event to an outbox table in the same DB transaction, publish it via CDC or a poller) to avoid dual-write inconsistencies.
 
 ## Interview Q&A | sky | wide
-Q: Explain at-most-once, at-least-once and exactly-once.
+Q*: Explain at-most-once, at-least-once and exactly-once.
 A: At-most-once may lose records but never duplicates them (commit before processing, no retries); at-least-once never loses but may duplicate (retries, process then commit); exactly-once makes each record's effect happen once, in Kafka via idempotent producers and transactions with read_committed consumers.
-Q: What does the idempotent producer do?
+Q*: What does the idempotent producer do?
 A: It tags batches with a producer id and per-partition sequence numbers so the broker discards duplicates caused by retries, also preserving order; it has been the default since Kafka 3.0.
-Q: How do Kafka transactions work?
+Q*: How do Kafka transactions work?
 A: The producer, identified by a stable transactional.id, writes to several partitions and can include consumer offsets, then commits or aborts atomically; read_committed consumers only see committed records, and zombie producers with the same id are fenced.
 Q: Does Kafka exactly-once cover writes to a database?
 A: No, only Kafka-to-Kafka processing. External side effects need idempotent consumers (deduplication keys, upserts, idempotency keys) or patterns such as the outbox.
@@ -688,11 +688,11 @@ A: When a new producer instance calls initTransactions with the same transaction
 - **Managed services** (Confluent Cloud, Amazon MSK, Aiven) run brokers, KRaft, upgrades and scaling for you.
 
 ## Interview Q&A | sky | wide
-Q: What is a Kafka broker?
+Q*: What is a Kafka broker?
 A: A server in the Kafka cluster that stores topic partitions on disk and serves producer writes and consumer reads; leaders for partitions are spread across brokers.
-Q: What is KRaft and why did Kafka drop ZooKeeper?
+Q*: What is KRaft and why did Kafka drop ZooKeeper?
 A: KRaft stores cluster metadata in a Raft-replicated log inside a quorum of Kafka controller nodes. It removes a separate system to run, speeds up failover and start-up and supports far more partitions; ZooKeeper was removed in Kafka 4.0.
-Q: What does the controller do?
+Q*: What does the controller do?
 A: It manages cluster metadata: broker liveness, topic and partition configuration, partition leader elections and ISR changes, and propagates updates to brokers.
 Q: How do you make sure no acknowledged write is lost?
 A: Replication factor 3, min.insync.replicas=2, producers with acks=all and idempotence, unclean leader election disabled, and replicas spread across racks or zones.
@@ -909,11 +909,11 @@ Real run (Spring Boot 4.1.1, Spring Kafka 4.1.1, Kafka 4.3.1 broker); a malforme
 - Test the unhappy paths: a malformed payload and a business exception must end up in the DLT, and the partition must keep flowing.
 
 ## Interview Q&A | sky | wide
-Q: How do you produce and consume with Spring Boot?
+Q*: How do you produce and consume with Spring Boot?
 A: Add spring-boot-starter-kafka, configure spring.kafka.* properties, inject KafkaTemplate to send (asynchronously, returning a CompletableFuture), and annotate methods with @KafkaListener(topics, groupId) to consume.
-Q: What is a poison pill and how do you handle it?
+Q*: What is a poison pill and how do you handle it?
 A: A record that can never be processed, such as malformed bytes; without handling it is retried forever and blocks the partition. Use ErrorHandlingDeserializer plus DefaultErrorHandler with a DeadLetterPublishingRecoverer so it goes to a dead-letter topic and consumption continues.
-Q: What is a dead-letter topic?
+Q*: What is a dead-letter topic?
 A: A topic receiving records that failed processing after retries, with headers describing the error, so they can be inspected, fixed and replayed without blocking the main topic.
 Q: Blocking vs non-blocking retries in Spring Kafka?
 A: DefaultErrorHandler retries in place, pausing that partition (keeping order); @RetryableTopic moves failures to delayed retry topics so the main partition continues, at the cost of ordering.
@@ -956,11 +956,11 @@ A: It starts that many consumer threads in the same group; effective parallelism
 - Tie to experience: "Our order events are keyed by order id across 12 partitions; consumers commit after processing and de-duplicate by event id in Postgres; failures go to a DLT that alerts on-call, and we replay fixed records with a small CLI tool."
 
 ## Big Interview Q&A | sky | wide
-Q: Why use Kafka instead of calling services directly?
+Q*: Why use Kafka instead of calling services directly?
 A: It decouples producers from consumers, buffers spikes, lets many independent consumers process the same events, keeps an ordered replayable history, and survives consumer downtime.
-Q: How does Kafka achieve high throughput?
+Q*: How does Kafka achieve high throughput?
 A: Sequential appends to partitioned logs, batching and compression, the OS page cache, zero-copy transfers and parallelism across partitions and brokers.
-Q: What happens when a broker fails?
+Q*: What happens when a broker fails?
 A: For partitions it led, the controller elects new leaders from the in-sync replicas; clients refresh metadata and continue. With RF 3 and min.insync.replicas 2, no acknowledged data is lost.
 Q: How do you guarantee message ordering?
 A: Key related records so they share a partition, keep the idempotent producer enabled, and process each partition sequentially in the consumer.

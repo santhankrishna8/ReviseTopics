@@ -92,11 +92,11 @@ fragment   reviews       (used by the browser only, never sent to the server)
 - **JSON vs XML vs YAML**: **JSON** is compact and maps directly to objects, so it is the API default. **XML** has attributes, namespaces, schemas (XSD) and comments, and lives on in SOAP, documents and legacy integrations (sheet 09). **YAML** is indentation-based with comments, built for humans and used for **configuration** (Kubernetes, OpenAPI files, Spring's `application.yml`); YAML 1.2 was designed as a superset of JSON.
 
 ## Interview Q&A | sky | wide
-Q: What is an API?
+Q*: What is an API?
 A: A defined contract through which one piece of software uses another's functionality or data. A web API exposes it over the network, usually over HTTP.
-Q: What does REST stand for and who defined it?
+Q*: What does REST stand for and who defined it?
 A: Representational State Transfer, an architectural style defined by Roy Fielding in his 2000 doctoral dissertation.
-Q: What is JSON?
+Q*: What is JSON?
 A: JavaScript Object Notation: a lightweight, language-independent text format for structured data, built from objects, arrays, strings, numbers, booleans and null (RFC 8259).
 Q: What makes up an HTTP request and response?
 A: A request has a method, a URL (path and query), headers and an optional body. A response has a status code, headers and an optional body.
@@ -140,11 +140,11 @@ A: No. The part after # is handled by the browser only, for example to scroll to
 - Choose REST for public and web-facing APIs; gRPC is often used for high-throughput internal service calls.
 
 ## Interview Q&A | sky | wide
-Q: What is REST?
+Q*: What is REST?
 A: An architectural style for networked applications where clients manipulate resources, identified by URIs, through representations using a uniform interface (HTTP methods), under constraints such as statelessness and cacheability.
-Q: Name the REST constraints.
+Q*: Name the REST constraints.
 A: Client-server, stateless, cacheable, uniform interface (resource identification, manipulation through representations, self-descriptive messages, HATEOAS), layered system, and optional code on demand.
-Q: What does stateless mean for a REST API?
+Q*: What does stateless mean for a REST API?
 A: The server stores no client session between requests; every request carries all information needed, including authentication, so any server instance can handle it.
 Q: Resource vs representation?
 A: A resource is the conceptual entity (order 42); a representation is a concrete format of its state at a moment (a JSON document) sent over the wire.
@@ -213,11 +213,11 @@ Content-Type: application/json
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is the difference between safe and idempotent?
+Q*: What is the difference between safe and idempotent?
 A: Safe methods do not change server state (GET, HEAD, OPTIONS); idempotent methods can be repeated with the same effect as a single call (safe methods plus PUT and DELETE).
-Q: Is POST idempotent? PATCH?
+Q*: Is POST idempotent? PATCH?
 A: POST is not; repeating it may create duplicates. PATCH is not guaranteed idempotent, because a patch can describe relative changes.
-Q: PUT vs PATCH?
+Q*: PUT vs PATCH?
 A: PUT replaces the whole resource with the representation sent; PATCH applies a partial modification described by a patch document.
 Q: PUT vs POST for creation?
 A: Use POST to a collection when the server assigns the id; use PUT when the client knows the full URI of the resource to create or replace.
@@ -280,11 +280,11 @@ A: Discovering allowed methods and capabilities, notably for CORS preflight requ
 ```
 
 ## Interview Q&A | sky | wide
-Q: 401 vs 403?
+Q*: 401 vs 403?
 A: 401 means the request lacks valid authentication (who are you?); 403 means the server knows or does not need to know who you are, but you are not permitted (you may not do this).
-Q: 400 vs 422?
+Q*: 400 vs 422?
 A: 400 for malformed requests (bad JSON, wrong types); 422 for well-formed requests that fail semantic or business validation. Many APIs use 400 for both; be consistent.
-Q: What should a successful POST that creates a resource return?
+Q*: What should a successful POST that creates a resource return?
 A: 201 Created with a Location header pointing to the new resource, usually with its representation in the body.
 Q: 502 vs 503 vs 504?
 A: 502: a gateway received an invalid response from upstream; 503: the service is temporarily unavailable or overloaded; 504: the gateway timed out waiting for upstream.
@@ -333,11 +333,11 @@ GET    /api/customers/7/orders         sub-collection
 - **CORS** (`Access-Control-Allow-Origin`, preflight with OPTIONS) governs which browser origins may call the API.
 
 ## Interview Q&A | sky | wide
-Q: How should REST resources be named?
+Q*: How should REST resources be named?
 A: As plural nouns representing resources (/orders, /orders/42), lowercase with hyphens, hierarchical for containment, with HTTP methods expressing the action.
-Q: Path parameter vs query parameter?
+Q*: Path parameter vs query parameter?
 A: Path parameters identify a specific resource; query parameters filter, sort, paginate or otherwise modify how a collection or representation is returned.
-Q: How do you model a "cancel order" operation?
+Q*: How do you model a "cancel order" operation?
 A: As a state change (PATCH status) or a sub-resource creation such as POST /orders/42/cancellation, rather than a verb URL like /cancelOrder.
 Q: What is content negotiation?
 A: Choosing the representation format using the Accept header (response) and Content-Type (request), returning 406 or 415 when unsupported.
@@ -382,11 +382,11 @@ class OrderController {
 - Keep version-specific code thin: map both versions to the same domain logic with different DTOs.
 
 ## Interview Q&A | sky | wide
-Q: What API versioning strategies exist?
+Q*: What API versioning strategies exist?
 A: URI path (/v1/), query parameter (?version=1), custom header (API-Version: 1) and media type (Accept: application/vnd.app.v1+json).
-Q: Which strategy would you choose?
+Q*: Which strategy would you choose?
 A: URI path versioning for public APIs because it is explicit and easy to route, document and cache; header or media type when clean URIs matter and clients are sophisticated.
-Q: What is a breaking change?
+Q*: What is a breaking change?
 A: Any change that can break existing clients: removing or renaming fields, changing types or meaning, adding required inputs, or changing behaviour.
 Q: How do you avoid frequent versions?
 A: Make additive, backward-compatible changes, have clients ignore unknown fields, and reserve new versions for real breaking changes.
@@ -440,11 +440,11 @@ Link: <https://api.shop.example/products?page=3&size=20>; rel="next",
 ```
 
 ## Interview Q&A | sky | wide
-Q: Offset vs cursor pagination?
+Q*: Offset vs cursor pagination?
 A: Offset (page/size) is simple and supports jumping to pages and totals but is slow at large offsets and inconsistent when data changes; cursor (keyset) pagination is fast and stable for large or changing data but only supports next/previous navigation.
-Q: Why is deep offset pagination slow?
+Q*: Why is deep offset pagination slow?
 A: The database must read and discard all rows before the offset, so cost grows with the page number; keyset queries use an index to start directly after the last seen row.
-Q: How do you design sorting in a REST API?
+Q*: How do you design sorting in a REST API?
 A: A sort query parameter with field names and directions, a whitelist of allowed fields, and a deterministic tie-breaker (such as id).
 Q: Where should pagination metadata go?
 A: In the response body (page, size, totals or nextCursor) and/or Link headers with next and prev relations.
@@ -500,11 +500,11 @@ Content-Type: application/merge-patch+json
 - Server-side caching (Redis, Caffeine with `@Cacheable`) complements HTTP caching but is a separate concern.
 
 ## Interview Q&A | sky | wide
-Q: no-cache vs no-store?
+Q*: no-cache vs no-store?
 A: no-cache allows storing but requires revalidation with the server before every use; no-store forbids storing the response anywhere.
-Q: How do ETags work?
+Q*: How do ETags work?
 A: The server labels a representation with an ETag; clients send it back in If-None-Match, and if it still matches the server replies 304 Not Modified without a body.
-Q: How do you prevent lost updates in a REST API?
+Q*: How do you prevent lost updates in a REST API?
 A: Optimistic concurrency: clients send If-Match with the ETag (version) they edited; the server rejects stale updates with 412 Precondition Failed.
 Q: What does the Vary header do?
 A: It tells caches which request headers affect the response, so different variants are cached separately.
@@ -565,11 +565,11 @@ EntityModel<OrderDto> get(@PathVariable Long id) {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is the Richardson Maturity Model?
+Q*: What is the Richardson Maturity Model?
 A: A four-level model of REST maturity: level 0 uses one endpoint as an RPC tunnel, level 1 introduces resources, level 2 uses HTTP methods and status codes properly, level 3 adds hypermedia controls (HATEOAS).
-Q: What is HATEOAS?
+Q*: What is HATEOAS?
 A: Hypermedia as the Engine of Application State: responses contain links describing available actions and related resources, so clients navigate the API dynamically instead of hard-coding URIs.
-Q: At which level are most APIs?
+Q*: At which level are most APIs?
 A: Level 2: resource URIs with proper methods and status codes, but no hypermedia.
 Q: Why is HATEOAS rarely implemented?
 A: It increases payload and client complexity and most clients are written against documented URIs anyway; benefits appear mainly for long-lived, workflow-heavy or public APIs.
@@ -641,11 +641,11 @@ A: Hypertext Application Language: a JSON convention with _links for hyperlinks 
 - Both are text; binary alternatives (Protocol Buffers, Avro, MessagePack) are smaller and faster but not human-readable.
 
 ## Interview Q&A | sky | wide
-Q: What data types does JSON support?
+Q*: What data types does JSON support?
 A: Objects, arrays, strings, numbers, booleans (true/false) and null.
-Q: Name things that are not valid JSON.
+Q*: Name things that are not valid JSON.
 A: Comments, trailing commas, single-quoted strings, unquoted keys, leading zeros, NaN or Infinity, undefined, and functions.
-Q: How should dates be represented in JSON?
+Q*: How should dates be represented in JSON?
 A: As ISO 8601 strings with a time zone or offset (for example 2026-10-14T10:02:11Z), documented in the API contract.
 Q: Why send large numeric ids as strings?
 A: JavaScript and many parsers store numbers as doubles, which lose precision above 2^53 - 1, corrupting 64-bit ids.
@@ -727,11 +727,11 @@ public record UpiPayment(String vpa) implements PaymentMethod {}
 - Spring Boot 4 uses Jackson 3 by default; Boot 3.x uses Jackson 2 (`com.fasterxml.jackson.databind`).
 
 ## Interview Q&A | sky | wide
-Q: How do you convert a Java object to JSON and back?
+Q*: How do you convert a Java object to JSON and back?
 A: With Jackson's ObjectMapper: writeValueAsString for serialization and readValue with a class (or TypeReference for generics) for deserialization.
-Q: What does @JsonIgnore do vs @JsonInclude(NON_NULL)?
+Q*: What does @JsonIgnore do vs @JsonInclude(NON_NULL)?
 A: @JsonIgnore always excludes a property from serialization and deserialization; @JsonInclude(NON_NULL) only omits it from output when its value is null.
-Q: Why might deserialization fail with "Unrecognized field"?
+Q*: Why might deserialization fail with "Unrecognized field"?
 A: A plain ObjectMapper fails on unknown properties by default. Spring Boot disables this, or you can use @JsonIgnoreProperties(ignoreUnknown = true) or the configuration feature.
 Q: How do you deserialize a generic list?
 A: Pass a TypeReference, for example new TypeReference<List<OrderDto>>() {}, because erasure removes the element type at runtime.
@@ -807,11 +807,11 @@ JSON.stringify({ big: 10n });            // TypeError: Do not know how to serial
 - Document the contract in **OpenAPI** and generate clients where possible.
 
 ## Interview Q&A | sky | wide
-Q: json.dumps vs json.dump in Python?
+Q*: json.dumps vs json.dump in Python?
 A: dumps returns a JSON string; dump writes JSON to a file-like object. Similarly loads parses a string and load reads from a file.
-Q: How do you serialise a datetime with Python's json module?
+Q*: How do you serialise a datetime with Python's json module?
 A: Provide default= (for example default=str or a function returning isoformat()), or use Pydantic which handles datetimes natively.
-Q: What does JSON.stringify do with undefined and functions?
+Q*: What does JSON.stringify do with undefined and functions?
 A: It omits such properties in objects and writes null for them in arrays.
 Q: How do you parse dates from JSON in JavaScript?
 A: JSON has no date type, so use a reviver function in JSON.parse (or convert after parsing) to turn ISO strings into Date objects.
@@ -852,11 +852,11 @@ A: They are converted to strings, since JSON object keys must be strings; they c
 - Tie to experience: "We added Idempotency-Key handling to the payment endpoint after mobile retries created duplicate charges."
 
 ## Big Interview Q&A | sky | wide
-Q: Design a REST API for a library (books, members, loans).
+Q*: Design a REST API for a library (books, members, loans).
 A: Resources /books, /members, /loans; GET with pagination and filters (?author=, ?available=true); POST /loans to borrow (201 + Location), PATCH /loans/{id} or POST /loans/{id}/return to return; 409 when a book is already on loan; Problem Details errors; ETag for book updates; OAuth scopes for librarians vs members; URI versioning /v1.
-Q: How do you design an API for a long-running operation?
+Q*: How do you design an API for a long-running operation?
 A: POST returns 202 Accepted with a Location to a job resource; clients poll GET /jobs/{id} (or receive a webhook) until it reports completion with a link to the result.
-Q: What makes an API RESTful vs just HTTP?
+Q*: What makes an API RESTful vs just HTTP?
 A: Resource-oriented URIs, correct use of methods and status codes, statelessness, cacheability, self-descriptive messages and ideally hypermedia; many HTTP APIs skip hypermedia and some misuse methods.
 Q: How do you secure a REST API?
 A: TLS everywhere, OAuth 2.0 / JWT bearer tokens validated on every request, fine-grained authorisation, input validation, rate limiting, CORS restrictions, no sensitive data in URLs or logs, and monitoring.

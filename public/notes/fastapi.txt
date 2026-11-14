@@ -91,11 +91,11 @@ shop-api/
 - Choose FastAPI when the team writes Python, the API serves ML models or data pipelines, or you want typed validation and documentation with very little code.
 
 ## Interview Q&A | sky | wide
-Q: Who created FastAPI and when?
+Q*: Who created FastAPI and when?
 A: Sebastián Ramírez (tiangolo), with the first release in December 2018.
-Q: How do you install and run a FastAPI app?
+Q*: How do you install and run a FastAPI app?
 A: Create a virtual environment, run pip install "fastapi[standard]", then use fastapi dev main.py for development (auto-reload) or fastapi run main.py for production. uvicorn main:app also works.
-Q: What happens when a parameter has the wrong type?
+Q*: What happens when a parameter has the wrong type?
 A: FastAPI validates it against the type hint before calling your function and returns 422 with a detail list giving the error type, the location (such as ["path", "item_id"]), a message and the input.
 Q: What is a path operation?
 A: The combination of a URL path and an HTTP method, registered with a decorator such as @app.get("/items/{item_id}") on the function that handles it.
@@ -169,11 +169,11 @@ app.include_router(products.router, prefix="/api/v1")
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is FastAPI and why is it popular?
+Q*: What is FastAPI and why is it popular?
 A: A Python API framework built on Starlette and Pydantic that uses type hints for automatic validation, serialization and OpenAPI documentation, with async support and high performance.
-Q: ASGI vs WSGI?
+Q*: ASGI vs WSGI?
 A: WSGI is a synchronous request/response interface where each request holds a worker; ASGI is asynchronous, lets one worker handle many concurrent requests, and supports WebSockets and lifespan events.
-Q: Where are FastAPI's docs and how are they generated?
+Q*: Where are FastAPI's docs and how are they generated?
 A: Swagger UI at /docs and ReDoc at /redoc, generated from the OpenAPI schema at /openapi.json that FastAPI builds from routes, type hints and Pydantic models.
 Q: Does async make CPU-heavy endpoints faster?
 A: No. Async helps while waiting on I/O; CPU-bound work is limited by the GIL per process, so use multiple workers or offload it.
@@ -278,11 +278,11 @@ async def upload(
 ```
 
 ## Interview Q&A | sky | wide
-Q: How does FastAPI decide whether a parameter is path, query or body?
+Q*: How does FastAPI decide whether a parameter is path, query or body?
 A: Parameters named in the path template are path parameters; Pydantic models are read from the body; other singular parameters are query parameters unless declared with Header, Cookie, Form, File or Body.
-Q: What happens if a parameter has the wrong type?
+Q*: What happens if a parameter has the wrong type?
 A: FastAPI validates it and returns 422 Unprocessable Content with details of which field failed and why.
-Q: How do you make a query parameter optional?
+Q*: How do you make a query parameter optional?
 A: Give it a default value, typically `param: str | None = None`.
 Q: Why use Annotated with Query or Path?
 A: It attaches validation and documentation metadata without using the default value slot, which is the recommended style and keeps signatures type-checker friendly.
@@ -380,11 +380,11 @@ class UserOut(UserBase):
 - Validation error responses have `detail: [{type, loc, msg, input, ...}]`.
 
 ## Interview Q&A | sky | wide
-Q: How does FastAPI validate a request body?
+Q*: How does FastAPI validate a request body?
 A: The parameter's Pydantic model validates and coerces the JSON body; any failure becomes a 422 response listing the failing fields and reasons.
-Q: How do you add constraints to a field?
+Q*: How do you add constraints to a field?
 A: With Field(...) arguments such as gt, le, min_length, max_length or pattern, or with constrained types in Annotated.
-Q: field_validator vs model_validator?
+Q*: field_validator vs model_validator?
 A: field_validator validates or transforms a single field; model_validator runs on the whole model for cross-field rules.
 Q: Why use separate input and output models?
 A: To control exactly what clients can send and receive: inputs may include passwords, outputs must exclude secrets and internal fields, and updates need optional fields.
@@ -483,11 +483,11 @@ app.dependency_overrides.clear()
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is dependency injection in FastAPI?
+Q*: What is dependency injection in FastAPI?
 A: Declaring with Depends() that an endpoint needs the result of another callable; FastAPI resolves the dependency graph per request, passing results in and documenting their parameters.
-Q: What is a dependency with yield used for?
+Q*: What is a dependency with yield used for?
 A: Resources that need cleanup, such as database sessions: code before yield sets up, code after yield (or in finally) cleans up after the endpoint finishes.
-Q: Are dependencies called multiple times per request?
+Q*: Are dependencies called multiple times per request?
 A: No. By default a dependency's result is cached for the request and reused wherever it is declared again; use_cache=False changes that.
 Q: How do you protect all routes in a router?
 A: Add dependencies=[Depends(auth_dependency)] to the APIRouter (or to the FastAPI app for everything).
@@ -568,11 +568,11 @@ async def price(pid: int, response: Response) -> dict:
 ```
 
 ## Interview Q&A | sky | wide
-Q: What does response_model do?
+Q*: What does response_model do?
 A: It declares the output schema: FastAPI validates and serializes the returned data through it, filters out undeclared fields, and documents the response in OpenAPI.
-Q: response_model vs return type annotation?
+Q*: response_model vs return type annotation?
 A: Both declare the response schema; the return annotation is concise, while response_model is needed when the function returns something different (an ORM object or dict) that should be converted.
-Q: How do you prevent a password field from appearing in responses?
+Q*: How do you prevent a password field from appearing in responses?
 A: Use an output model that does not include it (UserOut) as the response model; FastAPI filters it out.
 Q: When would you use StreamingResponse?
 A: For large or incrementally generated content, such as CSV exports, file downloads, logs or streaming tokens, to avoid building the whole body in memory.
@@ -645,11 +645,11 @@ async def validation_handler(request: Request, exc: RequestValidationError) -> J
 - In `yield` dependencies, always **re-raise** after handling (rollback) so FastAPI can produce the error response.
 
 ## Interview Q&A | sky | wide
-Q: How do you return a 404 in FastAPI?
+Q*: How do you return a 404 in FastAPI?
 A: Raise HTTPException(status_code=404, detail="..."), which FastAPI converts to a JSON response with that status.
-Q: How do you handle custom exceptions globally?
+Q*: How do you handle custom exceptions globally?
 A: Register a function with @app.exception_handler(MyException) that receives the request and exception and returns a JSONResponse.
-Q: What status code does FastAPI return for validation errors?
+Q*: What status code does FastAPI return for validation errors?
 A: 422 Unprocessable Content, with a detail array describing each invalid field.
 Q: How do you change the validation error format?
 A: Add an exception handler for RequestValidationError and build your own response from exc.errors(), encoding it with jsonable_encoder.
@@ -713,11 +713,11 @@ app.add_middleware(
 - Third-party: rate limiting (slowapi), sessions (`SessionMiddleware`), OpenTelemetry instrumentation.
 
 ## Interview Q&A | sky | wide
-Q: What is middleware in FastAPI?
+Q*: What is middleware in FastAPI?
 A: A function or ASGI component that wraps every request and response, used for cross-cutting concerns like logging, timing, CORS, compression and security headers.
-Q: How do you measure request processing time?
+Q*: How do you measure request processing time?
 A: An HTTP middleware that records time before await call_next(request) and adds the elapsed time to a response header or log.
-Q: How do you enable CORS?
+Q*: How do you enable CORS?
 A: Add CORSMiddleware with explicit allowed origins, methods and headers (and allow_credentials if cookies or Authorization are sent).
 Q: Why can't you use allow_origins=["*"] with credentials?
 A: Browsers refuse credentialed responses with a wildcard Access-Control-Allow-Origin; the server must echo a specific allowed origin.
@@ -808,11 +808,11 @@ async def weather(city: str, request: Request) -> dict:
 - **WebSockets** (`@app.websocket`) and **Server-Sent Events** (StreamingResponse) are supported for real-time features.
 
 ## Interview Q&A | sky | wide
-Q: When should an endpoint be async def vs def?
+Q*: When should an endpoint be async def vs def?
 A: async def when it awaits async libraries; def when it uses blocking libraries, because FastAPI runs def endpoints in a thread pool so they do not block the event loop.
-Q: What happens if you call requests.get inside an async endpoint?
+Q*: What happens if you call requests.get inside an async endpoint?
 A: It blocks the event loop, so all other requests on that worker wait until it finishes. Use an async client or run it in a thread pool.
-Q: How do BackgroundTasks work and what are their limits?
+Q*: How do BackgroundTasks work and what are their limits?
 A: Functions added to BackgroundTasks run after the response is sent, in the same process; they are not persisted or retried, so use a task queue like Celery for important or heavy jobs.
 Q: How do you run code at startup and shutdown?
 A: With a lifespan async context manager passed to FastAPI(lifespan=...): code before yield runs at startup, after yield at shutdown. on_event is deprecated.
@@ -900,11 +900,11 @@ async def create_order(cid: int, total: Decimal, session: SessionDep) -> dict:
 - Keep ORM models separate from Pydantic API models (or use `from_attributes=True` output models).
 
 ## Interview Q&A | sky | wide
-Q: How do you use a database with async FastAPI?
+Q*: How do you use a database with async FastAPI?
 A: An async driver with SQLAlchemy 2.0's create_async_engine and AsyncSession (or another async ORM), providing a session per request through a yield dependency.
-Q: Why does accessing a relationship fail with MissingGreenlet in async code?
+Q*: Why does accessing a relationship fail with MissingGreenlet in async code?
 A: Implicit lazy loading would perform database I/O synchronously, which AsyncSession cannot do (SQLAlchemy raises an error wrapping MissingGreenlet: "greenlet_spawn has not been called"); eager-load relationships with selectinload or joinedload, or load them explicitly with `await session.refresh(obj, ["orders"])` or `awaitable_attrs`.
-Q: selectinload vs joinedload?
+Q*: selectinload vs joinedload?
 A: selectinload issues a second SELECT ... WHERE id IN (...) query, ideal for collections; joinedload uses a JOIN in the same query, ideal for single related objects.
 Q: Why set expire_on_commit=False?
 A: So objects keep their loaded attributes after commit; otherwise accessing them would trigger a reload, which fails or adds queries in async code.
@@ -996,11 +996,11 @@ async def place(user: Annotated[dict, Security(get_current_user, scopes=["orders
 - Always HTTPS; rate-limit the login endpoint; do not leak whether a username exists.
 
 ## Interview Q&A | sky | wide
-Q: What does OAuth2PasswordBearer do?
+Q*: What does OAuth2PasswordBearer do?
 A: It is a dependency that reads the bearer token from the Authorization header (401 if missing) and documents the OAuth2 flow in OpenAPI; validating the token is your code's job.
-Q: How do you implement JWT authentication in FastAPI?
+Q*: How do you implement JWT authentication in FastAPI?
 A: A /token endpoint verifies the password hash and issues a signed JWT with sub, exp and scopes; a get_current_user dependency decodes and verifies it with PyJWT, loads the user and raises 401 on failure; protected endpoints depend on it.
-Q: How do scopes work in FastAPI?
+Q*: How do scopes work in FastAPI?
 A: Tokens carry granted scopes; endpoints declare required scopes with Security(dependency, scopes=[...]); the dependency reads SecurityScopes and returns 403 when a required scope is missing.
 Q: How should passwords be stored?
 A: As salted hashes with a slow algorithm such as Argon2 or bcrypt, never plain or with fast hashes like SHA-256.
@@ -1047,11 +1047,11 @@ CMD ["fastapi", "run", "app/main.py", "--port", "8000", "--proxy-headers"]
 - Security: HTTPS at the proxy, CORS restricted, rate limiting, docs disabled or protected if the API is private, dependency updates.
 
 ## Interview Q&A | sky | wide
-Q: How do you deploy FastAPI in production?
+Q*: How do you deploy FastAPI in production?
 A: Run it with an ASGI server (fastapi run or Uvicorn, optionally Gunicorn with uvicorn-worker) behind a reverse proxy or load balancer handling TLS, usually in Docker with one process per container under Kubernetes, configured via environment variables.
-Q: What do Uvicorn workers do?
+Q*: What do Uvicorn workers do?
 A: Each worker is a separate process with its own event loop, letting the app use multiple CPU cores and survive a single process crash.
-Q: Why use proxy headers?
+Q*: Why use proxy headers?
 A: Behind a proxy the app sees the proxy's address and scheme; trusting X-Forwarded-* headers from known proxies restores the real client IP and https URLs.
 Q: How many workers per container on Kubernetes?
 A: Typically one; scale horizontally with replicas so the orchestrator manages processes, restarts and load balancing.
@@ -1097,11 +1097,11 @@ A: So the server is PID 1 and receives SIGTERM directly, allowing graceful shutd
 - Tie to experience: "We moved the report generation from an async endpoint calling pandas to a Celery task; p95 latency of the other endpoints dropped from 2 s to 80 ms."
 
 ## Big Interview Q&A | sky | wide
-Q: Build a CRUD endpoint set for products in FastAPI.
+Q*: Build a CRUD endpoint set for products in FastAPI.
 A: An APIRouter with Pydantic ProductCreate/ProductUpdate/ProductOut models, a session dependency, GET list with pagination dependency, GET by id (404 via HTTPException), POST returning 201 with ProductOut, PATCH using model_dump(exclude_unset=True), DELETE returning 204, all protected by a current-user dependency.
-Q: How does FastAPI achieve high performance?
+Q*: How does FastAPI achieve high performance?
 A: It runs on ASGI servers like Uvicorn with uvloop, uses Starlette's lightweight routing, async I/O for concurrency, and Pydantic's Rust-based core for validation and JSON serialization.
-Q: How do you structure a large FastAPI project?
+Q*: How do you structure a large FastAPI project?
 A: Routers per domain under app/routers, Pydantic schemas, database models and session dependency, services for business logic, settings via pydantic-settings, middleware and exception handlers registered in main.py, and tests using TestClient with dependency overrides.
 Q: How do you handle configuration?
 A: A pydantic-settings BaseSettings class reading environment variables (and .env in development), created once and injected as a dependency.

@@ -65,11 +65,11 @@ console.log(resp.choices[0].message.content);
 - **LLM vs traditional NLP/ML**: one general model handles many tasks from instructions, instead of training a separate model per task, at higher cost per prediction and with less predictability.
 
 ## Interview Q&A | sky | wide
-Q: What is a large language model?
+Q*: What is a large language model?
 A: A Transformer neural network with billions of parameters, trained on massive text corpora to predict the next token, which lets it generate text, follow instructions and perform many language tasks.
-Q: What was the key innovation of the Transformer?
+Q*: What was the key innovation of the Transformer?
 A: Self-attention, which lets every token directly attend to every other token in parallel, replacing recurrent networks and scaling to very large models and datasets.
-Q: How is a chat model like ChatGPT trained?
+Q*: How is a chat model like ChatGPT trained?
 A: Pre-training on next-token prediction to get a base model, supervised fine-tuning on instruction-following examples, then preference tuning such as RLHF or DPO to align answers with human preferences.
 Q: Why do LLMs hallucinate?
 A: They generate plausible continuations from patterns in their weights, without checking facts against a source, and their knowledge stops at a training cutoff.
@@ -117,11 +117,11 @@ messages = [
 - **Never put secrets** (API keys, internal URLs, other users' data) in any prompt. Assume the system prompt can be leaked.
 
 ## Interview Q&A | sky | wide
-Q: What is the difference between system, user and assistant messages?
+Q*: What is the difference between system, user and assistant messages?
 A: System sets persistent behaviour and rules, user carries the request and injected data, assistant holds the model's earlier replies (or examples you write). Together they form the conversation the model continues.
-Q: Does the model remember previous API calls?
+Q*: Does the model remember previous API calls?
 A: No. The API is stateless; the client resends the relevant history on every call, which is why long chats cost more and need truncation or summarisation.
-Q: What is the developer role?
+Q*: What is the developer role?
 A: In OpenAI's API, o1 and newer reasoning models use developer messages in place of system messages for instructions from the application developer.
 Q: Is the system prompt a security control?
 A: No. It strongly steers behaviour, but prompt injection and jailbreaks can override it, so real enforcement belongs in code: permissions, validation and approval steps.
@@ -171,11 +171,11 @@ messages = [
 - **Fine-tuning**: bakes in the behaviour, giving shorter prompts and consistent style; needs data, training cost and redeployment. Use it when few-shot is not enough or prompts become too long.
 
 ## Interview Q&A | sky | wide
-Q: What is in-context learning?
+Q*: What is in-context learning?
 A: The model's ability to pick up a task from instructions and examples inside the prompt, at inference time, without changing its weights.
-Q: When would you use few-shot over zero-shot?
+Q*: When would you use few-shot over zero-shot?
 A: When zero-shot gets the format, labels or style wrong, or the task is easier to show than to describe, for example a custom extraction format or domain-specific categories.
-Q: What can go wrong with few-shot examples?
+Q*: What can go wrong with few-shot examples?
 A: Label imbalance and recency bias, overfitting to surface features of the examples, copying example content into answers, and higher token cost.
 Q: How many examples should you use?
 A: Usually 2 to 8 diverse, consistently formatted examples covering edge cases; measure on a test set rather than guessing.
@@ -222,11 +222,11 @@ Strong:  Summarize the incident report below for the VP of Engineering.
 - Re-run evals when you **change models**: prompts that worked on one model can behave differently on another.
 
 ## Interview Q&A | sky | wide
-Q: What makes a good prompt?
+Q*: What makes a good prompt?
 A: A clear task, relevant context, explicit output format and constraints, delimiters separating instructions from data, examples when needed, and guidance for edge cases and uncertainty.
-Q: Why use delimiters like XML tags?
+Q*: Why use delimiters like XML tags?
 A: They mark where data starts and ends, so the model does not confuse document text with instructions, and they make templated prompts reliable and readable.
-Q: How do you know a prompt change is an improvement?
+Q*: How do you know a prompt change is an improvement?
 A: Evaluate it against a fixed test set with measurable criteria, compare to the previous version, and check for regressions on edge cases.
 Q: Should constraints be enforced only through the prompt?
 A: No. The prompt makes compliance likely, but code should validate schema, length and allowed values, and retry or fail safely.
@@ -289,11 +289,11 @@ print(resp.choices[0].finish_reason, resp.usage.prompt_tokens, resp.usage.comple
 - OpenAI recommends Responses for **new projects**; **Chat Completions remains supported** and is the de-facto standard that many other providers and local servers (vLLM, Ollama) imitate.
 
 ## Interview Q&A | sky | wide
-Q: Walk through a Chat Completions request and response.
+Q*: Walk through a Chat Completions request and response.
 A: POST to /v1/chat/completions with model and messages (plus options such as temperature, tools, response_format). The response contains choices, each with an assistant message and a finish_reason, and a usage block with prompt and completion token counts.
-Q: What does finish_reason "length" mean and how do you handle it?
+Q*: What does finish_reason "length" mean and how do you handle it?
 A: Generation hit max_completion_tokens or the context limit, so the output is truncated. Raise the limit, shorten the input, ask for shorter output, or continue generation, and never parse truncated JSON as complete.
-Q: GPT-4o vs GPT-4o-mini vs o3-mini?
+Q*: GPT-4o vs GPT-4o-mini vs o3-mini?
 A: GPT-4o is the multimodal flagship for general quality; GPT-4o-mini is the cheap, fast option for high-volume simple tasks; o3-mini is a reasoning model that spends hidden reasoning tokens for better accuracy on maths, code and logic, with an adjustable reasoning_effort.
 Q: What are reasoning tokens?
 A: Hidden chain-of-thought tokens that reasoning models generate before the visible answer. You pay for them as output tokens and they consume max_completion_tokens, but they are not returned.
@@ -351,11 +351,11 @@ temperature 0.2 -> Paris becomes ~0.99999      temperature 1.5 -> Lyon, Nice gai
 - **Multiple diverse candidates** (for voting or reranking): higher temperature with `n > 1` or several calls.
 
 ## Interview Q&A | sky | wide
-Q: What does temperature do mathematically?
+Q*: What does temperature do mathematically?
 A: It divides the logits before softmax. Below 1 it sharpens the distribution toward the most likely token; above 1 it flattens it so less likely tokens are sampled more often.
-Q: temperature vs top_p?
+Q*: temperature vs top_p?
 A: Temperature rescales the whole distribution; top_p truncates it to the smallest set of tokens whose cumulative probability reaches p and samples from those. Tune one of them, not both.
-Q: Is temperature 0 deterministic?
+Q*: Is temperature 0 deterministic?
 A: Nearly, but not guaranteed in hosted APIs because of floating-point and batching non-determinism; use seed for best-effort reproducibility and design tests to tolerate small variation.
 Q: presence_penalty vs frequency_penalty?
 A: Frequency penalty grows with each repetition of a token and reduces verbatim repetition; presence penalty is a one-time penalty once a token has appeared and pushes toward new topics.
@@ -406,11 +406,11 @@ class Solution(BaseModel):
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is chain-of-thought prompting?
+Q*: What is chain-of-thought prompting?
 A: Prompting the model to produce intermediate reasoning steps before the final answer, either through few-shot examples that show the steps or a trigger such as "Let's think step by step".
-Q: Few-shot CoT vs zero-shot CoT?
+Q*: Few-shot CoT vs zero-shot CoT?
 A: Few-shot CoT gives hand-written examples with reasoning and is usually more accurate; zero-shot CoT only appends a trigger phrase, so it needs no examples but is generally weaker.
-Q: Why does CoT improve accuracy?
+Q*: Why does CoT improve accuracy?
 A: It spreads computation across more tokens, so the model can store and reuse intermediate results instead of jumping straight to an answer.
 Q: Should you use "think step by step" with o3-mini?
 A: No. Reasoning models already reason internally; OpenAI recommends simple, direct prompts for them.
@@ -460,11 +460,11 @@ Summarize the article in 2-3 sentences based on the hint.
 - **Needs external information or actions**: ReAct and tool calling (next sheet).
 
 ## Interview Q&A | sky | wide
-Q: Explain Least-to-Most prompting.
+Q*: Explain Least-to-Most prompting.
 A: First prompt the model to decompose a problem into simpler subproblems, then solve them sequentially, feeding each answer into the next step. It generalises to problems harder than the examples.
-Q: How does Least-to-Most differ from CoT?
+Q*: How does Least-to-Most differ from CoT?
 A: CoT reasons through everything in one pass; Least-to-Most separates explicit decomposition from step-by-step solving, which handles longer compositional problems better at the cost of more calls.
-Q: What is a directional stimulus?
+Q*: What is a directional stimulus?
 A: An instance-specific hint, such as keywords, generated by a small trainable policy model and inserted into the prompt to steer a frozen large model toward the desired output.
 Q: How is the DSP policy model trained?
 A: Supervised fine-tuning on pseudo-labelled hints, followed by reinforcement learning that rewards hints leading to better LLM outputs.
@@ -524,11 +524,11 @@ def react(question: str, tools: dict, llm, max_steps: int = 6) -> str:
 - **Unsafe actions**: require **human approval** for side-effecting tools, and treat tool output as **untrusted data** (prompt injection, sheet 15).
 
 ## Interview Q&A | sky | wide
-Q: What is ReAct?
+Q*: What is ReAct?
 A: A prompting pattern where the model alternates Thought, Action and Observation steps, using tools to gather information or act, until it produces a final answer.
-Q: Why use a stop sequence in ReAct?
+Q*: Why use a stop sequence in ReAct?
 A: To stop generation right after the Action, so the application runs the tool and inserts the real observation instead of the model inventing one.
-Q: How does ReAct relate to function calling?
+Q*: How does ReAct relate to function calling?
 A: Function calling is the structured, API-level way to implement ReAct's action step; the reasoning-act-observe loop is the same.
 Q: What are common ReAct failure modes?
 A: Loops, repeated or invalid actions, hallucinated observations, context overflow and unsafe tool calls; mitigate with step limits, validation, stop sequences and approval gates.
@@ -593,11 +593,11 @@ else:
 - Keep schemas **simple and flat** where possible, use **enums** for categories, and add **`description`** fields, which the model reads.
 
 ## Interview Q&A | sky | wide
-Q: JSON mode vs Structured Outputs?
+Q*: JSON mode vs Structured Outputs?
 A: JSON mode guarantees syntactically valid JSON but not its shape; Structured Outputs with strict json_schema guarantees the output matches your schema through constrained decoding.
-Q: How does OpenAI guarantee schema adherence?
+Q*: How does OpenAI guarantee schema adherence?
 A: Constrained decoding: the schema is compiled into a grammar, and at each step only tokens that keep the output valid are allowed.
-Q: Why must every field be required in strict mode, and how do you make one optional?
+Q*: Why must every field be required in strict mode, and how do you make one optional?
 A: Strict mode requires all properties to be listed as required; optional values are expressed as a union with null, so the model returns null when the value is absent.
 Q: How do you use Pydantic with the OpenAI SDK?
 A: Pass the Pydantic class as response_format to client.chat.completions.parse; the SDK builds the strict schema and returns message.parsed as a validated instance.
@@ -671,11 +671,11 @@ for _ in range(5):                                   # cap the loop
 - **Log every call** with arguments and results, and **cap iterations** to prevent runaway loops and cost.
 
 ## Interview Q&A | sky | wide
-Q: How does function calling work?
+Q*: How does function calling work?
 A: You pass tool definitions (name, description, JSON Schema); the model returns tool_calls with a function name and JSON arguments; your code executes the function and returns the result in a tool message; the model then continues, possibly calling more tools, until it replies in text.
-Q: Does the model execute the function?
+Q*: Does the model execute the function?
 A: No. It only produces a structured request; the application decides whether and how to run it.
-Q: What is strict mode for tools?
+Q*: What is strict mode for tools?
 A: Setting strict true makes the arguments conform exactly to the parameter schema, using the same constrained decoding as Structured Outputs; the schema must follow the strict rules (all fields required, no additional properties).
 Q: What happens if you don't return a result for a tool call?
 A: The next request fails, because every tool_call_id in the assistant message must be answered by a tool message.
@@ -721,11 +721,11 @@ resp = client.chat.completions.create(
 - **Ordering**: with parallel calls, keep results matched by `tool_call_id`, not by list position.
 
 ## Interview Q&A | sky | wide
-Q: What is parallel function calling?
+Q*: What is parallel function calling?
 A: The model returns multiple independent tool calls in one turn; you execute them (possibly concurrently) and return one tool message per call ID before the next request.
-Q: When would you set parallel_tool_calls to false?
+Q*: When would you set parallel_tool_calls to false?
 A: When calls depend on each other or have side effects that must happen in order, or when you need strict schema adherence, which OpenAI does not guarantee for parallel calls.
-Q: What values can tool_choice take?
+Q*: What values can tool_choice take?
 A: "auto" (model decides), "none" (no tools), "required" (must call at least one tool) or a specific function object to force that tool.
 Q: How do you force structured extraction with tools?
 A: Define a tool whose parameters are the fields you need and set tool_choice to that function; the arguments are your extracted data.
@@ -824,11 +824,11 @@ es.onmessage = (e) => {
 - If the client disconnects, **stop consuming** the upstream stream so you stop paying for tokens nobody reads.
 
 ## Interview Q&A | sky | wide
-Q: Why stream LLM responses?
+Q*: Why stream LLM responses?
 A: To cut time-to-first-token so users see output immediately; total generation time is similar, but perceived latency is much lower.
-Q: What is SSE and how does OpenAI use it?
+Q*: What is SSE and how does OpenAI use it?
 A: Server-Sent Events: a text/event-stream HTTP response carrying data lines. OpenAI sends one chat.completion.chunk JSON per event with a delta, ending with data: [DONE].
-Q: How do you get token usage when streaming?
+Q*: How do you get token usage when streaming?
 A: Set stream_options include_usage to true; a final chunk with empty choices carries the usage object.
 Q: How do streamed tool calls work?
 A: Each call's index, id and name come first, then argument fragments arrive across chunks; accumulate by index and parse the arguments after the stream finishes.
@@ -886,11 +886,11 @@ def truncate_to_tokens(text: str, max_tokens: int, model: str = "gpt-4o-mini") -
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a token?
+Q*: What is a token?
 A: The unit the model processes, a word or word piece produced by a BPE tokenizer; in English about four characters on average.
-Q: Which encoding does GPT-4o use?
+Q*: Which encoding does GPT-4o use?
 A: o200k_base; GPT-4 and GPT-3.5 Turbo use cl100k_base, as do the text-embedding-3 models.
-Q: Why count tokens before calling the API?
+Q*: Why count tokens before calling the API?
 A: To fit the context window, set max output tokens, chunk documents for embeddings, estimate cost and stay within tokens-per-minute limits.
 Q: Is a tiktoken count of the message text exactly what you are billed?
 A: No. Chat formatting adds per-message overhead, and tools, images and schemas add more; the response's usage field is the exact count.
@@ -958,11 +958,11 @@ def complete(**kwargs):
 - **Fail gracefully**: after retries are exhausted, return a clear message or fall back to a cheaper model instead of hanging.
 
 ## Interview Q&A | sky | wide
-Q: What are RPM and TPM?
+Q*: What are RPM and TPM?
 A: Requests per minute and tokens per minute, the two main rate limits; you are limited by whichever is reached first.
-Q: How do you handle a 429?
+Q*: How do you handle a 429?
 A: Distinguish rate_limit_exceeded (retry with exponential backoff and jitter, honouring Retry-After) from insufficient_quota (stop and alert), and reduce pressure with throttling and queues.
-Q: Why add jitter to backoff?
+Q*: Why add jitter to backoff?
 A: So clients that failed at the same moment don't retry in lockstep and overload the service again; randomised delays spread the retries out.
 Q: Does the OpenAI SDK retry automatically?
 A: Yes, twice by default for connection errors, 408, 409, 429 and 5xx, with exponential backoff and Retry-After support; max_retries changes this.
@@ -1007,11 +1007,11 @@ A: Use the Batch API if latency doesn't matter; otherwise a queue with bounded c
 - **Defences**: rely on the provider's safety-trained models, add **moderation** on inputs and outputs (for example OpenAI's Moderation API), use safety classifiers, keep a strong system prompt, monitor and rate-limit abusive users, pass a per-user **`safety_identifier`**, and **red-team** before launch.
 
 ## Interview Q&A | sky | wide
-Q: Why do LLMs hallucinate?
+Q*: Why do LLMs hallucinate?
 A: They are trained to produce plausible text, not verified truth; they have knowledge gaps and cutoffs, and training and evaluation often reward guessing over abstaining.
-Q: How do you reduce hallucinations in a production assistant?
+Q*: How do you reduce hallucinations in a production assistant?
 A: Ground answers with retrieval and instruct context-only answers, allow "I don't know", require and verify citations, use tools for facts and calculations, lower temperature, add a verification step and measure faithfulness.
-Q: Direct vs indirect prompt injection?
+Q*: Direct vs indirect prompt injection?
 A: Direct comes from the user's own input; indirect is planted in content the model processes (web pages, documents, emails, tool output) and can attack users who did nothing wrong.
 Q: How do you defend an agent against prompt injection?
 A: Least-privilege tools scoped to the user, authorization in code, human approval for side effects, marking untrusted content, output validation and URL allowlists, classifiers and monitoring, and keeping secrets out of the prompt; assume injection will sometimes succeed and limit the damage.
@@ -1061,11 +1061,11 @@ A: It helps a little, but no prompt reliably prevents it; real protection comes 
 - Tie to experience: "Our ticket classifier moved from free-text parsing to Structured Outputs with an enum; parse failures dropped to zero and we removed 200 lines of regex."
 
 ## Big Interview Q&A | sky | wide
-Q: Design a reliable LLM-powered support-ticket classifier.
+Q*: Design a reliable LLM-powered support-ticket classifier.
 A: A system prompt with category definitions, a few diverse examples, temperature near 0, Structured Outputs with an enum category and a confidence field, a cheap model such as gpt-4o-mini, validation and a fallback "needs_review" category, retries with backoff, an evaluation set with accuracy tracking, and logging of prompts, outputs and usage.
-Q: How would you build a chatbot that answers from company documents without making things up?
+Q*: How would you build a chatbot that answers from company documents without making things up?
 A: Retrieval-augmented generation for grounding, a system prompt requiring context-only answers with citations and "I don't know" when unsupported, low temperature, citation verification, streaming for UX, and faithfulness evaluation and monitoring.
-Q: Explain the full tool-calling loop including errors.
+Q*: Explain the full tool-calling loop including errors.
 A: Send messages with tool schemas; on tool_calls, append the assistant message, validate and authorise each call, execute (in parallel if independent), append a tool message per call ID with the result or a structured error, call the model again, and stop at a text answer or a step limit; confirm destructive actions with the user.
 Q: How do you control cost in an LLM application?
 A: Pick the smallest model that passes evals, keep prompts and history short, cap output tokens, cache repeated results, use batch processing for offline work, count tokens with tiktoken, and monitor usage per feature.

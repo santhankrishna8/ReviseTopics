@@ -1,0 +1,170 @@
+# 01 | React Interview Cheat Sheet | Components, state, hooks, rendering and performance with short examples and hooks. | React on one page
+
+### Basics
+
+## What is React?
+> A **component-based UI library**: you describe the UI as a function of state, React updates the DOM efficiently via the **virtual DOM** and diffing (reconciliation).
+- **Declarative** (describe what, not how), **one-way data flow** (props down, events up).
+- **JSX** is syntax sugar for `React.createElement`; `className`, `htmlFor`, camelCase attributes, one root element (or `<>...</>`).
+! UI = f(state).
+
+## Components & Props
+```jsx
+function Greeting({ name, onSelect }) {
+  return <button onClick={() => onSelect(name)}>Hi {name}</button>;
+}
+<Greeting name="Asha" onSelect={handle} />
+```
+- Props are **read-only**. `children` holds nested content. Keep components small and pure.
+! Never mutate props or state directly.
+
+## Rendering Lists & Conditionals
+```jsx
+{items.map(i => <Row key={i.id} item={i} />)}
+{loading ? <Spinner /> : <List />}      {error && <Error />}
+```
+- **`key`** must be stable and unique among siblings; avoid the array index when items reorder (state gets attached to the wrong item).
+! A bad key causes subtle state bugs.
+
+### Hooks
+
+## useState
+```jsx
+const [count, setCount] = useState(0);
+setCount(c => c + 1);                    // functional update when based on previous state
+setUser(u => ({ ...u, name: "A" }));     // new object, never mutate
+```
+- Updates are **batched** and asynchronous; the new value shows on the next render. Same value = no re-render.
+! `setCount(count + 1)` twice in a row adds only 1; use the updater form.
+
+## useEffect
+```jsx
+useEffect(() => {
+  const id = setInterval(tick, 1000);
+  return () => clearInterval(id);        // cleanup on unmount or before re-run
+}, [dep]);                               // [] = once, [dep] = when dep changes, none = every render
+```
+- For syncing with the outside world (fetch, subscriptions, timers). Don't use it to compute derived values; compute during render.
+- Strict Mode runs effects twice in dev to expose missing cleanup.
+! Missing dependency means stale closure; list everything you use.
+
+## useRef, useMemo, useCallback
+```jsx
+const inputRef = useRef(null);  inputRef.current.focus();     // mutable box, no re-render, or DOM node
+const total = useMemo(() => expensive(items), [items]);       // cache a value
+const onSave = useCallback(() => save(id), [id]);             // stable function identity
+```
+- `memo`, `useMemo`, `useCallback` are **optimizations**; measure first. React Compiler automates much of this.
+! Don't memoize everything; it has a cost too.
+
+## useContext & useReducer
+```jsx
+const ThemeCtx = createContext("light");
+const theme = useContext(ThemeCtx);
+const [state, dispatch] = useReducer(reducer, init);   dispatch({ type: "add", item });
+```
+- Context avoids **prop drilling** but re-renders all consumers when the value changes. `useReducer` for complex state transitions.
+! Context for rarely changing data (theme, user); a store library for hot state.
+
+## Custom Hooks & Rules of Hooks
+```jsx
+function useFetch(url) {
+  const [d, setD] = useState(null);
+  useEffect(() => { fetch(url).then(r => r.json()).then(setD); }, [url]);
+  return d;
+}
+```
+- **Rules:** call hooks only at the top level (not in loops/conditions) and only in components or hooks. Names start with `use`.
+! A custom hook shares logic, not state.
+
+### Rendering & Performance
+
+## When Does a Component Re-render?
+- When its **state changes**, when its **parent re-renders**, or when a **context** it reads changes.
+- Fixes: lift state down, `React.memo` for pure children, stable props, split context, virtualize long lists.
+! A re-render is not a DOM update; React only patches differences.
+
+## Controlled vs Uncontrolled
+```jsx
+<input value={text} onChange={e => setText(e.target.value)} />   // controlled: state is the source of truth
+<input defaultValue="x" ref={ref} />                              // uncontrolled: DOM holds the value
+```
+! Controlled inputs always need `value` and `onChange`.
+
+## Data Fetching & State Management
+- Server state: **TanStack Query / SWR** (caching, retries). Client state: `useState`, context, Redux Toolkit, Zustand.
+- Server Components (Next.js) fetch on the server; Suspense shows fallbacks; `use()` reads a promise.
+! Don't copy server data into local state without a reason.
+
+## React 19 Highlights
+- **Actions** and `useActionState`, `useOptimistic`, `useFormStatus`; `ref` as a prop (no `forwardRef`); `use()` for promises and context; Server Components stable.
+! Mention one new feature you have really used.
+
+## Testing
+- **React Testing Library** + Jest/Vitest: render, query by role/text, simulate user events, assert on what the user sees, not implementation details.
+! Test behaviour, not state variables.
+
+### More React
+
+## Batching & the Render/Commit Phases
+- React **batches** state updates (even in async code since React 18) into one render. **Render phase:** call components, build the new tree (must be pure). **Commit phase:** apply DOM changes, run layout effects, then effects.
+- `flushSync` forces a synchronous update (rare).
+! Several `setState` calls in one handler cause one render.
+
+## Fiber & Concurrent Rendering
+> **Fiber** is the reconciler that splits rendering into interruptible units, enabling priorities. **Concurrent features:** `useTransition` / `startTransition` (mark updates as low priority), `useDeferredValue`, Suspense.
+```jsx
+const [pending, start] = useTransition();
+start(() => setQuery(value));          // keeps typing responsive while the heavy list re-renders
+```
+! Transitions keep the UI responsive during heavy updates.
+
+## Why Keys Matter
+- Same key and position keeps the component's state; a different key **remounts** it. Changing a `key` deliberately resets a component (e.g. `<Profile key={userId} />`).
+! Key = identity.
+
+## Lifecycle Mapping (Class to Hooks)
+```text
+componentDidMount          -> useEffect(fn, [])
+componentDidUpdate         -> useEffect(fn, [deps])
+componentWillUnmount       -> cleanup function returned from useEffect
+shouldComponentUpdate      -> React.memo
+getDerivedStateFromProps   -> compute during render
+```
+! Hooks sync with state; they are not lifecycle events.
+
+## Forms & Validation Libraries
+- **React Hook Form** (uncontrolled, fast) with **Zod** schemas for validation; Formik is older. Show errors after blur or submit, disable submit while pending, use `useActionState` with form actions in React 19.
+```jsx
+const { register, handleSubmit, formState: { errors } } = useForm({ resolver: zodResolver(schema) });
+```
+! Validate on the server too.
+
+## Project Structure & Routing
+- Group by **feature** (`features/orders/{components,hooks,api}`), keep shared UI in `components/`, one data-access layer, absolute imports. Routing: **React Router** or the Next.js App Router. Tooling: Vite, ESLint, TypeScript.
+! Feature folders scale better than type folders.
+
+## Patterns: Error Boundaries, Portals, HOCs, Render Props
+- **Error boundary** (class or `react-error-boundary`) catches render errors in children. **Portal** renders outside the parent DOM (modals). **HOC** and **render props** are older reuse patterns; prefer custom hooks. **Suspense** + `lazy()` for code splitting.
+```jsx
+const Admin = lazy(() => import("./Admin"));   <Suspense fallback={<Spinner />}><Admin /></Suspense>
+```
+! Custom hooks replaced most HOCs.
+
+### Must-Know Questions
+
+## React Questions
+Q*: What is the virtual DOM?
+A: An in-memory tree of the UI; React diffs the new tree against the old and applies only the minimal real-DOM changes.
+Q*: State vs props?
+A: Props are inputs passed down and read-only; state is data owned and changed by the component, causing re-renders.
+Q*: Why is `key` important?
+A: It gives list items a stable identity so React can reorder, add and remove them without mixing up state.
+Q*: Explain `useEffect` and its dependency array.
+A: It runs side effects after render; the array decides when it re-runs (`[]` once, `[x]` on change, none every render); return a cleanup function.
+Q*: How do you avoid unnecessary re-renders?
+A: `React.memo`, stable props via `useMemo`/`useCallback`, moving state down, splitting context and virtualizing lists.
+Q: Controlled vs uncontrolled components?
+A: Controlled keep form values in React state; uncontrolled leave them in the DOM and read via refs.
+Q: What is prop drilling and how do you fix it?
+A: Passing props through many layers; use context, composition or a state store.

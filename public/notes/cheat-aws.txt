@@ -1,0 +1,89 @@
+# 01 | AWS Interview Cheat Sheet | The core services, what each is for, and the architecture questions you get asked. | AWS on one page
+
+### Foundations
+
+## Regions, AZs & the Shared Responsibility Model
+> A **Region** is a geographic area; each has several isolated **Availability Zones (AZs)**. Deploy across 2+ AZs for high availability. **Edge locations** serve CloudFront.
+- **Shared responsibility:** AWS secures the cloud (hardware, facilities); you secure what's in it (data, IAM, config, patching your OS).
+! Multi-AZ for availability; multi-region for disaster recovery.
+
+## IAM (Identity & Access Management)
+> Controls **who** can do **what** on **which** resources. **Users**, **groups**, **roles** (assumed temporarily, used by services), **policies** (JSON).
+```json
+{ "Effect": "Allow", "Action": ["s3:GetObject"], "Resource": "arn:aws:s3:::my-bucket/*" }
+```
+- **Least privilege**, MFA on root, no root for daily work, prefer **roles** over long-lived keys. Explicit **Deny** beats Allow.
+! Give an EC2/Lambda a role, never hard-code access keys.
+
+### Compute
+
+## EC2, Auto Scaling, ELB
+- **EC2:** virtual servers (instance types, AMIs, key pairs, security groups, EBS volumes). Pricing: on-demand, reserved/savings plans, **spot** (cheap, interruptible).
+- **Auto Scaling Group** adds/removes instances by load; **ELB** (ALB for HTTP L7, NLB for TCP L4) distributes traffic and health-checks.
+! ALB + ASG across AZs is the classic scalable web tier.
+
+## Lambda & Serverless
+> **Lambda** runs code on events with no servers to manage; pay per request and duration; auto-scales. Limits: 15 min max, cold starts.
+- Triggers: API Gateway, S3, SQS, SNS, EventBridge, DynamoDB streams.
+! Short, event-driven, spiky workloads fit Lambda.
+
+## Containers: ECS, EKS, Fargate
+- **ECS** (AWS-native orchestration), **EKS** (managed Kubernetes), **Fargate** (serverless containers, no nodes to manage), **ECR** (image registry).
+! Fargate = containers without servers.
+
+### Storage & Data
+
+## S3 & Storage Types
+> **S3** is object storage (buckets and keys), 11 nines durability. Classes: Standard, Infrequent Access, Glacier. Features: versioning, lifecycle rules, encryption, **presigned URLs**, static website hosting, events.
+- **EBS** block disk for one EC2; **EFS** shared NFS file system.
+! S3 for objects, EBS for a disk, EFS for shared files.
+
+## Databases
+- **RDS** (managed MySQL/Postgres/etc., Multi-AZ for failover, read replicas for scale), **Aurora** (faster cloud-native), **DynamoDB** (serverless key-value/document, single-digit ms), **ElastiCache** (Redis/Memcached), **Redshift** (data warehouse).
+! RDS for relational, DynamoDB for massive key-value scale.
+
+## Messaging: SQS, SNS, EventBridge
+- **SQS:** queue (decouple, buffer; standard vs FIFO; dead-letter queue). **SNS:** pub/sub fan-out to many subscribers. **EventBridge:** event bus with rules. Common: **SNS -> multiple SQS** fan-out.
+! Queue for work, topic for broadcast.
+
+### Network & Ops
+
+## VPC & Networking
+- **VPC:** your private network with **subnets** (public: route to Internet Gateway; private: via **NAT gateway**), route tables, **security groups** (stateful, instance level, allow rules) and **NACLs** (stateless, subnet level).
+- **Route 53** (DNS), **CloudFront** (CDN), **API Gateway**.
+! Web tier public, app and DB tiers private.
+
+## Monitoring & IaC
+- **CloudWatch** (metrics, logs, alarms), **CloudTrail** (API audit log), **X-Ray** (tracing). **CloudFormation / CDK / Terraform** for infrastructure as code. **Secrets Manager / Parameter Store** for secrets.
+! CloudWatch = what's happening; CloudTrail = who did it.
+
+## Typical Architecture
+```text
+Route 53 -> CloudFront -> ALB (public subnets, 2 AZs) -> ASG/ECS (private subnets) -> RDS Multi-AZ + ElastiCache
+                                   S3 for static files/uploads   SQS + Lambda for async work   CloudWatch alarms
+```
+! Redundant at every layer, private by default.
+
+### More AWS
+
+## Cost, Reliability & Other Services
+- **Well-Architected pillars:** operational excellence, security, reliability, performance, cost, sustainability. Cost: right-size, savings plans/spot, S3 lifecycle, turn off idle resources, budgets and alerts. **DR strategies:** backup/restore, pilot light, warm standby, multi-site (RTO/RPO). Others: **Cognito** (auth), **KMS** (keys), **Step Functions** (workflows), **Kinesis** (streams), **Athena** (SQL on S3), **ECR**, **Systems Manager**.
+! Design for failure; tag everything for cost.
+
+### Must-Know Questions
+
+## AWS Questions
+Q*: Security group vs NACL?
+A: Security groups are stateful, instance-level and allow-only; NACLs are stateless, subnet-level and support allow and deny.
+Q*: How do you make a web app highly available on AWS?
+A: Multiple AZs, an ALB with health checks, an Auto Scaling Group, Multi-AZ RDS and stateless instances.
+Q*: SQS vs SNS?
+A: SQS is a queue where one consumer processes each message; SNS is pub/sub pushing to many subscribers. They are often combined.
+Q*: IAM role vs user?
+A: A user has long-lived credentials for a person; a role is assumed temporarily by services or users and is preferred for workloads.
+Q*: When to use Lambda vs EC2?
+A: Lambda for short event-driven tasks with variable load; EC2 for long-running, steady or custom-environment workloads.
+Q: What is S3 durability vs availability?
+A: 99.999999999% durability (data won't be lost), with availability around 99.99% for Standard.
+Q: How do you serve static content fast globally?
+A: Store in S3 and front with CloudFront.

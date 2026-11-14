@@ -120,11 +120,11 @@ REVOKE SELECT ON students FROM reporting;                    -- take the permiss
 - MySQL users are identified by name **and host** (`'app_user'@'localhost'` and `'app_user'@'%'` are different accounts).
 
 ## Interview Q&A | sky | wide
-Q: What is the difference between a database server and a client?
+Q*: What is the difference between a database server and a client?
 A: The server stores the data and executes queries; a client (CLI, GUI or application driver) connects to it over the network, sends SQL and receives the results. SQLite is embedded, so there is no separate server.
-Q: What are the default ports of MySQL, PostgreSQL, SQL Server and Oracle?
+Q*: What are the default ports of MySQL, PostgreSQL, SQL Server and Oracle?
 A: 3306, 5432, 1433 and 1521.
-Q: How do you list all tables in MySQL, PostgreSQL and SQL Server?
+Q*: How do you list all tables in MySQL, PostgreSQL and SQL Server?
 A: MySQL `SHOW TABLES;`, PostgreSQL `\dt` in psql, SQL Server `SELECT * FROM INFORMATION_SCHEMA.TABLES;`. The INFORMATION_SCHEMA query works in all three.
 Q: How do you see the structure of a table?
 A: MySQL `DESCRIBE t;`, PostgreSQL `\d t`, SQL Server `EXEC sp_help 't';`, Oracle `DESC t`, or query information_schema.columns.
@@ -284,11 +284,11 @@ orders: 101 Anil 01-05 250 delivered | 102 Anil 01-20 120 delivered | 103 Bina 0
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is the difference between a DBMS and an RDBMS?
+Q*: What is the difference between a DBMS and an RDBMS?
 A: A DBMS is any software that manages stored data. An RDBMS stores data in related tables, enforces keys and integrity constraints, supports ACID transactions and is queried with SQL. MySQL, PostgreSQL, SQL Server and Oracle are RDBMSs.
-Q: What is SQL and why is it called declarative?
+Q*: What is SQL and why is it called declarative?
 A: The standard language for relational databases. You state the result you want, not the steps; the optimiser picks the execution plan.
-Q: What is the difference between SQL and MySQL?
+Q*: What is the difference between SQL and MySQL?
 A: SQL is the language and standard. MySQL is a database product (an RDBMS) that implements SQL plus its own extensions.
 Q: Name the SQL sub-languages.
 A: DDL (CREATE, ALTER, DROP, TRUNCATE), DML (INSERT, UPDATE, DELETE, MERGE), DQL (SELECT), DCL (GRANT, REVOKE) and TCL (COMMIT, ROLLBACK, SAVEPOINT).
@@ -421,11 +421,11 @@ CREATE TABLE users (
 - **SQLite**: mobile, desktop and embedded apps, tests, small sites. It allows **one writer at a time**, so it is not for many concurrent writers.
 
 ## Interview Q&A | sky | wide
-Q: MySQL vs PostgreSQL?
+Q*: MySQL vs PostgreSQL?
 A: Both are open-source RDBMSs. PostgreSQL is more standards-compliant and extensible (JSONB, arrays, custom types, extensions, transactional DDL, many index types) and uses a process per connection with VACUUM-based MVCC. MySQL is simpler to run, very common for read-heavy web apps, clusters InnoDB tables on the primary key and uses threads and undo-log MVCC.
-Q: What are T-SQL and PL/SQL?
+Q*: What are T-SQL and PL/SQL?
 A: Procedural extensions of SQL: T-SQL for Microsoft SQL Server and PL/SQL for Oracle. They add variables, control flow, error handling, cursors and stored programs.
-Q: How do you return only the first 10 rows in MySQL, SQL Server and Oracle?
+Q*: How do you return only the first 10 rows in MySQL, SQL Server and Oracle?
 A: MySQL and PostgreSQL: `ORDER BY ... LIMIT 10`. SQL Server: `SELECT TOP (10) ... ORDER BY ...` or `OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY`. Oracle 12c+: `FETCH FIRST 10 ROWS ONLY`.
 Q: Why can `'a' = 'A'` be true in one database and false in another?
 A: Comparison follows the collation. MySQL and SQL Server default to case-insensitive collations; PostgreSQL and Oracle compare case-sensitively.
@@ -519,11 +519,11 @@ DELETE FROM departments WHERE id = 1;
 > Mnemonic: "DELETE = some rows, TRUNCATE = all rows but keep the table, DROP = the table is gone."
 
 ## Interview Q&A | sky | wide
-Q: CHAR vs VARCHAR?
+Q*: CHAR vs VARCHAR?
 A: CHAR(n) always stores n characters, padded with spaces, which suits fixed-length codes. VARCHAR(n) stores only the actual length up to n, which suits most text.
-Q: DECIMAL vs FLOAT?
+Q*: DECIMAL vs FLOAT?
 A: DECIMAL is exact base-10 arithmetic, required for money. FLOAT is approximate binary floating point; it is faster and smaller but has rounding errors.
-Q: Can a table have two primary keys?
+Q*: Can a table have two primary keys?
 A: No. It has one primary key, which may span several columns (composite), plus any number of UNIQUE constraints.
 Q: Can a foreign key be NULL? Can it reference a non-primary-key column?
 A: Yes to both. A NULL FK means "no parent" (unless the column is NOT NULL), and an FK can reference any column set that has a PRIMARY KEY or UNIQUE constraint.
@@ -652,11 +652,11 @@ COMMIT;                                  -- or ROLLBACK to undo both updates
 - Group related writes in one transaction so they succeed or fail together (sheet 15).
 
 ## Interview Q&A | sky | wide
-Q: How do you insert many rows efficiently?
+Q*: How do you insert many rows efficiently?
 A: Use multi-row INSERT statements in one transaction, or bulk loaders (COPY, LOAD DATA INFILE, BULK INSERT). Avoid one round trip and one commit per row.
-Q: How do you get the id of a row you just inserted?
+Q*: How do you get the id of a row you just inserted?
 A: PostgreSQL `RETURNING id`, SQL Server `OUTPUT inserted.id` or `SCOPE_IDENTITY()`, MySQL `LAST_INSERT_ID()`.
-Q: What happens if you run UPDATE without WHERE?
+Q*: What happens if you run UPDATE without WHERE?
 A: Every row in the table is updated. Protect yourself with a SELECT preview, a transaction and safe-update settings.
 Q: How do you update a table using values from another table?
 A: PostgreSQL uses `UPDATE ... FROM`, MySQL uses `UPDATE ... JOIN ... SET`, SQL Server uses `UPDATE alias SET ... FROM ... JOIN`. The portable form is a subquery in SET or WHERE.
@@ -754,11 +754,11 @@ LIMIT 3;                                                                    -- J
 - This is the **logical** order. The optimiser may physically do things in any order that gives the same result (for example pushing filters into joins).
 
 ## Interview Q&A | sky | wide
-Q: What is the logical order of execution of a SELECT?
+Q*: What is the logical order of execution of a SELECT?
 A: FROM and JOIN, WHERE, GROUP BY, HAVING, SELECT, DISTINCT, ORDER BY, then LIMIT or OFFSET.
-Q: Why can't I use a column alias in WHERE?
+Q*: Why can't I use a column alias in WHERE?
 A: WHERE is evaluated before SELECT, so the alias doesn't exist yet. Repeat the expression, or wrap the query in a subquery or CTE. ORDER BY can use it because it runs after SELECT.
-Q: Is the order of rows guaranteed without ORDER BY?
+Q*: Is the order of rows guaranteed without ORDER BY?
 A: No. Tables are unordered sets; without ORDER BY the database returns rows in whatever order its plan produces.
 Q: DISTINCT vs GROUP BY?
 A: `SELECT DISTINCT a, b` and `GROUP BY a, b` return the same rows. Use GROUP BY when you also compute aggregates per group, DISTINCT when you just want unique rows.
@@ -852,11 +852,11 @@ SELECT name FROM employees WHERE city IS DISTINCT FROM 'Mumbai';   -- NULL-safe 
 - Empty or NULL check: `WHERE col IS NULL OR col = ''`, or `WHERE COALESCE(col, '') = ''`.
 
 ## Interview Q&A | sky | wide
-Q: Why does `WHERE col = NULL` return nothing?
+Q*: Why does `WHERE col = NULL` return nothing?
 A: Comparing anything with NULL yields UNKNOWN, not TRUE, and WHERE only keeps TRUE rows. Use `IS NULL`.
-Q: Explain the NOT IN NULL problem.
+Q*: Explain the NOT IN NULL problem.
 A: If the subquery returns a NULL, `x NOT IN (..., NULL)` expands to `... AND x <> NULL`, which is UNKNOWN for every row, so nothing is returned. Use NOT EXISTS or add `WHERE col IS NOT NULL` to the subquery.
-Q: Is BETWEEN inclusive?
+Q*: Is BETWEEN inclusive?
 A: Yes, at both ends. For timestamps use a half-open range (`>= start AND < next_day`) to avoid missing the last day.
 Q: What is the difference between `%` and `_` in LIKE?
 A: `%` matches any number of characters including zero; `_` matches exactly one character.
@@ -955,11 +955,11 @@ SELECT GREATEST(3, 7, 5), LEAST(3, 7, 5);             -- 7 | 3
 - `GREATEST` / `LEAST`: PostgreSQL ignores NULL arguments; MySQL and Oracle return NULL if any argument is NULL. SQL Server added them in 2022.
 
 ## Interview Q&A | sky | wide
-Q: COALESCE vs ISNULL?
+Q*: COALESCE vs ISNULL?
 A: COALESCE is standard, takes any number of arguments and returns the type with the highest precedence among them. ISNULL is SQL Server-only, takes two arguments and uses the first argument's type, which can truncate the replacement.
-Q: How do you avoid a divide-by-zero error?
+Q*: How do you avoid a divide-by-zero error?
 A: Wrap the divisor in NULLIF: `a / NULLIF(b, 0)` returns NULL instead of failing, and COALESCE can turn that NULL into 0 if needed.
-Q: How do you get the year from a date in each database?
+Q*: How do you get the year from a date in each database?
 A: `EXTRACT(YEAR FROM d)` in PostgreSQL, MySQL and Oracle; `YEAR(d)` in MySQL and SQL Server; `DATEPART(year, d)` in SQL Server.
 Q: LENGTH vs CHAR_LENGTH in MySQL?
 A: LENGTH counts bytes and CHAR_LENGTH counts characters, so they differ for multi-byte UTF-8 text such as 'café'.
@@ -1082,11 +1082,11 @@ FROM employees WHERE dept_id IS NOT NULL GROUP BY dept_id;
 - Oracle: `LISTAGG(name, ', ') WITHIN GROUP (ORDER BY name)`. MySQL truncates `GROUP_CONCAT` at `group_concat_max_len` (1024 bytes by default).
 
 ## Interview Q&A | sky | wide
-Q: WHERE vs HAVING?
+Q*: WHERE vs HAVING?
 A: WHERE filters individual rows before grouping and can't use aggregates. HAVING filters groups after GROUP BY and is where aggregate conditions go.
-Q: COUNT(*) vs COUNT(1) vs COUNT(column)?
+Q*: COUNT(*) vs COUNT(1) vs COUNT(column)?
 A: COUNT(*) and COUNT(1) both count all rows and perform the same. COUNT(column) counts only rows where that column is not NULL.
-Q: How do aggregates handle NULL?
+Q*: How do aggregates handle NULL?
 A: SUM, AVG, MIN, MAX and COUNT(col) ignore NULLs; COUNT(*) counts every row. On no rows at all, COUNT gives 0 and the rest give NULL.
 Q: Why do I get "column must appear in the GROUP BY clause"?
 A: A selected column is neither grouped nor aggregated, so each group has several possible values for it. Add it to GROUP BY or wrap it in an aggregate (MIN, MAX, STRING_AGG).
@@ -1230,11 +1230,11 @@ SELECT city FROM employees EXCEPT SELECT city FROM customers ORDER BY city;
 - Oracle writes `MINUS` (21c also accepts EXCEPT). MySQL supports INTERSECT and EXCEPT from 8.0.31.
 
 ## Interview Q&A | sky | wide
-Q: What types of joins are there?
+Q*: What types of joins are there?
 A: INNER (only matches), LEFT and RIGHT OUTER (all rows from one side plus matches), FULL OUTER (all rows from both), CROSS (every combination) and SELF joins (a table joined to itself), plus semi-joins and anti-joins written with EXISTS and NOT EXISTS.
-Q: INNER JOIN vs LEFT JOIN?
+Q*: INNER JOIN vs LEFT JOIN?
 A: INNER JOIN returns only rows with a match in both tables. LEFT JOIN returns every row from the left table and NULLs for the right side where there is no match.
-Q: Why does my LEFT JOIN behave like an INNER JOIN?
+Q*: Why does my LEFT JOIN behave like an INNER JOIN?
 A: A WHERE condition on a right-table column rejects the NULL-extended rows. Move that condition into the ON clause, or allow NULL explicitly.
 Q: How do you find rows in table A that are not in table B?
 A: `LEFT JOIN B ... WHERE B.key IS NULL`, `WHERE NOT EXISTS (SELECT 1 FROM B WHERE ...)`, or `SELECT key FROM A EXCEPT SELECT key FROM B`. Avoid NOT IN when B's column can be NULL.
@@ -1378,11 +1378,11 @@ SELECT 10 + COUNT(*), 'Dept ' || (10 + COUNT(*)) FROM departments;         -- 14
 - **MySQL error 1093**: you can't modify a table and read the same table in a subquery (`DELETE FROM t WHERE id IN (SELECT ... FROM t)`). Wrap the subquery in a derived table that MySQL materialises, or rewrite it as a multi-table DELETE with a JOIN.
 
 ## Interview Q&A | sky | wide
-Q: What is a correlated subquery?
+Q*: What is a correlated subquery?
 A: A subquery that refers to a column of the outer query, so it is logically evaluated for each outer row, for example comparing each employee with their own department's average.
-Q: Subquery vs JOIN?
+Q*: Subquery vs JOIN?
 A: Use a join when you need columns from both tables. Use EXISTS or IN when you only need to test for related rows, because it never duplicates the outer rows. Optimisers often produce similar plans.
-Q: IN vs EXISTS?
+Q*: IN vs EXISTS?
 A: Both test membership and usually become the same semi-join. EXISTS stops at the first match and works naturally with correlated conditions; with NOT, prefer NOT EXISTS because NOT IN breaks on NULLs.
 Q: What is a derived table?
 A: A subquery in the FROM clause that acts as a temporary, unnamed table for the outer query. It needs an alias in most databases.
@@ -1527,11 +1527,11 @@ SELECT x FROM n;                                   -- 1 2 3 4 5
 - Uses: org charts, category trees, bill of materials, graph paths, filling date gaps (PostgreSQL also has `generate_series`).
 
 ## Interview Q&A | sky | wide
-Q: What is the difference between a simple and a searched CASE?
+Q*: What is the difference between a simple and a searched CASE?
 A: A simple CASE compares one expression against values with equality (`CASE status WHEN 'x' THEN ...`). A searched CASE evaluates independent boolean conditions (`CASE WHEN salary > 100 THEN ...`) and can test ranges and NULL.
-Q: What does CASE return if nothing matches and there's no ELSE?
+Q*: What does CASE return if nothing matches and there's no ELSE?
 A: NULL.
-Q: How do you pivot rows into columns?
+Q*: How do you pivot rows into columns?
 A: Conditional aggregation: one `SUM(CASE WHEN category = 'x' THEN amount END)` or `COUNT(CASE ...)` per output column, grouped by the row key. SQL Server and Oracle also have PIVOT.
 Q: What is a CTE and why use it?
 A: A named temporary result defined with WITH for a single statement. It makes multi-step queries readable, lets you reference the same intermediate result more than once and enables recursion.
@@ -1658,11 +1658,11 @@ ORDER BY order_date;
 - **Named windows** avoid repetition: `... RANK() OVER w ... WINDOW w AS (PARTITION BY dept_id ORDER BY salary DESC)` (PostgreSQL, MySQL, SQLite, SQL Server 2022+).
 
 ## Interview Q&A | sky | wide
-Q: ROW_NUMBER vs RANK vs DENSE_RANK?
+Q*: ROW_NUMBER vs RANK vs DENSE_RANK?
 A: ROW_NUMBER numbers rows uniquely (1, 2, 3, 4). RANK gives ties the same number and skips the next ones (1, 2, 2, 4). DENSE_RANK gives ties the same number without gaps (1, 2, 2, 3).
-Q: PARTITION BY vs GROUP BY?
+Q*: PARTITION BY vs GROUP BY?
 A: GROUP BY collapses each group into one output row. PARTITION BY defines groups for a window function but keeps every input row, adding the group-level result to each.
-Q: Why can't I use a window function in WHERE?
+Q*: Why can't I use a window function in WHERE?
 A: WHERE is evaluated before window functions are computed. Compute it in a CTE or subquery and filter in the outer query.
 Q: How do you get the top 3 earners per department?
 A: `DENSE_RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC)` in a CTE, then `WHERE rnk <= 3`. Use ROW_NUMBER if you need exactly three rows even with ties.
@@ -1833,11 +1833,11 @@ END;
 - Uses: audit trails, `updated_at` timestamps, derived or denormalised columns, complex rules. Costs: **hidden side effects**, harder debugging, slower bulk writes, cascading or recursive triggers. If a constraint can express the rule, use the constraint.
 
 ## Interview Q&A | sky | wide
-Q: What is a view, and why use one?
+Q*: What is a view, and why use one?
 A: A saved SELECT that acts as a virtual table. It simplifies complex joins, restricts what users can see, and gives applications a stable interface while the tables change.
-Q: View vs materialised view?
+Q*: View vs materialised view?
 A: A view stores only the query and is always current. A materialised view stores the result, so it reads fast but must be refreshed and can be stale.
-Q: Can you insert into or update a view?
+Q*: Can you insert into or update a view?
 A: Yes, if it is a simple view over one table without aggregates, DISTINCT, GROUP BY or UNION. Add WITH CHECK OPTION to keep changes within the view's filter. Complex views need INSTEAD OF triggers.
 Q: Stored procedure vs function?
 A: A function returns a value and can be used inside SQL statements, without side effects on transactions. A procedure is invoked with CALL or EXEC, can run many statements, return several result sets or OUT parameters and manage transactions.
@@ -1934,11 +1934,11 @@ CREATE TABLE order_items (                -- junction table for the M:N between 
 - Avoid: comma-separated lists in a column, EAV (entity-attribute-value) tables for core data, one giant table for everything, storing derived data without a sync plan.
 
 ## Interview Q&A | sky | wide
-Q: What is normalisation and why do it?
+Q*: What is normalisation and why do it?
 A: Organising tables by their functional dependencies to remove redundancy, which prevents update, insert and delete anomalies and keeps data consistent.
-Q: Explain 1NF, 2NF and 3NF.
+Q*: Explain 1NF, 2NF and 3NF.
 A: 1NF: atomic values, no repeating groups, a key. 2NF: 1NF plus no non-key column depending on only part of a composite key. 3NF: 2NF plus no non-key column depending on another non-key column.
-Q: What is the difference between 3NF and BCNF?
+Q*: What is the difference between 3NF and BCNF?
 A: 3NF allows a dependency X → Y when Y is part of a candidate key. BCNF requires the left side of every functional dependency to be a super key. They differ only with overlapping candidate keys.
 Q: What is a functional dependency?
 A: A rule X → Y meaning each value of X determines exactly one value of Y, such as employee_id → name.
@@ -2027,11 +2027,11 @@ FOR UPDATE SKIP LOCKED;                   -- 105, locked until this transaction 
 - Prevention: **access rows in a consistent order** (for example by ascending id), keep transactions short, index the columns in WHERE clauses so fewer rows get locked, and use the lowest isolation level that is correct.
 
 ## Interview Q&A | sky | wide
-Q: What is a transaction?
+Q*: What is a transaction?
 A: A sequence of operations executed as one unit of work: either all of its changes are committed or none are.
-Q: Explain ACID.
+Q*: Explain ACID.
 A: Atomicity (all or nothing), Consistency (constraints always hold), Isolation (concurrent transactions don't interfere beyond the chosen level) and Durability (committed data survives crashes, thanks to the write-ahead log).
-Q: What are dirty reads, non-repeatable reads and phantom reads?
+Q*: What are dirty reads, non-repeatable reads and phantom reads?
 A: A dirty read sees uncommitted data. A non-repeatable read gets a different value when re-reading a row another transaction updated. A phantom read gets different rows when re-running a range query after another transaction inserted or deleted rows.
 Q: What are the isolation levels and their default per database?
 A: READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ and SERIALIZABLE. MySQL InnoDB defaults to REPEATABLE READ; PostgreSQL, SQL Server and Oracle default to READ COMMITTED.
@@ -2163,11 +2163,11 @@ SELECT id FROM items ORDER BY embedding <=> '[0.1, 0.2, 0.3]' LIMIT 5;   -- 5 ne
 - Build indexes on busy tables without blocking writes: PostgreSQL `CREATE INDEX CONCURRENTLY`, MySQL online DDL (`ALGORITHM=INPLACE, LOCK=NONE`), SQL Server `WITH (ONLINE = ON)` (Enterprise edition).
 
 ## Interview Q&A | sky | wide
-Q: What is an index and what does it cost?
+Q*: What is an index and what does it cost?
 A: A sorted structure that lets the database find rows without scanning the table. It speeds reads but slows every write, because each index must be updated, and it uses storage and memory.
-Q: How does a B+tree index work?
+Q*: How does a B+tree index work?
 A: A balanced tree where inner pages route searches and sorted leaf pages hold keys and row pointers, linked together. Lookups take a few page reads and range scans just walk the linked leaves.
-Q: Clustered vs non-clustered index?
+Q*: Clustered vs non-clustered index?
 A: A clustered index defines the physical order of the table's rows, so there can be only one. A non-clustered index is a separate structure pointing to rows; there can be many, and they may need extra lookups.
 Q: How many clustered indexes can a table have?
 A: One, because rows can be physically ordered only one way. InnoDB always clusters by the primary key; PostgreSQL has none (tables are heaps).
@@ -2280,11 +2280,11 @@ HashAggregate  (cost=4938.94..4988.94 rows=5000 width=13)
 - Other poolers: ProxySQL for MySQL; .NET and JDBC drivers for SQL Server pool connections by default.
 
 ## Interview Q&A | sky | wide
-Q: How would you optimise a slow query?
+Q*: How would you optimise a slow query?
 A: Reproduce it, run EXPLAIN ANALYZE, find the expensive nodes (full scans, bad row estimates, big sorts, key lookups), then add or fix indexes, make predicates sargable, fetch fewer rows and columns, refresh statistics, and re-measure.
-Q: EXPLAIN vs EXPLAIN ANALYZE?
+Q*: EXPLAIN vs EXPLAIN ANALYZE?
 A: EXPLAIN shows the estimated plan without running the query. EXPLAIN ANALYZE executes it and reports actual times and row counts.
-Q: Why would the database choose a sequential scan when an index exists?
+Q*: Why would the database choose a sequential scan when an index exists?
 A: When many rows match (low selectivity), the table is small, statistics are stale, or the predicate isn't sargable. Reading pages sequentially can be cheaper than many random index lookups.
 Q: What is an index-only scan?
 A: A plan that answers the query entirely from the index because it contains every needed column. PostgreSQL also needs the visibility map to confirm rows are visible.
@@ -2365,11 +2365,11 @@ ALTER TABLE events DETACH PARTITION events_2026_01;   -- archive January without
 ```
 
 ## Interview Q&A | sky | wide
-Q: Partitioning vs sharding?
+Q*: Partitioning vs sharding?
 A: Partitioning splits a table into pieces within one database server. Sharding spreads rows across multiple servers, each holding part of the data.
-Q: What types of partitioning are there?
+Q*: What types of partitioning are there?
 A: Range (date ranges), list (discrete values such as region) and hash (even spread by hashed key). Vertical partitioning splits columns rather than rows.
-Q: What is partition pruning?
+Q*: What is partition pruning?
 A: The planner skipping partitions that can't contain matching rows because the query filters on the partition key.
 Q: How do you choose a shard key?
 A: Pick a column with many distinct, evenly distributed values that appears in most queries, so that each query goes to a single shard and no shard becomes a hotspot.
@@ -2661,11 +2661,11 @@ SELECT name FROM employees ORDER BY city LIMIT 1;                       -- Postg
 - Tie answers to experience: "A report query took 40 s because of `WHERE DATE(created_at) = ...`; rewriting it as a range let it use the index and it dropped to 30 ms."
 
 ## Big Interview Q&A | sky | wide
-Q: What is the difference between DELETE, TRUNCATE and DROP?
+Q*: What is the difference between DELETE, TRUNCATE and DROP?
 A: DELETE removes chosen rows with full logging and triggers. TRUNCATE quickly removes all rows and resets identity. DROP removes the table itself.
-Q: WHERE vs HAVING?
+Q*: WHERE vs HAVING?
 A: WHERE filters rows before grouping; HAVING filters groups after aggregation and can use aggregate functions.
-Q: What is a primary key vs a unique key?
+Q*: What is a primary key vs a unique key?
 A: Both enforce uniqueness. The primary key is one per table and never NULL; unique keys can be many and accept NULLs.
 Q: What is a foreign key?
 A: A column referencing another table's key; the database rejects values without a matching parent and applies ON DELETE / ON UPDATE actions.

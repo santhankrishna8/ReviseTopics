@@ -134,11 +134,11 @@ a:hover { text-decoration: none; }
 - **CSS3** added: `border-radius`, shadows, gradients, `rgba()` / `hsl()`, multiple backgrounds, web fonts, transitions, animations and transforms, **media queries**, **Flexbox** and **Grid**, `box-sizing`, custom properties (variables), and many new selectors (`:nth-child()`, `:not()`, attribute selectors).
 
 ## Interview Q&A | sky | wide
-Q: What is HTML? Is it a programming language?
+Q*: What is HTML? Is it a programming language?
 A: The markup language that describes the structure and meaning of web content. It is not a programming language: it has no logic, variables or loops.
-Q: What is the difference between a tag, an element and an attribute?
+Q*: What is the difference between a tag, an element and an attribute?
 A: A tag is the markup itself (`<p>`); an element is the complete unit from start tag to end tag, including content; an attribute is a name and value inside the start tag that configures the element.
-Q: div vs span?
+Q*: div vs span?
 A: Both are meaningless generic containers; div is block-level (starts on a new line, takes full width), span is inline (flows within text).
 Q: id vs class?
 A: An id is unique on a page and identifies one element; a class can be reused on many elements, and an element can have several classes.
@@ -239,11 +239,11 @@ A: An absolute URL includes the scheme and host; a relative URL is resolved agai
 - **`<iframe>`**: `title` for accessibility, **`sandbox`** to restrict embedded content, `loading="lazy"`.
 
 ## Interview Q&A | sky | wide
-Q: What does the doctype do?
+Q*: What does the doctype do?
 A: It tells the browser to render in standards mode. Without it, pages render in quirks mode, which emulates old browser bugs such as the legacy box model.
-Q: What is semantic HTML and why does it matter?
+Q*: What is semantic HTML and why does it matter?
 A: Using elements that describe meaning (header, nav, main, article, button) rather than generic divs. It gives accessibility (landmarks, roles, keyboard behaviour), better SEO and clearer code.
-Q: `<section>` vs `<article>` vs `<div>`?
+Q*: `<section>` vs `<article>` vs `<div>`?
 A: `article` is self-contained content that could stand alone; `section` groups related content under a heading; `div` has no meaning and is only a styling container.
 Q: `<strong>` vs `<b>`?
 A: `strong` marks importance and is conveyed semantically; `b` only draws attention stylistically without implying importance.
@@ -341,11 +341,11 @@ Object.fromEntries(new FormData(form));                // { email: "...", plan: 
 ```
 
 ## Interview Q&A | sky | wide
-Q: GET vs POST for forms?
+Q*: GET vs POST for forms?
 A: GET encodes fields in the URL: idempotent, cacheable and bookmarkable, good for search. POST sends them in the body: for creating or changing data, larger payloads and file uploads.
-Q: Why is my form submitting when I click a button?
+Q*: Why is my form submitting when I click a button?
 A: Buttons inside a form default to type="submit". Give buttons that should not submit `type="button"`.
-Q: What enctype do file uploads need?
+Q*: What enctype do file uploads need?
 A: `multipart/form-data` (FormData with fetch sets it automatically with the boundary).
 Q: Is HTML validation enough?
 A: No. It improves UX but is trivially bypassed; the server must validate everything again.
@@ -414,11 +414,11 @@ A: After a successful POST the server redirects to a GET page, so refreshing doe
 - **Testing**: automated tools (**axe**, Lighthouse, WAVE) catch only part of the issues; also test **keyboard only**, zoom to 200%, and real **screen readers** (NVDA or JAWS on Windows, VoiceOver on macOS/iOS, TalkBack on Android).
 
 ## Interview Q&A | sky | wide
-Q: What is the first rule of ARIA?
+Q*: What is the first rule of ARIA?
 A: Do not use ARIA when a native HTML element or attribute provides the semantics and behaviour; ARIA only changes what is announced, not how things work.
-Q: What does `aria-hidden="true"` do and when is it wrong?
+Q*: What does `aria-hidden="true"` do and when is it wrong?
 A: It removes the element and its children from the accessibility tree. It is wrong on focusable or interactive content, because keyboard users can focus something screen readers cannot perceive.
-Q: `aria-label` vs `aria-labelledby` vs `aria-describedby`?
+Q*: `aria-label` vs `aria-labelledby` vs `aria-describedby`?
 A: aria-label supplies a name string; aria-labelledby names the element from other visible elements (and takes precedence); aria-describedby adds supplementary description such as hints or errors.
 Q: What do tabindex 0 and -1 mean?
 A: 0 puts an element in the natural tab order; -1 makes it focusable only programmatically. Positive values reorder tabbing and should be avoided.
@@ -485,11 +485,11 @@ A: Perceivable, Operable, Understandable, Robust: the four WCAG principles.
 - Measure with **Lighthouse** and PageSpeed Insights (lab and field data), the Chrome UX Report, and the `web-vitals` library.
 
 ## Interview Q&A | sky | wide
-Q: Why is the viewport meta tag needed?
+Q*: Why is the viewport meta tag needed?
 A: Without it, mobile browsers lay out the page at about 980px and scale it down. `width=device-width, initial-scale=1` makes CSS pixels match the device width so responsive CSS works.
-Q: Does the meta description affect ranking?
+Q*: Does the meta description affect ranking?
 A: Not directly. It is often used as the snippet, so it affects click-through rate.
-Q: robots.txt vs noindex?
+Q*: robots.txt vs noindex?
 A: robots.txt stops crawling but a URL can still be indexed from links; noindex (meta tag or X-Robots-Tag header) removes the page from the index, and the page must be crawlable for it to be seen.
 Q: What is a canonical URL?
 A: The preferred version of a page declared with rel=canonical, so duplicates with parameters or alternate paths consolidate ranking signals.
@@ -556,11 +556,11 @@ p  { margin-top: 16px; }      /* the gap between them is 24px, not 40px */
 - **`overflow`**: `visible`, `hidden`, `clip` (no scroll container), `scroll`, `auto`. Long words: `overflow-wrap: anywhere`; truncation needs `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` (and `min-width: 0` inside flex).
 
 ## Interview Q&A | sky | wide
-Q: Explain the CSS box model.
+Q*: Explain the CSS box model.
 A: Each element is content surrounded by padding, border and margin. With content-box, width applies to content only; with border-box, width includes padding and border.
-Q: Why use `box-sizing: border-box`?
+Q*: Why use `box-sizing: border-box`?
 A: Declared widths then equal rendered widths regardless of padding and border, which makes layouts and percentages predictable.
-Q: What is margin collapsing?
+Q*: What is margin collapsing?
 A: Adjacent vertical margins of block boxes combine into a single margin equal to the larger one. It does not occur in flex or grid layouts, for horizontal margins, or across a BFC boundary.
 Q: `display: none` vs `visibility: hidden` vs `opacity: 0`?
 A: none removes the element from layout and the accessibility tree; visibility hidden keeps its space but hides it from everyone; opacity 0 keeps space and remains interactive and announced.
@@ -624,11 +624,11 @@ li::marker            /* (0,0,2) */
 - Common surprises: a later rule with equal specificity wins; an ID in an old stylesheet beats your new class; inline styles from JavaScript beat your stylesheet.
 
 ## Interview Q&A | sky | wide
-Q: How is specificity calculated?
+Q*: How is specificity calculated?
 A: As (IDs, classes/attributes/pseudo-classes, types/pseudo-elements), compared column by column from the left. Inline styles and !important sit above selector specificity; `:where()` adds zero.
-Q: Can 11 classes override an ID?
+Q*: Can 11 classes override an ID?
 A: No. Columns never overflow into each other, so any number of classes loses to one ID.
-Q: What are cascade layers for?
+Q*: What are cascade layers for?
 A: Controlling precedence explicitly by layer order instead of fighting specificity, for example keeping resets and vendor CSS beneath components and utilities.
 Q: What order does the cascade use?
 A: Origin and importance, context, element-attached styles, layers, specificity, then order of appearance.
@@ -692,11 +692,11 @@ main { flex: 1; }
 ```
 
 ## Interview Q&A | sky | wide
-Q: Main axis vs cross axis?
+Q*: Main axis vs cross axis?
 A: The main axis follows flex-direction (horizontal for row); the cross axis is perpendicular. justify-content aligns along the main axis, align-items along the cross axis.
-Q: What does `flex: 1` mean?
+Q*: What does `flex: 1` mean?
 A: `flex-grow: 1; flex-shrink: 1; flex-basis: 0%`, so items share space equally regardless of their content size.
-Q: Why does my flex item overflow instead of shrinking?
+Q*: Why does my flex item overflow instead of shrinking?
 A: Flex items default to `min-width: auto`, so they cannot shrink below their content's minimum width. Set `min-width: 0` (or overflow hidden) on the item.
 Q: `align-items` vs `align-content`?
 A: align-items aligns items within each line; align-content distributes the lines themselves and only matters when items wrap onto multiple lines.
@@ -767,11 +767,11 @@ A: Only for presentational reordering: keyboard and screen reader order still fo
 - Both support `gap`, alignment properties and `order`; neither has margin collapsing.
 
 ## Interview Q&A | sky | wide
-Q: What is the `fr` unit?
+Q*: What is the `fr` unit?
 A: A fraction of the free space left in the grid container after fixed-size and content-sized tracks are placed.
-Q: `auto-fit` vs `auto-fill`?
+Q*: `auto-fit` vs `auto-fill`?
 A: Both create as many tracks as fit. auto-fill keeps empty tracks; auto-fit collapses them so the remaining items stretch. They differ only when there are fewer items than tracks.
-Q: Grid or Flexbox?
+Q*: Grid or Flexbox?
 A: Flexbox for one-dimensional, content-driven alignment; Grid for two-dimensional layouts where you control rows and columns together. They are often combined.
 Q: What is the implicit grid?
 A: Rows or columns the browser creates automatically for items that do not fit in the explicitly defined tracks, sized by grid-auto-rows/columns.
@@ -832,11 +832,11 @@ thead th { position: sticky; top: 0; background: white; }
 - **CSS anchor positioning** (`anchor-name`, `position-anchor`, `position-area`) positions popups relative to a trigger; it is newer, so check browser support and keep a fallback.
 
 ## Interview Q&A | sky | wide
-Q: relative vs absolute vs fixed vs sticky?
+Q*: relative vs absolute vs fixed vs sticky?
 A: relative offsets an element while keeping its space; absolute removes it from flow and positions it against the nearest positioned ancestor; fixed positions against the viewport; sticky acts relative until a scroll threshold, then sticks within its scroll container.
-Q: Why is my `z-index: 9999` not working?
+Q*: Why is my `z-index: 9999` not working?
 A: z-index only competes within the same stacking context. An ancestor with opacity, transform, a z-index or similar creates a context that caps its descendants. Also the element may not be positioned.
-Q: What creates a stacking context?
+Q*: What creates a stacking context?
 A: The root, positioned elements with a z-index, fixed or sticky elements, opacity below 1, transforms, filters, isolation: isolate, mix-blend-mode, and a few other properties.
 Q: Why does `position: sticky` not stick?
 A: Missing top/bottom threshold, an ancestor with overflow hidden/auto creating a different scroll container, or a parent that is no taller than the sticky element.
@@ -902,11 +902,11 @@ h1 { font-size: clamp(2rem, 1.4rem + 2.5vw, 3.5rem); }
 ```
 
 ## Interview Q&A | sky | wide
-Q: `em` vs `rem`?
+Q*: `em` vs `rem`?
 A: em is relative to the element's font-size (compounding when nested); rem is relative to the root font-size, giving consistent sizes that still respect the user's font preference.
-Q: What is mobile-first CSS?
+Q*: What is mobile-first CSS?
 A: Writing base styles for small screens and layering min-width media queries for larger screens, which keeps the small-screen path simplest.
-Q: Media queries vs container queries?
+Q*: Media queries vs container queries?
 A: Media queries respond to the viewport; container queries respond to the size of a containing element, so reusable components adapt to wherever they are placed.
 Q: Why does `100vh` cause problems on mobile?
 A: It is based on the largest viewport (toolbars hidden), so content is hidden behind the browser UI. Use dvh or svh.
@@ -985,11 +985,11 @@ A: So text still scales with browser zoom and user font settings; vw-only sizes 
 ```
 
 ## Interview Q&A | sky | wide
-Q: Transition vs animation?
+Q*: Transition vs animation?
 A: A transition animates between two states when a property changes; a keyframe animation runs a defined sequence of steps, can loop, and starts without a state change.
-Q: Which properties are cheapest to animate and why?
+Q*: Which properties are cheapest to animate and why?
 A: transform and opacity, because the compositor can update them without recalculating layout or repainting.
-Q: Does a transform affect layout?
+Q*: Does a transform affect layout?
 A: No. The element keeps its original space; only its rendering moves, so surrounding elements do not reflow.
 Q: How do you respect users who dislike motion?
 A: Use the prefers-reduced-motion media query to remove or shorten movement, keeping essential feedback such as fades.
@@ -1068,11 +1068,11 @@ A: Yes in modern browsers, using `transition-behavior: allow-discrete` (or `allo
 ```
 
 ## Interview Q&A | sky | wide
-Q: CSS variables vs Sass variables?
+Q*: CSS variables vs Sass variables?
 A: Sass variables are replaced at compile time and cannot change in the browser. CSS custom properties exist at runtime, cascade and inherit, can be scoped to elements, changed by JavaScript or media queries, and used for theming.
-Q: What is BEM and why use it?
+Q*: What is BEM and why use it?
 A: Block__Element--Modifier naming. It keeps specificity flat and predictable, avoids coupling styles to DOM structure, and makes class purpose obvious.
-Q: `@use` vs `@import` in Sass?
+Q*: `@use` vs `@import` in Sass?
 A: @use loads a module once with a namespace and private members; @import put everything in one global scope, could load files multiple times, and is deprecated.
 Q: Mixin vs `@extend`?
 A: A mixin copies declarations wherever it is included (can take arguments); @extend makes selectors share a rule set, which can produce unexpected selector combinations. Prefer mixins.
@@ -1127,11 +1127,11 @@ A: The property becomes invalid at computed-value time and falls back to its inh
 - If unsure about browser support, say so and describe the fallback you would ship.
 
 ## Big Interview Q&A | sky | wide
-Q: What happens between typing a URL and seeing the page (frontend view)?
+Q*: What happens between typing a URL and seeing the page (frontend view)?
 A: DNS and connection setup, the HTML response streams in, the parser builds the DOM while fetching CSS (render-blocking) and scripts (parser-blocking unless defer/async), the CSSOM and DOM form the render tree, then layout, paint and compositing produce pixels; later resources and scripts continue to update it.
-Q: How do you centre a div?
+Q*: How do you centre a div?
 A: Parent `display: grid; place-items: center`, or flex with justify-content and align-items center; for horizontal-only on a block, a width plus `margin-inline: auto`.
-Q: What is the difference between `reflow` and `repaint`?
+Q*: What is the difference between `reflow` and `repaint`?
 A: Reflow (layout) recalculates element geometry and can cascade through the page; repaint redraws pixels without geometry changes. Reflow is more expensive.
 Q: How would you make a site accessible?
 A: Semantic structure and landmarks, labelled controls, full keyboard support with visible focus, sufficient contrast, text alternatives, ARIA only where needed, reduced-motion support, and testing with axe plus real screen readers.

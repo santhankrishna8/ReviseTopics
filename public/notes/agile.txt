@@ -48,11 +48,11 @@
 - **WIP (Work In Progress) limit**: a cap on how many items can be in one stage at once (Kanban, sheet 08).
 
 ## Interview Q&A | sky | wide
-Q: What is the SDLC?
+Q*: What is the SDLC?
 A: The Software Development Life Cycle: the stages software goes through, from requirements and design to implementation, testing, deployment and maintenance.
-Q: What is the difference between Agile and Scrum?
+Q*: What is the difference between Agile and Scrum?
 A: Agile is a set of values and principles (the Agile Manifesto). Scrum is one specific framework that implements them, with defined roles, events and artifacts.
-Q: Where did Scrum get its name?
+Q*: Where did Scrum get its name?
 A: From rugby: Takeuchi and Nonaka's 1986 article compared product teams that move forward together to a rugby scrum.
 Q: What is the iron triangle and how does Agile treat it?
 A: Scope, time and cost constrain each other, with quality at stake. Agile fixes time (sprints) and cost (a stable team) and adjusts scope by priority.
@@ -105,11 +105,11 @@ A: A Minimum Viable Product: the smallest version that delivers value to real us
 - Also: monitoring and alerting, incident response, support tickets, and eventually **retirement** (decommissioning) of the system.
 
 ## Interview Q&A | sky | wide
-Q: What are the phases of the SDLC?
+Q*: What are the phases of the SDLC?
 A: Requirements analysis, design, implementation (coding), testing, deployment and maintenance. Some versions add planning at the start and retirement at the end.
-Q: Functional vs non-functional requirements?
+Q*: Functional vs non-functional requirements?
 A: Functional requirements describe what the system does (features and behaviour); non-functional requirements describe qualities such as performance, security, availability, scalability and usability.
-Q: What is an SRS?
+Q*: What is an SRS?
 A: A Software Requirements Specification: a document describing the functional and non-functional requirements, constraints and interfaces, used as the agreed basis for design and testing in traditional projects.
 Q: HLD vs LLD?
 A: High-level design describes the overall architecture: components, interactions, data stores and infrastructure. Low-level design details each component: classes, methods, schemas and algorithms.
@@ -178,11 +178,11 @@ Best for           Stable, well-known, regulated work     Uncertain, changing, i
 - **DevOps** extends Agile past development: automated CI/CD, infrastructure as code, monitoring and shared ownership between development and operations, so increments reach users quickly and safely.
 
 ## Interview Q&A | sky | wide
-Q: What is the Waterfall model?
+Q*: What is the Waterfall model?
 A: A sequential SDLC model in which each phase (requirements, design, implementation, testing, deployment, maintenance) is completed and signed off before the next starts, with one release at the end.
-Q: What are the differences between Waterfall and Agile?
+Q*: What are the differences between Waterfall and Agile?
 A: Waterfall is sequential with fixed requirements, late testing and one release; Agile is iterative with evolving requirements, continuous testing, frequent working releases and ongoing customer collaboration.
-Q: When would you still choose Waterfall?
+Q*: When would you still choose Waterfall?
 A: For stable, well-understood requirements, fixed-scope contracts, or regulated or safety-critical work that needs formal documentation and phase approvals.
 Q: What is the V-Model?
 A: An extension of Waterfall where each development phase has a corresponding test phase, so test planning starts early: requirements map to acceptance tests, design to system and integration tests, modules to unit tests.
@@ -234,11 +234,11 @@ A: Discovering late, when users first see the software or when testing starts, t
 - **"Agile is faster."** It delivers **value earlier** and reduces the risk of building the wrong thing; it doesn't make the same amount of work take less time.
 
 ## Interview Q&A | sky | wide
-Q: What are the four values of the Agile Manifesto?
+Q*: What are the four values of the Agile Manifesto?
 A: Individuals and interactions over processes and tools; working software over comprehensive documentation; customer collaboration over contract negotiation; responding to change over following a plan.
-Q: Does Agile mean there is no documentation?
+Q*: Does Agile mean there is no documentation?
 A: No. The manifesto values working software more than comprehensive documentation, but explicitly says there is value in the right-hand items. Agile teams write the documentation that is useful.
-Q: Name a few Agile principles.
+Q*: Name a few Agile principles.
 A: Early and continuous delivery of valuable software; welcoming changing requirements; delivering frequently; business and developers working together daily; working software as the primary measure of progress; sustainable pace; technical excellence; simplicity; self-organising teams; regular reflection and adjustment.
 Q: When and by whom was the Agile Manifesto written?
 A: In February 2001 at Snowbird, Utah, by 17 practitioners including Kent Beck, Martin Fowler, Ken Schwaber, Jeff Sutherland and Robert C. Martin.
@@ -283,11 +283,11 @@ A: The team works at a pace it can keep indefinitely, without regular overtime, 
 - **What changed in the 2020 Scrum Guide**: "Development Team" became **Developers** (one team, no team within a team); a **Product Goal** was added; each artifact got a **commitment** (Product Goal, Sprint Goal, Definition of Done); "self-organizing" became **self-managing**; the Daily Scrum's three questions were removed; the guide became shorter and less prescriptive.
 
 ## Interview Q&A | sky | wide
-Q: What are the roles in Scrum?
+Q*: What are the roles in Scrum?
 A: The Product Owner (maximises product value, owns the Product Backlog), the Scrum Master (establishes Scrum and the team's effectiveness, removes impediments, coaches) and the Developers (create the Increment each Sprint). Together they form one Scrum Team.
-Q: What are the three pillars of Scrum?
+Q*: What are the three pillars of Scrum?
 A: Transparency, inspection and adaptation, the pillars of empiricism.
-Q: What are the Scrum values?
+Q*: What are the Scrum values?
 A: Commitment, focus, openness, respect and courage.
 Q: Scrum Master vs project manager?
 A: A project manager plans, assigns and controls work and owns scope, time and budget. A Scrum Master is a coach and facilitator who helps a self-managing team and the organisation use Scrum effectively; they don't assign tasks.
@@ -356,11 +356,11 @@ Acceptance criteria (Given / When / Then):
 - The Product Owner brings priorities and context; Developers ask questions, split stories, identify risks and estimate. Good refinement makes Sprint Planning short.
 
 ## Interview Q&A | sky | wide
-Q: What are the Scrum artifacts?
+Q*: What are the Scrum artifacts?
 A: The Product Backlog, the Sprint Backlog and the Increment, with their commitments: the Product Goal, the Sprint Goal and the Definition of Done.
-Q: Definition of Done vs acceptance criteria?
+Q*: Definition of Done vs acceptance criteria?
 A: The Definition of Done is a quality checklist that applies to every item; acceptance criteria are conditions specific to one story. An item is done only when it meets both.
-Q: Definition of Done vs Definition of Ready?
+Q*: Definition of Done vs Definition of Ready?
 A: The DoD defines when work is finished and can be part of an Increment; the DoR (a common practice, not in the Scrum Guide) defines when a backlog item is clear enough to start.
 Q: What makes a good user story?
 A: The INVEST criteria: independent, negotiable, valuable, estimable, small and testable, written from the user's perspective with clear acceptance criteria.
@@ -414,11 +414,11 @@ Sprint Retrospective   max 3 hours        (≈ 1.5 hours for a 2-week Sprint)
 - **Review vs Retrospective**: the Review inspects the **product** with stakeholders; the Retrospective inspects the **process** within the team.
 
 ## Interview Q&A | sky | wide
-Q: What are the Scrum events?
+Q*: What are the Scrum events?
 A: The Sprint (the container), Sprint Planning, the Daily Scrum, the Sprint Review and the Sprint Retrospective.
-Q: How long is a Sprint, and can its length change?
+Q*: How long is a Sprint, and can its length change?
 A: One month or less, usually one or two weeks, kept consistent. Changing length occasionally is possible, but frequent changes destroy the rhythm and the usefulness of velocity.
-Q: What happens in Sprint Planning?
+Q*: What happens in Sprint Planning?
 A: The team agrees why the Sprint is valuable (the Sprint Goal), what can be done (selected backlog items, based on capacity and velocity) and how (a plan, often tasks), forming the Sprint Backlog.
 Q: What is the purpose of the Daily Scrum?
 A: For the Developers to inspect progress towards the Sprint Goal and adapt their plan for the next 24 hours, in 15 minutes. It isn't a status meeting for managers.
@@ -479,11 +479,11 @@ Sprint burndown (points remaining)          Release burnup (points)
 - Jira provides both (sprint burndown, release burnup), plus **velocity charts** and **cumulative flow diagrams** (sheet 08).
 
 ## Interview Q&A | sky | wide
-Q: What are story points?
+Q*: What are story points?
 A: A relative measure of the effort to complete a backlog item, combining complexity, amount of work and uncertainty, estimated by the team against reference stories.
-Q: Why use Fibonacci numbers for estimates?
+Q*: Why use Fibonacci numbers for estimates?
 A: The growing gaps reflect growing uncertainty in larger items and stop pointless debates such as 11 versus 12; big numbers signal that a story should be split.
-Q: How does Planning Poker work?
+Q*: How does Planning Poker work?
 A: Each estimator picks a card privately, all reveal together, the highest and lowest explain their reasoning, and the team re-votes until it converges. It avoids anchoring and surfaces hidden work.
 Q: What is velocity and how is it used?
 A: The story points completed per Sprint. A team uses its recent average to decide how much to take into the next Sprint and to forecast releases. It isn't for comparing teams or measuring productivity.
@@ -541,11 +541,11 @@ Best for        Product development with goals         Support, operations, main
 - **DevOps** brings development and operations together: automated CI/CD pipelines, infrastructure as code, monitoring, shared on-call. Agile makes **development** iterative; DevOps makes **delivery and operations** continuous, so each increment can actually reach users quickly.
 
 ## Interview Q&A | sky | wide
-Q: What is Kanban?
+Q*: What is Kanban?
 A: A flow-based method that visualises work on a board, limits work in progress per stage and continuously pulls new work as capacity frees up, measuring and improving flow with cycle time, throughput and cumulative flow diagrams.
-Q: Scrum vs Kanban?
+Q*: Scrum vs Kanban?
 A: Scrum uses fixed-length Sprints with defined roles, events and a Sprint Goal; Kanban has continuous flow with no prescribed roles, controls work through WIP limits and measures cycle time. Scrum suits planned product development; Kanban suits support and unpredictable work.
-Q: What is a WIP limit and why does it help?
+Q*: What is a WIP limit and why does it help?
 A: A maximum number of items allowed in a workflow stage. It stops people starting too much at once, exposes bottlenecks and, by Little's Law, shortens cycle time.
 Q: Lead time vs cycle time?
 A: Lead time runs from when a request is made to when it is delivered; cycle time runs from when work actually starts to when it is done.
@@ -597,11 +597,11 @@ Epic        SHOP-100  Checkout redesign                       (spans several spr
 - **Git integration** (GitHub, GitLab, Bitbucket): include the key in branch names, commits and PR titles (`feature/SHOP-101-save-cart`, `SHOP-101 add saved cart table`), and the item's development panel shows branches, commits, PRs, builds and deployments. **Smart commits** can act on items from a commit message: `SHOP-101 #comment cache added #time 2h #done` (the last command runs the workflow transition named "Done").
 
 ## Interview Q&A | sky | wide
-Q: What is Jira used for?
+Q*: What is Jira used for?
 A: Tracking work in software teams: backlogs, sprints, bugs and tasks, boards, workflows, reports such as burndown and velocity charts, and links to code and deployments.
-Q: What are the standard issue (work) types in Jira?
+Q*: What are the standard issue (work) types in Jira?
 A: Epic, Story, Task, Bug and Sub-task, forming a hierarchy of epic → story/task/bug → sub-task.
-Q: Epic vs story vs task vs sub-task?
+Q*: Epic vs story vs task vs sub-task?
 A: An epic is a large feature spanning sprints; a story is user-facing value deliverable in a sprint; a task is non-user-facing work; a sub-task is a piece of any of them.
 Q: What is a Jira workflow?
 A: The set of statuses (such as To Do, In Progress, Code Review, QA, Done) and allowed transitions an item moves through, optionally with conditions, validators and post functions.
@@ -652,11 +652,11 @@ project = SHOP AND issuetype = Bug AND status != Done ORDER BY priority DESC, cr
 - Typical uses: a QA filter for "ready for test", a lead's filter for blocked or stale items, a release checklist filter, a triage filter for new bugs without priority.
 
 ## Interview Q&A | sky | wide
-Q: What is JQL?
+Q*: What is JQL?
 A: Jira Query Language: a SQL-like syntax for searching Jira items with field, operator and value conditions combined with AND, OR and NOT, plus ORDER BY.
-Q: Write a JQL query for my unresolved bugs in the current sprint.
+Q*: Write a JQL query for my unresolved bugs in the current sprint.
 A: `assignee = currentUser() AND issuetype = Bug AND sprint IN openSprints() AND resolution = Unresolved`.
-Q: How do you find items not updated in a week?
+Q*: How do you find items not updated in a week?
 A: `updated <= -7d`, usually combined with `statusCategory != Done` or a specific status.
 Q: What do the WAS and CHANGED operators do?
 A: They search history: `status WAS "In Progress"` finds items that were ever in that status; `status CHANGED TO Done DURING (startOfWeek(), now())` finds items moved to Done this week.
@@ -694,11 +694,11 @@ A: Saving and sharing queries, email subscriptions, dashboard gadgets and as the
 - Know your own team's numbers: sprint length, team size, typical velocity, tools (Jira, Confluence, GitHub), and your role in each ceremony.
 
 ## Big Interview Q&A | sky | wide
-Q: Explain Scrum in one minute.
+Q*: Explain Scrum in one minute.
 A: A framework for complex products where a small, cross-functional, self-managing team works in Sprints of a month or less. The Product Owner orders the Product Backlog; in Sprint Planning the team picks a Sprint Goal and items; it syncs in a 15-minute Daily Scrum; it shows the usable Increment in the Sprint Review and improves its process in the Retrospective, all based on transparency, inspection and adaptation.
-Q: What is the role of the Product Owner?
+Q*: What is the role of the Product Owner?
 A: Maximising product value by owning and ordering the Product Backlog, defining the Product Goal and working with stakeholders.
-Q: What is a Definition of Done?
+Q*: What is a Definition of Done?
 A: A shared quality checklist that every Increment must satisfy (reviewed, tested, documented, deployable) before work counts as done.
 Q: What is velocity?
 A: The amount of work, usually in story points, a team completes per Sprint, used for planning and forecasting, not for comparing teams.

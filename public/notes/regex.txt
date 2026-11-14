@@ -76,11 +76,11 @@ flags:   i ignore case, g global, m multiline, s dotAll, u unicode, x verbose (n
 > "Some people, when confronted with a problem, think 'I know, I'll use regular expressions.' Now they have two problems." (Jamie Zawinski, 1997). Regex is powerful; keep patterns small, commented and tested.
 
 ## Interview Q&A | sky | wide
-Q: What is a regular expression?
+Q*: What is a regular expression?
 A: A pattern, written in a compact syntax, that describes a set of strings. Engines use it to validate, search, extract, replace and split text.
-Q: What does grep stand for?
+Q*: What does grep stand for?
 A: It comes from the ed editor command g/re/p: globally search for a regular expression and print matching lines.
-Q: What is a regex flavour?
+Q*: What is a regex flavour?
 A: A specific dialect of regex syntax and features: POSIX BRE and ERE, PCRE, JavaScript, Java, Python and .NET differ in shorthands, lookbehind support, named-group syntax, possessive quantifiers and flags.
 Q: What is the difference between BRE and ERE?
 A: In POSIX basic regex, characters like ( ) { } + ? are literal unless escaped; in extended regex they are operators without escaping.
@@ -161,11 +161,11 @@ gr[ae]y            gray or grey
 ```
 
 ## Interview Q&A | sky | wide
-Q: What does `.` match?
+Q*: What does `.` match?
 A: Any single character except line terminators, unless the dotall flag (`s`, `re.DOTALL`, `Pattern.DOTALL`) is enabled.
-Q: Difference between `[^abc]` and `^abc`?
+Q*: Difference between `[^abc]` and `^abc`?
 A: `[^abc]` is a negated set matching one character that is not a, b or c. `^abc` anchors "abc" at the start of the string (or line in multiline mode).
-Q: What is `\b`?
+Q*: What is `\b`?
 A: A zero-width word boundary: a position between a word character and a non-word character, or at the string edge next to a word character.
 Q: Why must validation patterns be anchored?
 A: Without `^...$` (or a full-match API) the pattern can match a substring, so "abc123def" would pass a check meant for digits only.
@@ -229,11 +229,11 @@ Pattern.compile("(?>\\w+)@");                         // atomic word before @
 ```
 
 ## Interview Q&A | sky | wide
-Q: Greedy vs lazy quantifiers?
+Q*: Greedy vs lazy quantifiers?
 A: Greedy quantifiers match as much as possible and backtrack if needed. Lazy ones (with a trailing `?`) match as little as possible and expand only when the rest of the pattern needs more.
-Q: What does `a{2,}` mean?
+Q*: What does `a{2,}` mean?
 A: Two or more "a" characters.
-Q: Why does `<.*>` match too much in HTML?
+Q*: Why does `<.*>` match too much in HTML?
 A: `.*` is greedy, so it runs to the last `>` in the line. Use `<.*?>` or better `<[^>]*>`.
 Q: What is a possessive quantifier?
 A: A greedy quantifier that never backtracks (`++`, `*+`). It can make a match fail where a greedy one would succeed, but it prevents runaway backtracking.
@@ -297,11 +297,11 @@ https?|ftp                    protocol
 ```
 
 ## Interview Q&A | sky | wide
-Q: Capturing vs non-capturing group?
+Q*: Capturing vs non-capturing group?
 A: A capturing group `( )` stores the matched text for later use (extraction, backreferences, replacements). A non-capturing group `(?: )` only groups tokens for quantifiers or alternation.
-Q: How are groups numbered?
+Q*: How are groups numbered?
 A: By the position of their opening parenthesis from left to right, starting at 1. Group 0 is the entire match.
-Q: What is a backreference?
+Q*: What is a backreference?
 A: `\1` (or `\k<name>`) matches exactly the text captured earlier by that group, for example to find repeated words.
 Q: What does `^a|b$` match?
 A: Either "a" at the start or "b" at the end, because alternation has the lowest precedence. Use `^(?:a|b)$` for "exactly a or b".
@@ -356,11 +356,11 @@ PHONE.match("+91 9876543210") is not None    # True
 ```
 
 ## Interview Q&A | sky | wide
-Q: What does the multiline flag change?
+Q*: What does the multiline flag change?
 A: Only the meaning of `^` and `$`: they match at the start and end of every line instead of only the whole string.
-Q: Multiline vs dotall?
+Q*: Multiline vs dotall?
 A: Multiline affects anchors (`^`, `$`). Dotall lets `.` match newline characters. They are independent.
-Q: What does the `g` flag do in JavaScript?
+Q*: What does the `g` flag do in JavaScript?
 A: Finds all matches (for `match`, `replace`, `matchAll`) and makes `exec`/`test` stateful through `lastIndex`.
 Q: How do you write a readable complex regex?
 A: Use verbose mode (`re.VERBOSE` or Java `COMMENTS`) with comments, named groups, or build the pattern from named string parts. In JS, compose with `new RegExp` from documented pieces.
@@ -419,11 +419,11 @@ re.sub(r"(?<!^)(?=[A-Z])", "_", "userAccountId").lower()   # 'user_account_id'
 - Lookarounds can contain **capturing groups**; in JS a backreference to a group captured inside a lookahead emulates an atomic group.
 
 ## Interview Q&A | sky | wide
-Q: What is a lookahead?
+Q*: What is a lookahead?
 A: A zero-width assertion that checks whether a pattern follows the current position (`(?=...)` positive, `(?!...)` negative) without including it in the match.
-Q: What does zero-width mean?
+Q*: What does zero-width mean?
 A: The assertion matches a position, not characters, so the engine does not advance through the text. Anchors, `\b` and lookarounds are zero-width.
-Q: Write a regex for a password with an uppercase letter, a digit and 8+ characters.
+Q*: Write a regex for a password with an uppercase letter, a digit and 8+ characters.
 A: `^(?=.*[A-Z])(?=.*\d).{8,}$`.
 Q: How do you match a word that is not followed by another word?
 A: Negative lookahead: `foo(?!bar)`. For a whole word: `\bfoo\b(?!\s+bar)`.
@@ -492,11 +492,11 @@ const ok = /\d/;        // no g: stateless
 ```
 
 ## Interview Q&A | sky | wide
-Q: `match` vs `matchAll`?
+Q*: `match` vs `matchAll`?
 A: `match` with `g` returns only the full-match strings; without `g` it returns the first match with groups. `matchAll` (requires `g`) returns an iterator of full match objects with groups and indexes for every match.
-Q: Why does `regex.test` alternate between true and false?
+Q*: Why does `regex.test` alternate between true and false?
 A: The regex has the `g` (or `y`) flag, so `test` resumes from `lastIndex` left by the previous call. Remove `g` or reset `lastIndex`.
-Q: How do you replace all occurrences of a string?
+Q*: How do you replace all occurrences of a string?
 A: `str.replaceAll("x", "y")`, or `str.replace(/x/g, "y")` with the special characters escaped.
 Q: How do you use user input in a regex safely?
 A: Escape regex metacharacters (`RegExp.escape` or a helper) before passing it to `new RegExp`, and limit input length to avoid ReDoS.
@@ -562,11 +562,11 @@ re.split(r"([,;])", "a,b;c")                                        # ['a', ',',
 - For CSV, HTML, JSON or dates use **proper parsers** (`csv`, `html.parser` / BeautifulSoup, `json`, `datetime.strptime`), not regex.
 
 ## Interview Q&A | sky | wide
-Q: `re.match` vs `re.search` vs `re.fullmatch`?
+Q*: `re.match` vs `re.search` vs `re.fullmatch`?
 A: `match` anchors at the start of the string, `search` scans for the first match anywhere, `fullmatch` requires the entire string to match.
-Q: Why use raw strings for regex in Python?
+Q*: Why use raw strings for regex in Python?
 A: So backslashes reach the regex engine unchanged. In a normal string `"\b"` is a backspace and `"\d"` triggers an invalid-escape warning.
-Q: What does `findall` return when the pattern has groups?
+Q*: What does `findall` return when the pattern has groups?
 A: The captured group text instead of the full match: a list of strings for one group, a list of tuples for several groups.
 Q: How do you replace using a computed value?
 A: Pass a function to `re.sub`; it receives each Match object and returns the replacement string.
@@ -638,11 +638,11 @@ public record SignupRequest(
 ```
 
 ## Interview Q&A | sky | wide
-Q: `matches()` vs `find()`?
+Q*: `matches()` vs `find()`?
 A: `matches()` requires the whole input to match the pattern. `find()` searches for the next matching subsequence and can be called repeatedly to iterate all matches.
-Q: Is `Pattern` thread-safe? `Matcher`?
+Q*: Is `Pattern` thread-safe? `Matcher`?
 A: Pattern is immutable and thread-safe, so compile once and share it. Matcher holds state and is not thread-safe; create one per thread or use.
-Q: Why does `"a.b".split(".")` return an empty array?
+Q*: Why does `"a.b".split(".")` return an empty array?
 A: `split` takes a regex and `.` matches every character, so every piece is empty and trailing empty strings are removed. Use `split("\\.")` or `Pattern.quote(".")`.
 Q: Why use `Pattern.compile` instead of `String.matches` in a loop?
 A: `String.matches` recompiles the regex on every call; a static compiled Pattern avoids that cost.
@@ -696,11 +696,11 @@ Safe version: ^a+$   (one quantifier, one way to match)
 - For simple checks, **string methods** (`startsWith`, `includes`, `split`) are faster and clearer.
 
 ## Interview Q&A | sky | wide
-Q: What is catastrophic backtracking?
+Q*: What is catastrophic backtracking?
 A: Exponential (or high polynomial) running time when a pattern can match the same text in many ways and the overall match fails, forcing the engine to try every combination, as with `(a+)+$`.
-Q: What is ReDoS?
+Q*: What is ReDoS?
 A: A denial-of-service attack that sends crafted input to a vulnerable regex so matching consumes CPU for seconds or hours, blocking servers, especially single-threaded Node.js.
-Q: How do you prevent ReDoS?
+Q*: How do you prevent ReDoS?
 A: Avoid nested and overlapping quantifiers, make sub-patterns mutually exclusive, bound repetition and input length, use atomic or possessive constructs, or use a linear-time engine like RE2 for untrusted input.
 Q: Backtracking engine vs RE2?
 A: Backtracking engines support backreferences and lookarounds but can blow up on some inputs. RE2 guarantees linear time but drops features like backreferences.
@@ -782,11 +782,11 @@ errors.most_common(5)
 - For performance questions, mention **compile once** and **catastrophic backtracking**.
 
 ## Big Interview Q&A | sky | wide
-Q: Write a regex that matches a valid IPv4 address.
+Q*: Write a regex that matches a valid IPv4 address.
 A: `^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$`. Each octet allows 0 to 255 without leading zeros.
-Q: How would you validate an email address?
+Q*: How would you validate an email address?
 A: Use a simple shape check like `^[^\s@]+@[^\s@]+\.[^\s@]+$` (or a library validator), then confirm ownership by sending a verification email. Fully RFC-compliant regexes are huge and still do not prove the address exists.
-Q: Extract all numbers from a string.
+Q*: Extract all numbers from a string.
 A: `-?\d+(?:\.\d+)?` with global matching (`findall`, `match(/.../g)`, `while (m.find())`).
 Q: Find duplicate consecutive words.
 A: `\b(\w+)\s+\1\b` with case-insensitive matching.

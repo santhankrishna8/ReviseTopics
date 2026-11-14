@@ -44,11 +44,11 @@ Boundaries:          17 (invalid)   18 (valid)   60 (valid)   61 (invalid)
 - Other ecosystems: **pytest** and `unittest` (Python), **Jest** and **Vitest** (JavaScript and TypeScript; Vitest is the default for new Angular projects), **Playwright**, **Cypress** and **Selenium** for browser end-to-end tests.
 
 ## Interview Q&A | sky | wide
-Q: What is software testing and why is it important?
+Q*: What is software testing and why is it important?
 A: Checking that software behaves as expected and finding defects before users do. It reduces the cost of bugs, makes refactoring safe, documents behaviour and enables continuous delivery.
-Q: What is the difference between an error, a defect and a failure?
+Q*: What is the difference between an error, a defect and a failure?
 A: An error is a human mistake; it introduces a defect (bug) into the code; the defect causes a failure when that code runs and behaves incorrectly.
-Q: Verification vs validation?
+Q*: Verification vs validation?
 A: Verification checks the product against its specification ("built right"); validation checks it meets the user's actual needs ("right product").
 Q: What are the levels of testing?
 A: Unit, integration, system and acceptance testing, from the smallest piece of code to the whole product judged by its users.
@@ -207,11 +207,11 @@ class PriceCalculatorTest {                     // package-private is fine in JU
 - **JUnit 6 (2025)** changes, from the official release notes: minimum **Java 17**; Platform, Jupiter and Vintage share **one version number**; the **Vintage engine is deprecated**; `@CsvSource` now uses the FastCSV parser (stricter about extra characters after a closing quote); Kotlin `suspend` test methods; **JSpecify** nullability annotations on all APIs; parameterized display names quote text arguments; many long-deprecated APIs removed.
 
 ## Interview Q&A | sky | wide
-Q: What is the architecture of JUnit 5?
+Q*: What is the architecture of JUnit 5?
 A: Three parts: the JUnit Platform (launcher and TestEngine API used by IDEs and build tools), JUnit Jupiter (the annotations, assertions and extension model, plus its engine) and JUnit Vintage (an engine for running JUnit 3 and 4 tests).
-Q: What is a TestEngine?
+Q*: What is a TestEngine?
 A: The Platform's plug-in interface: an engine discovers tests written in its programming model and executes them. Jupiter, Vintage, Cucumber and Spock each provide one.
-Q: How does Maven run JUnit tests?
+Q*: How does Maven run JUnit tests?
 A: The Surefire plugin runs in the test phase, uses the JUnit Platform launcher to discover classes such as *Test, runs them and writes reports to target/surefire-reports; a failing test fails the build.
 Q: Why must @BeforeAll methods be static?
 A: JUnit creates a new test-class instance per test method, so a method that runs once before all tests can't depend on an instance, unless the class uses @TestInstance(PER_CLASS).
@@ -406,11 +406,11 @@ class OrderedFlowTest {
 - **Composed annotations**: annotations can be combined into your own, for example `@Tag("integration") @SpringBootTest` → `@IntegrationTest`.
 
 ## Interview Q&A | sky | wide
-Q: @BeforeEach vs @BeforeAll?
+Q*: @BeforeEach vs @BeforeAll?
 A: @BeforeEach runs before every test method to give each test a fresh fixture; @BeforeAll runs once before all tests in the class for expensive shared setup and must be static by default.
-Q: Does @AfterEach run when a test fails?
+Q*: Does @AfterEach run when a test fails?
 A: Yes. It runs after every test regardless of the outcome, which is why cleanup belongs there.
-Q: What is @Nested used for?
+Q*: What is @Nested used for?
 A: Grouping related tests in inner classes that share and extend the outer setup, producing readable, hierarchical scenarios such as "when the cart is empty".
 Q: How do you run only some tests, for example skip slow ones?
 A: Tag them with @Tag("slow") and filter with the build tool: Surefire's groups and excludedGroups, or Gradle's includeTags and excludeTags.
@@ -569,11 +569,11 @@ class AssertJDemoTest {
 - **Hamcrest** (`assertThat(x, is(equalTo(y)))`) is the older matcher library, still seen in JUnit 4 code and Spring's MockMvc.
 
 ## Interview Q&A | sky | wide
-Q: Why is the order of arguments in assertEquals important?
+Q*: Why is the order of arguments in assertEquals important?
 A: The first is the expected value and the second the actual one; the failure message reads "expected: <a> but was: <b>", so swapping them misleads whoever debugs the failure.
-Q: How do you compare doubles in a test?
+Q*: How do you compare doubles in a test?
 A: With a tolerance: assertEquals(expected, actual, delta), or AssertJ's isCloseTo; exact equality fails because of floating-point rounding.
-Q: assertEquals vs assertSame?
+Q*: assertEquals vs assertSame?
 A: assertEquals checks logical equality with equals(); assertSame checks that both references point to the same object.
 Q: How do you test that a method throws an exception?
 A: `assertThrows(Expected.class, () -> code())`, which returns the exception so you can also assert on its message. In JUnit 4 it was @Test(expected = ...).
@@ -717,11 +717,11 @@ class ShippingParamTest {
 - **Dynamic tests**: a `@TestFactory` method returns a `Stream<DynamicTest>` built at runtime (for example one test per file in a folder). Unlike parameterized tests, no lifecycle callbacks run around each dynamic test.
 
 ## Interview Q&A | sky | wide
-Q: What is a parameterized test?
+Q*: What is a parameterized test?
 A: One test method run several times with different inputs and expected outputs, each run reported separately. In JUnit it's @ParameterizedTest plus a source such as @ValueSource or @CsvSource.
-Q: @ValueSource vs @CsvSource vs @MethodSource?
+Q*: @ValueSource vs @CsvSource vs @MethodSource?
 A: @ValueSource supplies one simple value per run; @CsvSource supplies several columns per row from inline text; @MethodSource supplies rows built in Java code, which allows complex objects.
-Q: How do you pass null or empty values?
+Q*: How do you pass null or empty values?
 A: @NullSource, @EmptySource or @NullAndEmptySource; in @CsvSource an empty column is null, '' is an empty string, and nullValues defines a null marker.
 Q: How do parameterized tests relate to boundary value analysis?
 A: They make it cheap to test every partition and boundary: one row per value such as 17, 18, 60 and 61.
@@ -867,11 +867,11 @@ class OrderServiceTest {
 - **BDDMockito** reads as Given/When/Then: `given(payments.charge(any(), anyDouble())).willReturn("pay_1");` ... `then(email).should().send("ann@shop.io", "Order 42 confirmed");`.
 
 ## Interview Q&A | sky | wide
-Q: Why do we mock dependencies in unit tests?
+Q*: Why do we mock dependencies in unit tests?
 A: To test one class in isolation, quickly and deterministically, without real databases, networks or external services, and to simulate cases that are hard to produce for real, such as a payment failure.
-Q: Mock vs stub vs spy vs fake?
+Q*: Mock vs stub vs spy vs fake?
 A: A stub returns canned answers; a mock is also used to verify interactions; a spy wraps a real object and records or partly overrides calls; a fake is a lightweight working implementation such as an in-memory repository.
-Q: @Mock vs @InjectMocks?
+Q*: @Mock vs @InjectMocks?
 A: @Mock creates a mock object for a dependency; @InjectMocks creates the real class under test and injects the @Mock objects into it.
 Q: How do you stub a void method to throw?
 A: `doThrow(new X()).when(mock).voidMethod(args)`, because a void call can't be passed to when().
@@ -1029,11 +1029,11 @@ class SpyAndStaticTest {
 - A test that needs many mocks is telling you the class has too many responsibilities.
 
 ## Interview Q&A | sky | wide
-Q: How do you verify a method was called twice, or never?
+Q*: How do you verify a method was called twice, or never?
 A: `verify(mock, times(2)).method(args)` and `verify(mock, never()).method(args)`; atLeastOnce(), atMost(n) and only() are also available.
-Q: What is ArgumentCaptor used for?
+Q*: What is ArgumentCaptor used for?
 A: To capture the actual argument passed to a mock during verification, so you can assert on an object that was created inside the method under test.
-Q: How do you verify the order of calls?
+Q*: How do you verify the order of calls?
 A: Create an InOrder for the mocks involved and verify the calls through it in the expected sequence.
 Q: Spy vs mock?
 A: A mock is a full stand-in whose methods do nothing unless stubbed; a spy wraps a real object, runs real methods unless stubbed, and records calls.
@@ -1136,11 +1136,11 @@ class OrderRepositoryIT {
 - **Test data**: builders and "object mothers" (`anOrder().withAmount(500).build()`), factories per test, unique ids so parallel tests don't collide, and cleanup in `@AfterEach` or transactions rolled back after each test.
 
 ## Interview Q&A | sky | wide
-Q: What is the test pyramid?
+Q*: What is the test pyramid?
 A: A strategy with many fast unit tests at the base, fewer integration tests in the middle and a few slow end-to-end tests at the top, balancing speed, cost and confidence.
-Q: Unit vs integration vs E2E tests?
+Q*: Unit vs integration vs E2E tests?
 A: Unit tests check one class in isolation with mocks; integration tests check components working with real infrastructure such as a database; E2E tests drive the whole deployed system as a user would.
-Q: What is the ice-cream cone anti-pattern?
+Q*: What is the ice-cream cone anti-pattern?
 A: An inverted pyramid: mostly manual and UI tests and few unit tests, which makes feedback slow, expensive and flaky.
 Q: Why use Testcontainers instead of H2 for integration tests?
 A: Testcontainers runs the real database engine in Docker, so SQL, types and constraints behave exactly as in production; H2 only emulates other dialects and can hide bugs.
@@ -1245,11 +1245,11 @@ JaCoCo report for ShippingLabel (real output, one test):
 - **Mutation testing** (**PIT / Pitest** for Java) measures test **quality**: it makes small changes to the code (`>=` into `>`, `+` into `-`, removes a call) and checks whether a test fails. A **surviving mutant** reveals a missing or weak assertion. Slower, so run it on core modules or nightly.
 
 ## Interview Q&A | sky | wide
-Q: What is code coverage?
+Q*: What is code coverage?
 A: The percentage of code executed by the tests: lines, branches, instructions or methods. It reveals untested code but doesn't measure how good the assertions are.
-Q: Line coverage vs branch coverage?
+Q*: Line coverage vs branch coverage?
 A: Line coverage counts executed lines; branch coverage counts executed outcomes of each decision. A single line with a condition can be 100% line-covered while half its branches never run, so branch coverage is stronger.
-Q: How does JaCoCo work?
+Q*: How does JaCoCo work?
 A: A Java agent instruments the bytecode while tests run and records which instructions and branches execute in jacoco.exec; the report goal produces HTML, XML and CSV reports and the check goal enforces thresholds.
 Q: Is 100% coverage a good goal?
 A: Usually not. It costs a lot, leads to low-value tests and still doesn't prove correctness. Aim for strong coverage of important logic and a gate on new code.
@@ -1454,11 +1454,11 @@ After changing the provider to return "name": 42 instead of "Keyboard":
 - **Alternatives**: **Spring Cloud Contract** (provider-driven, Groovy/YAML contracts that generate tests and WireMock stubs, JVM-centric); **OpenAPI schema validation** (checks a response against the spec, but not which fields consumers really use).
 
 ## Interview Q&A | sky | wide
-Q: What is contract testing?
+Q*: What is contract testing?
 A: Testing the interaction between a consumer and a provider separately against a shared contract, so API compatibility is checked without deploying both services together.
-Q: What does consumer-driven mean in Pact?
+Q*: What does consumer-driven mean in Pact?
 A: The consumer's tests define and generate the contract with the requests it makes and the response fields it needs; the provider must verify that contract.
-Q: Explain the Pact workflow.
+Q*: Explain the Pact workflow.
 A: The consumer test runs against a Pact mock server and writes a pact file; it is published to a Pact Broker; the provider's build replays each interaction against the real provider and publishes the result; can-i-deploy checks compatibility before releasing.
 Q: What is a provider state?
 A: A named precondition ("product 42 exists") that the provider sets up before an interaction is replayed, so the response can be produced.
@@ -1557,11 +1557,11 @@ export function total(items) {
 - **Pre-commit hooks**: **Husky** runs Git hooks from `package.json`, and **lint-staged** runs ESLint and Prettier only on the files being committed, so problems never reach the repository. CI repeats the checks because hooks can be skipped.
 
 ## Interview Q&A | sky | wide
-Q: What is static code analysis?
+Q*: What is static code analysis?
 A: Analysing code without executing it to find bugs, vulnerabilities, code smells and style violations, in the IDE, in hooks and as a CI gate.
-Q: What is a SonarQube quality gate?
+Q*: What is a SonarQube quality gate?
 A: A set of pass/fail conditions on metrics for a change. The default Sonar way gate on new code requires no new issues, all new security hotspots reviewed, at least 80% coverage and at most 3% duplication.
-Q: What is a security hotspot?
+Q*: What is a security hotspot?
 A: Security-sensitive code (such as cryptography, regex on user input or cookie settings) that isn't necessarily a vulnerability but must be reviewed by a person.
 Q: SpotBugs vs Checkstyle vs PMD?
 A: SpotBugs finds bug patterns in bytecode; Checkstyle enforces coding style and conventions in source; PMD finds code smells and suspicious constructs in source, plus copy-paste detection.
@@ -1605,11 +1605,11 @@ A: Hooks give instant feedback before code is shared; CI is the enforcement poin
 - Approve when the change makes the code **better than before**, not when it's perfect. Disagreements that go back and forth more than twice are better settled in a quick call, then recorded in the PR.
 
 ## Interview Q&A | sky | wide
-Q: What do you look for when reviewing code?
+Q*: What do you look for when reviewing code?
 A: Correctness and edge cases, tests, readability and maintainability, design fit, performance problems such as N+1 queries, security issues such as missing authorisation or injection, and operability (logging, migrations, flags).
-Q: How do you give constructive feedback in a code review?
+Q*: How do you give constructive feedback in a code review?
 A: Comment on the code rather than the person, explain the reason, suggest an alternative, ask questions when unsure, mark minor points as nits and acknowledge what's good.
-Q: What makes a good pull request?
+Q*: What makes a good pull request?
 A: A small, focused change with a clear description of what and why, how it was tested, green CI, and a self-review done before requesting reviewers.
 Q: What should be automated instead of reviewed by humans?
 A: Formatting, lint rules, tests, coverage thresholds, dependency and security scanning, so reviewers can focus on logic and design.
@@ -1652,11 +1652,11 @@ A: Small enough to review carefully in one sitting, typically a few hundred line
 - Tie to experience: "We had flaky checkout tests caused by real dates; injecting a fixed Clock made them deterministic, and adding a 70% branch-coverage gate on new code stopped untested payment logic from merging."
 
 ## Big Interview Q&A | sky | wide
-Q: Unit test vs integration test?
+Q*: Unit test vs integration test?
 A: A unit test checks one class in isolation with mocked collaborators and runs in milliseconds; an integration test checks several components or real infrastructure working together and is slower.
-Q: What is the difference between @Mock and @MockitoBean?
+Q*: What is the difference between @Mock and @MockitoBean?
 A: @Mock creates a plain Mockito mock in a unit test with MockitoExtension. @MockitoBean (Spring Framework 6.2+) replaces a bean inside the Spring application context for Spring tests; it supersedes Spring Boot's @MockBean, deprecated in Boot 3.4 and removed in Boot 4.
-Q: How do you test private methods?
+Q*: How do you test private methods?
 A: Normally you don't test them directly: test them through the public methods that use them. If a private method needs its own tests, it probably belongs in its own class.
 Q: How do you test code that depends on the current time?
 A: Inject a java.time.Clock and pass Clock.fixed(...) in tests, instead of calling LocalDateTime.now() directly or mocking static methods.

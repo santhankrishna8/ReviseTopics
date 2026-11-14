@@ -152,6 +152,22 @@ FROM employees WHERE emp_id = 8;          -- Arjun, No department
 - `IFNULL` (MySQL), `ISNULL` (SQL Server), `NVL` (Oracle) do the same with two values.
 ! COALESCE = "if this is empty, use the next one".
 
+## Conditional & String Aggregation
+```sql
+SELECT dept_id,
+       COUNT(*) AS total,
+       SUM(CASE WHEN salary > 100000 THEN 1 ELSE 0 END) AS high_paid,
+       COUNT(*) FILTER (WHERE salary > 100000) AS high_pg,           -- PostgreSQL
+       STRING_AGG(name, ', ' ORDER BY name) AS names                 -- MySQL: GROUP_CONCAT(name)
+FROM employees GROUP BY dept_id;
+```
+! `CASE` inside an aggregate pivots rows into columns.
+
+## AND, OR, NOT Precedence, Conversion & Gotchas
+- Precedence: `NOT` > `AND` > `OR`; use parentheses. `NULL = NULL` is unknown, use `IS NULL`; `NOT IN` with a NULL in the list returns nothing (use `NOT EXISTS`). `COUNT(col)` skips NULLs. Integer division truncates. `CAST(x AS INT)` / `x::int`.
+- `RETURNING` (PostgreSQL) / `OUTPUT` (SQL Server) return rows from `INSERT/UPDATE/DELETE`.
+! `a OR b AND c` means `a OR (b AND c)`.
+
 ### Joins
 
 ## Joins Explained
@@ -342,6 +358,14 @@ SERIALIZABLE      as if transactions ran one by one (safest, slowest)
 - **Optimistic locking** (version column, retry on conflict) vs **pessimistic locking** (`SELECT ... FOR UPDATE` locks the row).
 ! Two people in a narrow corridor, each waiting for the other to step back.
 
+## Deadlocks & Locking
+- A **deadlock:** transactions each hold a lock the other needs; the DB aborts one (retry it). Prevent: lock rows in a **consistent order**, short transactions, proper indexes.
+- `SELECT ... FOR UPDATE` locks rows; optimistic locking uses a `version` column.
+```sql
+UPDATE accounts SET bal = bal - 100, version = version + 1 WHERE id = 1 AND version = 7;   -- 0 rows = conflict
+```
+! Same lock order everywhere avoids most deadlocks.
+
 ### Design & Performance
 
 ## Normalization
@@ -368,6 +392,21 @@ SERIALIZABLE      as if transactions ran one by one (safest, slowest)
 > **SQL injection** is an attack where user input is inserted into a query and changes its meaning, e.g. entering `' OR '1'='1` as a password.
 - **Prevent** with **parameterized queries / prepared statements** (`WHERE email = ?`), ORMs, least-privilege DB users and input validation. Never build SQL by concatenating user input.
 ! Treat user input as data, never as code.
+
+## Normalisation: BCNF & Denormalisation
+- **1NF:** atomic values. **2NF:** no partial dependency on part of a key. **3NF:** no transitive dependency. **BCNF:** every determinant is a candidate key.
+- **Denormalise** deliberately (duplicate columns, summary tables) for read speed, at the cost of update anomalies.
+! "The key, the whole key, and nothing but the key."
+
+## Tuning Checklist
+- `EXPLAIN (ANALYZE)` first. Index filter, join and sort columns; avoid functions on indexed columns (`WHERE YEAR(d)=...`), leading wildcards (`LIKE '%x'`), `SELECT *`, and N+1 queries. Select only needed rows, paginate by keyset, update statistics, batch writes.
+! Measure with EXPLAIN before changing anything.
+
+## Scaling a Database: Pooling, Replication, Partitioning, Sharding
+- **Connection pooling** (HikariCP, PgBouncer): reuse connections; size about `cores*2 + disks`.
+- **Replication:** read replicas for read scale and failover (lag means stale reads). **Partitioning:** split one table by range/hash/list inside one DB (pruning, easier archiving). **Sharding:** split data across servers by a shard key (write scale; cross-shard joins are hard).
+- Scaling path: indexes, query tuning, cache, pool, read replicas, partitioning, then sharding.
+! Cheapest fix first; shard last.
 
 ### Classic Interview Queries
 
@@ -444,3 +483,15 @@ now          NOW()           NOW()          GETDATE()    SYSDATE
 - **View:** a saved query, no stored data.
 - **Normalization:** remove redundancy by splitting tables (1NF, 2NF, 3NF).
 - **ACID:** atomicity, consistency, isolation, durability.
+
+## Gaps-and-Islands & Classic Problems
+```sql
+-- consecutive login streaks: group by (date - row_number)
+SELECT user_id, MIN(d) AS start, MAX(d) AS stop, COUNT(*) AS days
+FROM (SELECT user_id, d, d - ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY d) * INTERVAL '1 day' AS grp FROM logins) t
+GROUP BY user_id, grp;
+-- consecutive numbers (3 in a row):  JOIN logs l2 ON l2.id = l1.id + 1 AND l2.num = l1.num  (or LAG/LEAD)
+-- rising temperature:  JOIN weather y ON t.day = y.day + 1 AND t.temp > y.temp
+```
+- Also: nth highest salary (`DENSE_RANK`), duplicates (`GROUP BY ... HAVING COUNT(*) > 1`), delete duplicates (CTE with `ROW_NUMBER`), running total (`SUM() OVER`).
+! Date minus row number is constant inside a streak.

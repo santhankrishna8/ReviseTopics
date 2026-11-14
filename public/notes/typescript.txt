@@ -67,11 +67,11 @@ console.log(message); // Hello, TypeScript! Hello, TypeScript!
 - **Cost**: learning curve, configuration, and occasionally complex types for very dynamic code.
 
 ## Interview Q&A | sky | wide
-Q: What is TypeScript?
+Q*: What is TypeScript?
 A: A typed superset of JavaScript from Microsoft. It adds a static type system that is checked at compile time and then removed, producing plain JavaScript.
-Q: Why use TypeScript?
+Q*: Why use TypeScript?
 A: To catch bugs before the code runs, get better autocomplete and refactoring, document intent through types, and keep large codebases maintainable.
-Q: Can browsers run TypeScript?
+Q*: Can browsers run TypeScript?
 A: No. Browsers run JavaScript, so TypeScript is compiled (or its types stripped) first. Some runtimes such as Deno, Bun and recent Node.js can run .ts files directly.
 Q: Is TypeScript compiled or interpreted?
 A: It is compiled (transpiled) to JavaScript by tsc or a bundler; the resulting JavaScript is then run by an engine.
@@ -152,11 +152,11 @@ const user = raw as { id: number };     // compiles, but id is actually a string
 ```
 
 ## Interview Q&A | sky | wide
-Q: TypeScript vs JavaScript?
+Q*: TypeScript vs JavaScript?
 A: TS is JavaScript plus a static type system that is checked at compile time and erased in the output. It adds safety and tooling, not new runtime behaviour (apart from a few features like enums).
-Q: Does TypeScript run in the browser?
+Q*: Does TypeScript run in the browser?
 A: No. Browsers run JavaScript. TS is compiled (transpiled) to JS first, or types are stripped by tools like esbuild, swc or the runtime.
-Q: What is structural typing?
+Q*: What is structural typing?
 A: Two types are compatible if their shapes match, regardless of their names. This differs from nominal typing in Java or C#.
 Q: What does `strict: true` do?
 A: Enables a group of strict checks (`noImplicitAny`, `strictNullChecks`, `strictFunctionTypes`, `strictPropertyInitialization`, and others) for much stronger safety.
@@ -235,11 +235,11 @@ palette.green.toUpperCase();   // and green is still string
 ```
 
 ## Interview Q&A | sky | wide
-Q: `any` vs `unknown`?
+Q*: `any` vs `unknown`?
 A: `any` disables type checking. `unknown` accepts any value but forces you to narrow (typeof, instanceof, guards) before use, so it is type-safe.
-Q: `void` vs `never`?
+Q*: `void` vs `never`?
 A: `void` is a function that completes without a useful value. `never` is a function that never completes (throws or loops forever) or an impossible type.
-Q: Enum vs union of literals?
+Q*: Enum vs union of literals?
 A: Enums create runtime objects and numeric enums are loosely checked. Unions of literals are erased, simpler and often preferred. Use enums when you need a runtime object or reverse mapping.
 Q: What does the `!` operator do?
 A: Non-null assertion. It tells the compiler a value is not null or undefined, with no runtime check. A wrong guess crashes at runtime.
@@ -322,11 +322,11 @@ type Override = Omit<Base, 'id'> & { id: string };
 ```
 
 ## Interview Q&A | sky | wide
-Q: interface vs type?
+Q*: interface vs type?
 A: Both describe shapes. Interfaces support declaration merging and are ideal for object contracts and class implementation. Types can express unions, tuples, mapped and conditional types. Choose by need and stay consistent.
-Q: What is declaration merging?
+Q*: What is declaration merging?
 A: Multiple `interface` declarations with the same name combine into one. It is how libraries let you augment global types such as `Window` or Express `Request`.
-Q: What is an index signature?
+Q*: What is an index signature?
 A: `[key: string]: T` says any number of keys of that type may exist. All named properties must be compatible with `T`.
 Q: `readonly` vs `const`?
 A: `const` prevents reassigning a variable. `readonly` prevents reassigning a property. Neither makes nested objects immutable.
@@ -420,11 +420,11 @@ const [user, posts] = await Promise.all([load(1), loadPosts(1)]);   // [User, Po
 ```
 
 ## Interview Q&A | sky | wide
-Q: Function overloads vs union types?
+Q*: Function overloads vs union types?
 A: Use a union when one implementation handles any of them and the return type does not depend on the input. Use overloads when each input type maps to a different return type.
-Q: Optional vs default parameter?
+Q*: Optional vs default parameter?
 A: Optional `b?: T` may be `undefined` and you handle it yourself. Default `b = value` supplies a value and the parameter is optional for callers.
-Q: What is contextual typing?
+Q*: What is contextual typing?
 A: TypeScript infers the type of a function expression's parameters from where it is used, such as callbacks passed to `map`.
 Q: Why avoid the `Function` type?
 A: It accepts any function with no parameter or return checking. Use a specific signature or generic constraint.
@@ -514,11 +514,11 @@ class Api { @log load(id: number) { return id; } }
 - A type alias or interface can be used as a DI token only through an `InjectionToken` or an abstract class, because interfaces do not exist at runtime.
 
 ## Interview Q&A | sky | wide
-Q: `private` vs `#private`?
+Q*: `private` vs `#private`?
 A: TS `private` is enforced only by the compiler and visible at runtime. `#private` is a JavaScript feature that is truly inaccessible outside the class at runtime.
-Q: What are parameter properties?
+Q*: What are parameter properties?
 A: Prefixing a constructor parameter with an access modifier or `readonly` declares and assigns the field automatically.
-Q: Abstract class vs interface?
+Q*: Abstract class vs interface?
 A: Interfaces are erased contracts. Abstract classes can hold implementation and state and exist at runtime. Use interfaces for contracts and abstract classes when sharing behaviour.
 Q: Can you instantiate an abstract class?
 A: No. Only a concrete subclass that implements all abstract members can be instantiated.
@@ -606,11 +606,11 @@ class InMemoryRepo<T extends { id: number }> implements Repo<T> {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What problem do generics solve?
+Q*: What problem do generics solve?
 A: They let one function, class or type work with many types while keeping exact type information, avoiding both duplication and `any`.
-Q: What does `T extends keyof U` mean?
+Q*: What does `T extends keyof U` mean?
 A: T must be one of the property names of U, so indexing `U[T]` is type-safe.
-Q: Can you create an instance of `T`?
+Q*: Can you create an instance of `T`?
 A: Not directly, since `T` is erased. Pass a constructor as a parameter (`ctor: new () => T`).
 Q: Generic constraint example?
 A: `function len<T extends { length: number }>(x: T) { return x.length; }` accepts strings, arrays or any object with `length`.
@@ -704,11 +704,11 @@ function run(x: string | undefined) {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is type narrowing?
+Q*: What is type narrowing?
 A: Using checks like `typeof`, `instanceof`, `in`, equality and custom guards to let TypeScript treat a variable as a more specific type inside a branch.
-Q: What is a discriminated union?
+Q*: What is a discriminated union?
 A: A union of object types that share a literal property (the discriminant). Checking that property narrows to one variant, making state handling safe and exhaustive.
-Q: Type predicate vs assertion function?
+Q*: Type predicate vs assertion function?
 A: A predicate (`x is T`) returns a boolean and narrows in the true branch. An assertion function (`asserts x is T`) returns nothing, throws on failure and narrows the code after the call.
 Q: How do you do an exhaustive check?
 A: In a `switch` default branch, assign the value to a variable of type `never`. If a variant is unhandled, the assignment fails to compile.
@@ -793,11 +793,11 @@ type MyReturnType<T> = T extends (...a: any[]) => infer R ? R : never;
 ```
 
 ## Interview Q&A | sky | wide
-Q: `Pick` vs `Omit`?
+Q*: `Pick` vs `Omit`?
 A: `Pick` keeps the listed keys. `Omit` removes the listed keys. Choose the one with the shorter list.
-Q: `Exclude` vs `Omit`?
+Q*: `Exclude` vs `Omit`?
 A: `Exclude` filters members of a **union**. `Omit` removes **properties** from an object type.
-Q: What is `Record` used for?
+Q*: What is `Record` used for?
 A: Dictionary-like objects and exhaustive maps, such as `Record<Status, string>` that forces a label for every status.
 Q: How do you get the type of a function's return value?
 A: `ReturnType<typeof fn>`.
@@ -891,11 +891,11 @@ type Concat<A extends unknown[], B extends unknown[]> = [...A, ...B];
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a mapped type?
+Q*: What is a mapped type?
 A: A type that creates a new object type by iterating over the keys of another with `[K in keyof T]`, optionally changing values, modifiers or key names.
-Q: What is a conditional type and what is `infer`?
+Q*: What is a conditional type and what is `infer`?
 A: A conditional type picks one of two types based on `T extends U`. `infer` introduces a type variable inside the condition to capture part of T, such as the return type of a function.
-Q: What is a distributive conditional type?
+Q*: What is a distributive conditional type?
 A: When the checked type is a naked type parameter, a union is split and the condition runs per member, then the results are unioned. Use `[T] extends [U]` to avoid it.
 Q: What are branded types for?
 A: To prevent mixing values that share an underlying type, such as IDs, units or validated strings, by adding a phantom property.
@@ -958,11 +958,11 @@ export {};     // makes the file a module so augmentation works
 - **TypeScript 7** is the compiler ported to native Go code (`tsgo`) for much faster builds and editor responses. **TypeScript 6.0** is the bridge release that deprecates what 7.0 removes.
 
 ## Interview Q&A | sky | wide
-Q: What is a `.d.ts` file?
+Q*: What is a `.d.ts` file?
 A: A declaration file with only type information, used to describe existing JavaScript or to publish types alongside compiled output. It generates no JavaScript.
-Q: What is `@types/node` or `@types/react`?
+Q*: What is `@types/node` or `@types/react`?
 A: Community type definitions for libraries that do not ship their own, published under the `@types` scope from DefinitelyTyped.
-Q: What does `import type` do?
+Q*: What does `import type` do?
 A: It imports only a type, and the import is removed from the emitted JavaScript, avoiding unused runtime imports and circular import issues.
 Q: `target` vs `lib` vs `module`?
 A: `target` is the JS syntax level you emit. `lib` sets which built-in APIs the checker knows. `module` is the module system in the output.
@@ -1056,11 +1056,11 @@ bus.on('login', p => console.log(p.user));
 ```
 
 ## Interview Q&A | sky | wide
-Q: Is `readonly` deep?
+Q*: Is `readonly` deep?
 A: No. It is shallow and compile-time only. Nested objects and arrays can still be mutated unless they are also marked readonly or deeply frozen.
-Q: How do you type a caught error?
+Q*: How do you type a caught error?
 A: `catch (e: unknown)`, then narrow with `e instanceof Error`. Do not assume an `Error`, because anything can be thrown.
-Q: What is the Result pattern?
+Q*: What is the Result pattern?
 A: Returning a discriminated union of success or failure so the type system forces callers to handle errors, rather than hidden exceptions.
 Q: What does `using` do?
 A: Declares a resource that is disposed automatically at the end of the scope, through `Symbol.dispose` (TS 5.2).
@@ -1135,11 +1135,11 @@ function f(x: {}) {}  f(0);  f('s');  // both OK  (null / undefined are not)
 - If asked to write a utility type live, start from `keyof`, a mapped type and a conditional type, and say your reasoning out loud.
 
 ## Big Interview Q&A | sky | wide
-Q: What are the benefits of TypeScript?
+Q*: What are the benefits of TypeScript?
 A: Early error detection, better tooling (autocomplete, refactoring), self-documenting code, and safer large-scale collaboration. It does not change runtime behaviour or validate data at runtime.
-Q: What is the difference between `type` and `interface` once more, briefly?
+Q*: What is the difference between `type` and `interface` once more, briefly?
 A: Interfaces merge and suit object contracts and class implementation. Types express unions, tuples, mapped and conditional types.
-Q: What is structural typing and a consequence of it?
+Q*: What is structural typing and a consequence of it?
 A: Compatibility depends on shape. Consequence: different named types with the same shape are interchangeable, which is why branded types exist when you need nominal behaviour.
 Q: How would you make a type that makes only some properties optional?
 A: `type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>`.

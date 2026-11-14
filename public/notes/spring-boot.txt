@@ -96,11 +96,11 @@ class HelloController {
 - **vs FastAPI** (Python): FastAPI is lighter and quicker to write for small APIs and ML serving; Boot brings more built-in infrastructure for large, long-lived enterprise systems.
 
 ## Interview Q&A | sky | wide
-Q: What is the Spring Framework?
+Q*: What is the Spring Framework?
 A: An open-source Java application framework built around an IoC container that creates and wires objects (beans) through dependency injection. It has modules for web (MVC, WebFlux), data access, transactions, AOP, security and messaging.
-Q: Who created Spring and what problem did it solve?
+Q*: Who created Spring and what problem did it solve?
 A: Rod Johnson. Spring 1.0 (2004) replaced the heavyweight EJB 2 programming model with plain Java objects wired by dependency injection, which made enterprise Java simpler and testable.
-Q: How do you create a Spring Boot project?
+Q*: How do you create a Spring Boot project?
 A: Generate it with Spring Initializr (start.spring.io or the IDE wizard), choosing the build tool, Java version and starters. Then run the main class from the IDE, or use ./mvnw spring-boot:run.
 Q: What is the default port and how do you change it?
 A: 8080. Set server.port in application.properties, pass --server.port=9090, or set the SERVER_PORT environment variable. server.port=0 picks a random free port.
@@ -186,11 +186,11 @@ class CacheWarmer {
 - Custom aspects: `@Aspect` with `@Around("@annotation(com.shop.Timed)")`.
 
 ## Interview Q&A | sky | wide
-Q: What is IoC and how does DI relate to it?
+Q*: What is IoC and how does DI relate to it?
 A: IoC means the framework controls object creation and wiring instead of your code; dependency injection is the technique Spring uses, supplying dependencies through constructors, setters or fields.
-Q: Why prefer constructor injection?
+Q*: Why prefer constructor injection?
 A: Dependencies become explicit, required and immutable, the object is always fully initialised, circular dependencies surface immediately, and unit tests can construct it without Spring.
-Q: BeanFactory vs ApplicationContext?
+Q*: BeanFactory vs ApplicationContext?
 A: BeanFactory is the basic container with lazy bean creation; ApplicationContext extends it with eager singleton creation, events, internationalisation, environment and profile support, and automatic post-processor registration. Applications use ApplicationContext.
 Q: How do you choose between two beans of the same type?
 A: Mark one @Primary, or inject with @Qualifier, or inject all of them as a List or Map and choose at runtime.
@@ -246,11 +246,11 @@ public class ShopApplication {
 - **DevTools**: automatic restart and LiveReload in development only.
 
 ## Interview Q&A | sky | wide
-Q: What is Spring Boot and how does it differ from Spring Framework?
+Q*: What is Spring Boot and how does it differ from Spring Framework?
 A: Spring Framework provides the core container, MVC, data access and AOP; Spring Boot adds opinionated auto-configuration, starters, an embedded server, externalised configuration and production features so applications need little setup.
-Q: What does @SpringBootApplication do?
+Q*: What does @SpringBootApplication do?
 A: It combines @SpringBootConfiguration, @EnableAutoConfiguration and @ComponentScan of the class's package and sub-packages.
-Q: How does auto-configuration decide what to configure?
+Q*: How does auto-configuration decide what to configure?
 A: Auto-configuration classes listed in AutoConfiguration.imports apply conditionally (@ConditionalOnClass, @ConditionalOnMissingBean, @ConditionalOnProperty), so they react to the classpath, your own beans and properties.
 Q: How do you see why something was or was not auto-configured?
 A: Start with --debug to print the condition evaluation report, or use the Actuator conditions endpoint.
@@ -324,11 +324,11 @@ public class ProductController {
 - **`@CrossOrigin`** for CORS on a controller (or global CORS configuration).
 
 ## Interview Q&A | sky | wide
-Q: @Component vs @Service vs @Repository vs @Controller?
+Q*: @Component vs @Service vs @Repository vs @Controller?
 A: All are component-scanned beans. @Service and @Controller express intent; @Repository adds persistence exception translation; @Controller handles web requests returning views.
-Q: @Controller vs @RestController?
+Q*: @Controller vs @RestController?
 A: @RestController is @Controller plus @ResponseBody, so return values are written to the response body (JSON) instead of being resolved as view names.
-Q: @RequestParam vs @PathVariable?
+Q*: @RequestParam vs @PathVariable?
 A: @PathVariable binds a URI template segment (/users/{id}); @RequestParam binds a query or form parameter (?page=2).
 Q: @Value vs @ConfigurationProperties?
 A: @Value injects single properties (with SpEL and defaults); @ConfigurationProperties binds a whole prefix to a type-safe, validatable object with relaxed binding.
@@ -381,11 +381,11 @@ class CounterService {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is the default bean scope?
+Q*: What is the default bean scope?
 A: Singleton: one instance per ApplicationContext.
-Q: Is a Spring singleton thread-safe?
+Q*: Is a Spring singleton thread-safe?
 A: No, Spring does not synchronise it. It is safe only if it is stateless or uses thread-safe state.
-Q: What happens when a prototype bean is injected into a singleton?
+Q*: What happens when a prototype bean is injected into a singleton?
 A: It is injected once at singleton creation, so the singleton reuses that one instance. Use ObjectProvider, @Lookup or a scoped proxy to get new instances.
 Q: Why do request-scoped beans need a proxy?
 A: Singletons are created at startup when no request exists; the proxy is injected instead and delegates each call to the bean bound to the current request.
@@ -464,11 +464,11 @@ public class ShopApplication { }
 - **Secrets never go in the repository**: environment variables, a secret manager (Vault, AWS Secrets Manager) or Kubernetes Secrets.
 
 ## Interview Q&A | sky | wide
-Q: properties vs YAML?
+Q*: properties vs YAML?
 A: Same capabilities; YAML is hierarchical and supports multi-document files with profile activation but is whitespace-sensitive. If both exist, .properties wins.
-Q: How do you activate a profile?
+Q*: How do you activate a profile?
 A: spring.profiles.active as a property, the SPRING_PROFILES_ACTIVE environment variable, a command-line argument, or @ActiveProfiles in tests.
-Q: What is the configuration precedence?
+Q*: What is the configuration precedence?
 A: Command-line arguments override system properties, which override environment variables, which override profile-specific files, which override application.properties/yml (external files beating packaged ones).
 Q: How does an environment variable override a property?
 A: Through relaxed binding: uppercase the name and replace dots and dashes with underscores, e.g. SPRING_DATASOURCE_URL.
@@ -554,11 +554,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 - **Content negotiation** uses `Accept` and `Content-Type` to pick converters (415 Unsupported Media Type, 406 Not Acceptable).
 
 ## Interview Q&A | sky | wide
-Q: How do you handle exceptions globally in Spring Boot?
+Q*: How do you handle exceptions globally in Spring Boot?
 A: A @RestControllerAdvice class with @ExceptionHandler methods (often extending ResponseEntityExceptionHandler) that map exceptions to status codes and a consistent error body such as ProblemDetail.
-Q: What is ProblemDetail?
+Q*: What is ProblemDetail?
 A: Spring's representation of RFC 9457 Problem Details: a standard JSON error with type, title, status, detail and instance fields plus custom properties, served as application/problem+json.
-Q: What happens when @Valid fails on a request body?
+Q*: What happens when @Valid fails on a request body?
 A: Spring throws MethodArgumentNotValidException, which becomes a 400 response; you customise the body by overriding handleMethodArgumentNotValid or adding a handler.
 Q: Why not return JPA entities from controllers?
 A: Lazy-loading exceptions or N+1 queries during serialisation, infinite recursion on bidirectional relations, leaking internal fields, and coupling the API to the database schema. Use DTOs.
@@ -632,11 +632,11 @@ class CheckoutService {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is Spring Boot Actuator?
+Q*: What is Spring Boot Actuator?
 A: A module that adds production-ready endpoints for health, metrics, info, environment, loggers and diagnostics, integrated with Micrometer for metrics.
-Q: Which Actuator endpoints are exposed over HTTP by default?
+Q*: Which Actuator endpoints are exposed over HTTP by default?
 A: Only health. Others must be listed in management.endpoints.web.exposure.include and should be secured.
-Q: Liveness vs readiness?
+Q*: Liveness vs readiness?
 A: Liveness says whether the app is alive or should be restarted; readiness says whether it can accept traffic. External dependencies affect readiness, not liveness.
 Q: How do you add a custom health check?
 A: Implement HealthIndicator as a bean and return Health.up() or Health.down() with details; it is aggregated into /actuator/health.
@@ -704,11 +704,11 @@ logging:
 - Avoid expensive work for disabled levels (`log.isDebugEnabled()` guard or a supplier).
 
 ## Interview Q&A | sky | wide
-Q: SLF4J vs Logback?
+Q*: SLF4J vs Logback?
 A: SLF4J is the logging API (facade) your code depends on; Logback is the implementation that formats and writes the logs. Spring Boot uses Logback by default.
-Q: Why use parameterised logging?
+Q*: Why use parameterised logging?
 A: The message is only formatted when the level is enabled, avoiding string-building cost, and placeholders keep messages readable.
-Q: How do you change a log level without restarting?
+Q*: How do you change a log level without restarting?
 A: Through the Actuator loggers endpoint (POST to /actuator/loggers/{name}) or by reloading external Logback configuration.
 Q: What is MDC?
 A: Mapped Diagnostic Context: per-thread contextual values (request id, trace id, user) automatically included in log lines, used to correlate logs of one request.
@@ -815,11 +815,11 @@ class OrderFlowIT {
 ```
 
 ## Interview Q&A | sky | wide
-Q: @SpringBootTest vs @WebMvcTest vs @DataJpaTest?
+Q*: @SpringBootTest vs @WebMvcTest vs @DataJpaTest?
 A: @SpringBootTest loads the full application context; @WebMvcTest loads only the web layer with MockMvc; @DataJpaTest loads only JPA repositories with an embedded database and rollback per test.
-Q: @Mock vs @MockitoBean (or @MockBean)?
+Q*: @Mock vs @MockitoBean (or @MockBean)?
 A: @Mock creates a plain Mockito mock for unit tests; @MockitoBean (formerly @MockBean) creates a mock and registers it in the Spring context, replacing the real bean.
-Q: Why was @MockBean replaced?
+Q*: Why was @MockBean replaced?
 A: Spring Framework 6.2 introduced @MockitoBean/@MockitoSpyBean in its core bean-override support; Boot deprecated @MockBean in 3.4 and removed it in 4.0.
 Q: Why use Testcontainers instead of H2?
 A: Tests run against the same database engine and version as production, catching SQL dialect, migration and constraint differences that an in-memory database hides.
@@ -860,11 +860,11 @@ A: Prefer unit and slice tests, reuse the same context configuration so Spring's
 - Spring Cloud provides many of these for Spring applications; on Kubernetes, the platform covers several (DNS discovery, ConfigMaps, ingress).
 
 ## Interview Q&A | sky | wide
-Q: What are microservices?
+Q*: What are microservices?
 A: An architectural style where an application is composed of small, independently deployable services, each owning a business capability and its data, communicating over the network.
-Q: When should you not use microservices?
+Q*: When should you not use microservices?
 A: For small teams or early products where boundaries are unclear: the operational and consistency costs outweigh the benefits. A well-structured modular monolith is usually better first.
-Q: How do you decide service boundaries?
+Q*: How do you decide service boundaries?
 A: By business capability or DDD bounded contexts, aiming for high cohesion and loose coupling, aligned with team ownership, and checking that services can be deployed independently.
 Q: What is the database-per-service pattern and its trade-offs?
 A: Each service exclusively owns its database. It gives independence and fault isolation but removes cross-service joins and ACID transactions, requiring API composition, events and Sagas.
@@ -935,11 +935,11 @@ KeyResolver userKeyResolver() {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is service discovery and why is it needed?
+Q*: What is service discovery and why is it needed?
 A: A registry where service instances register their network location so clients can find healthy instances dynamically, since addresses change with scaling and deployments.
-Q: Client-side vs server-side load balancing?
+Q*: Client-side vs server-side load balancing?
 A: Client-side: the caller picks an instance from the registry (Spring Cloud LoadBalancer). Server-side: a load balancer or Kubernetes Service in front distributes requests.
-Q: What does Spring Cloud Config Server do?
+Q*: What does Spring Cloud Config Server do?
 A: Serves externalised configuration for many services from a central, versioned backend such as Git, with profile-specific files and encryption support.
 Q: How do you refresh configuration without restarting?
 A: Mark beans with @RefreshScope and trigger /actuator/refresh, or use Spring Cloud Bus to broadcast refresh events to all instances.
@@ -1014,11 +1014,11 @@ class PaymentClient {
 - Graceful degradation: show cached prices, hide recommendations, accept the order and charge later.
 
 ## Interview Q&A | sky | wide
-Q: Explain the circuit breaker pattern and its states.
+Q*: Explain the circuit breaker pattern and its states.
 A: It wraps remote calls and tracks failures. CLOSED lets calls through; when failures exceed a threshold it goes OPEN and fails fast; after a wait it goes HALF_OPEN to test with a few calls, closing on success or reopening on failure.
-Q: Retry vs circuit breaker?
+Q*: Retry vs circuit breaker?
 A: Retry re-attempts a call expecting a transient failure; a circuit breaker stops calling a dependency that keeps failing. They are combined: retries inside, breaker deciding whether to call at all.
-Q: What is a bulkhead?
+Q*: What is a bulkhead?
 A: A limit on concurrent calls (or a separate thread pool) per dependency, isolating failures so one slow service cannot exhaust all threads.
 Q: Why is retrying a POST dangerous?
 A: POST is not idempotent; a retried request after a timeout may create duplicate orders or charges unless an idempotency key deduplicates it.
@@ -1071,11 +1071,11 @@ class PricingService {
 - Return the trace id in error responses (or a correlation header) so support can find the request.
 
 ## Interview Q&A | sky | wide
-Q: What is distributed tracing?
+Q*: What is distributed tracing?
 A: Recording the path and timing of a request across services as a trace made of spans, linked by a trace id propagated in headers, to find latency and errors.
-Q: Trace vs span?
+Q*: Trace vs span?
 A: A trace is the whole request journey; a span is a single timed operation within it, with a parent-child relationship to other spans.
-Q: How is trace context propagated?
+Q*: How is trace context propagated?
 A: Via headers such as W3C traceparent (or B3) added to outgoing HTTP calls and messages and read by the next service.
 Q: What replaced Spring Cloud Sleuth?
 A: Micrometer Tracing in Spring Boot 3, with bridges to OpenTelemetry or Brave and exporters to Zipkin, OTLP and others.
@@ -1174,11 +1174,11 @@ class InventoryListener {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Synchronous vs asynchronous communication between services?
+Q*: Synchronous vs asynchronous communication between services?
 A: Synchronous calls (REST, gRPC) wait for a response and couple availability; asynchronous messaging decouples services in time and load but introduces eventual consistency and message-handling concerns.
-Q: RestTemplate vs RestClient vs WebClient?
+Q*: RestTemplate vs RestClient vs WebClient?
 A: RestTemplate is the older synchronous template in maintenance; RestClient is its modern fluent synchronous replacement; WebClient is the non-blocking reactive client.
-Q: What is OpenFeign and what is the modern alternative?
+Q*: What is OpenFeign and what is the modern alternative?
 A: A declarative HTTP client where you write an annotated interface and Spring Cloud generates the implementation. It is feature-complete; Spring's HTTP interface clients (@HttpExchange) are the recommended alternative.
 Q: What must every inter-service HTTP call have?
 A: Timeouts, error handling, tracing propagation, and resilience (retry for idempotent calls, circuit breaker), plus authentication between services.
@@ -1247,11 +1247,11 @@ class OrderService {
 - Prefer designing boundaries so that most operations stay inside one service.
 
 ## Interview Q&A | sky | wide
-Q: Why can't you use @Transactional across microservices?
+Q*: Why can't you use @Transactional across microservices?
 A: Each service has its own database and transaction manager; a local transaction cannot span other databases or network calls.
-Q: What are the limitations of two-phase commit?
+Q*: What are the limitations of two-phase commit?
 A: Blocking locks while waiting for the coordinator, the coordinator as a single point of failure, extra latency, tight coupling, and lack of XA support in many databases and brokers.
-Q: Explain the Saga pattern.
+Q*: Explain the Saga pattern.
 A: A business transaction implemented as a series of local transactions in different services, each triggering the next, with compensating transactions to undo completed steps when a later step fails.
 Q: Choreography vs orchestration?
 A: Choreography lets services react to each other's events without a coordinator (decoupled but implicit flow); orchestration uses a central coordinator that issues commands and tracks state (explicit flow, extra component).
@@ -1303,11 +1303,11 @@ A: A business operation that semantically reverses a completed step, such as iss
 - For microservices questions, **always mention the cost** (consistency, operations, testing): it shows judgment, not just vocabulary.
 
 ## Big Interview Q&A | sky | wide
-Q: Walk through what happens when a Spring Boot app starts.
+Q*: Walk through what happens when a Spring Boot app starts.
 A: SpringApplication creates the environment (properties, profiles), creates the ApplicationContext, scans components and loads auto-configurations that match their conditions, instantiates singleton beans with DI and post-processors (creating proxies), starts the embedded server, then runs ApplicationRunner/CommandLineRunner beans and publishes ApplicationReadyEvent.
-Q: How would you design an order processing system with microservices?
+Q*: How would you design an order processing system with microservices?
 A: Separate Order, Payment, Inventory and Notification services each with its own database; an API gateway; synchronous reads where needed; an orchestrated or choreographed Saga for placing orders with compensations; the Outbox pattern for reliable events; Resilience4j around remote calls; tracing, metrics and centralised logging; idempotent consumers.
-Q: How do you make a REST API production-ready in Spring Boot?
+Q*: How do you make a REST API production-ready in Spring Boot?
 A: Validation and consistent ProblemDetail errors, security (authentication, authorisation, CORS), Actuator health/metrics with probes, structured logging with trace ids, timeouts and resilience for outbound calls, pagination, database migrations (Flyway/Liquibase), tests at several levels, and graceful shutdown.
 Q: How do services authenticate each other?
 A: OAuth 2.0 client credentials tokens validated by each resource server, or mutual TLS (often via a service mesh), plus network policies; never shared static passwords in code.

@@ -1,0 +1,2484 @@
+@ Advanced
+
+# 20 | Dynamic Programming I: 1D & Knapsack | What DP is in plain words, overlapping subproblems, memoization vs tabulation, the 5-step recipe, climbing stairs, house robber, coin change (min and count), word break, decode ways, longest increasing subsequence, 0/1 knapsack, state machines | Dynamic Programming 1D
+
+## The Idea
+> DP is **recursion that remembers**. If you keep being asked the same question while solving a problem, write the answer down the first time and look it up after that. Like a student who writes down 7 × 8 = 56 instead of recomputing it.
+- Use DP when a problem has **(1) overlapping subproblems** (the same smaller question appears again and again) and **(2) optimal substructure** (the best answer is built from best answers to smaller questions).
+- Typical wording: "**how many ways**", "**minimum / maximum** ...", "**is it possible** to ...", "**longest** ...".
+- Plain recursion on these problems is **exponential**. DP makes them **polynomial** by solving each distinct subproblem once.
+! DP = a recursive definition + a table of answers. If you can write the recursion, you can write the DP.
+
+## Fibonacci: the Whole Idea in 20 Lines
+```java FibDp.java
+class Fib {
+  static long naive(int n) { return n < 2 ? n : naive(n - 1) + naive(n - 2); }   // O(2^n): fib(3) solved over and over
+
+  static long topDown(int n, long[] memo) {            // memoization: recursion + a cache
+    if (n < 2) return n;
+    if (memo[n] != 0) return memo[n];                  // already solved: look it up
+    return memo[n] = topDown(n - 1, memo) + topDown(n - 2, memo);
+  }
+  static long bottomUp(int n) {                        // tabulation: fill the table from the smallest subproblem up
+    if (n < 2) return n;
+    long[] dp = new long[n + 1];
+    dp[1] = 1;
+    for (int i = 2; i <= n; i++) dp[i] = dp[i - 1] + dp[i - 2];
+    return dp[n];
+  }
+  static long constantSpace(int n) {                   // the recurrence only looks back 2 steps: keep just 2 values
+    if (n < 2) return n;
+    long a = 0, b = 1;
+    for (int i = 2; i <= n; i++) { long c = a + b; a = b; b = c; }
+    return b;
+  }
+}
+```
+- **Top-down (memoization)**: write the natural recursion, add a cache. Easy to write, computes only needed states, but uses recursion depth.
+- **Bottom-up (tabulation)**: fill an array in the right order. No recursion, easy to optimise space.
+- **Space optimisation**: if `dp[i]` only needs the previous one or two entries, keep variables instead of an array.
+
+## The 5-Step Recipe (memorise)
+> **1. State**: what does `dp[i]` mean, in words? **2. Recurrence**: how does `dp[i]` come from smaller states? **3. Base cases**. **4. Order**: compute smaller states first. **5. Answer**: which cell holds it?
+- Step 1 is everything. Write the sentence: "`dp[i]` = the minimum number of coins needed to make amount `i`". If you cannot say it in a sentence, you do not have a state yet.
+- Ask: "**What is the last decision?**" The last coin chosen, whether the last house is robbed, whether the last character matches. The recurrence is the list of options for that last decision.
+! Define the state in words first. Then ask: what was the last choice?
+
+## Linear DP: Climbing Stairs, Min Cost, House Robber
+```java LinearDp.java
+class Solution {
+  public int climbStairs(int n) {                        // LeetCode 70: 1 or 2 steps at a time
+    int a = 1, b = 1;                                    // ways to reach step 0 and step 1
+    for (int i = 2; i <= n; i++) { int c = a + b; a = b; b = c; }   // ways(i) = ways(i-1) + ways(i-2)
+    return b;
+  }
+  public int minCostClimbingStairs(int[] cost) {         // LeetCode 746: start at step 0 or 1, reach the top
+    int a = 0, b = 0;                                    // cheapest cost to stand on step i-2 and step i-1
+    for (int i = 2; i <= cost.length; i++) {
+      int c = Math.min(b + cost[i - 1], a + cost[i - 2]);
+      a = b; b = c;
+    }
+    return b;
+  }
+  public int rob(int[] nums) {                           // LeetCode 198: cannot rob two adjacent houses
+    int prev2 = 0, prev1 = 0;                            // best loot up to house i-2 and i-1
+    for (int x : nums) {
+      int cur = Math.max(prev1, prev2 + x);              // skip this house, or rob it and use the best up to i-2
+      prev2 = prev1;
+      prev1 = cur;
+    }
+    return prev1;
+  }
+  public int robCircular(int[] nums) {                   // LeetCode 213: houses in a circle (first and last are adjacent)
+    if (nums.length == 1) return nums[0];
+    return Math.max(robRange(nums, 0, nums.length - 2), robRange(nums, 1, nums.length - 1));   // exclude first, or exclude last
+  }
+  private int robRange(int[] a, int lo, int hi) {
+    int prev2 = 0, prev1 = 0;
+    for (int i = lo; i <= hi; i++) { int cur = Math.max(prev1, prev2 + a[i]); prev2 = prev1; prev1 = cur; }
+    return prev1;
+  }
+}
+```
+- **House robber thinking**: for house `i`, the last decision is "rob" (then house `i-1` is off limits: `dp[i-2] + nums[i]`) or "skip" (`dp[i-1]`). Take the max. Many "pick items with no neighbours" problems reduce to this (Delete and Earn).
+
+## Unbounded Knapsack: Coin Change (min coins) and Ways
+> **State**: `dp[a]` = fewest coins to make amount `a`. **Last decision**: which coin was used last? `dp[a] = 1 + min(dp[a - coin])` over coins that fit. **Base**: `dp[0] = 0`. Start every other cell at "infinity".
+```java CoinChange.java
+class Solution {
+  public int coinChange(int[] coins, int amount) {       // LeetCode 322: fewest coins, -1 if impossible
+    int[] dp = new int[amount + 1];
+    Arrays.fill(dp, amount + 1);                         // "infinity": more coins than could ever be needed
+    dp[0] = 0;
+    for (int a = 1; a <= amount; a++)
+      for (int c : coins)
+        if (c <= a) dp[a] = Math.min(dp[a], dp[a - c] + 1);
+    return dp[amount] > amount ? -1 : dp[amount];
+  }
+  public int change(int amount, int[] coins) {           // LeetCode 518: number of COMBINATIONS (order does not matter)
+    int[] dp = new int[amount + 1];
+    dp[0] = 1;                                           // one way to make 0: use nothing
+    for (int c : coins)                                  // coins on the OUTSIDE: each combination is counted once
+      for (int a = c; a <= amount; a++) dp[a] += dp[a - c];
+    return dp[amount];
+  }
+  public int combinationSum4(int[] nums, int target) {   // LeetCode 377: number of ORDERED sequences (permutations)
+    int[] dp = new int[target + 1];
+    dp[0] = 1;
+    for (int t = 1; t <= target; t++)                    // amounts on the OUTSIDE: different orders are counted separately
+      for (int x : nums) if (x <= t) dp[t] += dp[t - x];
+    return dp[target];
+  }
+  public int numSquares(int n) {                         // LeetCode 279: fewest perfect squares that sum to n
+    int[] dp = new int[n + 1];
+    Arrays.fill(dp, Integer.MAX_VALUE);
+    dp[0] = 0;
+    for (int i = 1; i <= n; i++)
+      for (int j = 1; j * j <= i; j++) dp[i] = Math.min(dp[i], dp[i - j * j] + 1);
+    return dp[n];
+  }
+}
+```
+! Loop order decides what you count: **items outside, amounts inside → combinations**. **Amounts outside, items inside → permutations.**
+
+## Strings as Linear DP: Word Break, Decode Ways
+```java StringDp.java
+class Solution {
+  public boolean wordBreak(String s, List<String> wordDict) {   // LeetCode 139
+    Set<String> words = new HashSet<>(wordDict);
+    boolean[] dp = new boolean[s.length() + 1];          // dp[i] = can the first i characters be segmented?
+    dp[0] = true;                                        // the empty prefix is fine
+    for (int i = 1; i <= s.length(); i++)
+      for (int j = 0; j < i; j++)                        // last word = s[j..i)
+        if (dp[j] && words.contains(s.substring(j, i))) { dp[i] = true; break; }
+    return dp[s.length()];
+  }
+  public int numDecodings(String s) {                    // LeetCode 91: "12" -> AB or L = 2 ways
+    int n = s.length();
+    int[] dp = new int[n + 1];                           // dp[i] = ways to decode the first i characters
+    dp[0] = 1;
+    dp[1] = s.charAt(0) == '0' ? 0 : 1;
+    for (int i = 2; i <= n; i++) {
+      int one = s.charAt(i - 1) - '0';                   // last digit alone
+      int two = Integer.parseInt(s.substring(i - 2, i)); // last two digits together
+      if (one >= 1) dp[i] += dp[i - 1];
+      if (two >= 10 && two <= 26) dp[i] += dp[i - 2];
+    }
+    return dp[n];
+  }
+}
+```
+
+## Longest Increasing Subsequence (two ways)
+- **O(n^2)**: `dp[i]` = length of the LIS **ending at** `i` = `1 + max(dp[j])` over earlier `j` with `nums[j] < nums[i]`. The answer is the max over all `i` (not just the last cell).
+- **O(n log n)** (patience sorting): keep `tails[k]` = the **smallest possible tail** of an increasing subsequence of length `k + 1`. For each `x`, binary search the first `tail >= x` and replace it (or append if none). The array length is the answer. (`tails` is **not** the subsequence itself.)
+```java Lis.java
+class Solution {
+  public int lengthOfLISQuadratic(int[] nums) {          // LeetCode 300, O(n^2)
+    int[] dp = new int[nums.length];
+    int best = 0;
+    for (int i = 0; i < nums.length; i++) {
+      dp[i] = 1;
+      for (int j = 0; j < i; j++) if (nums[j] < nums[i]) dp[i] = Math.max(dp[i], dp[j] + 1);
+      best = Math.max(best, dp[i]);
+    }
+    return best;
+  }
+  public int lengthOfLIS(int[] nums) {                   // O(n log n)
+    int[] tails = new int[nums.length];
+    int size = 0;
+    for (int x : nums) {
+      int lo = 0, hi = size;
+      while (lo < hi) {                                  // first position with tails[pos] >= x
+        int mid = (lo + hi) >>> 1;
+        if (tails[mid] < x) lo = mid + 1; else hi = mid;
+      }
+      tails[lo] = x;                                     // x is a smaller (or equal) tail for length lo + 1
+      if (lo == size) size++;                            // x extends the longest subsequence so far
+    }
+    return size;
+  }
+}
+```
+
+## 0/1 Knapsack and Subset Sum (each item used once)
+> **State**: `dp[s]` = is sum `s` reachable (or the best value with capacity `s`). For each item, update the array **from high to low** so the item cannot be used twice. (Low to high would be the **unbounded** knapsack of coin change.)
+```java SubsetSum.java
+class Solution {
+  public boolean canPartition(int[] nums) {              // LeetCode 416: split into two equal-sum halves
+    int sum = Arrays.stream(nums).sum();
+    if (sum % 2 != 0) return false;
+    int target = sum / 2;
+    boolean[] dp = new boolean[target + 1];
+    dp[0] = true;                                        // the empty set sums to 0
+    for (int x : nums)
+      for (int s = target; s >= x; s--) dp[s] |= dp[s - x];   // DOWNWARD: each number at most once
+    return dp[target];
+  }
+}
+```
+! 0/1 knapsack: inner loop goes **down**. Unbounded (coin change): inner loop goes **up**.
+
+## State Machines: Buy and Sell Stock With Cooldown
+> When there are modes ("holding", "just sold", "resting"), make one variable per **state** and write how each day's value comes from yesterday's states.
+```java StockCooldown.java
+class Solution {
+  public int maxProfit(int[] prices) {                   // LeetCode 309: after selling you must rest one day
+    int hold = -prices[0];                               // best profit ending the day holding a stock
+    int sold = 0;                                        // ... having just sold today
+    int rest = 0;                                        // ... not holding and free to buy
+    for (int i = 1; i < prices.length; i++) {
+      int prevSold = sold;
+      sold = hold + prices[i];                           // sell what we held
+      hold = Math.max(hold, rest - prices[i]);           // keep holding, or buy (only from the rest state)
+      rest = Math.max(rest, prevSold);                   // keep resting, or finish the cooldown day
+    }
+    return Math.max(sold, rest);
+  }
+}
+```
+
+## How to Think About a New DP Problem
+1. **Brute force first**: write the recursion that tries every choice (it is often a backtracking tree).
+2. Find the **parameters that change** between calls (index, remaining amount, last choice). Those are the **state**.
+3. Notice repeated states → add a **memo** keyed by the state (top-down DP).
+4. Convert to a **table** (bottom-up) if you want speed and less stack, and shrink the space if you only look back a fixed amount.
+- Number of states × work per state = time complexity. `n` states with `O(1)` work = O(n); coin change = `amount × coins`.
+
+## Common Mistakes
+- A vague state ("dp[i] is the answer so far") instead of an exact sentence.
+- Wrong base case, or "infinity" values that overflow when you add 1 (use `Integer.MAX_VALUE / 2` or `amount + 1`).
+- Mixing the loop order for combinations vs permutations; mixing the loop **direction** for 0/1 vs unbounded knapsack.
+- Reading `dp[i - 1]` before it is computed (wrong iteration order).
+- LIS: returning `dp[n - 1]` instead of the **maximum** of all cells.
+
+## Explain It Like This
+> "Let dp[a] be the fewest coins to make amount a. The last coin could be any coin c ≤ a, so dp[a] = 1 + min over coins of dp[a - c], with dp[0] = 0. I fill amounts from 1 up to the target. That is amount × coins time and O(amount) space."
+
+## Do These Next
+- **70. Climbing Stairs** (Easy): Fibonacci in disguise.
+- **746. Min Cost Climbing Stairs** (Easy): min of two previous states.
+- **198. House Robber** (Medium): skip or take. Must-do.
+- **213. House Robber II** (Medium): two linear runs.
+- **740. Delete and Earn** (Medium): reduces to House Robber on sums per value.
+- **322. Coin Change** (Medium): must-do.
+- **518. Coin Change II** (Medium): count combinations (coins outside).
+- **377. Combination Sum IV** (Medium): count permutations (amounts outside).
+- **279. Perfect Squares** (Medium): coin change with square coins.
+- **139. Word Break** (Medium): prefix table.
+- **91. Decode Ways** (Medium): one digit or two digits.
+- **300. Longest Increasing Subsequence** (Medium): do both O(n^2) and O(n log n).
+- **416. Partition Equal Subset Sum** (Medium): 0/1 subset sum.
+- **309. Best Time to Buy and Sell Stock with Cooldown** (Medium): state machine.
+- **152. Maximum Product Subarray** (Medium): track max and min ending here (sheet 07).
+- **1143. Longest Common Subsequence** (Medium): next sheet, the classic 2D DP.
+
+## Interview Q&A
+Q*: What is dynamic programming?
+A: A technique for problems with overlapping subproblems and optimal substructure: solve each distinct subproblem once, store the result, and build bigger answers from smaller ones. It turns exponential recursion into polynomial time.
+Q*: Memoization vs tabulation?
+A: Memoization is top-down: write the recursion and cache results by state. Tabulation is bottom-up: fill a table from the smallest subproblems in dependency order. Both have the same complexity; tabulation avoids recursion depth and allows easy space optimisation.
+Q*: How do you approach a DP problem?
+A: Define the state in words, find the recurrence by asking what the last decision could be, set the base cases, choose an order that computes dependencies first, and identify where the answer lives. Then optimise space if the recurrence only looks back a fixed distance.
+Q: Coin change: why does the order of loops matter for counting ways?
+A: With coins on the outer loop each combination is added in a fixed coin order, so it is counted once. With amounts on the outer loop every coin can come at every position, so different orders of the same coins count separately, which counts permutations.
+Q: Why does 0/1 knapsack iterate capacity downward?
+A: Updating from high to low guarantees dp[s - x] still refers to the state before item x was considered, so each item is used at most once. Iterating upward would reuse the same item repeatedly, giving the unbounded knapsack.
+Q: How does the O(n log n) LIS work?
+A: It keeps tails[k], the smallest possible last element of an increasing subsequence of length k + 1. For each number, binary search the first tail that is at least the number and replace it, or append when the number is larger than all tails. The size of tails is the LIS length.
+
+# 21 | Dynamic Programming II: 2D, Strings & Intervals | Grid DP (unique paths, min path sum, maximal square), two-string DP (LCS, edit distance, distinct subsequences, regex), palindromes, 0/1 knapsack and target sum, k transactions, interval DP (burst balloons), bitmask DP, how to optimise space | Dynamic Programming 2D
+
+## The Idea
+> When the state needs **two things** to describe it (a row and a column, a position in string A and a position in string B, an index and a remaining budget), the table has **two dimensions**: `dp[i][j]`.
+- Same recipe as sheet 20: **state in words → last decision → recurrence → base cases → order → answer**.
+- Time = number of cells × work per cell. Most 2D DPs are O(m × n).
+- **Space trick**: if row `i` only needs row `i - 1` (or the same row to the left), keep **one row** (or two) instead of the whole table: O(m × n) → O(n).
+! 2D DP = a table whose cell `[i][j]` answers a smaller version of the problem using the first `i` of one thing and the first `j` of another.
+
+## Grid DP
+```java GridDp.java
+class Solution {
+  public int uniquePaths(int m, int n) {                 // LeetCode 62: only move right or down
+    int[] dp = new int[n];                               // one row: dp[c] = ways to reach (current row, c)
+    Arrays.fill(dp, 1);                                  // the first row (and column) has exactly one way
+    for (int r = 1; r < m; r++)
+      for (int c = 1; c < n; c++) dp[c] += dp[c - 1];    // ways from above (old dp[c]) + ways from the left
+    return dp[n - 1];
+  }
+  public int minPathSum(int[][] g) {                     // LeetCode 64
+    int m = g.length, n = g[0].length;
+    int[][] dp = new int[m][n];
+    for (int r = 0; r < m; r++)
+      for (int c = 0; c < n; c++) {
+        if (r == 0 && c == 0) dp[r][c] = g[r][c];
+        else if (r == 0) dp[r][c] = dp[r][c - 1] + g[r][c];
+        else if (c == 0) dp[r][c] = dp[r - 1][c] + g[r][c];
+        else dp[r][c] = Math.min(dp[r - 1][c], dp[r][c - 1]) + g[r][c];
+      }
+    return dp[m - 1][n - 1];
+  }
+  public int minimumTotal(List<List<Integer>> tri) {     // LeetCode 120: triangle, bottom-up in O(n) space
+    int n = tri.size();
+    int[] dp = new int[n + 1];
+    for (int r = n - 1; r >= 0; r--)
+      for (int c = 0; c <= r; c++) dp[c] = tri.get(r).get(c) + Math.min(dp[c], dp[c + 1]);
+    return dp[0];
+  }
+  public int maximalSquare(char[][] m) {                 // LeetCode 221
+    int rows = m.length, cols = m[0].length, best = 0;
+    int[][] dp = new int[rows + 1][cols + 1];            // dp[r][c] = side of the biggest square with bottom-right corner (r-1, c-1)
+    for (int r = 1; r <= rows; r++)
+      for (int c = 1; c <= cols; c++)
+        if (m[r - 1][c - 1] == '1') {
+          dp[r][c] = 1 + Math.min(dp[r - 1][c - 1], Math.min(dp[r - 1][c], dp[r][c - 1]));
+          best = Math.max(best, dp[r][c]);
+        }
+    return best * best;
+  }
+}
+```
+- **Maximal square**: a square of side `k` ending here needs squares of side `k - 1` ending at the left, above and diagonal. The smallest of the three limits it.
+
+## Two Strings: Longest Common Subsequence
+> **State**: `dp[i][j]` = LCS length of the first `i` chars of `a` and the first `j` chars of `b`. **Last decision**: compare `a[i-1]` and `b[j-1]`. Equal → they extend the LCS (`dp[i-1][j-1] + 1`). Different → drop one of them: `max(dp[i-1][j], dp[i][j-1])`.
+```java Lcs.java
+class Solution {
+  public int longestCommonSubsequence(String a, String b) {   // LeetCode 1143
+    int m = a.length(), n = b.length();
+    int[][] dp = new int[m + 1][n + 1];                  // row 0 and column 0 stay 0: empty string has LCS 0
+    for (int i = 1; i <= m; i++)
+      for (int j = 1; j <= n; j++)
+        dp[i][j] = a.charAt(i - 1) == b.charAt(j - 1)
+            ? dp[i - 1][j - 1] + 1
+            : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    return dp[m][n];
+  }
+}
+```
+- To **recover** the actual subsequence, walk back from `dp[m][n]`: if the chars match, take it and go diagonal; otherwise move toward the larger neighbour.
+- Many problems are LCS in disguise: **shortest common supersequence**, **minimum deletions to make two strings equal** (`m + n - 2·LCS`), **longest palindromic subsequence** (LCS of a string and its reverse).
+
+## Edit Distance, Distinct Subsequences, Regex
+```java EditDistance.java
+class Solution {
+  public int minDistance(String a, String b) {           // LeetCode 72: insert, delete, replace
+    int m = a.length(), n = b.length();
+    int[][] dp = new int[m + 1][n + 1];
+    for (int i = 0; i <= m; i++) dp[i][0] = i;           // turn a[0..i) into "" : i deletions
+    for (int j = 0; j <= n; j++) dp[0][j] = j;           // turn "" into b[0..j) : j insertions
+    for (int i = 1; i <= m; i++)
+      for (int j = 1; j <= n; j++)
+        dp[i][j] = a.charAt(i - 1) == b.charAt(j - 1)
+            ? dp[i - 1][j - 1]                           // characters match: free
+            : 1 + Math.min(dp[i - 1][j - 1], Math.min(dp[i - 1][j], dp[i][j - 1]));   // replace, delete, insert
+    return dp[m][n];
+  }
+  public int numDistinct(String s, String t) {           // LeetCode 115: how many subsequences of s equal t
+    int m = s.length(), n = t.length();
+    int[][] dp = new int[m + 1][n + 1];
+    for (int i = 0; i <= m; i++) dp[i][0] = 1;           // "" is a subsequence of any prefix exactly once
+    for (int i = 1; i <= m; i++)
+      for (int j = 1; j <= n; j++) {
+        dp[i][j] = dp[i - 1][j];                         // do not use s[i-1]
+        if (s.charAt(i - 1) == t.charAt(j - 1)) dp[i][j] += dp[i - 1][j - 1];   // or use it to match t[j-1]
+      }
+    return dp[m][n];
+  }
+  public boolean isMatch(String s, String p) {           // LeetCode 10: '.' = any char, 'x*' = zero or more x
+    int m = s.length(), n = p.length();
+    boolean[][] dp = new boolean[m + 1][n + 1];
+    dp[0][0] = true;
+    for (int j = 2; j <= n; j++) if (p.charAt(j - 1) == '*') dp[0][j] = dp[0][j - 2];   // "a*b*" can match the empty string
+    for (int i = 1; i <= m; i++)
+      for (int j = 1; j <= n; j++) {
+        char pc = p.charAt(j - 1);
+        if (pc == '*') {
+          dp[i][j] = dp[i][j - 2];                       // zero copies of the preceding element
+          char prev = p.charAt(j - 2);
+          if (prev == '.' || prev == s.charAt(i - 1)) dp[i][j] |= dp[i - 1][j];   // one more copy of it
+        } else {
+          dp[i][j] = dp[i - 1][j - 1] && (pc == '.' || pc == s.charAt(i - 1));
+        }
+      }
+    return dp[m][n];
+  }
+}
+```
+! Edit distance: **replace** looks diagonal, **delete** looks up, **insert** looks left.
+
+## Palindromes
+```java PalindromeDp.java
+class Solution {
+  public String longestPalindrome(String s) {            // LeetCode 5: expand around each centre, O(n^2), O(1) space
+    int start = 0, end = 0;
+    for (int i = 0; i < s.length(); i++) {
+      int len = Math.max(expand(s, i, i), expand(s, i, i + 1));   // odd-length and even-length centres
+      if (len > end - start + 1) { start = i - (len - 1) / 2; end = i + len / 2; }
+    }
+    return s.substring(start, end + 1);
+  }
+  private int expand(String s, int l, int r) {
+    while (l >= 0 && r < s.length() && s.charAt(l) == s.charAt(r)) { l--; r++; }
+    return r - l - 1;
+  }
+  public int countSubstrings(String s) {                 // LeetCode 647: how many palindromic substrings
+    int count = 0;
+    for (int c = 0; c < 2 * s.length() - 1; c++) {       // 2n - 1 centres (letters and gaps between letters)
+      int l = c / 2, r = l + c % 2;
+      while (l >= 0 && r < s.length() && s.charAt(l) == s.charAt(r)) { count++; l--; r++; }
+    }
+    return count;
+  }
+  public int longestPalindromeSubseq(String s) {         // LeetCode 516: subsequence, not substring
+    int n = s.length();
+    int[][] dp = new int[n][n];                          // dp[i][j] = answer for s[i..j]
+    for (int i = n - 1; i >= 0; i--) {
+      dp[i][i] = 1;
+      for (int j = i + 1; j < n; j++)
+        dp[i][j] = s.charAt(i) == s.charAt(j) ? dp[i + 1][j - 1] + 2 : Math.max(dp[i + 1][j], dp[i][j - 1]);
+    }
+    return dp[0][n - 1];
+  }
+}
+```
+- Longest palindromic **substring** (contiguous) vs **subsequence** (may skip). Expand-around-centre is O(n^2); **Manacher's algorithm** does it in O(n) (sheet 26).
+
+## Knapsack Family
+```java Knapsack.java
+class Solution {
+  // Classic 0/1 knapsack: best total value with capacity limit, each item at most once.
+  static int knapsack(int[] weight, int[] value, int capacity) {
+    int[] dp = new int[capacity + 1];                    // dp[w] = best value using capacity w
+    for (int i = 0; i < weight.length; i++)
+      for (int w = capacity; w >= weight[i]; w--)        // DOWNWARD: item i at most once
+        dp[w] = Math.max(dp[w], dp[w - weight[i]] + value[i]);
+    return dp[capacity];
+  }
+  public int findTargetSumWays(int[] nums, int target) { // LeetCode 494: put + or - before each number
+    int sum = Arrays.stream(nums).sum();
+    if (Math.abs(target) > sum || (sum + target) % 2 != 0) return 0;
+    int s = (sum + target) / 2;                          // P - N = target and P + N = sum  =>  P = (sum + target) / 2
+    int[] dp = new int[s + 1];                           // count subsets of nums that add up to s
+    dp[0] = 1;
+    for (int x : nums)
+      for (int j = s; j >= x; j--) dp[j] += dp[j - x];
+    return dp[s];
+  }
+  public int lastStoneWeightII(int[] stones) {           // LeetCode 1049: split into two groups, minimise the difference
+    int sum = Arrays.stream(stones).sum(), half = sum / 2;
+    boolean[] dp = new boolean[half + 1];
+    dp[0] = true;
+    for (int x : stones)
+      for (int s = half; s >= x; s--) dp[s] |= dp[s - x];
+    for (int s = half; s >= 0; s--) if (dp[s]) return sum - 2 * s;   // the largest reachable sum below half
+    return sum;
+  }
+}
+```
+! Reduce the story to a known shape: "assign + or -" → subset sum; "split into two groups" → subset sum to `total / 2`.
+
+## Stock With At Most K Transactions
+```java StockK.java
+class Solution {
+  public int maxProfit(int k, int[] prices) {            // LeetCode 188 (k = 2 is LeetCode 123)
+    if (prices.length == 0 || k == 0) return 0;
+    int[] buy = new int[k + 1], sell = new int[k + 1];
+    Arrays.fill(buy, Integer.MIN_VALUE / 2);             // buy[j]: best profit while holding a stock in transaction j
+    for (int p : prices)
+      for (int j = 1; j <= k; j++) {
+        buy[j] = Math.max(buy[j], sell[j - 1] - p);      // start transaction j after finishing j - 1
+        sell[j] = Math.max(sell[j], buy[j] + p);         // finish transaction j today
+      }
+    return sell[k];
+  }
+}
+```
+
+## Interval DP: Burst Balloons
+> When the answer for a range `[l, r]` depends on **splitting the range**, make the state `dp[l][r]` and loop by increasing **length**. The trick in Burst Balloons: choose the **last** balloon `k` to burst in `(l, r)`, because then its neighbours are the fixed boundaries `a[l]` and `a[r]`, and the two sides are independent.
+```java BurstBalloons.java
+class Solution {
+  public int maxCoins(int[] nums) {                      // LeetCode 312
+    int n = nums.length;
+    int[] a = new int[n + 2];
+    a[0] = a[n + 1] = 1;                                 // virtual balloons of value 1 at both ends
+    for (int i = 0; i < n; i++) a[i + 1] = nums[i];
+    int[][] dp = new int[n + 2][n + 2];                  // dp[l][r] = best coins bursting everything strictly between l and r
+    for (int len = 2; len <= n + 1; len++)
+      for (int l = 0; l + len <= n + 1; l++) {
+        int r = l + len;
+        for (int k = l + 1; k < r; k++)                  // k = the LAST balloon burst in (l, r)
+          dp[l][r] = Math.max(dp[l][r], dp[l][k] + a[l] * a[k] * a[r] + dp[k][r]);
+      }
+    return dp[0][n + 1];
+  }
+}
+```
+- Other interval DPs: **matrix chain multiplication**, **palindrome partitioning (min cuts)**, **strange printer**, **minimum cost to merge stones**. Order: short ranges first.
+
+## Bitmask DP (n up to about 15-20)
+> Use an **integer as a set**: bit `i` = "city `i` is visited". State `dp[mask][last]` = cheapest way to visit exactly the cities in `mask`, ending at `last`. There are `2^n × n` states and `n` transitions each: **O(2^n · n^2)**, far better than the `n!` brute force.
+```java Tsp.java
+class Tsp {
+  static int tour(int[][] dist) {                        // shortest round trip visiting every city once, starting at city 0
+    int n = dist.length;
+    if (n == 1) return 0;
+    int full = (1 << n) - 1, inf = Integer.MAX_VALUE / 2;
+    int[][] dp = new int[1 << n][n];
+    for (int[] row : dp) Arrays.fill(row, inf);
+    dp[1][0] = 0;                                        // only city 0 visited, standing at city 0
+    for (int mask = 1; mask <= full; mask++)
+      for (int last = 0; last < n; last++) {
+        if (dp[mask][last] == inf || (mask >> last & 1) == 0) continue;
+        for (int next = 0; next < n; next++) {
+          if ((mask >> next & 1) == 1) continue;         // already visited
+          int nm = mask | 1 << next;
+          dp[nm][next] = Math.min(dp[nm][next], dp[mask][last] + dist[last][next]);
+        }
+      }
+    int best = inf;
+    for (int last = 1; last < n; last++) best = Math.min(best, dp[full][last] + dist[last][0]);   // return home
+    return best;
+  }
+}
+```
+
+## Space Optimisation Cheat Sheet
+- `dp[i][j]` needs only row `i - 1` → keep **two rows**, or **one row** if you update in the right direction (left to right if it depends on the left, right to left for 0/1 knapsack).
+- `dp[i][j]` needs `dp[i-1][j-1]` as well as the left cell → save the diagonal in a temp variable before overwriting.
+- If you must **reconstruct** the answer (the actual string or path), keep the full table, or store the choice made at each cell.
+
+## Common Mistakes
+- Off-by-one between the table index and the string index (`dp[i]` is about the first `i` characters, so the character is `s.charAt(i - 1)`).
+- Forgetting the base row and column (`dp[i][0]` and `dp[0][j]`).
+- Iterating in the wrong order so a cell reads a value not yet computed.
+- Substring vs subsequence (contiguous vs not).
+- Memory limits: a `10^4 × 10^4` table of ints is 400 MB. Roll the rows.
+
+## Explain It Like This
+> "Let dp[i][j] be the edit distance between the first i characters of a and the first j characters of b. If the last characters match, it equals dp[i-1][j-1]. Otherwise it is 1 plus the best of replace (diagonal), delete (up) or insert (left). I fill the table row by row; it is O(m × n) time and space, reducible to O(n) space with two rows."
+
+## Do These Next
+- **62. Unique Paths** (Medium): grid DP, then the 1D row version.
+- **64. Minimum Path Sum** (Medium): min of up and left.
+- **120. Triangle** (Medium): bottom-up in O(n) space.
+- **221. Maximal Square** (Medium): min of three neighbours + 1.
+- **1143. Longest Common Subsequence** (Medium): must-do.
+- **72. Edit Distance** (Medium): must-do.
+- **115. Distinct Subsequences** (Hard): skip or use.
+- **5. Longest Palindromic Substring** (Medium): expand around centres.
+- **647. Palindromic Substrings** (Medium): same expansion, count.
+- **516. Longest Palindromic Subsequence** (Medium): interval table.
+- **494. Target Sum** (Medium): reduce to subset sum.
+- **1049. Last Stone Weight II** (Medium): subset sum to half.
+- **474. Ones and Zeroes** (Medium): 0/1 knapsack with two capacities.
+- **188. Best Time to Buy and Sell Stock IV** (Hard): buy and sell arrays per transaction.
+- **10. Regular Expression Matching** (Hard): the `*` transition.
+- **312. Burst Balloons** (Hard): interval DP, choose the last balloon.
+- **97. Interleaving String** (Medium): `dp[i][j]` = first `i` of `a` and `j` of `b` interleave into the first `i + j` of `s`.
+- **1235. Maximum Profit in Job Scheduling** (Hard): sort by end, DP plus binary search.
+
+## Interview Q&A
+Q*: What is the recurrence for LCS?
+A: If a[i-1] equals b[j-1] then dp[i][j] = dp[i-1][j-1] + 1; otherwise dp[i][j] = max(dp[i-1][j], dp[i][j-1]). The first row and column are 0. It is O(m × n) time.
+Q*: Explain edit distance.
+A: dp[i][j] is the minimum operations to turn the first i characters of a into the first j of b. Base cases are i deletions or j insertions. If the last characters match it is dp[i-1][j-1]; otherwise one plus the minimum of replace (diagonal), delete (above) and insert (left).
+Q*: How can you reduce 2D DP space?
+A: If a row depends only on the previous row, keep two rows or even a single array updated in the correct direction, making it O(n) space. You lose the ability to reconstruct the path unless you store extra information.
+Q: How do you turn Target Sum into a subset-sum problem?
+A: Let P be the sum of numbers with plus signs and N the rest. P - N = target and P + N = total, so P = (total + target) / 2. Count subsets of the numbers that sum to P with a 0/1 knapsack.
+Q: What is interval DP?
+A: A DP whose state is a range [l, r] and whose transition tries every split or "last element" k inside it, combining dp[l][k] and dp[k][r]. Ranges are processed in order of increasing length. Burst Balloons and matrix chain multiplication are examples.
+Q: When do you use bitmask DP?
+A: When n is small (about 20 or fewer) and the state must remember which subset of items has been used or visited, such as the travelling salesman problem. A mask in an int encodes the subset, giving 2^n states.
+
+# 22 | Advanced Graphs: Shortest Paths & Spanning Trees | Weighted graphs, Dijkstra with a heap, Bellman-Ford and negative cycles, Floyd-Warshall, choosing the right shortest-path algorithm, minimum spanning tree with Kruskal and Prim, bridges (Tarjan), Eulerian path, strongly connected components | Advanced Graphs
+
+## The Idea
+> BFS finds the path with the fewest **edges**. When edges have **costs** (distance, price, time), you need algorithms that find the path with the smallest **total cost**.
+- **Weighted graph**: each edge `(u, v, w)` has a weight. Store the adjacency list as `List<List<int[]>>` where each entry is `{neighbour, weight}`.
+- Three questions, three families: **shortest path from one source** (Dijkstra, Bellman-Ford), **between all pairs** (Floyd-Warshall), **cheapest way to connect everything** (minimum spanning tree).
+! Pick the algorithm by the edges: all weights equal → BFS. Non-negative weights → Dijkstra. Negative weights → Bellman-Ford. All pairs, small graph → Floyd-Warshall.
+
+## Which Shortest-Path Algorithm?
+```text
+algorithm       works with              time              space   use when
+BFS             unweighted              O(V + E)          O(V)    fewest edges, grids
+0-1 BFS         weights 0 or 1          O(V + E)          O(V)    deque, 0-edges first
+Dijkstra        weights >= 0            O((V + E) log V)  O(V)    one source (default)
+Bellman-Ford    negative ok             O(V * E)          O(V)    neg. cycles, K edges
+Floyd-Warshall  negative ok, all pairs  O(V^3)            O(V^2)  V up to ~400
+```
+
+## Dijkstra (greedy + a min-heap)
+> Keep the best known distance to every node. Repeatedly take the **unfinished node with the smallest distance** (a min-heap does this), and **relax** its edges: if going through it gives a shorter route to a neighbour, update that neighbour. A node's distance is final the moment it is popped, **provided no edge is negative**.
+```java Dijkstra.java
+class Solution {
+  // adj.get(u) holds {v, weight} pairs; weights must be >= 0. Returns the distance from src to every node.
+  static int[] dijkstra(List<List<int[]>> adj, int src) {
+    int[] dist = new int[adj.size()];
+    Arrays.fill(dist, Integer.MAX_VALUE);
+    dist[src] = 0;
+    PriorityQueue<int[]> pq = new PriorityQueue<>((a, b) -> Integer.compare(a[1], b[1]));   // {node, distance}
+    pq.offer(new int[] {src, 0});
+    while (!pq.isEmpty()) {
+      int[] top = pq.poll();
+      int u = top[0], d = top[1];
+      if (d > dist[u]) continue;                         // stale entry: a shorter path to u was already processed
+      for (int[] e : adj.get(u)) {
+        int v = e[0], nd = d + e[1];
+        if (nd < dist[v]) { dist[v] = nd; pq.offer(new int[] {v, nd}); }   // relax; no decrease-key, so push a new entry
+      }
+    }
+    return dist;
+  }
+
+  public int networkDelayTime(int[][] times, int n, int k) {   // LeetCode 743: nodes are 1..n
+    List<List<int[]>> adj = new ArrayList<>();
+    for (int i = 0; i <= n; i++) adj.add(new ArrayList<>());
+    for (int[] t : times) adj.get(t[0]).add(new int[] {t[1], t[2]});
+    int[] dist = dijkstra(adj, k);
+    int max = 0;
+    for (int i = 1; i <= n; i++) {
+      if (dist[i] == Integer.MAX_VALUE) return -1;       // some node is unreachable
+      max = Math.max(max, dist[i]);                      // the signal reaches everyone when the slowest node hears it
+    }
+    return max;
+  }
+
+  public int minimumEffortPath(int[][] h) {              // LeetCode 1631: cost of a path = its biggest single height step
+    int rows = h.length, cols = h[0].length;
+    int[][] effort = new int[rows][cols];
+    for (int[] row : effort) Arrays.fill(row, Integer.MAX_VALUE);
+    effort[0][0] = 0;
+    PriorityQueue<int[]> pq = new PriorityQueue<>((a, b) -> Integer.compare(a[2], b[2]));   // {r, c, effort}
+    pq.offer(new int[] {0, 0, 0});
+    int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    while (!pq.isEmpty()) {
+      int[] cur = pq.poll();
+      int r = cur[0], c = cur[1];
+      if (cur[2] > effort[r][c]) continue;
+      if (r == rows - 1 && c == cols - 1) return cur[2];
+      for (int[] d : dirs) {
+        int nr = r + d[0], nc = c + d[1];
+        if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+        int e = Math.max(cur[2], Math.abs(h[nr][nc] - h[r][c]));   // "sum" is replaced by "max": Dijkstra still works
+        if (e < effort[nr][nc]) { effort[nr][nc] = e; pq.offer(new int[] {nr, nc, e}); }
+      }
+    }
+    return 0;
+  }
+}
+```
+- **Why negative edges break it**: Dijkstra assumes that once a node is popped nothing can reach it more cheaply. A negative edge later on could.
+- **Complexity**: each edge can add one heap entry, so the heap holds up to E entries and each push or pop costs O(log E) = O(log V). Total **O((V + E) log V)**.
+- Dijkstra works for any "path cost" that only **gets worse** along the path (sum, max, product of probabilities ≤ 1 with a max-heap, as in problem 1514).
+! Dijkstra = BFS with a priority queue instead of a plain queue.
+
+## Bellman-Ford (negative edges, at most K edges)
+> A shortest path has at most `V - 1` edges. So **relax every edge, `V - 1` times**. If a V-th round still improves something, a **negative cycle** is reachable. Capping the rounds at `K + 1` finds the best path using at most `K` edges.
+```java BellmanFord.java
+class Solution {
+  // edges are {u, v, w}. Returns distances, or null if a negative cycle is reachable from src.
+  static int[] bellmanFord(int n, int[][] edges, int src) {
+    final int INF = Integer.MAX_VALUE / 2;
+    int[] dist = new int[n];
+    Arrays.fill(dist, INF);
+    dist[src] = 0;
+    for (int round = 1; round < n; round++) {
+      boolean changed = false;
+      for (int[] e : edges)
+        if (dist[e[0]] != INF && dist[e[0]] + e[2] < dist[e[1]]) { dist[e[1]] = dist[e[0]] + e[2]; changed = true; }
+      if (!changed) break;                               // converged early
+    }
+    for (int[] e : edges)                                // one more pass: any improvement means a negative cycle
+      if (dist[e[0]] != INF && dist[e[0]] + e[2] < dist[e[1]]) return null;
+    return dist;
+  }
+
+  public int findCheapestPrice(int n, int[][] flights, int src, int dst, int k) {   // LeetCode 787: at most k stops
+    final int INF = Integer.MAX_VALUE / 2;
+    int[] dist = new int[n];
+    Arrays.fill(dist, INF);
+    dist[src] = 0;
+    for (int i = 0; i <= k; i++) {                       // k stops = k + 1 flights
+      int[] next = dist.clone();                         // relax from the PREVIOUS round only, so a round adds exactly one edge
+      for (int[] f : flights)
+        if (dist[f[0]] != INF) next[f[1]] = Math.min(next[f[1]], dist[f[0]] + f[2]);
+      dist = next;
+    }
+    return dist[dst] == INF ? -1 : dist[dst];
+  }
+}
+```
+- Using the same array in a round (instead of a copy) would let a path use more than one new edge per round and break the "at most K" limit.
+- Typical uses: currency arbitrage (a negative cycle in `-log(rate)`), problems with **negative** costs, or an **edge-count limit**.
+
+## Floyd-Warshall (all pairs)
+> For every pair `(i, j)`: is going **through `k`** shorter than the best known route? Allow intermediate nodes `0..k` one `k` at a time. **`k` must be the outermost loop.**
+```java FloydWarshall.java
+class Solution {
+  static int[][] floyd(int n, int[][] edges) {           // edges are {u, v, w}; INF = unreachable
+    final int INF = 1_000_000_000;                       // INF + INF still fits in an int
+    int[][] d = new int[n][n];
+    for (int[] row : d) Arrays.fill(row, INF);
+    for (int i = 0; i < n; i++) d[i][i] = 0;
+    for (int[] e : edges) d[e[0]][e[1]] = Math.min(d[e[0]][e[1]], e[2]);
+    for (int k = 0; k < n; k++)                          // intermediate node: OUTERMOST loop
+      for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+          if (d[i][k] + d[k][j] < d[i][j]) d[i][j] = d[i][k] + d[k][j];
+    return d;
+  }
+
+  public int findTheCity(int n, int[][] edges, int threshold) {   // LeetCode 1334: city with the fewest cities within threshold
+    int[][] edgesBothWays = new int[edges.length * 2][];
+    for (int i = 0; i < edges.length; i++) {
+      edgesBothWays[2 * i] = edges[i];
+      edgesBothWays[2 * i + 1] = new int[] {edges[i][1], edges[i][0], edges[i][2]};
+    }
+    int[][] d = floyd(n, edgesBothWays);
+    int best = -1, bestCount = Integer.MAX_VALUE;
+    for (int i = 0; i < n; i++) {
+      int count = 0;
+      for (int j = 0; j < n; j++) if (i != j && d[i][j] <= threshold) count++;
+      if (count <= bestCount) { bestCount = count; best = i; }     // ties: the larger index wins
+    }
+    return best;
+  }
+}
+```
+- O(V^3) time, O(V^2) space. Works with negative edges (a negative `d[i][i]` after the run reveals a negative cycle). Great when `V <= 400` and you need many pairs.
+
+## Minimum Spanning Tree (MST)
+> A **spanning tree** connects all `V` nodes with exactly `V - 1` edges and no cycle. The **minimum** spanning tree has the smallest total weight (cheapest cables, roads, pipes). Two greedy algorithms:
+- **Kruskal**: sort all edges by weight; add an edge if it joins **two different components** (check with **union-find**, sheet 18); stop at `V - 1` edges. **O(E log E)**. Best for sparse graphs and edge lists.
+- **Prim**: grow one tree from a start node; always add the **cheapest edge leaving the tree** (a min-heap, or an O(V^2) array scan for dense graphs). **O(E log V)**. Best for dense graphs.
+- Why greedy is correct (**cut property**): the cheapest edge crossing any split of the nodes into two groups belongs to some MST.
+```java Mst.java
+class Solution {
+  static class DSU {                                     // tiny union-find with path compression
+    int[] p;
+    DSU(int n) { p = new int[n]; for (int i = 0; i < n; i++) p[i] = i; }
+    int find(int x) { return p[x] == x ? x : (p[x] = find(p[x])); }
+    boolean union(int a, int b) { int ra = find(a), rb = find(b); if (ra == rb) return false; p[ra] = rb; return true; }
+  }
+  // Kruskal: edges are {u, v, w}. Returns the MST weight, or -1 if the graph is not connected.
+  static long kruskal(int n, int[][] edges) {
+    int[][] sorted = edges.clone();
+    Arrays.sort(sorted, (a, b) -> Integer.compare(a[2], b[2]));
+    DSU dsu = new DSU(n);
+    long total = 0;
+    int used = 0;
+    for (int[] e : sorted) if (dsu.union(e[0], e[1])) { total += e[2]; used++; }   // joins two components: keep it
+    return used == n - 1 ? total : -1;
+  }
+  // Prim with a heap: adj.get(u) holds {v, weight}.
+  static long prim(int n, List<List<int[]>> adj) {
+    boolean[] inTree = new boolean[n];
+    PriorityQueue<int[]> pq = new PriorityQueue<>((a, b) -> Integer.compare(a[1], b[1]));   // {node, cost to attach it}
+    pq.offer(new int[] {0, 0});
+    long total = 0;
+    int count = 0;
+    while (!pq.isEmpty() && count < n) {
+      int[] top = pq.poll();
+      if (inTree[top[0]]) continue;
+      inTree[top[0]] = true;
+      total += top[1];
+      count++;
+      for (int[] e : adj.get(top[0])) if (!inTree[e[0]]) pq.offer(new int[] {e[0], e[1]});
+    }
+    return count == n ? total : -1;
+  }
+  public int minCostConnectPoints(int[][] pts) {         // LeetCode 1584: complete graph, Manhattan distances, Prim in O(n^2)
+    int n = pts.length, total = 0;
+    int[] minDist = new int[n];
+    Arrays.fill(minDist, Integer.MAX_VALUE);
+    minDist[0] = 0;
+    boolean[] inTree = new boolean[n];
+    for (int step = 0; step < n; step++) {
+      int u = -1;
+      for (int v = 0; v < n; v++) if (!inTree[v] && (u == -1 || minDist[v] < minDist[u])) u = v;   // closest outside node
+      inTree[u] = true;
+      total += minDist[u];
+      for (int v = 0; v < n; v++)
+        if (!inTree[v]) minDist[v] = Math.min(minDist[v], Math.abs(pts[u][0] - pts[v][0]) + Math.abs(pts[u][1] - pts[v][1]));
+    }
+    return total;
+  }
+}
+```
+! MST connects everything cheaply (no cycle). Shortest path finds the cheapest route between two nodes. They are different questions.
+
+## Bridges (Tarjan's low-link)
+> A **bridge** is an edge whose removal disconnects the graph (a critical connection). In one DFS record each node's **discovery time** `disc` and `low` = the earliest discovery time reachable from its subtree using at most one back edge. A tree edge `u → v` is a bridge if **`low[v] > disc[u]`**: `v`'s subtree cannot reach `u` or anything above it except through this edge.
+```java Bridges.java
+class Solution {
+  public List<List<Integer>> criticalConnections(int n, List<List<Integer>> connections) {   // LeetCode 1192
+    List<List<Integer>> adj = new ArrayList<>();
+    for (int i = 0; i < n; i++) adj.add(new ArrayList<>());
+    for (List<Integer> c : connections) { adj.get(c.get(0)).add(c.get(1)); adj.get(c.get(1)).add(c.get(0)); }
+    int[] disc = new int[n], low = new int[n];           // 0 = not visited yet
+    List<List<Integer>> bridges = new ArrayList<>();
+    dfs(0, -1, adj, disc, low, new int[] {0}, bridges);
+    return bridges;
+  }
+  private void dfs(int u, int parent, List<List<Integer>> adj, int[] disc, int[] low, int[] timer, List<List<Integer>> bridges) {
+    disc[u] = low[u] = ++timer[0];
+    for (int v : adj.get(u)) {
+      if (v == parent) continue;                         // do not walk straight back over the tree edge
+      if (disc[v] == 0) {
+        dfs(v, u, adj, disc, low, timer, bridges);
+        low[u] = Math.min(low[u], low[v]);
+        if (low[v] > disc[u]) bridges.add(List.of(u, v));   // nothing in v's subtree climbs above u
+      } else low[u] = Math.min(low[u], disc[v]);         // back edge to an ancestor
+    }
+  }
+}
+```
+- The same low-link idea finds **articulation points** (nodes whose removal disconnects) and **strongly connected components** (Tarjan).
+
+## Eulerian Path: Reconstruct Itinerary (Hierholzer)
+> An **Eulerian path** uses **every edge exactly once**. Hierholzer's algorithm: DFS following unused edges, and add a node to the route only when it is **stuck (post-order)**; the route is built in reverse.
+```java Itinerary.java
+class Solution {
+  public List<String> findItinerary(List<List<String>> tickets) {   // LeetCode 332: smallest lexical order, starts at JFK
+    Map<String, PriorityQueue<String>> graph = new HashMap<>();
+    for (List<String> t : tickets) graph.computeIfAbsent(t.get(0), k -> new PriorityQueue<>()).add(t.get(1));
+    LinkedList<String> route = new LinkedList<>();
+    visit("JFK", graph, route);
+    return route;
+  }
+  private void visit(String airport, Map<String, PriorityQueue<String>> graph, LinkedList<String> route) {
+    PriorityQueue<String> next = graph.get(airport);
+    while (next != null && !next.isEmpty()) visit(next.poll(), graph, route);   // use each ticket once, smallest first
+    route.addFirst(airport);                             // add on the way back: dead ends end up last
+  }
+}
+```
+
+## Strongly Connected Components (concept)
+- In a **directed** graph, an **SCC** is a maximal group where every node can reach every other. Collapsing each SCC to one node gives a **DAG**.
+- **Kosaraju**: DFS to get finishing order, reverse all edges, DFS in reverse finishing order; each DFS tree is one SCC. **Tarjan**: one DFS with the low-link trick. Both O(V + E).
+- Uses: dependency cycles, 2-SAT, finding "mutually reachable" groups.
+
+## Common Mistakes
+- Using Dijkstra with **negative** weights. Use Bellman-Ford.
+- `Integer.MAX_VALUE + weight` overflow when relaxing from an unreachable node. Use `MAX_VALUE / 2`, or skip nodes that are still infinite.
+- Forgetting the stale-entry check (`if (d > dist[u]) continue`) in Dijkstra, which makes it much slower.
+- Floyd-Warshall loops in the wrong order (`k` must be outermost).
+- Treating MST as shortest path (or the reverse).
+- Directed vs undirected edges when building the adjacency list.
+
+## Explain It Like This
+> "Edges have non-negative costs, so I use Dijkstra: a min-heap ordered by distance. I pop the closest unfinished node, relax its edges, and skip stale heap entries. Each edge is relaxed once, so it's O((V + E) log V)."
+
+## Do These Next
+- **743. Network Delay Time** (Medium): Dijkstra from the source, take the max distance.
+- **1631. Path With Minimum Effort** (Medium): Dijkstra with `max` as the path cost.
+- **1514. Path with Maximum Probability** (Medium): Dijkstra with a max-heap and multiplication.
+- **787. Cheapest Flights Within K Stops** (Medium): Bellman-Ford limited to k + 1 rounds.
+- **1334. Find the City With the Smallest Number of Neighbors at a Threshold Distance** (Medium): Floyd-Warshall.
+- **1584. Min Cost to Connect All Points** (Medium): Prim or Kruskal.
+- **1976. Number of Ways to Arrive at Destination** (Medium): Dijkstra that also counts the ways.
+- **778. Swim in Rising Water** (Hard): Dijkstra with max, or binary search + BFS.
+- **1192. Critical Connections in a Network** (Hard): Tarjan bridges.
+- **332. Reconstruct Itinerary** (Hard): Hierholzer.
+- **1135. Connecting Cities With Minimum Cost** (Medium, Premium): Kruskal.
+- **269. Alien Dictionary** (Hard, Premium): build edges between letters, then a topological sort.
+
+## Interview Q&A
+Q*: How does Dijkstra's algorithm work and what is its complexity?
+A: It repeatedly extracts the unfinished node with the smallest known distance from a min-heap, and relaxes its outgoing edges, updating neighbours whose distance improves. With a binary heap it runs in O((V + E) log V). It requires non-negative edge weights.
+Q*: Why does Dijkstra fail with negative edges?
+A: It assumes that once a node is popped its distance is final. A negative edge discovered later could provide a cheaper path to a node already finalised, so the greedy assumption breaks.
+Q*: Dijkstra vs Bellman-Ford vs Floyd-Warshall?
+A: Dijkstra: one source, non-negative weights, fastest. Bellman-Ford: one source, handles negative weights and detects negative cycles in O(V·E), and can limit the number of edges. Floyd-Warshall: all pairs in O(V^3), simple, good for small graphs.
+Q: What is a minimum spanning tree and how do you find one?
+A: A subset of edges connecting all nodes without cycles at minimum total weight. Kruskal sorts edges and adds those joining different components using union-find; Prim grows a tree from a start node taking the cheapest crossing edge with a heap.
+Q: Kruskal vs Prim?
+A: Kruskal is edge-based, O(E log E), and works well for sparse graphs. Prim is node-based, O(E log V) with a heap or O(V^2) with an array, and works well for dense graphs. Both produce the same total weight.
+Q: How do you find bridges in a graph?
+A: Run one DFS tracking discovery time and low-link values. A tree edge u to v is a bridge when low[v] is greater than disc[u], meaning v's subtree has no back edge to u or an ancestor. O(V + E).
+
+# 23 | Trie (Prefix Tree) | What a trie is and why autocomplete uses it, insert/search/startsWith, array children vs hash map children, wildcard search, replace words, collecting words by prefix, Word Search II with pruning, the binary trie for maximum XOR | Trie
+
+## The Idea
+> A trie is a tree where **each edge is one character**, and a **path from the root spells a prefix**. Words that share a beginning share the same path, so `car`, `card` and `care` all walk `c → a → r` first. It is the data structure behind **autocomplete, spell check and IP routing**.
+```text
+words: "to", "tea", "ted", "ten", "in"          (* = a word ends here)
+
+           (root)
+           /    \
+          t      i
+         / \      \
+        o*  e      n*
+           /|\
+          a* d* n*
+```
+- Each node has **children** (one per possible next character) and a flag **`end`** (a stored word finishes here).
+- **Insert / search / startsWith** take **O(L)**, where L is the length of the word, **regardless of how many words are stored**. A hash set also gives O(L) lookup (hashing the string) but **cannot answer prefix questions** without scanning every word.
+- Space: up to (total characters) nodes, each holding an array of 26 pointers (or a small map).
+! Trie = the right tool whenever the question says **prefix**.
+
+## Trie vs HashSet vs Sorted List
+```text
+need                       HashSet        sorted list + bin. search Trie
+exact lookup               O(L) average   O(L log n)                O(L)
+any word starting with p?  O(n * L) scan  O(L log n)                O(L)
+list words with prefix p   O(n * L) scan  O(L log n + matches)      O(L + subtree)
+wildcard "." search        scan all       scan all                  DFS with pruning
+memory                     least          small                     most
+```
+
+## The Standard Trie
+```java Trie.java
+class Trie {                                             // LeetCode 208
+  private static class Node {
+    Node[] next = new Node[26];                          // children for 'a'..'z'
+    boolean end;                                         // true if a word ends at this node
+  }
+  private final Node root = new Node();
+
+  void insert(String word) {
+    Node cur = root;
+    for (char ch : word.toCharArray()) {
+      int i = ch - 'a';
+      if (cur.next[i] == null) cur.next[i] = new Node(); // create the path as needed
+      cur = cur.next[i];
+    }
+    cur.end = true;                                      // mark the word's last node
+  }
+  boolean search(String word) {                          // exact word
+    Node n = find(word);
+    return n != null && n.end;
+  }
+  boolean startsWith(String prefix) {                    // any word with this prefix
+    return find(prefix) != null;
+  }
+  private Node find(String s) {                          // walk the path; null if it breaks
+    Node cur = root;
+    for (char ch : s.toCharArray()) {
+      cur = cur.next[ch - 'a'];
+      if (cur == null) return null;
+    }
+    return cur;
+  }
+
+  // Autocomplete: every stored word that starts with the prefix, in alphabetical order.
+  List<String> withPrefix(String prefix) {
+    List<String> out = new ArrayList<>();
+    Node start = find(prefix);
+    if (start != null) collect(start, new StringBuilder(prefix), out);
+    return out;
+  }
+  private void collect(Node n, StringBuilder path, List<String> out) {
+    if (n.end) out.add(path.toString());
+    for (int i = 0; i < 26; i++) {                       // children in order a..z give sorted output
+      if (n.next[i] == null) continue;
+      path.append((char) ('a' + i));
+      collect(n.next[i], path, out);
+      path.deleteCharAt(path.length() - 1);              // backtrack
+    }
+  }
+}
+```
+- **`search` vs `startsWith`** differ only in the final check: `search` also needs `end == true`. "app" is a prefix of "apple" but is not a stored word unless it was inserted.
+- Edge case: the **empty prefix** walks no edges and lands on the root, so `startsWith("")` returns `true` even for an empty trie. LeetCode guarantees a non-empty prefix; in your own code decide what the empty prefix should mean.
+- **Children as `Node[26]`** is fastest for lowercase letters. For arbitrary characters use `Map<Character, Node>` (slower, but only pays for children that exist).
+
+## Wildcard Search: Add and Search Words
+> For a normal letter follow one child. For **`.`** try **every** child (DFS). The trie keeps this cheap because dead branches are pruned immediately.
+```java WordDictionary.java
+class WordDictionary {                                   // LeetCode 211
+  private static class Node { Node[] next = new Node[26]; boolean end; }
+  private final Node root = new Node();
+
+  void addWord(String word) {
+    Node cur = root;
+    for (char ch : word.toCharArray()) {
+      int i = ch - 'a';
+      if (cur.next[i] == null) cur.next[i] = new Node();
+      cur = cur.next[i];
+    }
+    cur.end = true;
+  }
+  boolean search(String word) { return dfs(word, 0, root); }
+  private boolean dfs(String w, int i, Node node) {
+    if (node == null) return false;
+    if (i == w.length()) return node.end;
+    char ch = w.charAt(i);
+    if (ch != '.') return dfs(w, i + 1, node.next[ch - 'a']);
+    for (Node child : node.next)                         // '.' matches any letter: try every branch
+      if (child != null && dfs(w, i + 1, child)) return true;
+    return false;
+  }
+}
+```
+
+## Replace Words (shortest root)
+```java ReplaceWords.java
+class Solution {
+  private static class Node { Node[] next = new Node[26]; boolean end; }
+  public String replaceWords(List<String> dictionary, String sentence) {   // LeetCode 648
+    Node root = new Node();
+    for (String d : dictionary) {
+      Node cur = root;
+      for (char ch : d.toCharArray()) {
+        int i = ch - 'a';
+        if (cur.next[i] == null) cur.next[i] = new Node();
+        cur = cur.next[i];
+      }
+      cur.end = true;
+    }
+    StringBuilder sb = new StringBuilder();
+    for (String w : sentence.split(" ")) {
+      if (sb.length() > 0) sb.append(' ');
+      Node cur = root;
+      int len = 0;
+      for (char ch : w.toCharArray()) {
+        if (cur.end || cur.next[ch - 'a'] == null) break;   // found a root, or no root fits this word
+        cur = cur.next[ch - 'a'];
+        len++;
+      }
+      sb.append(cur.end ? w.substring(0, len) : w);         // the shortest root wins because we stop at the first end
+    }
+    return sb.toString();
+  }
+}
+```
+
+## Word Search II: Trie + Backtracking (the classic Hard)
+> Searching the board once **per word** repeats work. Instead build a trie of all the words and DFS the board **once**, walking the trie in step. A path that is **not a prefix of any word** is cut off immediately, and a node that holds a complete word is reported (then cleared, so it is found once).
+```java WordSearchII.java
+class Solution {
+  private static class Node { Node[] next = new Node[26]; String word; }   // 'word' is set on the node where a word ends
+
+  public List<String> findWords(char[][] board, String[] words) {          // LeetCode 212
+    Node root = new Node();
+    for (String w : words) {
+      Node cur = root;
+      for (char ch : w.toCharArray()) {
+        int i = ch - 'a';
+        if (cur.next[i] == null) cur.next[i] = new Node();
+        cur = cur.next[i];
+      }
+      cur.word = w;
+    }
+    List<String> out = new ArrayList<>();
+    for (int r = 0; r < board.length; r++)
+      for (int c = 0; c < board[0].length; c++) dfs(board, r, c, root, out);
+    return out;
+  }
+  private void dfs(char[][] b, int r, int c, Node node, List<String> out) {
+    if (r < 0 || c < 0 || r >= b.length || c >= b[0].length) return;
+    char ch = b[r][c];
+    if (ch == '#' || node.next[ch - 'a'] == null) return;  // visited cell, or no word continues this way
+    node = node.next[ch - 'a'];
+    if (node.word != null) { out.add(node.word); node.word = null; }   // found: report once
+    b[r][c] = '#';                                          // mark visited
+    dfs(b, r + 1, c, node, out);
+    dfs(b, r - 1, c, node, out);
+    dfs(b, r, c + 1, node, out);
+    dfs(b, r, c - 1, node, out);
+    b[r][c] = ch;                                           // undo
+  }
+}
+```
+
+## The Binary Trie: Maximum XOR of Two Numbers
+> Write each number in **binary** (31 bits) and insert it into a trie whose edges are the bits `0` and `1`. To maximise `x XOR y`, you want `y` to differ from `x` in the **highest bits first**. Walk down the trie, and at each level prefer the child with the **opposite bit** if it exists.
+```java MaxXor.java
+class Solution {
+  public int findMaximumXOR(int[] nums) {                // LeetCode 421: values are non-negative (31 bits)
+    int[][] trie = new int[nums.length * 31 + 2][2];     // trie[node][bit] = child index; 0 means "none" (node 0 is the root)
+    int nodes = 1, best = 0;
+    for (int x : nums) {                                 // insert every number
+      int cur = 0;
+      for (int b = 30; b >= 0; b--) {
+        int bit = (x >> b) & 1;
+        if (trie[cur][bit] == 0) trie[cur][bit] = nodes++;
+        cur = trie[cur][bit];
+      }
+    }
+    for (int x : nums) {                                 // best partner for each number
+      int cur = 0, xor = 0;
+      for (int b = 30; b >= 0; b--) {
+        int want = 1 - ((x >> b) & 1);                   // the opposite bit makes this XOR bit a 1
+        if (trie[cur][want] != 0) { xor |= 1 << b; cur = trie[cur][want]; }
+        else cur = trie[cur][1 - want];                  // no opposite available: forced to take the same bit
+      }
+      best = Math.max(best, xor);
+    }
+    return best;
+  }
+}
+```
+
+## When a Trie Is (and Is Not) the Answer
+- **Use** for: autocomplete / suggestions, spell check, "longest common prefix of many words", dictionary with wildcards, "words that start with ...", many-words-in-a-grid searches, XOR maximisation (binary trie), IP longest-prefix routing.
+- **Not needed** for plain "have I seen this word?" (a HashSet is simpler and lighter) or one-off prefix checks on few words.
+- **Variants** worth naming: **compressed trie / radix tree** (merge chains of single-child nodes to save memory), **suffix trie / suffix tree / suffix array** (all suffixes, for substring queries), **Aho-Corasick** (a trie plus failure links to match many patterns in one pass).
+
+## Common Mistakes
+- Forgetting the `end` flag, so `search("app")` wrongly succeeds after inserting only `"apple"`.
+- Mixing up `search` (needs `end`) and `startsWith` (does not).
+- `ch - 'a'` on uppercase or non-letters throws `ArrayIndexOutOfBoundsException`. Use a map for other alphabets.
+- In Word Search II: not marking cells visited, or not clearing found words (duplicates in the result).
+- Memory: `Node[26]` per node is heavy for very large dictionaries.
+
+## Explain It Like This
+> "I'll store the words in a trie: each node is a letter and each root-to-node path is a prefix. Checking whether any word starts with a prefix just walks that path, so it's O(length of the prefix), no matter how many words are stored. A hash set can't answer prefix queries without scanning all words."
+
+## Do These Next
+- **208. Implement Trie (Prefix Tree)** (Medium): the base structure. Must-do.
+- **211. Design Add and Search Words Data Structure** (Medium): wildcard DFS.
+- **648. Replace Words** (Medium): stop at the first end node.
+- **677. Map Sum Pairs** (Medium): store a value at the end node and sum the subtree.
+- **720. Longest Word in Dictionary** (Medium): a word counts only if every prefix is a word.
+- **14. Longest Common Prefix** (Easy): trie, or the simple scan from sheet 03.
+- **1268. Search Suggestions System** (Medium): collect up to 3 words per prefix, sorted.
+- **212. Word Search II** (Hard): trie + board DFS.
+- **421. Maximum XOR of Two Numbers in an Array** (Medium): binary trie.
+- **1032. Stream of Characters** (Hard): a trie of reversed words, checked against the stream's recent characters.
+
+## Interview Q&A
+Q*: What is a trie and what are its operations' complexities?
+A: A prefix tree in which each edge is a character and each node can mark the end of a word. Insert, search and prefix check all take O(L) for a word of length L, independent of the number of stored words.
+Q*: Trie vs hash set for storing words?
+A: A hash set gives O(L) exact lookup with less memory but cannot answer prefix queries efficiently. A trie answers prefix queries, autocomplete and wildcard searches directly, at the cost of more memory.
+Q*: How do you implement wildcard search?
+A: Walk the trie letter by letter. For a normal letter follow the matching child; for a wildcard recurse into every existing child. Dead branches end immediately.
+Q: Why use a trie for Word Search II?
+A: It lets one DFS over the board check all words at once and prune any path that is not a prefix of some word, instead of running a separate search per word.
+Q: How does a binary trie find the maximum XOR pair?
+A: Insert each number's bits from most significant to least. For each number, walk down preferring the opposite bit at each level to produce a 1 in the XOR; the larger bits matter most, so this greedy choice is optimal. O(31·n).
+Q: How can you reduce a trie's memory?
+A: Use a map or sorted array for children instead of a full array per node, compress single-child chains into one edge (a radix tree), or store the words in a sorted array and binary search when memory matters more than speed.
+
+# 24 | Bit Manipulation & Math | Binary and two's complement, the bitwise operators, the handful of tricks that solve most bit questions (clear lowest bit, isolate lowest bit, XOR cancellation), single number, counting bits, bitmasks for subsets, GCD, sieve of Eratosthenes, modular arithmetic, fast power with mod, nCr | Bits & Math
+
+## The Idea
+> Computers store integers as **bits** (0 and 1). Bit tricks do a job in one CPU instruction that a loop would do in many, and a few classic problems are **only** elegant with bits (find the one number that appears once, use an integer as a set).
+- **Binary place values** (right to left): 1, 2, 4, 8, 16 ... `13 = 8 + 4 + 1 = 1101`.
+- Java `int` is **32 bits**, `long` is **64 bits**, in **two's complement**: the top bit is the sign bit. To negate: **flip all bits and add 1** (`-x = ~x + 1`). So `Integer.MIN_VALUE = -2^31` has no positive counterpart.
+- Max values: `Integer.MAX_VALUE = 2^31 - 1 = 2,147,483,647`. `Long.MAX_VALUE = 2^63 - 1`.
+! Think of an int as a row of 32 on/off switches.
+
+## The Operators
+```text
+operator  name                  example (4-bit)       meaning
+&         AND                   1100 & 1010 = 1000    1 only where both are 1
+|         OR                    1100 | 1010 = 1110    1 where either is 1
+^         XOR                   1100 ^ 1010 = 0110    1 where they differ
+~         NOT                   ~1100 = 0011          flip every bit (-x - 1)
+<<        left shift            0011 << 2 = 1100      multiply by 2^k
+>>        arithmetic right      keeps the sign bit    divide by 2^k, rounds down
+>>>       logical right (Java)  fills with 0          treats the int as unsigned
+```
+```java BitBasics.java
+int x = 0b1101;                                          // 13
+System.out.println(Integer.toBinaryString(x));           // 1101
+System.out.println((x >> 1) + " " + (x << 1));           // 6 26
+System.out.println((x & 1) == 1 ? "odd" : "even");       // test the lowest bit
+System.out.println((x >> 2 & 1));                        // 1: read bit number 2 (counting from 0)
+System.out.println(x | 1 << 1);                          // 15: set bit 1
+System.out.println(x & ~(1 << 2));                       // 9: clear bit 2
+System.out.println(x ^ 1 << 3);                          // 5: toggle bit 3
+System.out.println(-8 >> 1);                             // -4: arithmetic shift keeps the sign
+System.out.println(-8 >>> 28);                           // 15: logical shift fills with zeros
+System.out.println(Integer.bitCount(255) + " " + Long.numberOfTrailingZeros(8L));   // 8 3
+System.out.println(1 << 31);                             // -2147483648: shifting into the sign bit
+```
+- **Precedence trap**: `&`, `|`, `^` bind **weaker than `==`**. Write `(x & 1) == 1`, not `x & 1 == 1`.
+- `1 << n` is an `int`. For `n >= 31` use `1L << n`.
+
+## The Five Tricks to Memorise
+```text
+x & (x - 1)     clears the LOWEST set bit (count bits, power-of-two test)
+x & -x          isolates the LOWEST set bit (Fenwick tree, single number III)
+a ^ a = 0       a number cancels itself; a ^ 0 = a (find the odd one out)
+x ^ y           1 where the bits differ (swap, add without +)
+(mask >> i) & 1 tests bit i (bitmask subsets)
+```
+! XOR is the "cancel pairs" operator: it is commutative and associative, `a ^ a = 0`, `a ^ 0 = a`.
+
+## Single Number, Counting Bits, Missing Number
+```java BitTricks.java
+class Solution {
+  public int singleNumber(int[] nums) {                  // LeetCode 136: everything appears twice except one
+    int x = 0;
+    for (int n : nums) x ^= n;                           // pairs cancel, the single number remains
+    return x;
+  }
+  public int singleNumberII(int[] nums) {                // LeetCode 137: everything appears three times except one
+    int ones = 0, twos = 0;                              // per bit: count of 1s seen, modulo 3, stored in two variables
+    for (int x : nums) {
+      ones = (ones ^ x) & ~twos;
+      twos = (twos ^ x) & ~ones;
+    }
+    return ones;
+  }
+  public int[] singleNumberIII(int[] nums) {             // LeetCode 260: two numbers appear once, the rest twice
+    int xor = 0;
+    for (int n : nums) xor ^= n;                         // = a ^ b, and a != b so xor != 0
+    int low = xor & -xor;                                // a bit where a and b differ
+    int a = 0;
+    for (int n : nums) if ((n & low) != 0) a ^= n;       // group by that bit: each group cancels down to one answer
+    return new int[] {a, xor ^ a};
+  }
+  public int hammingWeight(int n) {                      // LeetCode 191: number of 1 bits
+    int count = 0;
+    while (n != 0) { n &= n - 1; count++; }              // each step removes the lowest set bit
+    return count;
+  }
+  public int[] countBits(int n) {                        // LeetCode 338: bit counts for 0..n
+    int[] r = new int[n + 1];
+    for (int i = 1; i <= n; i++) r[i] = r[i >> 1] + (i & 1);   // i has the bits of i/2 plus its last bit
+    return r;
+  }
+  public int missingNumber(int[] nums) {                 // LeetCode 268: 0..n with one missing
+    int x = nums.length;
+    for (int i = 0; i < nums.length; i++) x ^= i ^ nums[i];    // every present number cancels with its index
+    return x;
+  }
+  public boolean isPowerOfTwo(int n) {                   // LeetCode 231: exactly one bit set
+    return n > 0 && (n & (n - 1)) == 0;
+  }
+  public int reverseBits(int n) {                        // LeetCode 190
+    int r = 0;
+    for (int i = 0; i < 32; i++) { r = (r << 1) | (n & 1); n >>>= 1; }   // >>>: treat n as unsigned
+    return r;
+  }
+  public int getSum(int a, int b) {                      // LeetCode 371: add without the + operator
+    while (b != 0) {
+      int carry = (a & b) << 1;                          // positions where both are 1 produce a carry
+      a ^= b;                                            // add without carrying
+      b = carry;                                         // then add the carries, repeat until none remain
+    }
+    return a;
+  }
+  public int rangeBitwiseAnd(int left, int right) {      // LeetCode 201: AND of every number in [left, right]
+    int shift = 0;
+    while (left != right) { left >>= 1; right >>= 1; shift++; }   // only the common prefix of the two survives
+    return left << shift;
+  }
+}
+```
+
+## Bitmasks: an Integer as a Set
+> With `n <= 20`, bit `i` of `mask` means "element `i` is chosen". `mask` runs from `0` to `2^n - 1` and visits **every subset**.
+```java Bitmask.java
+class Solution {
+  static List<List<Integer>> subsets(int[] nums) {       // all 2^n subsets without recursion
+    int n = nums.length;
+    List<List<Integer>> out = new ArrayList<>();
+    for (int mask = 0; mask < (1 << n); mask++) {
+      List<Integer> s = new ArrayList<>();
+      for (int i = 0; i < n; i++) if ((mask >> i & 1) == 1) s.add(nums[i]);
+      out.add(s);
+    }
+    return out;
+  }
+  static void submasks(int mask) {                       // iterate every non-empty subset of a given mask
+    for (int sub = mask; sub > 0; sub = (sub - 1) & mask) System.out.print(sub + " ");
+    System.out.println();
+  }
+}
+```
+- Bitmasks also give **set operations in one instruction**: union `a | b`, intersection `a & b`, difference `a & ~b`, membership `a >> i & 1`, add `a | 1 << i`, remove `a & ~(1 << i)`. They are the state in **bitmask DP** (sheet 21).
+
+## GCD, LCM, Primes
+> **Euclid's algorithm**: `gcd(a, b) = gcd(b, a % b)`, ending when `b == 0`. It takes O(log min(a, b)) steps. **lcm(a, b) = a / gcd(a, b) * b** (divide first to avoid overflow).
+> **Sieve of Eratosthenes**: to list primes below `n`, for each prime `p` mark `p*p, p*p + p, ...` as composite. **O(n log log n)**.
+```java MathBasics.java
+class Solution {
+  static int gcd(int a, int b) { return b == 0 ? a : gcd(b, a % b); }
+  static long lcm(int a, int b) { return (long) a / gcd(a, b) * b; }
+
+  public int countPrimes(int n) {                        // LeetCode 204: primes strictly below n
+    if (n < 3) return 0;
+    boolean[] composite = new boolean[n];
+    int count = 0;
+    for (int i = 2; i < n; i++) {
+      if (composite[i]) continue;
+      count++;                                           // i is prime
+      for (long j = (long) i * i; j < n; j += i) composite[(int) j] = true;   // smaller multiples were marked by smaller primes
+    }
+    return count;
+  }
+  static boolean isPrime(int n) {                        // trial division up to sqrt(n): O(sqrt n)
+    if (n < 2) return false;
+    for (int d = 2; (long) d * d <= n; d++) if (n % d == 0) return false;
+    return true;
+  }
+  public boolean isHappy(int n) {                        // LeetCode 202: repeat "sum of squares of digits"; does it reach 1?
+    int slow = n, fast = next(n);
+    while (fast != 1 && slow != fast) { slow = next(slow); fast = next(next(fast)); }   // Floyd cycle detection
+    return fast == 1;
+  }
+  private int next(int n) { int s = 0; while (n > 0) { int d = n % 10; s += d * d; n /= 10; } return s; }
+}
+```
+
+## Modular Arithmetic
+- "Return the answer **modulo 10^9 + 7**" means the true answer is too big for a `long`. Take `% MOD` after **every** addition and multiplication so numbers stay small. 10^9 + 7 is a **prime** (needed for division).
+- `(a + b) % m = ((a % m) + (b % m)) % m`, same for `*`. For subtraction add `m` first: `((a - b) % m + m) % m`.
+- **Division** does not work with `/`. Use the **modular inverse**: for prime `p`, `a^(-1) ≡ a^(p-2) (mod p)` (**Fermat's little theorem**).
+- **Fast exponentiation** (square and multiply): `a^b` in **O(log b)** by halving the exponent, with `% MOD` at each step.
+```java ModMath.java
+class ModMath {
+  static final long MOD = 1_000_000_007L;
+
+  static long modPow(long base, long exp, long mod) {
+    long result = 1;
+    base %= mod;
+    while (exp > 0) {
+      if ((exp & 1) == 1) result = result * base % mod;  // this bit of the exponent is set: multiply it in
+      base = base * base % mod;                          // base^1, base^2, base^4, base^8 ...
+      exp >>= 1;
+    }
+    return result;
+  }
+  static long modInverse(long a, long p) { return modPow(a, p - 2, p); }   // p must be prime
+
+  static long nCr(int n, int r, long mod) {              // n choose r modulo a prime
+    if (r < 0 || r > n) return 0;
+    long num = 1, den = 1;
+    for (int i = 1; i <= r; i++) {
+      num = num * (n - r + i) % mod;                     // n * (n-1) * ... * (n-r+1)
+      den = den * i % mod;                               // r!
+    }
+    return num * modInverse(den, mod) % mod;             // divide by r! using the inverse
+  }
+}
+```
+! Overflow rule: `(a * b) % MOD` is safe in `long` only if both are already below MOD (about 10^9, product under 10^18).
+
+## Integer and String Arithmetic (carry loops)
+```java Arithmetic.java
+class Solution {
+  public int reverse(int x) {                            // LeetCode 7: return 0 if the reversed value overflows an int
+    int r = 0;
+    while (x != 0) {
+      int d = x % 10;
+      x /= 10;
+      if (r > Integer.MAX_VALUE / 10 || (r == Integer.MAX_VALUE / 10 && d > 7)) return 0;    // would exceed 2147483647
+      if (r < Integer.MIN_VALUE / 10 || (r == Integer.MIN_VALUE / 10 && d < -8)) return 0;   // would go below -2147483648
+      r = r * 10 + d;
+    }
+    return r;
+  }
+  public String addBinary(String a, String b) {          // LeetCode 67
+    StringBuilder sb = new StringBuilder();
+    int i = a.length() - 1, j = b.length() - 1, carry = 0;
+    while (i >= 0 || j >= 0 || carry != 0) {
+      int sum = carry + (i >= 0 ? a.charAt(i--) - '0' : 0) + (j >= 0 ? b.charAt(j--) - '0' : 0);
+      sb.append(sum & 1);                                // the digit
+      carry = sum >> 1;                                  // the carry
+    }
+    return sb.reverse().toString();
+  }
+  public String multiply(String a, String b) {           // LeetCode 43: multiply two big numbers given as strings
+    if (a.equals("0") || b.equals("0")) return "0";
+    int[] prod = new int[a.length() + b.length()];
+    for (int i = a.length() - 1; i >= 0; i--)
+      for (int j = b.length() - 1; j >= 0; j--) {
+        int p = (a.charAt(i) - '0') * (b.charAt(j) - '0') + prod[i + j + 1];
+        prod[i + j + 1] = p % 10;
+        prod[i + j] += p / 10;
+      }
+    StringBuilder sb = new StringBuilder();
+    for (int d : prod) if (!(sb.length() == 0 && d == 0)) sb.append(d);   // skip leading zeros
+    return sb.toString();
+  }
+}
+```
+
+## Common Mistakes
+- `x & 1 == 1` (precedence bug). Parenthesise: `(x & 1) == 1`.
+- `1 << 32` or `1 << 40` on an `int` (wraps around). Use `1L << n`.
+- Right-shifting negative numbers with `>>` when you wanted an unsigned shift (`>>>`).
+- Overflow in `a * b`, `a + b`, `Math.abs(Integer.MIN_VALUE)` (still negative). Cast to `long` **before** the operation.
+- Forgetting `% MOD` after a subtraction (negative results).
+- Using `/` for modular division instead of an inverse.
+
+## Explain It Like This
+> "Every number appears twice except one. XOR is commutative and a ^ a = 0, so XOR-ing the whole array cancels all the pairs and leaves the single number. One pass, O(n) time, O(1) space."
+
+## Do These Next
+- **136. Single Number** (Easy): XOR everything.
+- **191. Number of 1 Bits** (Easy): `n &= n - 1`.
+- **231. Power of Two** (Easy): `n & (n - 1) == 0`.
+- **268. Missing Number** (Easy): XOR with indices, or the sum formula.
+- **338. Counting Bits** (Easy): `r[i] = r[i >> 1] + (i & 1)`.
+- **190. Reverse Bits** (Easy): shift in one bit at a time.
+- **461. Hamming Distance** (Easy): popcount of `x ^ y`.
+- **9. Palindrome Number** (Easy): reverse half the digits (sheet 00).
+- **67. Add Binary** (Easy): carry loop.
+- **202. Happy Number** (Easy): fast and slow pointers.
+- **7. Reverse Integer** (Medium): overflow checks before the multiply.
+- **371. Sum of Two Integers** (Medium): XOR plus shifted AND.
+- **201. Bitwise AND of Numbers Range** (Medium): common prefix.
+- **137. Single Number II** (Medium): count bits modulo 3.
+- **260. Single Number III** (Medium): split by one differing bit.
+- **204. Count Primes** (Medium): the sieve.
+- **43. Multiply Strings** (Medium): grade-school multiplication.
+- **50. Pow(x, n)** (Medium): fast power (sheet 08).
+- **78. Subsets** (Medium): redo it with a bitmask.
+- **421. Maximum XOR of Two Numbers in an Array** (Medium): binary trie (sheet 23).
+- **847. Shortest Path Visiting All Nodes** (Hard): BFS over (node, visited-mask) states.
+
+## Interview Q&A
+Q*: How do you check if a number is a power of two?
+A: A positive power of two has exactly one bit set, so n > 0 && (n & (n - 1)) == 0. Subtracting 1 flips the lowest set bit and everything below it, so the AND is zero only when there was a single set bit.
+Q*: How do you find the single number when every other number appears twice?
+A: XOR all the numbers. XOR is commutative and associative, a ^ a = 0 and a ^ 0 = a, so pairs cancel and the unique number remains. O(n) time, O(1) space.
+Q*: What does n & (n - 1) do?
+A: It clears the lowest set bit of n. Repeating it until n is zero counts the set bits (Brian Kernighan's algorithm), with one iteration per set bit.
+Q: Difference between >> and >>> in Java?
+A: >> is an arithmetic shift that copies the sign bit, so negative numbers stay negative. >>> is a logical shift that fills with zeros, treating the value as unsigned.
+Q: Why take results modulo 10^9 + 7?
+A: Counts can be astronomically large, so problems ask for the answer modulo a large prime that fits in a long even after multiplying two residues. Apply the modulus after each operation to avoid overflow; 10^9 + 7 being prime allows division through modular inverses.
+Q: How does the sieve of Eratosthenes work?
+A: For each number from 2 upward that is still unmarked (so prime), mark all its multiples starting from its square as composite. It lists all primes below n in O(n log log n) time and O(n) space.
+
+# 25 | Segment Tree & Fenwick Tree | Range queries with updates, why prefix sums are not enough, the Fenwick tree (BIT), the iterative segment tree, lazy propagation for range updates, counting smaller numbers after self, sparse table, choosing the right structure | Segment Tree & BIT
+
+## The Idea
+> **Prefix sums** answer "sum of a range" in O(1) but are **frozen**: changing one element forces O(n) rebuilding. When you need **both** range queries **and** updates, use a structure that does each in **O(log n)**.
+```text
+structure           build       update    query      works for
+prefix sums         O(n)        O(n)      O(1)       sums (static arrays)
+sparse table        O(n log n)  rebuild   O(1)       min, max, gcd (static)
+Fenwick tree (BIT)  O(n log n)  O(log n)  O(log n)   prefix sums, counts
+segment tree        O(n)        O(log n)  O(log n)   any associative op, lazy ranges
+sqrt decomposition  O(n)        O(1)      O(sqrt n)  almost anything, but slower
+```
+- Use when the statement says "**update** the value at index i" **and** "**query** the sum / min / max of a range" many times (up to 10^5 operations).
+! Static data → prefix sum. Data changes between queries → Fenwick or segment tree.
+
+## Fenwick Tree (Binary Indexed Tree)
+> An array where slot `i` stores the sum of a **block of elements ending at `i`**, with the block length given by the **lowest set bit** of `i` (`i & -i`). To get a prefix sum, **jump down** by stripping the lowest bit; to update, **jump up** by adding the lowest bit. Both take O(log n).
+```java Fenwick.java
+class FenwickTree {
+  private final long[] bit;                              // 1-indexed internally; callers use 0-indexed positions
+  FenwickTree(int n) { bit = new long[n + 1]; }
+
+  void add(int i, long delta) {                          // a[i] += delta
+    for (i++; i < bit.length; i += i & -i) bit[i] += delta;      // climb: every block that contains position i
+  }
+  long prefix(int i) {                                   // sum of a[0..i]
+    long sum = 0;
+    for (i++; i > 0; i -= i & -i) sum += bit[i];         // descend: strip the lowest bit each step
+    return sum;
+  }
+  long range(int l, int r) {                             // sum of a[l..r]
+    return prefix(r) - (l == 0 ? 0 : prefix(l - 1));
+  }
+}
+class NumArray {                                         // LeetCode 307: Range Sum Query - Mutable
+  private final int[] nums;
+  private final FenwickTree bit;
+  NumArray(int[] nums) {
+    this.nums = nums.clone();
+    bit = new FenwickTree(nums.length);
+    for (int i = 0; i < nums.length; i++) bit.add(i, nums[i]);
+  }
+  void update(int index, int val) {
+    bit.add(index, val - nums[index]);                   // add the DIFFERENCE, not the new value
+    nums[index] = val;
+  }
+  int sumRange(int left, int right) { return (int) bit.range(left, right); }
+}
+```
+- Example: `i = 6 = 110₂`. `prefix(6)` adds `bit[6]` (covers 5..6) then `bit[4]` (covers 1..4). `add(…, 6)` updates `bit[6]` then `bit[8]`.
+- Fenwick trees need an **invertible** operation (sum, XOR, count). For min or max use a segment tree.
+
+## Counting with a BIT: Smaller Numbers After Self
+> Scan from the **right**. For each number, ask the BIT "how many **smaller** values have I already seen?" (a prefix count), then record this value. Compress the values to ranks `0..k-1` first (**coordinate compression**) so the BIT size is small.
+```java CountSmaller.java
+class FenwickTree {
+  private final long[] bit;
+  FenwickTree(int n) { bit = new long[n + 1]; }
+  void add(int i, long delta) { for (i++; i < bit.length; i += i & -i) bit[i] += delta; }
+  long prefix(int i) { long s = 0; for (i++; i > 0; i -= i & -i) s += bit[i]; return s; }
+}
+class Solution {
+  public List<Integer> countSmaller(int[] nums) {        // LeetCode 315
+    int[] sorted = Arrays.stream(nums).distinct().sorted().toArray();     // coordinate compression
+    FenwickTree bit = new FenwickTree(sorted.length);
+    Integer[] res = new Integer[nums.length];
+    for (int i = nums.length - 1; i >= 0; i--) {
+      int rank = Arrays.binarySearch(sorted, nums[i]);   // 0-based rank of this value
+      res[i] = rank == 0 ? 0 : (int) bit.prefix(rank - 1);   // how many strictly smaller values lie to the right
+      bit.add(rank, 1);                                  // now this value is "seen"
+    }
+    return Arrays.asList(res);
+  }
+}
+```
+- The same pattern counts **inversions**, "reverse pairs", and "elements to my right that are smaller" in O(n log n).
+
+## Segment Tree (iterative, bottom-up)
+> A segment tree stores the **answer for every block of a halving hierarchy**: the root covers the whole array, its children cover the two halves, and so on down to single elements. A range query combines **O(log n)** blocks. The iterative version lays the tree in an array of size `2n`: **leaves at `n..2n-1`, parent of `i` is `i / 2`**.
+```java SegmentTree.java
+class SegmentTree {                                      // sum over half-open ranges [l, r)
+  private final int n;
+  private final int[] t;
+  SegmentTree(int[] a) {
+    n = a.length;
+    t = new int[2 * n];
+    System.arraycopy(a, 0, t, n, n);                     // leaves
+    for (int i = n - 1; i > 0; i--) t[i] = t[2 * i] + t[2 * i + 1];   // each parent = combine of its two children
+  }
+  void update(int i, int value) {                        // set a[i] = value
+    for (t[i += n] = value; i > 1; i >>= 1) t[i >> 1] = t[i] + t[i ^ 1];   // recompute every ancestor
+  }
+  int query(int l, int r) {                              // sum of a[l..r-1]
+    int sum = 0;
+    for (l += n, r += n; l < r; l >>= 1, r >>= 1) {
+      if ((l & 1) == 1) sum += t[l++];                   // l is a right child: take it and move on
+      if ((r & 1) == 1) sum += t[--r];                   // r-1 is a right child: take it
+    }
+    return sum;
+  }
+}
+```
+- To get **min** or **max**, replace `+` with `Math.min` / `Math.max` (and the identity element `0` with `Integer.MAX_VALUE` / `MIN_VALUE`). Any **associative** operation works: sum, min, max, gcd, XOR, matrix product.
+
+## Lazy Propagation (range update + range query)
+> To **add `v` to every element in a range** quickly, do not touch each leaf. Store a **pending add** (`lazy`) on a node that is fully covered, and only **push it down** to the children when a later operation needs to go deeper. Both update and query become O(log n).
+```java LazySegTree.java
+class LazySegTree {                                      // range add, range sum (inclusive ranges, 0-indexed)
+  private final int n;
+  private final long[] sum, lazy;
+  LazySegTree(int[] a) {
+    n = a.length;
+    sum = new long[4 * n];
+    lazy = new long[4 * n];
+    build(1, 0, n - 1, a);
+  }
+  private void build(int node, int l, int r, int[] a) {
+    if (l == r) { sum[node] = a[l]; return; }
+    int m = (l + r) / 2;
+    build(2 * node, l, m, a);
+    build(2 * node + 1, m + 1, r, a);
+    sum[node] = sum[2 * node] + sum[2 * node + 1];
+  }
+  private void apply(int node, int l, int r, long v) {   // add v to the whole block [l, r]
+    sum[node] += v * (r - l + 1);
+    lazy[node] += v;                                     // remember it for the children
+  }
+  private void push(int node, int l, int r) {            // hand the pending add down before descending
+    if (lazy[node] == 0) return;
+    int m = (l + r) / 2;
+    apply(2 * node, l, m, lazy[node]);
+    apply(2 * node + 1, m + 1, r, lazy[node]);
+    lazy[node] = 0;
+  }
+  void add(int ql, int qr, long v) { add(1, 0, n - 1, ql, qr, v); }
+  private void add(int node, int l, int r, int ql, int qr, long v) {
+    if (qr < l || r < ql) return;                        // no overlap
+    if (ql <= l && r <= qr) { apply(node, l, r, v); return; }   // fully covered: lazy tag, stop here
+    push(node, l, r);
+    int m = (l + r) / 2;
+    add(2 * node, l, m, ql, qr, v);
+    add(2 * node + 1, m + 1, r, ql, qr, v);
+    sum[node] = sum[2 * node] + sum[2 * node + 1];
+  }
+  long query(int ql, int qr) { return query(1, 0, n - 1, ql, qr); }
+  private long query(int node, int l, int r, int ql, int qr) {
+    if (qr < l || r < ql) return 0;
+    if (ql <= l && r <= qr) return sum[node];
+    push(node, l, r);
+    int m = (l + r) / 2;
+    return query(2 * node, l, m, ql, qr) + query(2 * node + 1, m + 1, r, ql, qr);
+  }
+}
+```
+- The recursive layout uses **`4n`** slots to be safe for any `n`. Node `k` has children `2k` and `2k + 1`.
+- The **three cases** of every recursive operation: **no overlap** (return the identity), **full cover** (use or tag the node), **partial overlap** (push down, recurse into both children, recombine).
+
+## Sparse Table (static range minimum in O(1))
+- Precompute `table[k][i]` = the minimum of the block of length `2^k` starting at `i` (`O(n log n)` time and memory). Any query `[l, r]` is the min of **two overlapping blocks** of length `2^k` with `k = floor(log2(r - l + 1))`. Works for **idempotent** operations (min, max, gcd) because overlap does not matter. Not for sums.
+- Use for **LCA via Euler tour + RMQ** and any problem with many queries and no updates.
+
+## Choosing the Structure
+- Only queries, no updates → **prefix sums** (sum) or **sparse table** (min/max).
+- Point updates + range **sums/counts** → **Fenwick tree** (shortest code).
+- Point updates + range **min/max/gcd**, or **range updates** → **segment tree** (with lazy for range updates).
+- Counting "how many earlier/later elements are smaller" → **BIT over compressed values**, or merge sort.
+- Offline queries sometimes allow **sorting + BIT**, or **Mo's algorithm** (sqrt decomposition on queries).
+
+## Common Mistakes
+- Fenwick trees are **1-indexed** inside. Index 0 would loop forever (`0 & -0 = 0`).
+- Updating a BIT with the **new value** instead of the **difference**.
+- Segment tree array too small: recursive trees need `4n`.
+- Mixing inclusive `[l, r]` and half-open `[l, r)` ranges between the code and the problem.
+- Forgetting to **push down** the lazy tag before visiting children (stale values).
+- Using a BIT for min/max (no inverse), or a sparse table for sums.
+
+## Explain It Like This
+> "I need range sums with point updates, and both happen up to 10^5 times, so prefix sums (O(n) update) are too slow. A Fenwick tree gives O(log n) for both: each index stores the sum of a block sized by its lowest set bit; querying walks down by stripping that bit, and updating walks up by adding it."
+
+## Do These Next
+- **303. Range Sum Query - Immutable** (Easy): prefix sums (sheet 07), the static baseline.
+- **307. Range Sum Query - Mutable** (Medium): Fenwick tree or segment tree. Must-do.
+- **315. Count of Smaller Numbers After Self** (Hard): BIT over compressed values.
+- **493. Reverse Pairs** (Hard): merge sort counting, or a BIT.
+- **327. Count of Range Sum** (Hard): prefix sums plus a BIT or merge sort.
+- **218. The Skyline Problem** (Hard): sweep line with a heap (or a segment tree).
+- **732. My Calendar III** (Hard): segment tree with lazy max, or a TreeMap difference array.
+- **699. Falling Squares** (Hard): range max update with coordinate compression.
+- **1649. Create Sorted Array through Instructions** (Hard): BIT counting smaller and larger.
+
+## Interview Q&A
+Q*: When would you use a segment tree or Fenwick tree instead of prefix sums?
+A: When the array changes between queries. Prefix sums answer range sums in O(1) but need O(n) to rebuild after an update. Fenwick and segment trees do point updates and range queries in O(log n).
+Q*: How does a Fenwick tree work?
+A: It stores partial sums in an array where position i covers a block whose length is the lowest set bit of i. A prefix query sums blocks while stripping the lowest bit from the index; an update adds the delta to blocks while adding the lowest bit. Each takes O(log n).
+Q*: Fenwick tree vs segment tree?
+A: Fenwick is shorter and faster but limited to invertible operations like sum, count and XOR. A segment tree handles any associative operation (min, max, gcd), range updates with lazy propagation, and more complex node data, at the cost of more code and memory.
+Q: What is lazy propagation?
+A: A technique where a range update stores a pending value on the highest nodes fully covered by the range instead of updating every leaf. The pending value is pushed down to the children only when a later operation must go deeper, keeping updates and queries at O(log n).
+Q: How do you count smaller elements to the right of each element in O(n log n)?
+A: Compress the values to ranks, scan from right to left, query a Fenwick tree for the count of ranks below the current one, then add the current rank to the tree. Merge sort with inversion counting is an alternative.
+
+# 26 | String Algorithms | Pattern matching, why naive search is slow, KMP and the prefix function, the Z-function, Rabin-Karp rolling hash, hashing with binary search (longest duplicate substring), repeated-substring and shortest-palindrome tricks, Manacher's algorithm | String Algorithms
+
+## The Idea
+> Finding a **pattern** (length `m`) inside a **text** (length `n`) by trying every starting position costs **O(n · m)**: after a mismatch you throw away everything you learned and restart one step later. The smart algorithms **reuse what they already matched**, so each text character is examined a constant number of times: **O(n + m)**.
+```java NaiveSearch.java
+class Naive {
+  static int indexOf(String text, String pattern) {      // O(n * m) worst case, e.g. text "aaaa...ab", pattern "aaab"
+    for (int i = 0; i + pattern.length() <= text.length(); i++)
+      if (text.startsWith(pattern, i)) return i;
+    return -1;
+  }
+}
+```
+- In practice `String.indexOf` is fine. These algorithms matter when `n` and `m` reach 10^5 or 10^6 with adversarial inputs, and because their **ideas** (prefix function, rolling hash) solve many other problems.
+! The three ideas: **prefix function** (KMP), **Z-array**, **rolling hash**. Know one well.
+
+## KMP and the Prefix Function (lps array)
+> For each position `i`, `lps[i]` is the **length of the longest proper prefix of `p[0..i]` that is also a suffix** of `p[0..i]` (a **border**). Example for `"abcabca"`: `lps = [0, 0, 0, 1, 2, 3, 4]`. When a mismatch happens after matching `k` characters, you do not restart: you **fall back to `lps[k - 1]`**, because that many characters of the pattern's start are already matched at the current text position.
+```java Kmp.java
+class Solution {
+  // lps[i] = length of the longest proper prefix of p[0..i] that is also a suffix of p[0..i]
+  static int[] lps(String p) {
+    int[] lps = new int[p.length()];
+    for (int i = 1, k = 0; i < p.length(); i++) {
+      while (k > 0 && p.charAt(i) != p.charAt(k)) k = lps[k - 1];   // fall back to the next shorter border
+      if (p.charAt(i) == p.charAt(k)) k++;
+      lps[i] = k;
+    }
+    return lps;
+  }
+  public int strStr(String text, String pattern) {       // LeetCode 28: first index of pattern, or -1. O(n + m)
+    if (pattern.isEmpty()) return 0;
+    int[] lps = lps(pattern);
+    for (int i = 0, k = 0; i < text.length(); i++) {
+      while (k > 0 && text.charAt(i) != pattern.charAt(k)) k = lps[k - 1];   // never move i backwards
+      if (text.charAt(i) == pattern.charAt(k)) k++;
+      if (k == pattern.length()) return i - k + 1;       // whole pattern matched, ending at i
+    }
+    return -1;
+  }
+  public boolean repeatedSubstringPattern(String s) {    // LeetCode 459: is s a block repeated 2 or more times?
+    int n = s.length();
+    int border = lps(s)[n - 1];                          // longest prefix that is also a suffix
+    return border > 0 && n % (n - border) == 0;         // the repeating block has length n - border
+  }
+  public String longestPrefix(String s) {                // LeetCode 1392: longest proper prefix that is also a suffix
+    return s.substring(0, lps(s)[s.length() - 1]);
+  }
+  public String shortestPalindrome(String s) {           // LeetCode 214: add the fewest characters IN FRONT
+    String t = s + "#" + new StringBuilder(s).reverse();         // '#' stops a border crossing the join
+    int keep = lps(t)[t.length() - 1];                   // length of the longest palindromic PREFIX of s
+    return new StringBuilder(s.substring(keep)).reverse() + s;   // mirror the remaining tail onto the front
+  }
+}
+```
+- **Why KMP is linear**: `k` increases by at most 1 per text character, and each fallback strictly decreases it, so the total fallback work is bounded by the total increases: **O(n + m)**.
+- The **prefix function** is the real prize: it answers border, period, repeated-pattern and palindrome-prefix questions.
+! lps[i] = the longest border of the prefix ending at i. A border is a prefix that is also a suffix.
+
+## The Z-Function (a second way to see borders)
+> `z[i]` = the length of the longest substring starting at `i` that matches a **prefix of the whole string**. To search `p` in `t`, build `z` on `p + "#" + t`: every `z[i] == p.length()` is a match. It runs in O(n) with a sliding window `[l, r)` of the rightmost match found so far, which lets `z[i]` start from `min(r - i, z[i - l])` instead of 0.
+```java ZFunction.java
+class ZAlgo {
+  static int[] zArray(String s) {
+    int n = s.length();
+    int[] z = new int[n];
+    for (int i = 1, l = 0, r = 0; i < n; i++) {
+      if (i < r) z[i] = Math.min(r - i, z[i - l]);       // reuse the mirror position inside the known match
+      while (i + z[i] < n && s.charAt(z[i]) == s.charAt(i + z[i])) z[i]++;   // extend by direct comparison
+      if (i + z[i] > r) { l = i; r = i + z[i]; }         // remember the rightmost match window
+    }
+    return z;
+  }
+  static List<Integer> findAll(String text, String pattern) {   // every index where pattern occurs
+    String s = pattern + "#" + text;                     // '#' must not appear in either string
+    int[] z = zArray(s);
+    List<Integer> out = new ArrayList<>();
+    for (int i = pattern.length() + 1; i < s.length(); i++)
+      if (z[i] == pattern.length()) out.add(i - pattern.length() - 1);
+    return out;
+  }
+}
+```
+
+## Rabin-Karp: the Rolling Hash
+> Turn a window of `m` characters into a **number**: `hash = c0·B^(m-1) + c1·B^(m-2) + ... + c(m-1)` modulo a big prime. **Slide** the window by removing the leftmost character and adding the new one in O(1). Equal hashes **may** be a coincidence (collision), so confirm with a real comparison.
+```java RabinKarp.java
+class RabinKarp {
+  static int indexOf(String text, String pat) {
+    int n = text.length(), m = pat.length();
+    if (m == 0) return 0;
+    if (m > n) return -1;
+    final long MOD = 1_000_000_007L, BASE = 131;
+    long hp = 0, ht = 0, pow = 1;                        // pow = BASE^(m-1): the weight of the leftmost character
+    for (int i = 0; i < m; i++) {
+      hp = (hp * BASE + pat.charAt(i)) % MOD;
+      ht = (ht * BASE + text.charAt(i)) % MOD;
+      if (i > 0) pow = pow * BASE % MOD;
+    }
+    for (int i = 0; ; i++) {
+      if (hp == ht && text.regionMatches(i, pat, 0, m)) return i;      // verify: hashes can collide
+      if (i + m >= n) return -1;
+      ht = ((ht - text.charAt(i) * pow % MOD + MOD) * BASE + text.charAt(i + m)) % MOD;   // drop text[i], add text[i + m]
+    }
+  }
+}
+```
+- Average **O(n + m)**; worst case O(n · m) if many collisions (rare with a good modulus and base). Use a **double hash** (two moduli) for safety.
+- Its real power is **comparing many substrings in O(1)**: "do these two substrings match?", "find a repeated substring", "count distinct substrings".
+
+## Hashing + Binary Search: Longest Duplicate Substring
+> "Is there a repeated substring of length `L`?" is **monotonic**: if length 5 repeats, so does length 4. So **binary search `L`** and, for each `L`, slide a rolling hash and look for a repeat in a hash map. Total **O(n log n)**.
+```java LongestDup.java
+class Solution {
+  public String longestDupSubstring(String s) {          // LeetCode 1044
+    int lo = 1, hi = s.length() - 1;
+    String best = "";
+    while (lo <= hi) {
+      int mid = lo + (hi - lo) / 2;
+      String dup = findDup(s, mid);
+      if (dup != null) { best = dup; lo = mid + 1; }     // a duplicate of this length exists: try longer
+      else hi = mid - 1;
+    }
+    return best;
+  }
+  private String findDup(String s, int len) {            // any substring of length len that appears twice, or null
+    final long M1 = 1_000_000_007L, M2 = 998_244_353L, B = 131;
+    long h1 = 0, h2 = 0, p1 = 1, p2 = 1;
+    for (int i = 0; i < len; i++) {
+      h1 = (h1 * B + s.charAt(i)) % M1;
+      h2 = (h2 * B + s.charAt(i)) % M2;
+      if (i > 0) { p1 = p1 * B % M1; p2 = p2 * B % M2; }
+    }
+    Map<Long, List<Integer>> seen = new HashMap<>();     // double-hash key -> start indices
+    seen.computeIfAbsent(h1 << 32 | h2, k -> new ArrayList<>()).add(0);
+    for (int i = 1; i + len <= s.length(); i++) {
+      h1 = ((h1 - s.charAt(i - 1) * p1 % M1 + M1) * B + s.charAt(i + len - 1)) % M1;
+      h2 = ((h2 - s.charAt(i - 1) * p2 % M2 + M2) * B + s.charAt(i + len - 1)) % M2;
+      List<Integer> starts = seen.computeIfAbsent(h1 << 32 | h2, k -> new ArrayList<>());
+      for (int j : starts) if (s.regionMatches(j, s, i, len)) return s.substring(i, i + len);   // confirm the match
+      starts.add(i);
+    }
+    return null;
+  }
+}
+```
+! "Does X of length L exist?" + monotonic in L → binary search on L, with a rolling hash or a set to test it.
+
+## Manacher's Algorithm: Longest Palindromic Substring in O(n)
+> Expand-around-centre is O(n^2). Manacher reuses the **mirror image**: inside a known palindrome centred at `c`, the palindrome radius at `i` is at least the radius at the mirror `2c - i` (capped by the window's right edge). Insert `#` between characters so every palindrome has odd length, and use sentinels so the loop needs no bounds checks.
+```java Manacher.java
+class Solution {
+  static String longestPalindrome(String s) {            // O(n)
+    StringBuilder t = new StringBuilder("^");            // "^#a#b#a#$": '^' and '$' are sentinels that never match
+    for (char c : s.toCharArray()) t.append('#').append(c);
+    t.append("#$");
+    int n = t.length();
+    int[] p = new int[n];                                // p[i] = palindrome radius centred at i in t
+    int center = 0, right = 0;
+    for (int i = 1; i < n - 1; i++) {
+      if (i < right) p[i] = Math.min(right - i, p[2 * center - i]);    // start from the mirror's radius
+      while (t.charAt(i + 1 + p[i]) == t.charAt(i - 1 - p[i])) p[i]++; // expand only when needed
+      if (i + p[i] > right) { center = i; right = i + p[i]; }
+    }
+    int best = 0, mid = 0;
+    for (int i = 1; i < n - 1; i++) if (p[i] > best) { best = p[i]; mid = i; }
+    return s.substring((mid - best) / 2, (mid + best) / 2);            // map back to the original string
+  }
+}
+```
+
+## Choosing a String Technique
+```text
+question                                    technique
+pattern in text (once)                      KMP / indexOf
+all occurrences, many queries on one text   Z-function, KMP, suffix array
+many patterns in one text                   Aho-Corasick (trie + failure links)
+compare many substrings, find repeats       rolling hash (+ binary search)
+border / period / repeated block            prefix function (lps)
+longest palindromic substring in O(n)       Manacher
+prefix queries over a dictionary            trie (sheet 23)
+anagram / permutation in a text             sliding window with counts (sheet 06)
+edit distance, LCS, regex                   DP (sheet 21)
+```
+
+## Common Mistakes
+- Letting the KMP text index move backwards (it never does; only `k` falls back).
+- Missing the separator when concatenating (`p + "#" + t`), so a match wrongly spans the join.
+- Rolling hash: forgetting `+ MOD` after a subtraction (negative hash), or skipping the verification step.
+- Hash collisions on adversarial inputs: use a large prime, a random base, or a double hash.
+- Using `substring` inside a loop over every window: each call copies, making it O(n · m).
+
+## Explain It Like This
+> "A naive search restarts after every mismatch. KMP precomputes, for each prefix of the pattern, its longest border, so after a mismatch it jumps the pattern pointer back to that border instead of restarting. The text pointer never moves backwards, so the whole search is O(n + m)."
+
+## Do These Next
+- **28. Find the Index of the First Occurrence in a String** (Easy): implement KMP yourself.
+- **459. Repeated Substring Pattern** (Easy): `n % (n - lps[n - 1]) == 0`.
+- **1392. Longest Happy Prefix** (Hard): the last value of the prefix function.
+- **214. Shortest Palindrome** (Hard): KMP on `s + "#" + reverse(s)`.
+- **686. Repeated String Match** (Medium): repeat `a` until it contains `b`, using `indexOf` or KMP.
+- **1044. Longest Duplicate Substring** (Hard): rolling hash + binary search.
+- **187. Repeated DNA Sequences** (Medium): a rolling hash of length 10 (or a set of substrings).
+- **5. Longest Palindromic Substring** (Medium): expand around centres, then Manacher.
+- **336. Palindrome Pairs** (Hard): hashing or a trie of reversed words.
+
+## Interview Q&A
+Q*: How does KMP avoid re-scanning the text?
+A: It precomputes the prefix function: for each prefix of the pattern, the length of its longest proper prefix that is also a suffix. After a mismatch it moves the pattern pointer to that length instead of restarting, so the text pointer never goes back and the search is O(n + m).
+Q*: What is the prefix function (lps array)?
+A: lps[i] is the length of the longest proper prefix of the pattern's first i + 1 characters that is also a suffix of them. It is built in O(m) by matching the pattern against itself with the same fallback rule.
+Q*: How does Rabin-Karp work and what is its weakness?
+A: It hashes each window of the text with a rolling hash that updates in O(1) when sliding, and compares with the pattern's hash; matches are verified directly. It is average O(n + m), but hash collisions can degrade it, so use a large prime or double hashing.
+Q: How do you find the longest repeated substring efficiently?
+A: Binary search the length L (if a repeat of length L exists, shorter ones do too), and for each L test with a rolling hash stored in a hash map, verifying candidates. That gives O(n log n).
+Q: How do you detect that a string is a repeated block?
+A: Compute the prefix function. If border = lps[n - 1] is positive and n is divisible by n - border, the string is made of copies of its first n - border characters.
+Q: What does Manacher's algorithm achieve?
+A: It finds the longest palindromic substring in linear time by reusing palindrome information from the mirror position inside the current rightmost palindrome, instead of expanding from scratch at every centre.
+
+@ Review
+
+# 27 | Pattern Finder & Problem Roadmap | A lookup from problem wording to the technique, the 60-second decision flow, constraints to complexity, the brute-force-to-optimal ladder, which structure answers which query, and a topic-by-topic roadmap of about 140 problems in the order to solve them | Pattern Finder
+
+## How to Use This Sheet
+> Most interview problems are **one of about 20 patterns in disguise**. The skill is not inventing an algorithm, it is **recognising the pattern from the wording**. When you are stuck, read the problem again and scan the left column below.
+- Read the problem, underline the **verbs and constraints** ("contiguous", "sorted", "minimum number of", "all possible", "connected", "prefix").
+- Find the row, open that sheet, apply the template.
+- State the brute force first, then say which pattern removes the repeated work.
+! Wording → pattern → template. That chain is the whole skill.
+
+## The Big Lookup Table
+- **sorted array + pair/triple with a target sum** → two pointers (opposite ends) (sheet 05)
+- **remove / move / partition elements in place** → two pointers (write pointer) (sheet 03, 05)
+- **longest or shortest CONTIGUOUS subarray / substring** → sliding window (sheet 06)
+- **subarray sum equals k (negatives allowed), range sums** → prefix sum (+ hash map of counts) (sheet 07)
+- **maximum sum subarray** → Kadane (sheet 07)
+- **count / group / "have I seen it" / complement lookup** → hash map or set (sheet 04)
+- **frequency, anagrams, "top K frequent"** → counting + hash map, bucket sort (sheet 04)
+- **sorted data, or a yes/no check that flips once** → binary search (sheet 12)
+- **"minimum possible maximum", "smallest speed/capacity"** → binary search on the answer (sheet 12)
+- **next greater / smaller element, "span", histogram** → monotonic stack (sheet 10)
+- **maximum of every window of size k** → monotonic deque (sheet 11)
+- **matching brackets, undo, nested structure** → stack (sheet 10)
+- **reverse / middle / cycle / nth from the end of a list** → pointers: fast and slow, reversal (sheet 09)
+- **design: O(1) get/put with eviction (LRU)** → hash map + doubly linked list (sheet 09)
+- **tree: height, path, diameter, LCA, validate** → recursion: solve left, solve right (sheet 14, 15)
+- **tree: by levels, right side view** → BFS with a queue (sheet 14)
+- **BST: kth smallest, validate, search** → inorder / the BST property (sheet 15)
+- **K largest / K smallest / K most frequent, median of a stream** → heap (size k, or two heaps) (sheet 16)
+- **merge K sorted lists / streams** → heap of the current heads (sheet 16)
+- **ALL subsets / permutations / combinations, n <= 20** → backtracking (sheet 17)
+- **fewest moves / steps / shortest path (equal cost per step)** → BFS (sheet 18)
+- **spread from many sources at once (rotting oranges)** → multi-source BFS (sheet 18)
+- **grid: islands, regions, flood fill** → DFS / BFS on a grid (sheet 18)
+- **dependencies, prerequisites, build order, cycle (directed)** → topological sort (sheet 18)
+- **are these connected / merging groups / extra edge** → union-find (sheet 18)
+- **shortest path with positive weights** → Dijkstra (sheet 22)
+- **negative weights, or "at most K edges/stops"** → Bellman-Ford (sheet 22)
+- **cheapest way to connect everything** → minimum spanning tree (sheet 22)
+- **critical connection / bridge** → Tarjan low-link (sheet 22)
+- **count ways / min or max / "is it possible" + repeated states** → dynamic programming (sheet 20, 21)
+- **two strings: common, edit, transform, interleave** → 2D DP (sheet 21)
+- **pick items under a capacity or target sum** → knapsack DP (sheet 20, 21)
+- **substring / subsequence palindromes** → expand centres, interval DP (sheet 21)
+- **intervals: merge, insert, overlap, min removals, rooms** → sort + greedy / heap (sheet 19)
+- **a local best choice is provably safe** → greedy (sheet 19)
+- **words with a common prefix, autocomplete, dictionary search** → trie (sheet 23)
+- **find the single / missing number, flags, subsets as a mask** → bit manipulation (XOR, masks) (sheet 24)
+- **big answers "modulo 10^9 + 7", gcd, primes** → modular arithmetic, sieve (sheet 24)
+- **range sum / count with point updates** → Fenwick tree / segment tree (sheet 25)
+- **pattern in text, repeated block, border, palindromic prefix** → KMP / Z / rolling hash (sheet 26)
+- **matrix: rotate, spiral, set zeroes** → index arithmetic, in-place tricks (sheet 03)
+
+## The 60-Second Decision Flow
+- **1. Is it about a LINKED LIST or a TREE?** → sheets 09, 14, 15 (pointers / recursion / BFS).
+- **2. Is the input a GRAPH, a grid, or "dependencies"?** → BFS / DFS / topological sort / union-find / Dijkstra.
+- **3. Does it ask for ALL solutions (list them)?** → backtracking.
+- **4. Does it ask for a COUNT / MIN / MAX / "possible?" and the same sub-question repeats?** → DP.
+- **5. Is the data SORTED, or can you sort it?** → binary search, two pointers, greedy on intervals.
+- **6. Is it a CONTIGUOUS range?** → sliding window (conditions on the window) or prefix sums (sums).
+- **7. Do you need "the K best" or "the next best"?** → heap.
+- **8. Do you need fast "have I seen / how many"?** → hash map.
+- **9. Is there a "NEXT greater/smaller" relation?** → monotonic stack.
+- **10. Anything with PREFIXES of words?** → trie.
+- **11. Bits, XOR, "appears once"?** → bit tricks.
+- **12. Nothing fits?** Write the brute force, find the repeated work, and ask what data structure remembers it.
+
+## Constraints Give It Away
+```text
+n (input size)        target complexity     typical technique
+n <= 10               O(n!), O(2^n * n)     permutations, brute backtracking
+n <= 20               O(2^n)                subsets, bitmask
+n <= 500              O(n^3)                triple loop, interval DP
+n <= 5,000            O(n^2)                double loop, 2D DP
+n <= 100,000 (10^5)   O(n log n) or O(n)    sort, heap, binary search, hash map
+n <= 10^6             O(n)                  one pass, prefix sum, sliding window
+n >= 10^9             O(log n) or O(1)      binary search on the answer, math
+```
+
+## The Brute-Force-to-Optimal Ladder (say this out loud)
+- **Two Sum**: all pairs is O(n^2) and keeps searching for the complement → a **hash map** remembers values → O(n).
+- **3Sum**: all triples is O(n^3) and searches inside the third loop → **sort + two pointers** → O(n^2).
+- **Longest substring without repeats**: every substring is O(n^3) and re-checks overlaps → **sliding window + set** → O(n).
+- **Subarray sum equals k**: all subarrays is O(n^2) and re-sums → **prefix sum + hash map** → O(n).
+- **Fibonacci / climbing stairs**: plain recursion is O(2^n) and repeats subproblems → **memoization / DP** → O(n).
+- **Top K frequent**: sorting everything is O(n log n) and sorts more than needed → a **heap of size k** → O(n log k).
+- **Meeting rooms**: comparing all pairs is O(n^2) → **sort + heap of end times** → O(n log n).
+- **Substring search**: restarting on every mismatch is O(n m) and throws away matched text → **KMP / rolling hash** → O(n + m).
+! Every optimisation answers one question: **what work am I repeating, and what can remember it?**
+
+## Which Structure Answers Which Question?
+```text
+question                                      structure
+"is x present?" / count / group               HashMap, HashSet
+smallest or largest right now, repeatedly     PriorityQueue (heap)
+the most recent unfinished thing              Stack (ArrayDeque)
+the oldest waiting thing / level by level     Queue (ArrayDeque)
+both ends / window maximum                    Deque
+sorted keys, floor / ceiling / range          TreeMap, TreeSet
+words by prefix                               Trie
+are a and b in the same group? merge groups   Union-Find
+range sum / min with updates                  Fenwick tree / segment tree
+recent items with eviction                    LinkedHashMap, or map + linked list
+shortest path                                 BFS (equal cost) / Dijkstra (weights)
+```
+
+## Roadmap: Problems in the Order to Solve Them
+> Work **topic by topic**, easiest first. After each sheet do its "Do These Next" list, then this roadmap for extra practice. All problems below are **free** (not Premium). Do each, then re-solve after 1, 3 and 7 days.
+
+## Roadmap: Arrays, Hashing, Two Pointers, Sliding Window, Prefix Sums
+- **1. Two Sum** (Easy)
+- **217. Contains Duplicate** (Easy)
+- **242. Valid Anagram** (Easy)
+- **49. Group Anagrams** (Medium)
+- **347. Top K Frequent Elements** (Medium)
+- **238. Product of Array Except Self** (Medium)
+- **36. Valid Sudoku** (Medium)
+- **128. Longest Consecutive Sequence** (Medium)
+- **125. Valid Palindrome** (Easy)
+- **167. Two Sum II - Input Array Is Sorted** (Medium)
+- **15. 3Sum** (Medium)
+- **11. Container With Most Water** (Medium)
+- **42. Trapping Rain Water** (Hard)
+- **121. Best Time to Buy and Sell Stock** (Easy)
+- **3. Longest Substring Without Repeating Characters** (Medium)
+- **424. Longest Repeating Character Replacement** (Medium)
+- **567. Permutation in String** (Medium)
+- **76. Minimum Window Substring** (Hard)
+- **239. Sliding Window Maximum** (Hard)
+- **560. Subarray Sum Equals K** (Medium)
+- **53. Maximum Subarray** (Medium)
+- **48. Rotate Image** (Medium)
+- **54. Spiral Matrix** (Medium)
+- **73. Set Matrix Zeroes** (Medium)
+
+## Roadmap: Stack, Binary Search, Linked List
+- **20. Valid Parentheses** (Easy)
+- **155. Min Stack** (Medium)
+- **150. Evaluate Reverse Polish Notation** (Medium)
+- **739. Daily Temperatures** (Medium)
+- **84. Largest Rectangle in Histogram** (Hard)
+- **704. Binary Search** (Easy)
+- **74. Search a 2D Matrix** (Medium)
+- **875. Koko Eating Bananas** (Medium)
+- **153. Find Minimum in Rotated Sorted Array** (Medium)
+- **33. Search in Rotated Sorted Array** (Medium)
+- **981. Time Based Key-Value Store** (Medium)
+- **4. Median of Two Sorted Arrays** (Hard)
+- **206. Reverse Linked List** (Easy)
+- **21. Merge Two Sorted Lists** (Easy)
+- **141. Linked List Cycle** (Easy)
+- **143. Reorder List** (Medium)
+- **19. Remove Nth Node From End of List** (Medium)
+- **138. Copy List with Random Pointer** (Medium)
+- **2. Add Two Numbers** (Medium)
+- **287. Find the Duplicate Number** (Medium): the cycle-detection idea on an array.
+- **146. LRU Cache** (Medium)
+- **23. Merge k Sorted Lists** (Hard)
+- **25. Reverse Nodes in k-Group** (Hard)
+
+## Roadmap: Trees, BST, Tries, Heaps
+- **226. Invert Binary Tree** (Easy)
+- **104. Maximum Depth of Binary Tree** (Easy)
+- **543. Diameter of Binary Tree** (Easy)
+- **110. Balanced Binary Tree** (Easy)
+- **100. Same Tree** (Easy)
+- **572. Subtree of Another Tree** (Easy)
+- **235. Lowest Common Ancestor of a Binary Search Tree** (Medium)
+- **102. Binary Tree Level Order Traversal** (Medium)
+- **199. Binary Tree Right Side View** (Medium)
+- **1448. Count Good Nodes in Binary Tree** (Medium)
+- **98. Validate Binary Search Tree** (Medium)
+- **230. Kth Smallest Element in a BST** (Medium)
+- **105. Construct Binary Tree from Preorder and Inorder Traversal** (Medium)
+- **124. Binary Tree Maximum Path Sum** (Hard)
+- **297. Serialize and Deserialize Binary Tree** (Hard)
+- **208. Implement Trie (Prefix Tree)** (Medium)
+- **211. Design Add and Search Words Data Structure** (Medium)
+- **212. Word Search II** (Hard)
+- **703. Kth Largest Element in a Stream** (Easy)
+- **1046. Last Stone Weight** (Easy)
+- **973. K Closest Points to Origin** (Medium)
+- **215. Kth Largest Element in an Array** (Medium)
+- **621. Task Scheduler** (Medium)
+- **295. Find Median from Data Stream** (Hard)
+
+## Roadmap: Backtracking and Graphs
+- **78. Subsets** (Medium)
+- **39. Combination Sum** (Medium)
+- **46. Permutations** (Medium)
+- **90. Subsets II** (Medium)
+- **40. Combination Sum II** (Medium)
+- **79. Word Search** (Medium)
+- **131. Palindrome Partitioning** (Medium)
+- **17. Letter Combinations of a Phone Number** (Medium)
+- **51. N-Queens** (Hard)
+- **200. Number of Islands** (Medium)
+- **133. Clone Graph** (Medium)
+- **695. Max Area of Island** (Medium)
+- **417. Pacific Atlantic Water Flow** (Medium)
+- **130. Surrounded Regions** (Medium)
+- **994. Rotting Oranges** (Medium)
+- **207. Course Schedule** (Medium)
+- **210. Course Schedule II** (Medium)
+- **684. Redundant Connection** (Medium)
+- **127. Word Ladder** (Hard)
+- **743. Network Delay Time** (Medium)
+- **787. Cheapest Flights Within K Stops** (Medium)
+- **1584. Min Cost to Connect All Points** (Medium)
+- **332. Reconstruct Itinerary** (Hard)
+
+## Roadmap: Dynamic Programming
+- **70. Climbing Stairs** (Easy)
+- **746. Min Cost Climbing Stairs** (Easy)
+- **198. House Robber** (Medium)
+- **213. House Robber II** (Medium)
+- **5. Longest Palindromic Substring** (Medium)
+- **647. Palindromic Substrings** (Medium)
+- **91. Decode Ways** (Medium)
+- **322. Coin Change** (Medium)
+- **152. Maximum Product Subarray** (Medium)
+- **139. Word Break** (Medium)
+- **300. Longest Increasing Subsequence** (Medium)
+- **416. Partition Equal Subset Sum** (Medium)
+- **62. Unique Paths** (Medium)
+- **1143. Longest Common Subsequence** (Medium)
+- **309. Best Time to Buy and Sell Stock with Cooldown** (Medium)
+- **518. Coin Change II** (Medium)
+- **494. Target Sum** (Medium)
+- **97. Interleaving String** (Medium)
+- **72. Edit Distance** (Medium)
+- **312. Burst Balloons** (Hard)
+- **10. Regular Expression Matching** (Hard)
+
+## Roadmap: Greedy, Intervals, Bits and Math
+- **55. Jump Game** (Medium)
+- **45. Jump Game II** (Medium)
+- **134. Gas Station** (Medium)
+- **846. Hand of Straights** (Medium)
+- **1899. Merge Triplets to Form Target Triplet** (Medium)
+- **763. Partition Labels** (Medium)
+- **678. Valid Parenthesis String** (Medium)
+- **56. Merge Intervals** (Medium)
+- **57. Insert Interval** (Medium)
+- **435. Non-overlapping Intervals** (Medium)
+- **136. Single Number** (Easy)
+- **191. Number of 1 Bits** (Easy)
+- **338. Counting Bits** (Easy)
+- **190. Reverse Bits** (Easy)
+- **268. Missing Number** (Easy)
+- **371. Sum of Two Integers** (Medium)
+- **7. Reverse Integer** (Medium)
+- **202. Happy Number** (Easy)
+- **50. Pow(x, n)** (Medium)
+- **43. Multiply Strings** (Medium)
+
+## Explain It Like This
+> "The array is sorted and I need a pair with a given sum, so I use two pointers from both ends. If the sum is too small I move the left pointer right, if too big I move the right pointer left. Each step discards one element, so it's O(n) time and O(1) space; the brute force would be O(n^2)."
+- Show your **classification step**: "this is a [pattern] problem because [signal in the wording]". Interviewers love hearing it.
+
+## Interview Q&A
+Q*: How do you decide which algorithm to use for a new problem?
+A: I look for signals in the wording and constraints: sorted input suggests binary search or two pointers; contiguous subarray suggests a sliding window or prefix sums; "all possible" suggests backtracking; counts or optima with overlapping subproblems suggest DP; graphs or grids suggest BFS or DFS. I state the brute force first and then ask what repeated work a pattern can remove.
+Q*: What do the input constraints tell you?
+A: About 10^8 simple operations fit in a second, so n up to 10^5 needs O(n log n) or better, n up to 5,000 allows O(n^2), n up to 20 allows O(2^n) and n up to 10 allows O(n!).
+Q*: How do you recognise a DP problem?
+A: It asks for a count, a minimum or maximum, or whether something is possible, and a recursive solution would solve the same subproblems repeatedly. If I can define a state in one sentence and write the last decision as a recurrence, it is DP.
+Q: What do you do when you are stuck in an interview?
+A: Say the brute force out loud, work a small example by hand, look for the repeated work, and try the patterns one by one: sort it, use a hash map, two pointers, a window, a heap, recursion. Asking a clarifying question about constraints or edge cases is also a good move.
+Q: How many problems should you solve to be ready?
+A: Quality beats quantity: about 150 well-understood problems covering every pattern, each re-solved after a few days, is stronger preparation than several hundred problems solved once and forgotten.
+
+# 28 | Summary, Templates & Rapid-Fire | The whole course on one page, the Big-O cheat sheet, eleven copy-ready Java templates, how to explain a solution to an interviewer, an 8-week and a 4-week study plan, the common mistakes, a final exam, and a rapid-fire question list | Summary
+
+## The Whole Course on One Page
+> Read this the night before an interview. Each line is the sheet's key idea in one sentence.
+- **00 Start Here**: structure = box, algorithm = recipe. Use the 7 steps; let the constraints (`n`) tell you the complexity.
+- **01 Big-O**: how work grows when input doubles. Drop constants, keep the dominant term. Recursion time = calls × work per call.
+- **02 Java toolkit**: HashMap for lookup, TreeMap for order, PriorityQueue for min/max, ArrayDeque for stack and queue. Beware overflow and `Integer ==`.
+- **03 Arrays and strings**: write pointer for in-place work, triple reverse to rotate, transpose + reverse rows, `int[26]` for letters.
+- **04 Hashing**: trade memory for time. Seen-set, frequency map, complement lookup, grouping key, sequence starts.
+- **05 Two pointers**: sorted data, move the pointer that cannot improve. 3Sum = fix one + two pointers.
+- **06 Sliding window**: contiguous + monotonic validity. Expand right, shrink left while invalid, record.
+- **07 Prefix sum and Kadane**: range sum = `prefix[r+1] - prefix[l]`; subarray sum k = prefix + map; restart when the carry is negative.
+- **08 Recursion**: base case, trust the smaller call, draw the tree. Choose, explore, undo is the seed of backtracking.
+- **09 Linked list**: dummy node, three-step reversal, fast and slow pointers, LRU = map + doubly linked list.
+- **10 Stack**: LIFO for nesting; the monotonic stack pops everything a new element beats (next greater).
+- **11 Queue and deque**: FIFO and BFS; the monotonic deque gives the sliding-window maximum.
+- **12 Binary search**: halve a monotonic range; `firstTrue` template; binary search the answer for "minimum possible maximum".
+- **13 Sorting**: merge sort (stable, O(n log n)), quicksort (3-way, random pivot), quickselect, comparators, "sort first".
+- **14 Binary trees**: DFS orders, BFS by levels, solve left + right + combine; return one side, record the bend.
+- **15 BST**: inorder is sorted; validate with bounds; delete has three cases; balanced trees keep O(log n).
+- **16 Heap**: min at the top; top-K uses the opposite heap of size k; two heaps for the median.
+- **17 Backtracking**: choose, explore, undo; `start` for combinations, `used[]` for permutations; sort + skip duplicates; prune early.
+- **18 Graphs**: adjacency list, BFS = fewest edges, DFS = connectivity, Kahn for dependencies, union-find for merging groups.
+- **19 Greedy and intervals**: a provably safe local choice; sort by start to merge, by end to schedule.
+- **20 DP I**: define the state in words, find the last decision, base case, order, answer. 0/1 knapsack goes downward.
+- **21 DP II**: 2D tables for two strings and grids, interval DP chooses the last element, bitmask DP for small `n`.
+- **22 Advanced graphs**: Dijkstra (non-negative), Bellman-Ford (negative, at most K edges), Floyd (all pairs), Kruskal/Prim (MST).
+- **23 Trie**: shared prefixes, O(L) per word, wildcard DFS, trie + backtracking for Word Search II.
+- **24 Bits and math**: XOR cancels pairs, `x & (x-1)` clears a bit, masks as sets, gcd, sieve, `modPow`.
+- **25 Segment tree and Fenwick**: range queries with updates in O(log n); lazy propagation for range updates.
+- **26 String algorithms**: KMP prefix function, Z-array, rolling hash, Manacher.
+- **27 Pattern finder**: wording → pattern → sheet → template.
+
+## Big-O Cheat Sheet
+```text
+structure / operation                           time
+array: index / search unsorted / insert middle  O(1) / O(n) / O(n)
+ArrayList: add at end (amortized) / get(i)      O(1) / O(1)
+LinkedList: add at head / get(i)                O(1) / O(n)
+HashMap / HashSet: get, put, contains           O(1) average
+TreeMap / TreeSet: get, put, floor, ceiling     O(log n)
+PriorityQueue: offer, poll / peek               O(log n) / O(1)
+ArrayDeque: push, pop, offer, poll              O(1)
+binary search / balanced BST                    O(log n)
+Fenwick tree / segment tree: update, query      O(log n)
+trie: insert, search a word of length L         O(L)
+union-find (with compression + rank)            ~O(1) amortized
+
+sorting: merge / quick (avg) / heap             O(n log n)
+sorting: insertion / bubble / selection         O(n^2)
+counting sort (values up to k)                  O(n + k)
+
+BFS / DFS                                       O(V + E)
+topological sort (Kahn)                         O(V + E)
+Dijkstra (binary heap)                          O((V + E) log V)
+Bellman-Ford                                    O(V * E)
+Floyd-Warshall                                  O(V^3)
+Kruskal                                         O(E log E)
+Prim (heap)                                     O(E log V)
+
+subsets / permutations / combinations           O(2^n), O(n!), O(C(n,k)) x O(n) copy
+DP: states x work per state                     LCS O(mn), coins O(amount * coins)
+KMP / Z-function                                O(n + m)
+```
+
+## Eleven Templates You Can Copy
+```java Templates.java
+class Templates {
+  // 1. BINARY SEARCH: smallest i in [lo, hi) with ok(i) true (ok is false...false true...true)
+  static int firstTrue(int lo, int hi, IntPredicate ok) {
+    while (lo < hi) {
+      int mid = lo + (hi - lo) / 2;
+      if (ok.test(mid)) hi = mid; else lo = mid + 1;
+    }
+    return lo;
+  }
+
+  // 2. SLIDING WINDOW: longest subarray of non-negative numbers with sum <= limit
+  static int longestWindow(int[] a, int limit) {
+    int l = 0, sum = 0, best = 0;
+    for (int r = 0; r < a.length; r++) {
+      sum += a[r];                                          // expand
+      while (sum > limit) sum -= a[l++];                    // shrink while invalid
+      best = Math.max(best, r - l + 1);                     // record
+    }
+    return best;
+  }
+
+  // 3. TWO POINTERS: does a sorted array contain a pair summing to target?
+  static boolean hasPair(int[] sorted, int target) {
+    for (int l = 0, r = sorted.length - 1; l < r; ) {
+      int s = sorted[l] + sorted[r];
+      if (s == target) return true;
+      if (s < target) l++; else r--;
+    }
+    return false;
+  }
+
+  // 4. PREFIX SUM + HASH MAP: number of subarrays with sum k (negatives allowed)
+  static int subarraysWithSum(int[] a, int k) {
+    Map<Integer, Integer> seen = new HashMap<>();
+    seen.put(0, 1);
+    int sum = 0, count = 0;
+    for (int x : a) {
+      sum += x;
+      count += seen.getOrDefault(sum - k, 0);               // look up first ...
+      seen.merge(sum, 1, Integer::sum);                     // ... then record yourself
+    }
+    return count;
+  }
+
+  // 5. BFS ON A GRID: fewest steps from top-left to bottom-right through 0 cells; -1 if impossible
+  static int shortestPath(int[][] g) {
+    int rows = g.length, cols = g[0].length;
+    if (g[0][0] == 1 || g[rows - 1][cols - 1] == 1) return -1;
+    int[][] dist = new int[rows][cols];
+    for (int[] row : dist) Arrays.fill(row, -1);
+    Queue<int[]> q = new ArrayDeque<>();
+    q.offer(new int[] {0, 0});
+    dist[0][0] = 0;
+    int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    while (!q.isEmpty()) {
+      int[] cur = q.poll();
+      for (int[] d : dirs) {
+        int r = cur[0] + d[0], c = cur[1] + d[1];
+        if (r < 0 || c < 0 || r >= rows || c >= cols || g[r][c] == 1 || dist[r][c] != -1) continue;
+        dist[r][c] = dist[cur[0]][cur[1]] + 1;              // mark visited when ENQUEUED
+        q.offer(new int[] {r, c});
+      }
+    }
+    return dist[rows - 1][cols - 1];
+  }
+
+  // 6. BACKTRACKING: all subsets (choose, explore, undo)
+  static List<List<Integer>> subsets(int[] nums) {
+    List<List<Integer>> out = new ArrayList<>();
+    go(nums, 0, new ArrayList<>(), out);
+    return out;
+  }
+  private static void go(int[] nums, int start, List<Integer> path, List<List<Integer>> out) {
+    out.add(new ArrayList<>(path));                         // store a COPY
+    for (int i = start; i < nums.length; i++) {
+      path.add(nums[i]);                                    // choose
+      go(nums, i + 1, path, out);                           // explore
+      path.remove(path.size() - 1);                         // undo
+    }
+  }
+
+  // 7. DP: fewest coins to make amount (-1 if impossible)
+  static int coinChange(int[] coins, int amount) {
+    int[] dp = new int[amount + 1];
+    Arrays.fill(dp, amount + 1);                            // "infinity"
+    dp[0] = 0;
+    for (int a = 1; a <= amount; a++)
+      for (int c : coins) if (c <= a) dp[a] = Math.min(dp[a], dp[a - c] + 1);
+    return dp[amount] > amount ? -1 : dp[amount];
+  }
+
+  // 8. UNION-FIND: number of connected components
+  static int components(int n, int[][] edges) {
+    int[] parent = IntStream.range(0, n).toArray();
+    int count = n;
+    for (int[] e : edges) {
+      int a = find(parent, e[0]), b = find(parent, e[1]);
+      if (a != b) { parent[a] = b; count--; }
+    }
+    return count;
+  }
+  private static int find(int[] p, int x) { return p[x] == x ? x : (p[x] = find(p, p[x])); }
+
+  // 9. HEAP TOP-K: the k largest values, biggest first (min-heap of size k)
+  static List<Integer> kLargest(int[] a, int k) {
+    PriorityQueue<Integer> pq = new PriorityQueue<>();
+    for (int x : a) { pq.offer(x); if (pq.size() > k) pq.poll(); }
+    List<Integer> out = new ArrayList<>(pq);
+    out.sort(Collections.reverseOrder());
+    return out;
+  }
+
+  // 10. MONOTONIC STACK: next greater element to the right (-1 if none)
+  static int[] nextGreater(int[] a) {
+    int[] out = new int[a.length];
+    Arrays.fill(out, -1);
+    Deque<Integer> st = new ArrayDeque<>();                 // indices still waiting for a greater element
+    for (int i = 0; i < a.length; i++) {
+      while (!st.isEmpty() && a[st.peek()] < a[i]) out[st.pop()] = a[i];
+      st.push(i);
+    }
+    return out;
+  }
+
+  // 11. TOPOLOGICAL SORT (Kahn): edges are {from, to}; returns an empty array if there is a cycle
+  static int[] topoOrder(int n, int[][] edges) {
+    List<List<Integer>> adj = new ArrayList<>();
+    int[] indegree = new int[n];
+    for (int i = 0; i < n; i++) adj.add(new ArrayList<>());
+    for (int[] e : edges) { adj.get(e[0]).add(e[1]); indegree[e[1]]++; }
+    Queue<Integer> q = new ArrayDeque<>();
+    for (int i = 0; i < n; i++) if (indegree[i] == 0) q.offer(i);
+    int[] order = new int[n];
+    int k = 0;
+    while (!q.isEmpty()) {
+      int u = q.poll();
+      order[k++] = u;
+      for (int v : adj.get(u)) if (--indegree[v] == 0) q.offer(v);
+    }
+    return k == n ? order : new int[0];
+  }
+}
+```
+- Every template is a few lines because the **idea** is small. Memorise the shape, then adapt the condition.
+
+## How to Explain Your Solution (the interview script)
+> Interviewers grade **communication** almost as much as correctness. Follow the same order every time.
+- **1. Clarify** (1 min): "Can the input be empty? Are values negative? Is it sorted? How large can `n` be? What should I return for no answer?"
+- **2. Examples** (1 min): walk one normal case and one edge case by hand, out loud.
+- **3. Brute force** (1 min): "The simple way is to check every pair, which is O(n^2). That works but repeats work."
+- **4. Improve** (2 min): name the pattern and the signal: "Because the array is sorted, I can use two pointers..." State the new complexity.
+- **5. Code** (10-15 min): clear names, small helpers, talk while you type ("this loop keeps the invariant that everything left of `w` is already filtered").
+- **6. Test** (3 min): dry-run your own code on the example line by line, then on the edge cases (empty, one element, duplicates, negatives, max size).
+- **7. Complexity** (1 min): "Time O(n log n) for the sort plus one pass; space O(1) extra. The sort dominates."
+- **If you are stuck**: say what you are trying, ask for a hint, never go silent. A hint taken well is better than a wrong solution defended.
+- **If you see a bug**: say "I think this fails when ..., let me fix it". Self-correction is a strong signal.
+- Useful sentences: "The brute force is ... because ...", "The bottleneck is ...", "I'll trade O(n) memory for O(1) lookups", "Each element is pushed and popped once, so it's amortized O(n)", "I'd test this with ...".
+! Order of speaking: problem → brute force → bottleneck → better idea → complexity → code → test.
+
+## Study Plan
+```text
+8-WEEK PLAN (about 2 hours a day)
+week 1   sheets 00-04   Big-O, Java toolkit, arrays and strings, hashing
+week 2   sheets 05-08   two pointers, sliding window, prefix sums, recursion
+week 3   sheets 09-13   linked list, stack, queue, binary search, sorting
+week 4   sheets 14-16   binary trees, BST, heap
+week 5   sheets 17-19   backtracking, graphs, greedy and intervals
+week 6   sheets 20-21   dynamic programming (the hardest week: take your time)
+week 7   sheets 22-26   advanced graphs, trie, bits, segment tree, strings
+week 8   sheets 27-28   pattern finder, roadmap, then timed mock interviews
+
+DAILY ROUTINE (2 hours)
+  30 min   read one sheet slowly, type the templates from memory
+  75 min   solve its "Do These Next" problems (Easy first, then Medium)
+  15 min   re-solve one problem from 1, 3 or 7 days ago (spaced repetition)
+
+4-WEEK CRASH PLAN (about 4 hours a day)
+  week 1   00-08       week 2   09-16       week 3   17-21       week 4   22-28
+  Short on time? Do 00-21 and 27 first. Sheets 22-26 come up less often.
+```
+- **25-minute rule**: stuck for 25 minutes? Read a hint, then solve it again from a blank screen. After 1, 3 and 7 days, re-solve it without help.
+- Keep a one-line note per problem: **pattern + the key trick**. Review the notes, not the code.
+- **Mock interviews**: from week 5 on, do 2 problems a week against a timer (Easy 15 min, Medium 30 min, Hard 45 min), talking out loud as if to an interviewer.
+
+## The Top 15 Mistakes
+- Not reading the constraints, then writing an O(n^2) solution for `n = 10^5`.
+- Skipping edge cases: empty input, one element, duplicates, negatives, `Integer.MIN_VALUE`.
+- Off-by-one in loops and binary search (`<` vs `<=`, `mid + 1`, `hi = mid`).
+- `(lo + hi) / 2` and `int` sums overflowing. Use `lo + (hi - lo) / 2` and `long`.
+- Comparing `Integer` or `String` with `==`.
+- Mutating a collection while iterating it.
+- Adding the mutable `path` to the result instead of `new ArrayList<>(path)`.
+- Forgetting the undo step in backtracking.
+- Forgetting the `visited` set in graph search, or marking it too late.
+- Starting a graph traversal from only one node in a disconnected graph.
+- Wrong DP state, wrong base case, or the wrong loop order for knapsack variants.
+- Using greedy without a proof, or Dijkstra with negative weights.
+- Using `substring` or string `+` inside hot loops (copying makes it O(n^2)).
+- Silent coding: not explaining, not testing, not stating complexity.
+- Memorising solutions instead of understanding the pattern.
+
+## Final Exam (do these under a timer, no hints)
+- **146. LRU Cache** (Medium): map + doubly linked list.
+- **200. Number of Islands** (Medium): grid DFS or BFS.
+- **322. Coin Change** (Medium): DP.
+- **215. Kth Largest Element in an Array** (Medium): heap or quickselect.
+- **56. Merge Intervals** (Medium): sort + merge.
+- **207. Course Schedule** (Medium): topological sort.
+- **300. Longest Increasing Subsequence** (Medium): DP or binary search.
+- **76. Minimum Window Substring** (Hard): sliding window.
+- **42. Trapping Rain Water** (Hard): two pointers.
+- **124. Binary Tree Maximum Path Sum** (Hard): return one side, record the bend.
+- If you can solve these ten **and explain each in under two minutes**, you are ready for most interviews.
+
+## Rapid-Fire Q&A
+Q*: Array vs linked list in one line?
+A: Array: O(1) index, O(n) middle insert. Linked list: O(1) insert at a known node, O(n) to reach it.
+Q*: HashMap average and worst case?
+A: Average O(1) get and put; worst O(log n) in Java 8+ because crowded buckets become red-black trees.
+Q*: Stack vs queue?
+A: Stack is last in, first out; queue is first in, first out.
+Q: When BFS, when DFS?
+A: BFS for the fewest edges in an unweighted graph; DFS for connectivity, cycles, components and ordering.
+Q: Complexity of binary search?
+A: O(log n) time, O(1) space, because the range halves every step.
+Q: Merge sort vs quicksort?
+A: Merge sort: stable, always O(n log n), O(n) space. Quicksort: in place, O(n log n) average, O(n^2) worst with bad pivots.
+Q: What is amortized O(1)?
+A: The average cost per operation over a sequence, such as ArrayList.add, where a rare O(n) resize is spread over many cheap adds.
+Q: Two pointers needs what?
+A: Usually sorted data (or a property that says which pointer to move), so each step discards an element.
+Q: Sliding window needs what?
+A: A contiguous range and a condition that only gets better or worse as the window grows (so no negative numbers for sums).
+Q: Prefix sum use?
+A: O(1) range sums after O(n) setup; with a hash map it counts subarrays with a target sum.
+Q: Kadane in one line?
+A: The best sum ending here is the element plus the previous best if that is positive, otherwise the element alone.
+Q: Heap top-K trick?
+A: Keep a size-k heap of the opposite kind: min-heap for the k largest, max-heap for the k smallest.
+Q: Topological sort exists when?
+A: Exactly when a directed graph has no cycle (it is a DAG).
+Q: Dijkstra fails when?
+A: Edges have negative weights.
+Q: Kruskal vs Prim?
+A: Kruskal sorts edges and uses union-find; Prim grows one tree with a heap. Both give a minimum spanning tree.
+Q: Union-find complexity?
+A: Nearly O(1) amortized per operation with path compression and union by rank.
+Q: DP vs greedy?
+A: Greedy commits to one safe local choice per step; DP tries all options and reuses subproblem answers.
+Q: DP vs backtracking?
+A: Backtracking lists every solution (exponential); DP counts or optimises with repeated subproblems (polynomial).
+Q: Memoization vs tabulation?
+A: Top-down recursion with a cache versus a bottom-up table filled in dependency order.
+Q: 0/1 knapsack loop direction?
+A: Capacity from high to low, so each item is used at most once. Unbounded goes low to high.
+Q: LIS in O(n log n)?
+A: Keep the smallest tail of each length and binary search where the next number fits.
+Q: Why is the monotonic stack O(n)?
+A: Each element is pushed once and popped at most once.
+Q: Trie complexity?
+A: Insert, search and prefix check are O(L) for a word of length L, independent of how many words are stored.
+Q: XOR properties?
+A: a ^ a = 0, a ^ 0 = a, commutative and associative, so pairs cancel.
+Q: What does n & (n - 1) do?
+A: Clears the lowest set bit; zero result means n was a power of two (or zero).
+Q: Fenwick vs segment tree?
+A: Fenwick is shorter and handles invertible operations (sum, count); a segment tree handles any associative operation and range updates with lazy propagation.
+Q: KMP in one line?
+A: Precompute each pattern prefix's longest border so a mismatch jumps back instead of restarting; O(n + m).
+Q: Subarray vs subsequence vs subset?
+A: Subarray is contiguous; subsequence keeps order but may skip; subset ignores order.
+Q: How to reverse a linked list?
+A: Save next, flip the pointer to prev, advance prev and cur. O(n) time, O(1) space.
+Q: How to detect a cycle in a linked list?
+A: Fast and slow pointers meet if there is a cycle; O(n) time, O(1) space.
+Q: Level-order traversal trick?
+A: Freeze the queue size at the start of each level and process exactly that many nodes.
+Q: Validate a BST?
+A: Pass down valid (low, high) bounds, or check that the inorder sequence is strictly increasing.
+Q: How do you remove duplicates from a sorted array in place?
+A: Write pointer: copy each element different from the last kept one to the write index.
+Q: What is a stable sort?
+A: Equal elements keep their original relative order; Java sorts objects with the stable TimSort.
+Q: Why `lo + (hi - lo) / 2`?
+A: It avoids int overflow that `(lo + hi) / 2` can cause.
+Q: What do constraints tell you?
+A: About 10^8 operations per second: n up to 10^5 needs O(n log n) or better; n up to 20 allows 2^n; n up to 10 allows n!.
+Q: How do you prove a greedy choice is safe?
+A: With an exchange argument (swapping an optimal solution's choice for the greedy one never makes it worse) or a stays-ahead argument.
+Q: Biggest piece of interview advice?
+A: Talk through brute force, bottleneck, better idea, complexity, code and tests. Clear thinking out loud beats silent perfect code.
+
+## Keep Going
+- Re-read **sheet 27** (the pattern finder) once a week. Re-solve problems from the roadmap in sheet 27 whenever you have a spare 30 minutes.
+- When you finish a problem, ask: "**which pattern was this, and what was the one trick?**" Write it down in one line. That list is your real revision material.
+

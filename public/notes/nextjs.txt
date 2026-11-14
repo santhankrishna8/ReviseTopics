@@ -97,11 +97,11 @@ export default async function HomePage() {
 - Alternatives: **React Router** in framework mode (formerly Remix), **Astro** (content sites), **Nuxt** (the Vue equivalent of Next.js), **Angular** with SSR.
 
 ## Interview Q&A | sky | wide
-Q: What is Next.js?
+Q*: What is Next.js?
 A: A React framework by Vercel for full-stack web apps: file-based routing, server and static rendering, React Server Components, API route handlers, Server Actions and built-in optimisations.
-Q: What is the difference between React and Next.js?
+Q*: What is the difference between React and Next.js?
 A: React is a library for building UI components. Next.js is a framework built on React that adds routing, rendering strategies, data fetching, backend endpoints and production tooling.
-Q: Why is Next.js better for SEO than a plain React SPA?
+Q*: Why is Next.js better for SEO than a plain React SPA?
 A: Pages are rendered to HTML on the server or at build time, so crawlers and users get content immediately instead of an empty page that depends on JavaScript.
 Q: Is Next.js frontend or backend?
 A: Both: it renders the frontend and runs server code (Server Components, route handlers, Server Actions, proxy) in the same project.
@@ -154,11 +154,11 @@ ISR        build + background      every N s or on demand   product pages, news
 - Mix strategies **per route** (and per component with Suspense) in the same app.
 
 ## Interview Q&A | sky | wide
-Q: What is Next.js and why use it over plain React?
+Q*: What is Next.js and why use it over plain React?
 A: A React framework adding file-based routing, server rendering, static generation, Server Components, data caching, API routes, Server Actions and built-in optimisations, giving better performance and SEO without assembling these yourself.
-Q: CSR vs SSR vs SSG?
+Q*: CSR vs SSR vs SSG?
 A: CSR renders in the browser after downloading JavaScript; SSR renders HTML on the server per request; SSG renders HTML once at build time and serves it from a CDN.
-Q: What is ISR?
+Q*: What is ISR?
 A: Incremental Static Regeneration: statically generated pages that are regenerated in the background after a revalidate interval or on demand, serving the cached version meanwhile.
 Q: When does an App Router route become dynamic?
 A: When it uses request-time information such as cookies(), headers(), searchParams or uncached fetches; otherwise it is prerendered statically.
@@ -241,11 +241,11 @@ export default function ProductPage({ product }) { return <h1>{product.name}</h1
 ```
 
 ## Interview Q&A | sky | wide
-Q: layout.tsx vs template.tsx?
+Q*: layout.tsx vs template.tsx?
 A: A layout persists across navigation between its child routes, preserving state; a template creates a new instance on every navigation, re-running effects and resetting state.
-Q: What does loading.tsx do?
+Q*: What does loading.tsx do?
 A: It defines instant loading UI; Next.js wraps the segment's page in a Suspense boundary using it as the fallback while server content streams.
-Q: Why must error.tsx be a Client Component?
+Q*: Why must error.tsx be a Client Component?
 A: Error boundaries are a client-side React feature (they need state and the reset function), so the file needs 'use client'.
 Q: What is a route group?
 A: A folder in parentheses that organises routes or assigns layouts without adding a URL segment.
@@ -325,11 +325,11 @@ export default async function AccountPage() {
 - After a mutation, refresh data with **`router.refresh()`** (client) or **`revalidatePath` / `revalidateTag`** in a Server Action, which also updates the client cache.
 
 ## Interview Q&A | sky | wide
-Q: Why use Link instead of an `<a>` tag?
+Q*: Why use Link instead of an `<a>` tag?
 A: Link performs client-side navigation without reloading the page, preserves layout state, and prefetches routes in the viewport for near-instant navigation.
-Q: next/router vs next/navigation?
+Q*: next/router vs next/navigation?
 A: next/router is the Pages Router API; the App Router uses next/navigation hooks (useRouter, usePathname, useSearchParams, useParams).
-Q: What does router.refresh() do?
+Q*: What does router.refresh() do?
 A: It re-requests the current route's Server Components from the server and merges the result without losing client state such as input values or scroll position.
 Q: How do you redirect in a Server Component?
 A: Call redirect() from next/navigation; it throws a special error that Next.js turns into a redirect response.
@@ -410,11 +410,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
 - Benefits of Server Components: **smaller bundles**, **no client-server waterfalls** (data fetched next to the source), **secrets stay on the server**, better caching.
 
 ## Interview Q&A | sky | wide
-Q: What are React Server Components?
+Q*: What are React Server Components?
 A: Components that render only on the server, can be async and access data directly, and send their rendered output (not their code) to the client, reducing JavaScript shipped to the browser.
-Q: What does 'use client' do?
+Q*: What does 'use client' do?
 A: It marks a module as a client boundary: that file and its imports are bundled for the browser, rendered to HTML on the server and hydrated on the client.
-Q: Are Client Components rendered only in the browser?
+Q*: Are Client Components rendered only in the browser?
 A: No. They are prerendered on the server to HTML and then hydrated; they additionally run in the browser.
 Q: Can a Client Component render a Server Component?
 A: Not by importing it, but yes when the Server Component is passed in as children or another prop from a server parent.
@@ -508,11 +508,11 @@ export async function createProduct(prevState: unknown, formData: FormData) {
 - Invalidation: `revalidatePath`, `revalidateTag` (Data and Full Route caches, plus the Router Cache when called from a Server Action), `router.refresh()` (Router Cache), redeploy (Full Route Cache).
 
 ## Interview Q&A | sky | wide
-Q: How do you fetch data in the App Router?
+Q*: How do you fetch data in the App Router?
 A: In Server Components, await fetch or a database call directly; parallelise with Promise.all, stream slow parts with Suspense, and use client-side libraries only for client-driven data.
-Q: What changed about fetch caching in Next.js 15?
+Q*: What changed about fetch caching in Next.js 15?
 A: fetch is no longer cached by default; you opt in with cache: 'force-cache' or next.revalidate, while routes without request-time APIs are still prerendered at build.
-Q: revalidatePath vs revalidateTag?
+Q*: revalidatePath vs revalidateTag?
 A: revalidatePath invalidates cached data and pages for a specific route; revalidateTag invalidates every cached fetch labelled with that tag wherever it is used.
 Q: What are Server Actions and what must you remember about security?
 A: Server-side functions callable from forms and client components for mutations; they are exposed as POST endpoints, so validate inputs and check authorisation inside every action.
@@ -584,11 +584,11 @@ export const config = { matcher: ['/account/:path*', '/checkout/:path*'] };
 - Same role as route handlers; new code in the App Router uses `route.ts`.
 
 ## Interview Q&A | sky | wide
-Q: What are route handlers?
+Q*: What are route handlers?
 A: route.ts files in the app directory that export functions named after HTTP methods and handle requests with the Web Request and Response APIs, replacing pages/api routes.
-Q: Route handler or Server Action?
+Q*: Route handler or Server Action?
 A: Server Actions for mutations triggered by your own UI (forms, buttons); route handlers for public HTTP endpoints, webhooks, other clients, file downloads and callbacks.
-Q: What is middleware (proxy) used for?
+Q*: What is middleware (proxy) used for?
 A: Code that runs before routing for redirects, rewrites, auth checks, locale detection and headers. Next.js 16 renames middleware.ts to proxy.ts.
 Q: Are GET route handlers cached?
 A: Not by default since Next.js 15; opt in with `dynamic = 'force-static'` or revalidate.
@@ -673,11 +673,11 @@ const Chart = dynamic(() => import('./chart'), { loading: () => <p>Loading chart
 ```
 
 ## Interview Q&A | sky | wide
-Q: What does next/image do?
+Q*: What does next/image do?
 A: Resizes and converts images on demand, generates srcset, lazy-loads by default, requires dimensions (or fill) to prevent layout shift, and offers priority for the LCP image.
-Q: Why use next/font?
+Q*: Why use next/font?
 A: It self-hosts fonts at build time (no runtime requests to Google), applies size-adjusted fallbacks to avoid layout shift, and exposes them as classes or CSS variables.
-Q: How do you set SEO metadata in the App Router?
+Q*: How do you set SEO metadata in the App Router?
 A: Export a metadata object or generateMetadata function from layouts and pages, plus file-based conventions like opengraph-image, sitemap.ts and robots.ts.
 Q: Can a Client Component export metadata?
 A: No. Metadata exports work only in Server Component layouts and pages.
@@ -723,11 +723,11 @@ A: next/dynamic with a dynamic import (optionally `ssr: false` for browser-only 
 - Tie to experience: "We moved the product listing to ISR with tag revalidation from the CMS webhook; TTFB dropped from 600 ms to 40 ms."
 
 ## Big Interview Q&A | sky | wide
-Q: How would you build an e-commerce product page in Next.js?
+Q*: How would you build an e-commerce product page in Next.js?
 A: A Server Component page that fetches the product with tag-based caching (ISR), generateStaticParams for top products, generateMetadata for SEO, next/image for photos, a small client component for add-to-cart calling a Server Action, and revalidateTag from the admin or CMS webhook.
-Q: What problems do Server Components solve?
+Q*: What problems do Server Components solve?
 A: Large client bundles, data-fetching waterfalls from the browser, and exposing secrets or heavy libraries to the client, by rendering data-heavy UI on the server and shipping only its output.
-Q: How does Next.js decide between static and dynamic rendering?
+Q*: How does Next.js decide between static and dynamic rendering?
 A: Routes are static unless they use request-time APIs (cookies, headers, searchParams) or uncached data, or are forced with segment config; Cache Components in v16 make this explicit with "use cache".
 Q: How do you handle authentication in the App Router?
 A: Session cookie (HttpOnly) issued by an auth library such as Auth.js, optional proxy redirects for protected sections, and session plus permission checks in Server Components, Server Actions and route handlers.

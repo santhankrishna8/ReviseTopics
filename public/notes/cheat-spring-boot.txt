@@ -91,6 +91,10 @@ class CacheLoader {
 - **Self-invocation trap:** calling a `@Transactional` method from another method **in the same class** bypasses the proxy, so no transaction starts.
 ! AOP = a security guard placed around every door, without rebuilding the doors.
 
+## Scoped Beans in Singletons
+- A prototype/request bean injected into a singleton is created once. Fix with `ObjectProvider<T>`, `@Lookup`, or a scoped proxy (`proxyMode = TARGET_CLASS`).
+! Inject a provider when a short-lived bean lives inside a singleton.
+
 ### Spring Boot Basics
 
 ## Auto-Configuration
@@ -401,6 +405,19 @@ class PriceService {
 - **Example:** `@Cacheable("products")` on `findById`; `@Scheduled(cron = "0 0 2 * * *")` for a nightly report.
 ! Cache = remember the answer; Async = do it later; Scheduled = do it on time.
 
+## Packaging & Running
+```bash
+mvn clean package && java -jar target/app.jar --spring.profiles.active=prod --server.port=9000
+./mvnw spring-boot:run     docker build -t app .     ./mvnw spring-boot:build-image
+```
+- Executable **fat jar** with embedded Tomcat; config precedence: command line > env vars > `application-{profile}.yml` > `application.yml`. Layered jars and GraalVM native images speed startup.
+! Externalise config; never bake secrets in.
+
+## Observability: Metrics, Tracing, Logs
+- **Actuator** exposes `/actuator/health`, `/metrics`, `/prometheus`. **Micrometer** gives metrics; **Micrometer Tracing + OpenTelemetry** gives traces made of **spans** with a trace ID propagated across services and put in logs (MDC).
+- Pattern: Prometheus + Grafana (metrics), Loki/ELK (logs), Tempo/Jaeger/Zipkin (traces).
+! Trace ID in every log line ties a request together.
+
 ### Microservices
 
 ## Monolith vs Microservices
@@ -444,6 +461,20 @@ complexity   simple to start          network, data, ops overhead
 - **Topic** split into **partitions** (parallelism; order guaranteed within a partition). **Consumer group:** each partition is read by one consumer in the group.
 - Spring: `KafkaTemplate.send("orders", order)` and `@KafkaListener(topics = "orders")`.
 ! Kafka = a durable conveyor belt of events that many teams can read at their own pace.
+
+## WebClient, RestClient & HTTP Interfaces
+```java
+RestClient rc = RestClient.create("https://api.x.com");
+User u = rc.get().uri("/users/{id}", 1).retrieve().body(User.class);          // blocking, modern
+Mono<User> m = webClient.get().uri("/users/1").retrieve().bodyToMono(User.class);   // reactive
+@HttpExchange("/users") interface UserApi { @GetExchange("/{id}") User get(@PathVariable long id); }   // declarative
+```
+- `RestTemplate` is in maintenance; **OpenFeign** (`@FeignClient`) is the Spring Cloud alternative. Add timeouts, retries and a circuit breaker (Resilience4j).
+! Always set connect and read timeouts.
+
+## Decomposing a Monolith & Consistency
+- Split by **business capability / bounded context** (DDD), strangler fig, database per service. Cross-service consistency: **saga** (orchestration or choreography), **outbox**, idempotent consumers, eventual consistency.
+! Split by business boundaries, not technical layers.
 
 ### Quick Answers
 

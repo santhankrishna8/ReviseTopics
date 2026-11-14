@@ -55,11 +55,11 @@ docker run -it --rm --name n8n -p 5678:5678 -v n8n_data:/home/node/.n8n docker.n
 - **Publish/Unpublish** instead of activate/deactivate; release channels renamed **stable** and **beta**.
 
 ## Interview Q&A | sky | wide
-Q: What is n8n?
+Q*: What is n8n?
 A: An open, fair-code workflow automation platform where you build workflows visually from nodes (triggers, integrations, logic, code and AI nodes), self-hosted or in n8n Cloud.
-Q: How is n8n different from Zapier?
+Q*: How is n8n different from Zapier?
 A: n8n can be self-hosted, supports complex branching, loops, error workflows and custom JavaScript or Python, prices per execution rather than per task, and has built-in AI agent nodes; Zapier is SaaS-only and simpler but less flexible.
-Q: What does fair-code mean for n8n?
+Q*: What does fair-code mean for n8n?
 A: The source code is available and free to self-host and modify for internal use under the Sustainable Use License, but you can't offer n8n itself as a commercial hosted service.
 Q: Where does n8n store its data?
 A: In a database: SQLite by default, PostgreSQL recommended in production. Workflows, encrypted credentials and execution history are stored there.
@@ -115,11 +115,11 @@ A: For core, high-throughput business logic that needs full testing and versioni
 - **Tags**, **projects** and **sharing** organise workflows and control who can edit them; **workflow history** keeps previous versions.
 
 ## Interview Q&A | sky | wide
-Q: What are the main building blocks of n8n?
+Q*: What are the main building blocks of n8n?
 A: Workflows made of nodes joined by connections, started by trigger nodes; credentials used by nodes; and executions that record each run's data.
-Q: What types of triggers does n8n support?
+Q*: What types of triggers does n8n support?
 A: Manual, Schedule (interval or cron), Webhook, app event triggers (via webhooks or polling), Form and Chat triggers, message queue triggers, the Execute Workflow Trigger for sub-workflows, and the Error Trigger for error workflows.
-Q: Polling vs webhook triggers?
+Q*: Polling vs webhook triggers?
 A: A webhook trigger is called by the source system the moment something happens; a polling trigger asks the source for new data on a schedule, which adds delay and API calls but works with services that don't send webhooks.
 Q: What is a sub-workflow and why use it?
 A: A workflow started by another workflow through the Execute Workflow node. It allows reuse of common logic, smaller and clearer workflows, and separate error handling.
@@ -168,11 +168,11 @@ A: Nodes such as If and Switch route each item to one of several outputs based o
 - What gets stored is controlled by settings (save successful, failed, manual executions) and pruned after a retention period (sheet 08).
 
 ## Interview Q&A | sky | wide
-Q: How is data passed between nodes in n8n?
+Q*: How is data passed between nodes in n8n?
 A: As an array of items, each with a json object and optional binary data; each node receives the previous node's output items and usually processes each item separately.
-Q: What is an expression in n8n?
+Q*: What is an expression in n8n?
 A: A JavaScript snippet in double curly braces in a node parameter, evaluated per item, with access to $json, other nodes via $('Node'), $input, $now and other built-ins.
-Q: How do you use data from a node that isn't directly connected?
+Q*: How do you use data from a node that isn't directly connected?
 A: Reference it by name: {{ $('Node Name').item.json.field }} for the linked item, or .first() / .all() for its items.
 Q: What is pinned data?
 A: Fixed output saved on a node for testing, so manual runs can reuse it without calling the real service; it isn't used in production executions.
@@ -249,11 +249,11 @@ return [{"json": {"orders": len(_items), "total": total}}]
 - Use the Code node for logic the built-in nodes can't express cleanly (complex calculations, data reshaping, custom validation), and keep it small and commented.
 
 ## Interview Q&A | sky | wide
-Q: How do you transform data in n8n?
+Q*: How do you transform data in n8n?
 A: With built-in nodes (Edit Fields, Filter, Sort, Split Out, Aggregate, Summarize, Merge, Date & Time) and, when needed, the Code node in JavaScript or Python, plus expressions inside any parameter.
-Q: What are the Merge node's modes?
+Q*: What are the Merge node's modes?
 A: Append, Combine by matching fields (a join), Combine by position, Combine by all possible combinations, SQL Query and Choose Branch.
-Q: What's the difference between Split Out and Aggregate?
+Q*: What's the difference between Split Out and Aggregate?
 A: Split Out turns a list inside one item into separate items; Aggregate combines many items into one item containing a list or aggregated fields.
 Q: What are the Code node's two modes?
 A: Run Once for All Items, which receives every item via $input.all() and returns an array of items; and Run Once for Each Item, which receives $input.item and returns one item.
@@ -308,11 +308,11 @@ Error workflow "Alert on failure"
 - **Observability**: keep failed executions saved, name nodes clearly, and alert through the error workflow; with Enterprise, stream logs to a SIEM.
 
 ## Interview Q&A | sky | wide
-Q: How do you handle errors in n8n?
+Q*: How do you handle errors in n8n?
 A: Per node with Retry On Fail and the On Error setting (stop, continue, or continue with an error output), deliberately with the Stop and Error node, and globally with an error workflow that starts with an Error Trigger and is set in the workflow settings.
-Q: What is an error workflow?
+Q*: What is an error workflow?
 A: A separate workflow beginning with the Error Trigger node; when a workflow that names it fails, it runs with details of the failure, typically to send alerts.
-Q: If vs Switch?
+Q*: If vs Switch?
 A: If splits items into true and false outputs by conditions; Switch routes items to one of many outputs by rules or by an expression returning the output index.
 Q: When is Retry On Fail useful, and when not?
 A: For transient errors such as timeouts, rate limiting or temporary 5xx responses; not for permanent errors like validation failures or bad credentials, which will fail every time.
@@ -361,11 +361,11 @@ Client Credentials flow (machine-to-machine, no user): client ID + secret + toke
 - Request the **minimum scopes** needed; since n8n 2.0, the OAuth callback endpoint requires an authenticated n8n session.
 
 ## Interview Q&A | sky | wide
-Q: How do you call an API that has no dedicated n8n node?
+Q*: How do you call an API that has no dedicated n8n node?
 A: With the HTTP Request node: set the method and URL, choose authentication (a predefined or generic credential), add query, headers and body (or import a cURL command), and configure pagination, batching and timeouts.
-Q: How are credentials stored in n8n?
+Q*: How are credentials stored in n8n?
 A: Encrypted in the n8n database with the instance's N8N_ENCRYPTION_KEY; workflows reference them by name, and they aren't included when workflows are exported.
-Q: How do you set up OAuth 2.0 in n8n?
+Q*: How do you set up OAuth 2.0 in n8n?
 A: Register an app with the provider using n8n's OAuth callback URL, create an OAuth2 credential with the client id, secret, endpoints and scopes, and connect; n8n stores and refreshes the tokens.
 Q: How do you handle paginated APIs?
 A: With the HTTP Request node's pagination option, following a next URL or incrementing a page or cursor parameter until a stop condition, returning all pages as items.
@@ -438,11 +438,11 @@ Real run on n8n 2.43.5:
 - Long-running waits survive restarts: n8n stores the paused execution in the database and resumes it later.
 
 ## Interview Q&A | sky | wide
-Q: Test URL vs production URL of a Webhook node?
+Q*: Test URL vs production URL of a Webhook node?
 A: The test URL works only while listening in the editor and shows the data there for building; the production URL is live once the workflow is published and records normal executions.
-Q: What response modes does the Webhook node offer?
+Q*: What response modes does the Webhook node offer?
 A: Respond immediately, respond when the last node finishes with its output, or respond from a Respond to Webhook node placed anywhere, with full control over status, headers and body.
-Q: How do you secure an n8n webhook?
+Q*: How do you secure an n8n webhook?
 A: Use HTTPS and authentication (header, basic or JWT) or verify the provider's HMAC signature over the raw body in constant time with a timestamp check; validate the payload and rate-limit the endpoint.
 Q: How do you handle a webhook whose processing takes minutes?
 A: Respond immediately with 202 and an id, process asynchronously, and notify the caller through a callback URL or a status endpoint.
@@ -498,11 +498,11 @@ Query workflow:
 - Watch **cost and latency** (tokens per run, iterations), log prompts and tool calls in executions, and test with representative inputs before publishing.
 
 ## Interview Q&A | sky | wide
-Q: How do you build an AI agent in n8n?
+Q*: How do you build an AI agent in n8n?
 A: Add an AI Agent root node after a trigger (often the Chat Trigger), attach a chat model, a memory sub-node and tools (HTTP Request Tool, workflow tools, vector store tools), write a system prompt, and optionally a structured output parser.
-Q: What are cluster nodes?
+Q*: What are cluster nodes?
 A: AI nodes made of a root node, such as AI Agent or a chain, plus sub-nodes that plug in the chat model, memory, tools, embeddings, retrievers and output parsers.
-Q: How does the AI Agent decide to call a tool?
+Q*: How does the AI Agent decide to call a tool?
 A: The tool names and descriptions are sent to the model, which requests a tool call when it needs one; n8n runs the tool and returns the result to the model, looping until it produces a final answer.
 Q: How do you implement RAG in n8n?
 A: An ingestion workflow loads, splits, embeds and inserts documents into a vector store; at query time the agent uses a vector store question-answer tool or a Q&A chain to retrieve relevant chunks and answer from them.
@@ -594,11 +594,11 @@ EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS   true      save editor test runs
 - **Monitoring**: the `/healthz` endpoint for liveness, Prometheus metrics (`N8N_METRICS=true`), log level and output settings, and alerting on failed executions via error workflows.
 
 ## Interview Q&A | sky | wide
-Q: How would you self-host n8n for production?
+Q*: How would you self-host n8n for production?
 A: Docker or Kubernetes with a pinned n8n image, PostgreSQL as the database, a fixed N8N_ENCRYPTION_KEY, the public WEBHOOK_URL, HTTPS through a reverse proxy, persistent volumes, backups, and queue mode with Redis and workers when load grows.
-Q: What is queue mode?
+Q*: What is queue mode?
 A: A scaling mode where the main instance puts executions on a Redis queue and separate worker processes run them, all sharing the same PostgreSQL database and encryption key; webhook processors can also be scaled separately.
-Q: Why is N8N_ENCRYPTION_KEY so important?
+Q*: Why is N8N_ENCRYPTION_KEY so important?
 A: It encrypts all stored credentials; if it's lost or differs between processes, credentials can't be decrypted and must be re-created.
 Q: How do you control execution data retention?
 A: With EXECUTIONS_DATA_PRUNE, EXECUTIONS_DATA_MAX_AGE (default 336 hours) and EXECUTIONS_DATA_PRUNE_MAX_COUNT (default 10,000), plus settings to save or skip successful, failed and manual executions globally or per workflow.
@@ -636,11 +636,11 @@ A: On the filesystem or in S3-compatible storage rather than in memory or the da
 - Tie to experience: "I built an n8n workflow that took Razorpay webhooks, verified the HMAC signature, upserted the payment into Postgres and posted failures to Slack through an error workflow; it replaced a cron script that missed payments."
 
 ## Big Interview Q&A | sky | wide
-Q: What is a node in n8n?
+Q*: What is a node in n8n?
 A: One step in a workflow, such as a trigger, an app action, a logic node or an AI node, which takes input items, does its work and outputs items.
-Q: What is the structure of data in n8n?
+Q*: What is the structure of data in n8n?
 A: An array of items, each with a json object of fields and optional binary data for files.
-Q: How do you reference data from an earlier node?
+Q*: How do you reference data from an earlier node?
 A: With expressions such as {{ $('Node Name').item.json.field }} for the paired item, or .first() and .all() for its items.
 Q: How do you run a workflow on a schedule?
 A: With the Schedule Trigger using an interval or a cron expression, in the time zone set for the instance or workflow, and publish the workflow.

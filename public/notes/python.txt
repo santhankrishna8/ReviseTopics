@@ -75,11 +75,11 @@ print(5 & 3, 5 | 3, 5 ^ 3, ~5, 1 << 3)                   # 1 7 6 -6 8
 - **Python 2 vs 3**: `print "x"` statement vs `print("x")` function; byte strings vs Unicode `str` by default; `3 / 2 == 1` vs `1.5`; `range()` returned a list vs a lazy range object; `raw_input()` vs `input()`; Python 2 is unsupported since 2020.
 
 ## Interview Q&A | sky | wide
-Q: What is Python, and what are its key features?
+Q*: What is Python, and what are its key features?
 A: A high-level, interpreted, dynamically but strongly typed, multi-paradigm language known for readable syntax, automatic memory management, a large standard library and the PyPI ecosystem.
-Q: Is Python compiled or interpreted?
+Q*: Is Python compiled or interpreted?
 A: Both, in a sense: CPython compiles source to bytecode (.pyc) and then interprets that bytecode in its virtual machine. There is no separate compile step for the developer.
-Q: What is PEP 8?
+Q*: What is PEP 8?
 A: Python's official style guide: 4-space indentation, snake_case for functions and variables, PascalCase for classes, line length limits, import ordering and whitespace rules.
 Q: What is the difference between is and ==?
 A: `==` checks whether two objects have equal values; `is` checks whether they are the same object in memory. Use `is` for None checks.
@@ -209,11 +209,11 @@ port = config.get("port") or 8080     # careful: also replaces 0
 ```
 
 ## Interview Q&A | sky | wide
-Q: Is Python interpreted or compiled?
+Q*: Is Python interpreted or compiled?
 A: CPython compiles source to bytecode, then the Python virtual machine interprets the bytecode. So both, with the compile step to bytecode rather than machine code.
-Q: How does Python define code blocks?
+Q*: How does Python define code blocks?
 A: By indentation after a colon, not braces. All statements in a block must share the same indentation (PEP 8: 4 spaces); inconsistent indentation raises IndentationError or TabError.
-Q: Is Python dynamically or statically typed? Strong or weak?
+Q*: Is Python dynamically or statically typed? Strong or weak?
 A: Dynamically typed (types are checked at runtime and belong to objects) and strongly typed (no implicit conversion between unrelated types).
 Q: `is` vs `==`?
 A: `==` compares values via `__eq__`. `is` checks whether both names refer to the same object. Use `is` for `None` and other singletons.
@@ -299,11 +299,11 @@ bytearray(b"abc")               # mutable bytes
 ```
 
 ## Interview Q&A | sky | wide
-Q: Why are strings immutable in Python?
+Q*: Why are strings immutable in Python?
 A: Immutability makes them hashable (usable as dict keys and in sets), safe to share and intern, and thread-safe.
-Q: How do you reverse a string?
+Q*: How do you reverse a string?
 A: `s[::-1]`, or `"".join(reversed(s))`.
-Q: `find` vs `index`?
+Q*: `find` vs `index`?
 A: Both return the first position. `find` returns -1 when not found, `index` raises `ValueError`.
 Q: `strip("abc")` vs `removeprefix("abc")`?
 A: `strip` removes any of the characters a, b, c from both ends repeatedly. `removeprefix` removes the exact prefix string once.
@@ -403,11 +403,11 @@ deep[0]      # [1, 2]
 > * = amortised: occasionally the array is reallocated and copied.
 
 ## Interview Q&A | sky | wide
-Q: List vs tuple?
+Q*: List vs tuple?
 A: Lists are mutable and suited to homogeneous, changing collections. Tuples are immutable, slightly faster and smaller, hashable when their contents are, so they can be dict keys. Tuples often model fixed records.
-Q: How does a Python dict work?
+Q*: How does a Python dict work?
 A: It is a hash table: the key's hash picks a slot, collisions are resolved by open addressing (probing), and equality confirms the key. Since 3.7 a compact layout also preserves insertion order.
-Q: Why must dict keys be hashable?
+Q*: Why must dict keys be hashable?
 A: The hash locates the slot. If a key's hash could change after insertion, the dict could no longer find it.
 Q: How do you remove duplicates from a list keeping order?
 A: `list(dict.fromkeys(items))`. `list(set(items))` loses order.
@@ -506,11 +506,11 @@ max(items, key=len, default=None)
 ```
 
 ## Interview Q&A | sky | wide
-Q: When do you use `deque` instead of a list?
+Q*: When do you use `deque` instead of a list?
 A: When you add or remove at the front: `deque.popleft()` is O(1) while `list.pop(0)` is O(n). Typical for queues and BFS.
-Q: How do you implement a max-heap in Python?
+Q*: How do you implement a max-heap in Python?
 A: `heapq` is a min-heap, so push negated priorities, or tuples like `(-priority, counter, item)`.
-Q: How do you find the k most frequent elements?
+Q*: How do you find the k most frequent elements?
 A: `Counter(items).most_common(k)`, which uses a heap internally. O(n log k).
 Q: `defaultdict` vs `dict.setdefault`?
 A: Both supply defaults for missing keys. `defaultdict` does it automatically on every access, `setdefault` is explicit per call and always constructs the default argument.
@@ -612,11 +612,11 @@ fib(200)   # instant thanks to memoisation
 ```
 
 ## Interview Q&A | sky | wide
-Q: What are `*args` and `**kwargs`?
+Q*: What are `*args` and `**kwargs`?
 A: `*args` collects extra positional arguments into a tuple, `**kwargs` collects extra keyword arguments into a dict. At a call site, `*` and `**` unpack sequences and mappings into arguments.
-Q: Why should you not use a mutable default argument?
+Q*: Why should you not use a mutable default argument?
 A: Defaults are evaluated once at definition time, so the same list or dict is shared between calls and accumulates state. Use None and create a new object inside.
-Q: What is a closure?
+Q*: What is a closure?
 A: A nested function that captures variables from its enclosing scope and keeps them alive after the outer function returns.
 Q: Lambda vs def?
 A: A lambda is an anonymous single-expression function. `def` supports statements, docstrings, annotations and has a proper name in tracebacks.
@@ -712,11 +712,11 @@ combined = [*range(3), *"ab"]          # [0, 1, 2, 'a', 'b']
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a list comprehension and why use it?
+Q*: What is a list comprehension and why use it?
 A: A concise expression that builds a list from an iterable with optional filtering. It is more readable and usually faster than an explicit loop with `append`.
-Q: List comprehension vs generator expression?
+Q*: List comprehension vs generator expression?
 A: A list comprehension builds the whole list in memory. A generator expression yields items lazily, so it uses constant memory and suits large or infinite data and one-pass consumers like `sum`.
-Q: When does a loop's `else` run?
+Q*: When does a loop's `else` run?
 A: When the loop finishes without hitting `break`.
 Q: What is EAFP?
 A: Easier to Ask Forgiveness than Permission: attempt the operation and handle exceptions instead of checking preconditions first. It is the idiomatic Python style.
@@ -819,11 +819,11 @@ with open("users.csv", newline="", encoding="utf-8") as f:
 ```
 
 ## Interview Q&A | sky | wide
-Q: Why use `with open(...)`?
+Q*: Why use `with open(...)`?
 A: The context manager closes the file automatically, even if an exception occurs, which prevents resource leaks.
-Q: How do you read a huge file without loading it into memory?
+Q*: How do you read a huge file without loading it into memory?
 A: Iterate over the file object line by line, or read fixed-size chunks with `f.read(size)` in a loop.
-Q: How do you write your own context manager?
+Q*: How do you write your own context manager?
 A: Implement `__enter__` and `__exit__` in a class, or decorate a generator function with `contextlib.contextmanager` and put cleanup after `yield` in a `finally` block.
 Q: What happens if `__exit__` returns True?
 A: The exception raised inside the with-block is suppressed.
@@ -946,11 +946,11 @@ def shutdown(resource: SupportsClose) -> None:   # any object with close() works
 ```
 
 ## Interview Q&A | sky | wide
-Q: `__init__` vs `__new__`?
+Q*: `__init__` vs `__new__`?
 A: `__new__` creates and returns the instance (a static method on the class). `__init__` then initialises that instance and returns None. Override `__new__` for immutable types or singletons.
-Q: What is `self`?
+Q*: What is `self`?
 A: The instance on which a method is called, passed explicitly as the first argument. `obj.m()` is shorthand for `type(obj).m(obj)`.
-Q: `classmethod` vs `staticmethod`?
+Q*: `classmethod` vs `staticmethod`?
 A: A classmethod receives the class (`cls`) and is used for factory methods that respect subclassing. A staticmethod receives nothing implicit and is just a function grouped with the class.
 Q: Does Python have private variables?
 A: Not enforced. A single underscore is a convention for internal use, a double underscore triggers name mangling to avoid accidental overrides in subclasses.
@@ -1064,11 +1064,11 @@ p = PointSlots(1, 2)
 ```
 
 ## Interview Q&A | sky | wide
-Q: `__str__` vs `__repr__`?
+Q*: `__str__` vs `__repr__`?
 A: `__repr__` is an unambiguous developer representation (ideally valid Python to recreate the object) used by the REPL and containers. `__str__` is the readable user-facing form used by `print`. `str()` falls back to `__repr__`.
-Q: What is the MRO?
+Q*: What is the MRO?
 A: The method resolution order: the linearised list of classes Python searches for attributes, computed by the C3 algorithm. See it with `Cls.__mro__`.
-Q: How does Python solve the diamond problem?
+Q*: How does Python solve the diamond problem?
 A: C3 linearisation puts each class once in the MRO, after its subclasses and in declaration order, and cooperative `super()` calls follow that order so the shared base runs once.
 Q: What does `super()` really do?
 A: It returns a proxy that delegates to the next class after the current one in the instance's MRO, which may be a sibling class, not the direct parent.
@@ -1169,11 +1169,11 @@ list(batched(range(7), 3))                       # [(0,1,2), (3,4,5), (6,)]
 ```
 
 ## Interview Q&A | sky | wide
-Q: Iterable vs iterator?
+Q*: Iterable vs iterator?
 A: An iterable can produce an iterator via `__iter__` and can be looped over repeatedly. An iterator has `__next__`, keeps position, and is exhausted after one pass.
-Q: What is a generator and why use it?
+Q*: What is a generator and why use it?
 A: A function with `yield` that produces values lazily, keeping its state between calls. It uses constant memory, supports infinite sequences, and composes into pipelines.
-Q: `yield` vs `return`?
+Q*: `yield` vs `return`?
 A: `return` ends the function with one value. `yield` produces a value and pauses, resuming from the same point on the next `next()` call.
 Q: What does `yield from` do?
 A: Delegates iteration to another iterable or generator, forwarding values, `send`, exceptions and the sub-generator's return value.
@@ -1276,11 +1276,11 @@ def _(obj: list): return "[" + ",".join(map(to_json, obj)) + "]"
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a decorator?
+Q*: What is a decorator?
 A: A callable that takes a function (or class) and returns a replacement, usually a wrapper adding behaviour before or after the original. `@d` above a def means `f = d(f)`.
-Q: Why use `functools.wraps`?
+Q*: Why use `functools.wraps`?
 A: Without it the wrapper replaces the function's name, docstring and other metadata, which breaks debugging, introspection and tools like FastAPI that read signatures.
-Q: How do you write a decorator that takes arguments?
+Q*: How do you write a decorator that takes arguments?
 A: Write a function that takes the arguments and returns a decorator, which in turn returns the wrapper: three nested levels.
 Q: In what order are stacked decorators applied?
 A: Bottom to top at definition time (the one closest to the function first). At call time the outermost wrapper runs first.
@@ -1361,11 +1361,11 @@ dev = ["pytest", "ruff", "mypy"]
 - **pre-commit** hooks run these automatically before each commit.
 
 ## Interview Q&A | sky | wide
-Q: Module vs package?
+Q*: Module vs package?
 A: A module is a single `.py` file. A package is a directory of modules, usually with `__init__.py`, imported with dotted names.
-Q: What does `if __name__ == "__main__"` do?
+Q*: What does `if __name__ == "__main__"` do?
 A: `__name__` is `"__main__"` when the file is run directly and the module name when imported, so the block runs only for direct execution (CLI entry, quick tests).
-Q: Why use a virtual environment?
+Q*: Why use a virtual environment?
 A: To isolate each project's dependencies and versions from the system Python and from other projects, making builds reproducible.
 Q: pip vs conda vs poetry?
 A: pip installs Python packages from PyPI. Poetry adds dependency resolution, lock files and packaging on top. Conda manages environments and binary packages including non-Python libraries.
@@ -1462,11 +1462,11 @@ except AppError:
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is the purpose of `else` in try/except?
+Q*: What is the purpose of `else` in try/except?
 A: It runs only when the try block raised nothing, so you keep the try block focused on the risky line and avoid accidentally catching errors from follow-up code.
-Q: Why avoid a bare `except:`?
+Q*: Why avoid a bare `except:`?
 A: It catches `BaseException`, including `KeyboardInterrupt` and `SystemExit`, which makes programs hard to stop and hides bugs. Catch `Exception` or something narrower.
-Q: What does `raise ... from ...` do?
+Q*: What does `raise ... from ...` do?
 A: It sets the original exception as the explicit cause of the new one, so tracebacks show both. `from None` suppresses the chain.
 Q: How do you create a custom exception?
 A: Subclass `Exception` (or your app's base error), optionally add an `__init__` with extra fields, and call `super().__init__(message)`.
@@ -1544,11 +1544,11 @@ if __name__ == "__main__":
 - **Subinterpreters** (3.12+: per-interpreter GIL; 3.14: `concurrent.interpreters`) are another path to parallelism inside one process.
 
 ## Interview Q&A | sky | wide
-Q: What is the GIL and why does it exist?
+Q*: What is the GIL and why does it exist?
 A: A mutex in CPython allowing only one thread to execute bytecode at a time. It protects reference counts and interpreter state, keeping single-threaded code and C extensions simple and fast.
-Q: Does the GIL make Python code thread-safe?
+Q*: Does the GIL make Python code thread-safe?
 A: No. Thread switches can happen between bytecodes, so compound operations like `x += 1` can race. Use locks or thread-safe structures.
-Q: Threads or processes for CPU-bound work?
+Q*: Threads or processes for CPU-bound work?
 A: Processes (`ProcessPoolExecutor`, `multiprocessing`), since each has its own interpreter and GIL. Threads help only for I/O-bound work.
 Q: Why do threads still help for I/O?
 A: Blocking I/O calls release the GIL, so other threads run while one waits on the network or disk.
@@ -1648,11 +1648,11 @@ async for item in paginate(client, "/api/orders"):
 ```
 
 ## Interview Q&A | sky | wide
-Q: How does asyncio work?
+Q*: How does asyncio work?
 A: A single-threaded event loop runs coroutines. When a coroutine awaits I/O it suspends and the loop resumes others whose I/O is ready, giving concurrency without threads.
-Q: asyncio vs threading?
+Q*: asyncio vs threading?
 A: asyncio uses cooperative switching only at `await`, scales to many thousands of connections cheaply and avoids most race conditions, but needs async libraries. Threads work with blocking libraries but cost more memory and need locks.
-Q: What happens if you call blocking code in a coroutine?
+Q*: What happens if you call blocking code in a coroutine?
 A: It blocks the event loop, so every other task stalls until it returns. Use async libraries or `asyncio.to_thread`.
 Q: `gather` vs `TaskGroup`?
 A: Both run awaitables concurrently. TaskGroup gives structured concurrency: on the first failure it cancels the remaining tasks and raises an ExceptionGroup. gather by default propagates the first error without cancelling the others.
@@ -1749,11 +1749,11 @@ Proxy([1, 2]).append(3)
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a metaclass?
+Q*: What is a metaclass?
 A: The class of a class. It controls class creation; `type` is the default. You subclass `type` to customise how classes are built.
-Q: When would you use a metaclass?
+Q*: When would you use a metaclass?
 A: Rarely: frameworks such as ORMs or validation libraries that transform class definitions. For registration or validation prefer `__init_subclass__` or class decorators.
-Q: How do you create a class dynamically?
+Q*: How do you create a class dynamically?
 A: `type("Name", (Base,), {"attr": value, "method": func})`.
 Q: What is a descriptor?
 A: An object with `__get__` (and optionally `__set__`, `__delete__`) stored on a class that customises attribute access. Properties and methods are built on descriptors.
@@ -1830,11 +1830,11 @@ for stat in snapshot.statistics("lineno")[:5]:
 ```
 
 ## Interview Q&A | sky | wide
-Q: How does Python manage memory?
+Q*: How does Python manage memory?
 A: CPython uses reference counting to free objects immediately when unused, plus a generational cyclic garbage collector for reference cycles, with pymalloc handling small-object allocation.
-Q: Why is `sys.getrefcount` one higher than expected?
+Q*: Why is `sys.getrefcount` one higher than expected?
 A: Passing the object as an argument creates a temporary extra reference for the duration of the call.
-Q: Does `del` delete an object?
+Q*: Does `del` delete an object?
 A: No, it removes a name binding (or container item). The object is freed only when its reference count reaches zero or the GC collects its cycle.
 Q: Can Python have memory leaks?
 A: Yes: lingering references in globals, caches, closures or callbacks keep objects alive, and C extensions can leak. Use tracemalloc to find them.
@@ -1946,11 +1946,11 @@ class Settings(BaseSettings):
 ```
 
 ## Interview Q&A | sky | wide
-Q: Are type hints enforced at runtime?
+Q*: Are type hints enforced at runtime?
 A: No. The interpreter stores them but does not check them. Static checkers like mypy verify them, and libraries like Pydantic and FastAPI read them to validate data at runtime.
-Q: Why use type hints?
+Q*: Why use type hints?
 A: Catch bugs before running, better IDE autocomplete and refactoring, self-documenting code, and they power runtime validation frameworks.
-Q: `Optional[int]` vs `int | None`?
+Q*: `Optional[int]` vs `int | None`?
 A: Same meaning. `int | None` is the modern syntax (3.10+). Optional does not mean the parameter has a default.
 Q: What is Pydantic?
 A: A library that validates and parses data based on type hints, producing typed model objects or detailed validation errors. FastAPI uses it for requests and responses.
@@ -2064,11 +2064,11 @@ def merge(intervals):
 - In live coding, talk through edge cases: empty input, duplicates, None, very large input.
 
 ## Big Interview Q&A | sky | wide
-Q: What are Python's key features?
+Q*: What are Python's key features?
 A: Readable syntax, dynamic and strong typing, automatic memory management, rich standard library, multiple paradigms (procedural, OOP, functional), huge ecosystem, and easy C integration.
-Q: What is PEP 8?
+Q*: What is PEP 8?
 A: The official style guide: naming conventions, 4-space indents, line lengths, import ordering, whitespace rules. Tools like ruff and black enforce it.
-Q: How would you speed up slow Python code?
+Q*: How would you speed up slow Python code?
 A: Profile first (cProfile, py-spy). Then fix the algorithm or data structure, use built-ins and comprehensions, cache with `lru_cache`, vectorise with NumPy, use concurrency for I/O and processes for CPU, or move hot loops to C, Cython or Rust.
 Q: What is monkey patching and duck typing?
 A: Duck typing means caring about an object's behaviour (methods it has) rather than its declared type. Monkey patching means modifying classes or modules at runtime.

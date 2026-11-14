@@ -94,11 +94,11 @@ server.listen(3000, () => console.log('Listening on http://localhost:3000'));
 - **Node vs Python (FastAPI, Django)**: both are productive; Node excels at I/O concurrency and real-time work and shares code with the front end, Python at data science, ML and scripting.
 
 ## Interview Q&A | sky | wide
-Q: What is Node.js?
+Q*: What is Node.js?
 A: An open-source, cross-platform JavaScript runtime built on V8 and libuv that runs JavaScript outside the browser, using an event-driven, non-blocking I/O model.
-Q: Is Node.js a language, a framework or a library?
+Q*: Is Node.js a language, a framework or a library?
 A: None of them: it is a runtime environment. The language is JavaScript (or TypeScript), and frameworks such as Express run on top of it.
-Q: Who created Node.js and when?
+Q*: Who created Node.js and when?
 A: Ryan Dahl, in 2009.
 Q: npm vs npx?
 A: npm installs and manages packages and runs scripts; npx executes a package's command, from the project or downloaded temporarily, without a global install.
@@ -164,11 +164,11 @@ fs.readFile(import.meta.filename, () => {
 - For your own CPU-heavy JavaScript, use **`worker_threads`** (separate V8 isolates in the same process, communicating via messages or `SharedArrayBuffer`); scale across cores with **`cluster`** or multiple processes behind a load balancer (PM2, Kubernetes).
 
 ## Interview Q&A | sky | wide
-Q: What is Node.js?
+Q*: What is Node.js?
 A: A JavaScript runtime built on V8 and libuv that runs JavaScript on the server with an event-driven, non-blocking I/O model.
-Q: How does single-threaded Node handle many requests?
+Q*: How does single-threaded Node handle many requests?
 A: Your JavaScript runs on one thread, but I/O is delegated to the OS or the libuv thread pool; the event loop runs callbacks when results arrive, so the thread is never idle waiting for I/O.
-Q: What are the event loop phases?
+Q*: What are the event loop phases?
 A: Timers, pending callbacks, idle/prepare, poll, check (setImmediate) and close callbacks, with process.nextTick and promise microtasks drained between callbacks.
 Q: process.nextTick vs setImmediate vs setTimeout(0)?
 A: nextTick runs before any other queued work after the current operation; setImmediate runs in the check phase after I/O polling; setTimeout(0) runs in the next timers phase once at least 1 ms has passed.
@@ -246,11 +246,11 @@ const { heavy } = await import('./heavy.js');
 ```
 
 ## Interview Q&A | sky | wide
-Q: CommonJS vs ES Modules?
+Q*: CommonJS vs ES Modules?
 A: CommonJS uses synchronous require and module.exports, evaluated at runtime with cached copies of exports; ESM uses static import/export, loads asynchronously, supports top-level await, live bindings and tree shaking, and is the JavaScript standard.
-Q: Why are `__dirname` and `__filename` undefined in ESM?
+Q*: Why are `__dirname` and `__filename` undefined in ESM?
 A: They are parameters of the CommonJS module wrapper. In ESM use import.meta.dirname and import.meta.filename (or derive them from import.meta.url).
-Q: How do you enable ESM in Node?
+Q*: How do you enable ESM in Node?
 A: Set "type": "module" in package.json or use the .mjs extension.
 Q: What is the require cache?
 A: After the first require, a module's exports are stored in require.cache, so later requires return the same instance without re-executing the file.
@@ -326,11 +326,11 @@ server.listen(3000, () => console.log('listening on 3000'));
 - Built-in CLI features: **`node --watch`** (restart on change), **`node --test`**, **`--env-file`**, `--inspect` (Chrome DevTools debugging).
 
 ## Interview Q&A | sky | wide
-Q: fs callback vs promise vs sync APIs?
+Q*: fs callback vs promise vs sync APIs?
 A: Callback and promise APIs are non-blocking and suitable for servers; sync APIs block the event loop and belong only in startup code or scripts. fs/promises with async/await is the modern default.
-Q: path.join vs path.resolve?
+Q*: path.join vs path.resolve?
 A: join concatenates and normalises segments; resolve produces an absolute path, processing segments right to left and falling back to the current working directory.
-Q: How do you read a large file efficiently?
+Q*: How do you read a large file efficiently?
 A: Stream it with fs.createReadStream and process chunks (or pipe it), instead of reading it all into memory with readFile.
 Q: How do you create an HTTP server without frameworks?
 A: http.createServer with a request handler: inspect req.method and req.url, read the body from the request stream, set status and headers, and end the response.
@@ -396,11 +396,11 @@ for await (const [msg] of on(socket, 'message', { signal: AbortSignal.timeout(60
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is EventEmitter?
+Q*: What is EventEmitter?
 A: Node's implementation of the observer pattern: objects emit named events and registered listeners are called synchronously in order. Many core objects (streams, servers, process) extend it.
-Q: Are event listeners called synchronously or asynchronously?
+Q*: Are event listeners called synchronously or asynchronously?
 A: Synchronously, in registration order, during the emit() call.
-Q: What happens when an 'error' event has no listener?
+Q*: What happens when an 'error' event has no listener?
 A: The emitter throws the error, which crashes the process if nothing catches it.
 Q: What does MaxListenersExceededWarning mean?
 A: More than 10 listeners were added for one event, which usually indicates a memory leak from adding listeners repeatedly.
@@ -491,11 +491,11 @@ await pipeline(
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a Buffer?
+Q*: What is a Buffer?
 A: A fixed-size chunk of raw bytes (a Uint8Array subclass) used to handle binary data such as files, network packets and encodings.
-Q: What are the four stream types?
+Q*: What are the four stream types?
 A: Readable (source), Writable (destination), Duplex (independent read and write, like sockets) and Transform (a duplex that modifies data, like gzip).
-Q: Why use streams instead of readFile?
+Q*: Why use streams instead of readFile?
 A: Streams process data chunk by chunk with constant memory and start producing output immediately, so they handle files larger than memory and reduce latency.
 Q: What is backpressure?
 A: When a writable cannot keep up with a readable; write() returns false and the producer should pause until 'drain'. pipe and pipeline handle it automatically.
@@ -597,11 +597,11 @@ app.use((err, req, res, next) => {
 - Alternatives: **Fastify** (faster, schema-based), NestJS (Angular-like structure with DI), Koa, Hono.
 
 ## Interview Q&A | sky | wide
-Q: What is middleware in Express?
+Q*: What is middleware in Express?
 A: A function (req, res, next) in the request pipeline that can modify the request or response, end the cycle, or pass control with next(); middleware runs in registration order.
-Q: How does Express recognise error-handling middleware?
+Q*: How does Express recognise error-handling middleware?
 A: By its four parameters (err, req, res, next); it is registered after routes and invoked when next(err) is called or a handler throws.
-Q: How are async errors handled in Express 5 vs 4?
+Q*: How are async errors handled in Express 5 vs 4?
 A: Express 5 forwards rejected promises from handlers to the error middleware automatically; Express 4 required try/catch with next(err) or a wrapper.
 Q: req.params vs req.query vs req.body?
 A: params are route path variables (/users/:id), query is the parsed query string (?page=2), body is the parsed request body (requires express.json or similar).
@@ -660,11 +660,11 @@ A: Routers per resource, thin controllers, a service layer for business logic, a
 - Do not commit `node_modules`; do commit the lock file.
 
 ## Interview Q&A | sky | wide
-Q: Caret vs tilde?
+Q*: Caret vs tilde?
 A: ^1.2.3 allows minor and patch updates below 2.0.0; ~1.2.3 allows only patch updates below 1.3.0. For 0.x versions, caret allows only patch updates within the same minor.
-Q: Why commit package-lock.json?
+Q*: Why commit package-lock.json?
 A: It pins the exact dependency tree with integrity hashes so every developer, CI run and deployment installs identical versions.
-Q: npm install vs npm ci?
+Q*: npm install vs npm ci?
 A: npm install resolves from package.json and can update the lock file; npm ci installs exactly from the lock file, fails on mismatch, removes node_modules first, and is meant for CI and production builds.
 Q: dependencies vs devDependencies vs peerDependencies?
 A: dependencies are needed at runtime; devDependencies only for development and builds; peerDependencies must be provided by the consuming project, typically for plugins and component libraries.
@@ -722,11 +722,11 @@ console.log('after');
 - Tie to experience: "Our CSV export blocked the API for seconds; switching to a cursor plus a stream pipeline kept memory flat and the API responsive."
 
 ## Big Interview Q&A | sky | wide
-Q: Is Node.js single-threaded?
+Q*: Is Node.js single-threaded?
 A: JavaScript execution is single-threaded per process, but Node uses the OS and a libuv thread pool for I/O, and offers worker_threads and multiple processes for parallel work.
-Q: How would you handle a CPU-intensive task in an API?
+Q*: How would you handle a CPU-intensive task in an API?
 A: Move it off the main thread: a worker_threads pool, a child process, or a background job queue (BullMQ with Redis), returning a job id and notifying or polling for completion.
-Q: How do you handle uncaught exceptions?
+Q*: How do you handle uncaught exceptions?
 A: Catch errors where they happen; use process-level handlers only to log and exit gracefully, and rely on a process manager or orchestrator to restart the service.
 Q: What is the difference between process.nextTick and a promise microtask?
 A: Both run before the event loop continues, but the nextTick queue is drained before the promise microtask queue.

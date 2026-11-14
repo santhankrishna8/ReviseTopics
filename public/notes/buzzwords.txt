@@ -35,11 +35,11 @@ Operate                  IaC, Terraform, Helm, build caching, on-call, incidents
 - **Draw it**: most of these are two boxes and an arrow. If you can sketch it on a whiteboard, you can explain it.
 
 ## Beginner Q&A
-Q: An interviewer says "explain idempotency like I'm new". What does a good answer look like?
+Q*: An interviewer says "explain idempotency like I'm new". What does a good answer look like?
 A: A one-line definition (doing it twice has the same effect as doing it once), an everyday example (pressing the lift button ten times still calls one lift), a tech example (a payment API with an Idempotency-Key header), and why it matters (it makes retries safe).
-Q: What if I'm asked about a buzzword I've never heard?
+Q*: What if I'm asked about a buzzword I've never heard?
 A: Say so, then reason from the name and the concepts around it: "I haven't used X, but if it works like Y, I'd expect...". Interviewers reward clear reasoning.
-Q: Should I name tools in my answers?
+Q*: Should I name tools in my answers?
 A: Yes, after the concept: "a distributed lock, for example with Redis or etcd". Concept first, tool second, so the answer survives a "what if we don't use Redis?" follow-up.
 
 # 01 | Traffic Control: Terms 1-5 | Rate limiting, caching, load balancing, reverse proxies and API gateways, plus bonus buzzwords: throttling, token bucket, sticky sessions, consistent hashing, TLS termination, BFF, single point of failure | Traffic Control
@@ -1454,11 +1454,11 @@ N+1 query vs N+1 redundancy          101 queries for 100 rows (bad)          vs 
 ```
 
 ## One-Liners: Quiz Yourself on All 111
-Q: 1. Rate limiting
+Q*: 1. Rate limiting
 A: Capping how many requests a client may make per time window; the excess gets `429 Too Many Requests`.
-Q: 2. Caching
+Q*: 2. Caching
 A: Keeping copies of hot data in a faster layer so repeated reads skip the slow source; trades freshness for speed.
-Q: 3. Load balancing
+Q*: 3. Load balancing
 A: Spreading requests across healthy servers so none is overloaded and failed ones get no traffic.
 Q: 4. Reverse proxy
 A: A server in front of your servers that receives requests for them: TLS, caching, compression, routing.
@@ -1678,11 +1678,11 @@ Q: 111. Postmortem
 A: A blameless written review: impact, timeline, contributing factors and owned action items.
 
 ## Scenario Questions That Chain Buzzwords
-Q: "Customers were charged twice during a network glitch." What went wrong and how do you fix it?
+Q*: "Customers were charged twice during a network glitch." What went wrong and how do you fix it?
 A: The client or a queue **retried** a non-**idempotent** charge. Add an **idempotency key** stored under a unique constraint, return the stored result for repeats, and make consumers idempotent because delivery is **at-least-once**.
-Q: Your p99 latency doubled right after a deploy. Walk me through it.
+Q*: Your p99 latency doubled right after a deploy. Walk me through it.
 A: Check the deploy marker on the dashboards and **roll back** first if users are hurting (mitigate before investigating). Then compare **traces** before and after to find the slow span, look for new **N+1 queries**, missing **indexes**, smaller **connection pools** or more **GC** pauses, and add a **canary** stage so the next regression is caught at 5% of traffic.
-Q: How do you rename a database column with zero downtime?
+Q*: How do you rename a database column with zero downtime?
 A: **Expand-contract**: add the new column, deploy code that writes both, **backfill**, switch reads, then drop the old column in a later release. Each step works with the old and new versions during a **rolling deployment**.
 Q: Five instances all run the same nightly cron job. How do you make it run once?
 A: A **distributed lock** with a lease (ShedLock, Redis `SET NX PX`, a database lock), or a single scheduler such as a Kubernetes `CronJob`, plus making the job **idempotent** in case it ever runs twice.

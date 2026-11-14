@@ -164,11 +164,11 @@ public class OrderService {
 - **Java vs JavaScript**: unrelated languages. The name was a 1995 marketing decision.
 
 ## Interview Q&A | sky | wide
-Q: What are the main features of Java?
+Q*: What are the main features of Java?
 A: Simple, object-oriented, platform independent through bytecode and the JVM, robust (strong typing, exceptions, garbage collection), secure, multithreaded, high performance through the JIT, and dynamic (runtime class loading, reflection).
-Q: Why is Java not purely object-oriented?
+Q*: Why is Java not purely object-oriented?
 A: It has primitive types that are not objects, and static members that belong to classes rather than instances.
-Q: Can a .java file contain more than one class?
+Q*: Can a .java file contain more than one class?
 A: Yes, but only one top-level class can be public, and it must have the same name as the file.
 Q: Can you overload main?
 A: Yes. You can declare other `main` methods with different parameters, but the launcher only calls `public static void main(String[] args)` (or, from Java 25, an instance `void main()`).
@@ -249,11 +249,11 @@ module com.shop.orders {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Why is Java platform independent?
+Q*: Why is Java platform independent?
 A: `javac` compiles to bytecode, not machine code. Any OS with a JVM can run that bytecode. The JVM itself is platform-specific.
-Q: Is Java compiled or interpreted?
+Q*: Is Java compiled or interpreted?
 A: Both. Source is compiled to bytecode. The JVM interprets bytecode at first and the JIT compiles hot paths to native code at runtime.
-Q: What is the JIT compiler?
+Q*: What is the JIT compiler?
 A: Part of the JVM that compiles frequently executed bytecode to optimised native code at runtime, using profiling data (inlining, escape analysis). Tiered: C1 then C2.
 Q: Explain the parent delegation model.
 A: A class loader first delegates loading to its parent, up to Bootstrap. Only if the parent cannot find the class does the child load it. This protects core classes and avoids duplicates.
@@ -359,11 +359,11 @@ var x = 10;                           // int
 ```
 
 ## Interview Q&A | sky | wide
-Q: Is Java pass-by-value or pass-by-reference?
+Q*: Is Java pass-by-value or pass-by-reference?
 A: Always pass-by-value. For objects the value is a copy of the reference, so you can mutate the object but not rebind the caller's variable.
-Q: Why does `Integer a = 128, b = 128; a == b` give false?
+Q*: Why does `Integer a = 128, b = 128; a == b` give false?
 A: `==` compares references. `Integer.valueOf` caches only -128 to 127, so 128 creates two separate objects. Use `equals`.
-Q: Why does `b = b + 1` fail for a `byte` but `b += 1` compiles?
+Q*: Why does `b = b + 1` fail for a `byte` but `b += 1` compiles?
 A: Arithmetic promotes `byte` to `int`, so `b + 1` is an `int` that needs an explicit cast. Compound assignment includes an implicit narrowing cast.
 Q: How do you handle money in Java?
 A: `BigDecimal` constructed from a `String`, with an explicit `RoundingMode`, or store minor units (cents) in a `long`. Never `double`.
@@ -452,11 +452,11 @@ class Duck implements Walker, Swimmer {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What are the four pillars of OOP?
+Q*: What are the four pillars of OOP?
 A: Encapsulation (hide state behind methods), Inheritance (reuse via IS-A), Polymorphism (one call, behaviour depends on the object), Abstraction (expose what, hide how).
-Q: Why does Java not support multiple inheritance of classes?
+Q*: Why does Java not support multiple inheritance of classes?
 A: To avoid the diamond problem with conflicting state and implementations. Interfaces give multiple inheritance of type, and conflicts in default methods must be resolved explicitly.
-Q: Can you override a static method?
+Q*: Can you override a static method?
 A: No. A subclass static method with the same signature hides the parent's. Which one runs depends on the declared type, not the object.
 Q: Can you override a private method?
 A: No. It is not visible to the subclass. A method with the same name in the child is a new, unrelated method.
@@ -551,11 +551,11 @@ public final class Money {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Can a constructor be private? Why?
+Q*: Can a constructor be private? Why?
 A: Yes. Used for singletons, static factory methods, utility classes (no instances) and builders.
-Q: Can a constructor be `final`, `static` or `abstract`?
+Q*: Can a constructor be `final`, `static` or `abstract`?
 A: No. Constructors are not inherited, so `final` and `abstract` make no sense, and they always work on an instance, so not `static`.
-Q: What is the difference between a static nested class and an inner class?
+Q*: What is the difference between a static nested class and an inner class?
 A: A static nested class has no reference to an outer instance. An inner class is tied to an outer instance and can access its fields, which also keeps the outer object alive.
 Q: How do you make a class immutable?
 A: Make the class final, fields private final, no setters, deep or defensive copies of mutable fields in and out, and initialise everything in the constructor.
@@ -664,11 +664,11 @@ Map<Character, Long> freq = s.chars().mapToObj(c -> (char) c)
 ```
 
 ## Interview Q&A | sky | wide
-Q: How many objects does `new String("hello")` create?
+Q*: How many objects does `new String("hello")` create?
 A: Up to two: the literal "hello" in the pool (if not already there) and a new String object on the heap.
-Q: Why is `String` final and immutable?
+Q*: Why is `String` final and immutable?
 A: So it can be safely shared from the pool, cached in hash-based collections (hash is computed once), used safely across threads, and trusted for security-sensitive values.
-Q: `StringBuilder` vs `StringBuffer`?
+Q*: `StringBuilder` vs `StringBuffer`?
 A: Same API. `StringBuffer` synchronises every method (thread-safe, slower). `StringBuilder` does not and is the default choice.
 Q: Why store passwords in `char[]` rather than `String`?
 A: A `char[]` can be wiped after use. A `String` is immutable and may stay in memory (and the pool) until GC, and can leak into logs.
@@ -757,11 +757,11 @@ public class OrderNotFoundException extends RuntimeException {
 - **Helpful NullPointerExceptions** (Java 14+) tell you exactly which reference was null.
 
 ## Interview Q&A | sky | wide
-Q: Checked vs unchecked exceptions?
+Q*: Checked vs unchecked exceptions?
 A: Checked exceptions extend `Exception` (not `RuntimeException`) and must be caught or declared. Unchecked extend `RuntimeException`, signal programming errors and need no declaration.
-Q: `Error` vs `Exception`?
+Q*: `Error` vs `Exception`?
 A: `Error` indicates serious problems the application usually cannot recover from, like `OutOfMemoryError`. `Exception` covers conditions an application might handle.
-Q: Does `finally` always execute?
+Q*: Does `finally` always execute?
 A: Yes, except when the JVM exits (`System.exit`), crashes, or the thread is killed. It runs even after `return` in try or catch.
 Q: `final` vs `finally` vs `finalize`?
 A: `final` is a modifier (no reassign, override or extend). `finally` is a block that always runs after try/catch. `finalize` was a GC callback and is deprecated for removal. Use `Cleaner` or try-with-resources instead.
@@ -856,11 +856,11 @@ people.sort(Comparator.comparing(Person::dept)
 > * = amortised: occasional resize copies the whole array.
 
 ## Interview Q&A | sky | wide
-Q: `ArrayList` vs `LinkedList`?
+Q*: `ArrayList` vs `LinkedList`?
 A: ArrayList has O(1) random access and better cache locality. LinkedList has O(1) insert and remove at the ends or through an iterator, but O(n) access. ArrayList is the right default in almost all cases.
-Q: `HashMap` vs `Hashtable` vs `ConcurrentHashMap`?
+Q*: `HashMap` vs `Hashtable` vs `ConcurrentHashMap`?
 A: HashMap is unsynchronised and allows a null key. Hashtable is legacy, locks the whole table and disallows nulls. ConcurrentHashMap is thread-safe with fine-grained locking and CAS, and disallows nulls.
-Q: `HashSet` vs `TreeSet` vs `LinkedHashSet`?
+Q*: `HashSet` vs `TreeSet` vs `LinkedHashSet`?
 A: HashSet: O(1), no order. LinkedHashSet: O(1), insertion order. TreeSet: O(log n), sorted order.
 Q: Comparable vs Comparator?
 A: Comparable defines one natural ordering inside the class via `compareTo`. Comparator defines external orderings and can be composed. Use Comparator for multiple sort orders or classes you do not own.
@@ -950,11 +950,11 @@ map.putIfAbsent(k, v);
 ```
 
 ## Interview Q&A | sky | wide
-Q: How does HashMap work internally?
+Q*: How does HashMap work internally?
 A: It hashes the key (`hashCode` with high bits mixed in), finds the bucket with `(n-1) & hash`, then stores or updates a node there. Collisions chain in a list that becomes a red-black tree at 8 nodes when capacity is at least 64. It doubles capacity when size exceeds capacity times 0.75.
-Q: What happens if two keys have the same hashCode?
+Q*: What happens if two keys have the same hashCode?
 A: They go to the same bucket. `equals` decides whether it is the same key (replace value) or a different key (append to the chain).
-Q: Why must the capacity be a power of two?
+Q*: Why must the capacity be a power of two?
 A: So `(n-1) & hash` can replace the slower modulo and so resize can split each bucket with a single bit check.
 Q: What if you override `equals` but not `hashCode`?
 A: Equal objects may get different hash codes, land in different buckets, and a HashSet can then contain "duplicates" or a HashMap `get` can miss.
@@ -1044,11 +1044,11 @@ User u = create(User::new);
 - **Heap pollution** with generic varargs: mark safe methods with `@SafeVarargs`.
 
 ## Interview Q&A | sky | wide
-Q: What is type erasure?
+Q*: What is type erasure?
 A: The compiler removes generic type information after checking it, replacing type parameters with their bounds or Object and inserting casts. At runtime `List<String>` and `List<Integer>` are the same class.
-Q: Explain PECS.
+Q*: Explain PECS.
 A: Producer Extends, Consumer Super. Use `? extends T` when a structure only gives you Ts to read, and `? super T` when it only accepts Ts to write.
-Q: Is `List<Integer>` a subtype of `List<Number>`?
+Q*: Is `List<Integer>` a subtype of `List<Number>`?
 A: No, generics are invariant. Use `List<? extends Number>` to accept both.
 Q: Why can you not create a generic array?
 A: Arrays check element types at runtime, but erased generics have no runtime type, so the array could not enforce type safety.
@@ -1137,11 +1137,11 @@ repo.findById(id).orElseGet(this::createDefault); // runs only if empty
 - **Currying / partial application** is possible: `Function<Integer, Function<Integer, Integer>> add = a -> b -> a + b;`
 
 ## Interview Q&A | sky | wide
-Q: What is a functional interface?
+Q*: What is a functional interface?
 A: An interface with exactly one abstract method, so it can be implemented by a lambda or method reference. Examples: `Runnable`, `Comparator`, `Function`, `Predicate`.
-Q: Why must captured variables be effectively final?
+Q*: Why must captured variables be effectively final?
 A: Lambdas capture the value, not the variable. Allowing changes would create confusing behaviour and data races when the lambda runs later or on another thread.
-Q: `orElse` vs `orElseGet`?
+Q*: `orElse` vs `orElseGet`?
 A: `orElse` evaluates its argument every time, even when a value is present. `orElseGet` takes a supplier and calls it only when the Optional is empty.
 Q: `map` vs `flatMap` in Optional?
 A: `map` wraps the function result in an Optional. `flatMap` is for functions that already return an Optional, so you do not get `Optional<Optional<T>>`.
@@ -1262,11 +1262,11 @@ String joined = emps.stream().map(Employee::name).collect(Collectors.joining(", 
 ```
 
 ## Interview Q&A | sky | wide
-Q: Intermediate vs terminal operations?
+Q*: Intermediate vs terminal operations?
 A: Intermediate operations return a new stream and are lazy. Terminal operations produce a result or side effect and trigger processing of the whole pipeline.
-Q: `map` vs `flatMap`?
+Q*: `map` vs `flatMap`?
 A: `map` transforms each element into exactly one element. `flatMap` transforms each element into a stream and flattens all those streams into one.
-Q: Why are streams lazy?
+Q*: Why are streams lazy?
 A: So operations can be fused into a single pass and short-circuited, which avoids unneeded work and allows infinite streams.
 Q: Collection vs Stream?
 A: A collection stores data and can be iterated many times. A stream is a one-shot computation pipeline over a source that stores nothing.
@@ -1358,11 +1358,11 @@ if (obj instanceof String str && !str.isBlank()) System.out.println(str.length()
 > Name 2-3 features from the version your project uses and a real use case. Newer releases arrive every March and September.
 
 ## Interview Q&A | sky | wide
-Q: Why was `java.time` introduced?
+Q*: Why was `java.time` introduced?
 A: `Date` and `Calendar` are mutable, not thread-safe, have confusing APIs (0-based months) and poor time zone support. `java.time` types are immutable, thread-safe and clear.
-Q: What is a record and when would you not use one?
+Q*: What is a record and when would you not use one?
 A: An immutable, transparent data carrier with generated constructor, accessors, equals, hashCode and toString. Not for JPA entities (they need a no-arg constructor, mutability and proxies) or classes needing inheritance.
-Q: Can a record have extra methods or fields?
+Q*: Can a record have extra methods or fields?
 A: Methods and static fields, yes. Extra instance fields, no: the state is exactly the components.
 Q: What are sealed classes for?
 A: To restrict a hierarchy to known subtypes so the domain is explicit and switches can be checked for exhaustiveness.
@@ -1458,11 +1458,11 @@ synchronized (b) { synchronized (a) { ... } }   // thread 2
 ```
 
 ## Interview Q&A | sky | wide
-Q: `start()` vs `run()`?
+Q*: `start()` vs `run()`?
 A: `start()` creates a new thread that then calls `run()`. Calling `run()` directly executes it on the current thread like any normal method.
-Q: `Runnable` vs `Callable`?
+Q*: `Runnable` vs `Callable`?
 A: Runnable's `run()` returns nothing and cannot throw checked exceptions. Callable's `call()` returns a value and can throw checked exceptions. Callable is submitted to an executor and gives a Future.
-Q: `sleep()` vs `wait()`?
+Q*: `sleep()` vs `wait()`?
 A: `sleep` is a static Thread method that pauses without releasing locks. `wait` is an Object method that must be called inside synchronized, releases the monitor and waits for notify or a timeout.
 Q: What does `volatile` do?
 A: Guarantees visibility of writes across threads and prevents instruction reordering around the variable. It does not make operations like `count++` atomic.
@@ -1581,11 +1581,11 @@ long total = ForkJoinPool.commonPool().invoke(new SumTask(arr, 0, arr.length));
 ```
 
 ## Interview Q&A | sky | wide
-Q: Explain how ThreadPoolExecutor handles a new task.
+Q*: Explain how ThreadPoolExecutor handles a new task.
 A: If fewer than core threads run, start a new thread. Otherwise queue the task. If the queue is full and threads are below max, start a new thread. Otherwise apply the rejection policy.
-Q: Why avoid `Executors.newFixedThreadPool` in production?
+Q*: Why avoid `Executors.newFixedThreadPool` in production?
 A: It uses an unbounded `LinkedBlockingQueue`, so a burst can queue tasks until the heap runs out. Build a `ThreadPoolExecutor` with a bounded queue and a rejection policy.
-Q: `Future` vs `CompletableFuture`?
+Q*: `Future` vs `CompletableFuture`?
 A: Future only supports blocking `get` and cancel. CompletableFuture supports chaining, combining, error handling and manual completion without blocking.
 Q: `thenApply` vs `thenCompose`?
 A: `thenApply` maps the result with a normal function. `thenCompose` is for a function that returns another CompletableFuture, flattening it (like flatMap).
@@ -1644,11 +1644,11 @@ ScopedValue.where(USER, "ann").run(() -> handleRequest());
 - Reactive still wins for **streaming and back-pressure** scenarios.
 
 ## Interview Q&A | sky | wide
-Q: What are virtual threads?
+Q*: What are virtual threads?
 A: JVM-managed lightweight threads (Java 21) that are scheduled onto a few carrier OS threads. When they block on I/O they unmount, so you can run millions with simple blocking code.
-Q: Do virtual threads make code faster?
+Q*: Do virtual threads make code faster?
 A: They increase throughput for I/O-bound workloads by allowing far more concurrent tasks. They do not speed up CPU-bound work or individual requests.
-Q: What is pinning?
+Q*: What is pinning?
 A: When a virtual thread cannot unmount from its carrier while blocked, for example inside native code or (before Java 24) inside a synchronized block, so it ties up the carrier thread.
 Q: Should you pool virtual threads?
 A: No. Create one per task. Use semaphores to limit access to scarce resources.
@@ -1710,11 +1710,11 @@ jstat -gcutil <pid> 1000          # GC utilisation every second
 ```
 
 ## Interview Q&A | sky | wide
-Q: Explain the JVM heap structure.
+Q*: Explain the JVM heap structure.
 A: Young generation (Eden plus two survivor spaces) for new objects, and Old generation for long-lived ones. Minor GCs clean young, promoted survivors move to old, major or full GCs clean old. Class metadata lives in Metaspace outside the heap.
-Q: How does garbage collection work?
+Q*: How does garbage collection work?
 A: The GC marks every object reachable from GC roots (stack references, statics, threads), then reclaims the rest, and compacts or copies to reduce fragmentation.
-Q: Which GC would you choose?
+Q*: Which GC would you choose?
 A: G1 by default. ZGC for low latency or very large heaps. Parallel for throughput-focused batch jobs. Serial for tiny heaps or single-CPU containers.
 Q: Can Java have memory leaks?
 A: Yes, when objects stay reachable but are no longer needed: static caches, unremoved listeners, ThreadLocals, unclosed resources.
@@ -1793,11 +1793,11 @@ proxy.greet("Ann");
 - `Externalizable` gives full manual control.
 
 ## Interview Q&A | sky | wide
-Q: What is reflection and where is it used?
+Q*: What is reflection and where is it used?
 A: Runtime inspection and invocation of classes, methods and fields. Frameworks like Spring, Hibernate, Jackson and JUnit use it to create beans, map entities, serialise objects and find tests.
-Q: Disadvantages of reflection?
+Q*: Disadvantages of reflection?
 A: Slower, breaks encapsulation, bypasses compile-time checks, and is restricted by the module system for JDK internals.
-Q: What does `@Retention(RUNTIME)` mean?
+Q*: What does `@Retention(RUNTIME)` mean?
 A: The annotation is kept in the class file and is available through reflection at runtime. SOURCE is discarded by the compiler, CLASS is in the class file but not visible to reflection.
 Q: JDK proxy vs CGLIB?
 A: JDK proxies implement interfaces only. CGLIB creates a runtime subclass, so it works with concrete classes but not final classes or methods. Spring uses CGLIB by default in Spring Boot.
@@ -1904,11 +1904,11 @@ for (Integer i : list) if (i == 1) list.remove(i);     // ConcurrentModification
 - For coding rounds, state complexity and edge cases (`null`, empty, duplicates, overflow) before you are asked.
 
 ## Big Interview Q&A | sky | wide
-Q: What are the main features of Java?
+Q*: What are the main features of Java?
 A: Platform independent (bytecode + JVM), object-oriented, strongly and statically typed, automatic memory management (GC), multithreading built in, rich standard library, secure (bytecode verifier, no pointers), and backward compatible.
-Q: Why is Java not 100% object-oriented?
+Q*: Why is Java not 100% object-oriented?
 A: It has primitive types that are not objects, and static members that do not belong to objects.
-Q: What happens when you write `new User()`?
+Q*: What happens when you write `new User()`?
 A: The class is loaded and initialised if needed, memory is allocated on the heap (often from a thread-local allocation buffer), fields get default values, initialisers and the constructor chain run from Object down, and the reference is returned.
 Q: How would you make a class thread-safe?
 A: Make it immutable if possible. Otherwise confine state, guard shared mutable state with synchronized or locks, use atomic classes or concurrent collections, and avoid publishing `this` during construction.

@@ -91,11 +91,11 @@ export default function App() {
 - **React vs React Native**: the same component model and hooks; React DOM renders HTML elements in browsers, React Native renders native mobile views (`<View>`, `<Text>`).
 
 ## Interview Q&A | sky | wide
-Q: What is React?
+Q*: What is React?
 A: An open-source JavaScript library from Meta for building user interfaces from components, using a declarative model in which the UI is a function of state.
-Q: Is React a library or a framework?
+Q*: Is React a library or a framework?
 A: A library: it handles rendering the view. Routing, data fetching and builds come from other libraries or from frameworks built on React such as Next.js.
-Q: What are the main features of React?
+Q*: What are the main features of React?
 A: Components, JSX, a declarative model, one-way data flow, hooks, efficient updates through reconciliation (the virtual DOM), and a huge ecosystem including React Native.
 Q: How do you create a new React app today?
 A: With a framework such as `npx create-next-app@latest`, or a client-only app with Vite: `npm create vite@latest my-app -- --template react-ts`. Create React App is deprecated.
@@ -169,11 +169,11 @@ createRoot(document.getElementById('root')).render(
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is React?
+Q*: What is React?
 A: A declarative, component-based JavaScript library for building UIs, where components render UI as a function of props and state and React efficiently updates the DOM.
-Q: What is JSX and is it required?
+Q*: What is JSX and is it required?
 A: A syntax extension compiled into `jsx()` / `React.createElement` calls that produce React elements. It is not required, but it is the standard way to write React.
-Q: Why `className` instead of `class`?
+Q*: Why `className` instead of `class`?
 A: JSX compiles to JavaScript objects and `class` is a reserved word; React mirrors the DOM property name `className`.
 Q: Why does `{count && <List />}` sometimes print 0?
 A: `&&` returns its left operand when falsy, and React renders the number 0. Use `count > 0 && ...` or a ternary.
@@ -260,11 +260,11 @@ class ErrorBoundary extends React.Component {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Function vs class components?
+Q*: Function vs class components?
 A: Function components use hooks for state and effects, avoid `this`, and share logic via custom hooks; class components use this.state, setState and lifecycle methods. New code uses functions, but error boundaries still need a class.
-Q: Props vs state?
+Q*: Props vs state?
 A: Props are inputs passed from the parent and are read-only for the child; state is data a component owns and changes over time, triggering re-renders.
-Q: Can a child modify its props?
+Q*: Can a child modify its props?
 A: No. Props are read-only; the child calls a callback prop so the parent updates its own state.
 Q: What is the children prop?
 A: The content placed between a component's opening and closing tags, enabling composition such as layouts, cards and dialogs.
@@ -343,11 +343,11 @@ function SearchForm({ onSearch }) {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Why does calling `setCount(count + 1)` three times only add one?
+Q*: Why does calling `setCount(count + 1)` three times only add one?
 A: Each call reads count from the same render snapshot, so all three set the same value. Use functional updates `setCount(c => c + 1)`.
-Q: Is setState synchronous?
+Q*: Is setState synchronous?
 A: No, updates are queued and batched; the component re-renders afterwards, so the variable in the current render keeps its old value.
-Q: What is automatic batching?
+Q*: What is automatic batching?
 A: Since React 18, all state updates within the same tick (including in promises and timeouts) are combined into one render.
 Q: Why must state be updated immutably?
 A: React detects changes by reference equality; mutating in place keeps the same reference, so React may skip the re-render and memoised children never see the change.
@@ -413,11 +413,11 @@ function OrderList({ status, orders, error }) {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is the key prop for?
+Q*: What is the key prop for?
 A: It identifies elements in a list across renders so reconciliation can reuse, reorder or remove the correct elements and their state.
-Q: Why is index as key a problem?
+Q*: Why is index as key a problem?
 A: When items are inserted, removed or reordered, indexes shift, so React associates state and DOM with the wrong items. Use stable ids.
-Q: Do keys need to be globally unique?
+Q*: Do keys need to be globally unique?
 A: No, only unique among siblings in the same list.
 Q: How do you render nothing?
 A: Return null (or false) from the component or the expression.
@@ -494,11 +494,11 @@ function Profile({ userId }) {
 - **Notifying a parent**: call the parent callback in the same event handler that changes state.
 
 ## Interview Q&A | sky | wide
-Q: What does the dependency array do?
+Q*: What does the dependency array do?
 A: It tells React when to re-run the effect: no array means every render, an empty array means only after mount, and listed values mean whenever any of them changes.
-Q: When does the cleanup function run?
+Q*: When does the cleanup function run?
 A: Before the effect runs again with new dependencies and when the component unmounts.
-Q: useEffect vs useLayoutEffect?
+Q*: useEffect vs useLayoutEffect?
 A: useEffect runs after paint and does not block it; useLayoutEffect runs synchronously after DOM updates but before paint, for measurements that must be applied without flicker.
 Q: Why does my effect run twice in development?
 A: StrictMode intentionally mounts, unmounts and remounts components in development to reveal effects without proper cleanup. It does not happen in production.
@@ -597,11 +597,11 @@ const [theme, setTheme] = useLocalStorage('theme', 'light');
 - Exception: **`use()`** (React 19) can be called conditionally.
 
 ## Interview Q&A | sky | wide
-Q: useRef vs useState?
+Q*: useRef vs useState?
 A: Both persist across renders, but changing a ref does not re-render; use refs for DOM nodes and mutable values that do not affect the output, and state for anything that should update the UI.
-Q: What is prop drilling and how do you avoid it?
+Q*: What is prop drilling and how do you avoid it?
 A: Passing props through many intermediate components that do not use them. Avoid it with composition (passing elements as children), context, or a state library.
-Q: Why can context hurt performance?
+Q*: Why can context hurt performance?
 A: Every consumer re-renders when the context value changes; unmemoised object values change every render. Memoise values and split contexts.
 Q: What is a custom hook?
 A: A function starting with use that encapsulates reusable stateful logic built from other hooks; each caller gets independent state.
@@ -667,11 +667,11 @@ function Search({ items }) {
 ```
 
 ## Interview Q&A | sky | wide
-Q: useMemo vs useCallback?
+Q*: useMemo vs useCallback?
 A: useMemo caches the result of a calculation; useCallback caches a function itself. useCallback(fn, deps) is the same as useMemo(() => fn, deps).
-Q: When does React.memo not help?
+Q*: When does React.memo not help?
 A: When props change every render, typically new objects, arrays or inline functions, or when the component re-renders from its own state or context.
-Q: What is referential equality and why does it matter?
+Q*: What is referential equality and why does it matter?
 A: Objects and functions are equal only if they are the same reference. React compares props, dependencies and state by reference, so recreating them each render causes extra renders or effect runs.
 Q: Should you wrap everything in useMemo?
 A: No. Memoisation has costs; use it for measured expensive work or to stabilise references passed to memoised components or effects. The React Compiler can automate it.
@@ -776,11 +776,11 @@ function NewsletterForm() {
 - **Schema validation** with **Zod** (or Yup) shares one schema between client and server and infers TypeScript types.
 
 ## Interview Q&A | sky | wide
-Q: Controlled vs uncontrolled components?
+Q*: Controlled vs uncontrolled components?
 A: A controlled input's value lives in React state and changes through onChange; an uncontrolled input keeps its value in the DOM and React reads it with a ref or FormData when needed.
-Q: When would you choose uncontrolled inputs?
+Q*: When would you choose uncontrolled inputs?
 A: Simple forms read only on submit, file inputs, very large forms where per-keystroke renders matter, or integrating non-React widgets.
-Q: What causes the "uncontrolled to controlled" warning?
+Q*: What causes the "uncontrolled to controlled" warning?
 A: The value prop starts as undefined or null and later becomes a string. Initialise controlled values with an empty string.
 Q: What is useActionState?
 A: A React 19 hook that wires a form action to state: it returns the latest state, a dispatchable form action and an isPending flag.
@@ -825,11 +825,11 @@ A: Give each input a name and update state with a computed key: `setForm(f => ({
 - Fiber enables **concurrent rendering** (React 18): `useTransition`, `useDeferredValue`, Suspense for data and streaming SSR, automatic batching, and (in 19.2) **`<Activity>`** to keep hidden UI alive in the background.
 
 ## Interview Q&A | sky | wide
-Q: What is the virtual DOM?
+Q*: What is the virtual DOM?
 A: An in-memory tree of React elements describing the UI. React diffs the new tree against the previous one and applies only the needed changes to the real DOM.
-Q: What is reconciliation?
+Q*: What is reconciliation?
 A: The algorithm that compares the new element tree with the previous one to decide which DOM nodes and component instances to keep, update, move or remove.
-Q: What happens when an element changes type?
+Q*: What happens when an element changes type?
 A: React tears down the old subtree, including component state and DOM, and mounts a new one.
 Q: What is React Fiber?
 A: The reconciler architecture since React 16 that splits rendering into units of work (fibers), allowing React to pause, prioritise and resume rendering; the foundation of concurrent features.
@@ -927,11 +927,11 @@ const mutation = useMutation({
 - **Shareable UI state** (filters, tabs, pagination) → the **URL** (search params).
 
 ## Interview Q&A | sky | wide
-Q: What does lifting state up mean?
+Q*: What does lifting state up mean?
 A: Moving shared state to the closest common ancestor so it becomes the single source of truth, passing values down as props and change handlers down as callbacks.
-Q: useState vs useReducer?
+Q*: useState vs useReducer?
 A: useState suits independent simple values; useReducer suits related fields and complex transitions expressed as actions handled by a pure, testable reducer.
-Q: Is Context a replacement for Redux?
+Q*: Is Context a replacement for Redux?
 A: Context only transports values; with useReducer it can manage simple global state, but it lacks selectors, middleware and devtools, and every consumer re-renders on change. Redux or Zustand scale better for complex, frequently updated state.
 Q: Server state vs client state?
 A: Server state is remote data that needs caching and synchronisation (best handled by TanStack Query or SWR); client state is local UI state owned by the browser session.
@@ -1005,11 +1005,11 @@ useEffect(() => { load(options); }, [options]); // runs every render; depend on 
 - In live coding: keys on lists, cleanup in effects, loading and error states, accessibility of interactive elements.
 
 ## Big Interview Q&A | sky | wide
-Q: How does React update the UI when state changes?
+Q*: How does React update the UI when state changes?
 A: The setter schedules a re-render; React calls the component to get a new element tree, reconciles it with the previous tree, and commits the minimal DOM changes, then runs effects.
-Q: What are hooks and why were they introduced?
+Q*: What are hooks and why were they introduced?
 A: Functions like useState and useEffect that let function components use state, lifecycle and context. They replaced classes to reduce boilerplate, avoid `this`, and share stateful logic through custom hooks instead of HOCs and render props.
-Q: What is the difference between a library and a framework, and which is React?
+Q*: What is the difference between a library and a framework, and which is React?
 A: A library is called by your code for specific tasks; a framework calls your code and dictates structure. React is a UI library; Next.js is a framework built on it.
 Q: Explain the component lifecycle with hooks.
 A: Mount runs the first render then effects; updates re-render and re-run effects whose dependencies changed (after cleaning up the previous run); unmount runs the cleanups.

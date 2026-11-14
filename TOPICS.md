@@ -48,6 +48,7 @@ A complete, granular breakdown of every topic on your resume to prepare for inte
    - [Testing: JUnit, Automated Tests & Unit Testing](#69-testing-junit-automated-testing--code-reviews)
    - [Software Engineering Practices: Agile, Scrum, JIRA, SDLC](#610-software-engineering-practices-agile-scrum-jira-sdlc)
    - [System Design (High-Level & Low-Level)](#611-system-design-hld--lld)
+7. [Data Structures & Algorithms (added on request)](#7-data-structures--algorithms-added-on-request)
 
 ---
 
@@ -803,3 +804,19 @@ A complete, granular breakdown of every topic on your resume to prepare for inte
     * Structural: Adapter, Decorator, Facade, Proxy, Composite.
     * Behavioral: Strategy, Observer, Command, Iterator, Template Method, State.
   * Database Schema Design and Clean Architecture / Hexagonal Architecture layers.
+
+---
+
+## 7. Data Structures & Algorithms (added on request)
+Notes file `public/notes/dsa.txt`: 29 sheets in Java, from absolute basics to advanced, each ending with the LeetCode problems to solve next. Every code block is compiled and tested, and every problem number and title is checked against LeetCode's list.
+* **Beginner:**
+  * Big-O, the Java collections toolkit, arrays and strings, hashing, two pointers, sliding window, prefix sums and Kadane, recursion.
+  * Linked lists, stacks, queues and deques (monotonic stack and deque), binary search (including on the answer), sorting and quickselect.
+* **Intermediate:**
+  * Binary trees (DFS, BFS, LCA, path problems), binary search trees, heaps and priority queues (top-K, two heaps).
+  * Backtracking, graphs (BFS, DFS, grids, topological sort, union-find), greedy algorithms and intervals.
+* **Advanced:**
+  * Dynamic programming (1D, knapsack, 2D, strings, intervals, bitmask).
+  * Dijkstra, Bellman-Ford, Floyd-Warshall, minimum spanning trees, bridges, Eulerian paths.
+  * Tries, bit manipulation and number theory, segment trees and Fenwick trees, KMP, Z-function, rolling hash, Manacher.
+* **Review:** a pattern finder (problem wording to technique), a roadmap of about 140 problems, a one-page summary, eleven code templates, a study plan, and rapid-fire questions.

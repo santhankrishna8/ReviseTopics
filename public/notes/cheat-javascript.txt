@@ -1,0 +1,222 @@
+# 01 | JavaScript Interview Cheat Sheet | The language's tricky parts with short examples, outputs and hooks. | JavaScript on one page
+
+### Core Language
+
+## var, let, const
+> **`var`** is function-scoped and hoisted (value `undefined`). **`let`/`const`** are block-scoped and live in the **temporal dead zone** until declared.
+```js
+console.log(a); var a = 1;      // undefined
+console.log(b); let b = 1;      // ReferenceError
+for (var i = 0; i < 3; i++) setTimeout(() => console.log(i));   // 3 3 3
+for (let j = 0; j < 3; j++) setTimeout(() => console.log(j));   // 0 1 2
+```
+- `const` stops reassignment, not mutation of objects.
+! Default to `const`; use `let` when it changes; avoid `var`.
+
+## Data Types & Equality
+> 7 primitives (`string, number, bigint, boolean, undefined, null, symbol`) and objects. `==` coerces; `===` does not.
+```js
+typeof null       // "object" (historic bug)      typeof [] // "object"  -> Array.isArray([])
+0.1 + 0.2 === 0.3 // false                         NaN === NaN // false -> Number.isNaN(x)
+"5" + 1 // "51"    "5" - 1 // 4    [] + {} // "[object Object]"    null == undefined // true
+```
+- Falsy: `false, 0, "", null, undefined, NaN, 0n`. Everything else is truthy.
+! Use `===`, always.
+
+## Functions & this
+> `this` is set by **how a function is called**; arrow functions take `this` from where they are **defined**.
+```js
+const o = { n: 1, a() { return this.n; }, b: () => this.n };
+o.a();                  // 1
+const f = o.a; f();     // undefined (lost this)   |   f.call({ n: 9 })  // 9
+```
+- Rules: method call -> the object; plain call -> `undefined` (strict); `new` -> new object; `call/apply/bind` -> explicit.
+! Arrow functions have no own `this`, `arguments` or `new`.
+
+## Closures
+> A function **remembers the variables of its outer scope** even after the outer function returned.
+```js
+const counter = () => { let c = 0; return () => ++c; };
+const next = counter(); next(); next();   // 1, 2
+```
+- Uses: private state, factories, memoization, debounce, currying. Risk: memory held by long-lived closures.
+! Closure = function + the scope it was born in.
+
+## Hoisting, Scope Chain
+- Function declarations hoist fully; `var` hoists as `undefined`; `let/const/class` hoist into the TDZ.
+- Lookup walks inner scope to outer to global; the first match wins (shadowing).
+! Declare before use and you never need to think about hoisting.
+
+## Prototypes & Classes
+> Objects inherit through the **prototype chain**. `class` is syntax over prototypes.
+```js
+class Animal { constructor(n) { this.n = n; } speak() { return this.n + " makes a sound"; } }
+class Dog extends Animal { speak() { return super.speak() + ": woof"; } }
+Object.getPrototypeOf(new Dog("d")) === Dog.prototype;   // true
+```
+- Property lookup climbs `__proto__` links to `null`. `#private` fields are truly private.
+! Missing property? Check the prototype chain.
+
+### Modern JS
+
+## Destructuring, Spread, Rest
+```js
+const { a, b: { c = 5 } = {}, ...others } = obj;     const [x, , y = 2, ...tail] = arr;
+const merged = { ...base, ...patch };   const copy = [...arr, 4];   function f(...args) {}
+const x2 = obj?.user?.name ?? "anon";                 // optional chaining + nullish
+```
+- `??` only replaces `null/undefined`; `||` replaces every falsy value (e.g. `0`).
+! Spread copies one level deep only.
+
+## Array Methods
+```js
+[1,2,3].map(x => x * 2);          // [2,4,6]      .filter(x => x > 1)   .find(x => x > 1)
+[1,2,3].reduce((s, x) => s + x, 0);  // 6          .some()  .every()  .includes()  .flatMap()
+[3,1,2].toSorted((a, b) => a - b);   // new array; sort() mutates and sorts as strings by default
+Object.entries(o).map(([k, v]) => `${k}=${v}`);     Object.fromEntries(pairs);
+```
+- `map/filter/reduce` return new values; `forEach` returns nothing and can't be awaited.
+! `[10,9,1].sort()` gives `[1,10,9]`; always pass a comparator.
+
+## Shallow vs Deep Copy
+```js
+const a = { n: { v: 1 } };
+const s = { ...a };  s.n.v = 2;        // a.n.v is 2 as well (shared)
+const d = structuredClone(a);          // deep copy (no functions)
+```
+! `JSON.parse(JSON.stringify(x))` drops functions, `undefined` and dates; use `structuredClone`.
+
+## ES Modules
+- `export const x`, `export default fn`; `import { x } from './a.js'`, `import fn from './a.js'`, dynamic `await import('./a.js')`.
+- Modules are singletons, strict mode, and live bindings. CommonJS: `require` / `module.exports`.
+! One file, one module scope.
+
+### Async
+
+## Event Loop
+> JS is single-threaded. The **call stack** runs first, then **microtasks** (promises), then one **macrotask** (timers, I/O), repeat.
+```js
+console.log(1);
+setTimeout(() => console.log(2));
+Promise.resolve().then(() => console.log(3));
+console.log(4);                      // 1 4 3 2
+```
+! Sync code, then all microtasks, then the next timer.
+
+## Promises & async/await
+```js
+const [a, b] = await Promise.all([fetchA(), fetchB()]);   // parallel, fails fast
+const r = await Promise.allSettled(list);                 // never rejects
+const first = await Promise.race([p1, p2]);              // first to settle
+try { await risky(); } catch (e) { handle(e); } finally { cleanup(); }
+```
+- `await` in a loop runs **sequentially**; use `Promise.all(items.map(...))` for parallel. An `async` function always returns a promise.
+! Forgetting `await` gives you a Promise, not the value.
+
+## Debounce & Throttle
+```js
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+```
+- **Debounce:** run after the user stops (search box). **Throttle:** at most once per interval (scroll).
+! Debounce = wait for quiet; throttle = steady drip.
+
+## Fetch & Errors
+```js
+const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+if (!res.ok) throw new Error(res.status);       // fetch only rejects on network errors
+const data = await res.json();
+```
+! HTTP 404 and 500 do not reject; check `res.ok`.
+
+## Common Output Puzzles
+```js
+console.log([] == false);        // true      console.log([1,2] + [3]);   // "1,23"
+console.log(typeof NaN);         // "number"  console.log(+"");           // 0
+console.log(1 < 2 < 3, 3 > 2 > 1);   // true false
+const o = { a: 1 }; Object.freeze(o); o.a = 2;   // silently ignored (error in strict mode)
+```
+! When in doubt, convert both sides to numbers and compare.
+
+### Browser & Storage
+
+## DOM & Events
+```js
+const el = document.querySelector("#list");   el.textContent = "x";   el.classList.toggle("on");
+el.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); });
+list.addEventListener("click", e => { const li = e.target.closest("li"); if (li) pick(li); });   // delegation
+```
+- Events **capture** down then **bubble** up. **Delegation:** one listener on the parent handles many children. `textContent` is safe; `innerHTML` with user input is an XSS risk.
+! Delegate to the parent for dynamic lists.
+
+## Web Storage & Cookies
+- **localStorage:** persistent, ~5 MB, strings, sync. **sessionStorage:** per tab. **Cookies:** sent with every request; use `HttpOnly; Secure; SameSite=Lax` for auth. **IndexedDB:** large structured async storage. **Cache API:** request/response cache for service workers.
+```js
+localStorage.setItem("k", JSON.stringify(obj));   JSON.parse(localStorage.getItem("k") ?? "null");
+```
+! Never keep tokens in localStorage if XSS is a concern; prefer HttpOnly cookies.
+
+## Workers
+- **Web Worker:** a background thread (no DOM) via `postMessage`, for heavy computation. **Service Worker:** a network proxy for offline, caching, push. **SharedWorker** shares between tabs.
+! Heavy CPU work goes to a worker so the UI stays smooth.
+
+## AbortController, Observers & Other APIs
+```js
+const c = new AbortController();  fetch(url, { signal: c.signal });  c.abort();       // cancel requests
+new IntersectionObserver(([e]) => e.isIntersecting && load()).observe(el);           // lazy load, infinite scroll
+```
+- Also `ResizeObserver`, `MutationObserver`, `requestAnimationFrame`, `structuredClone`, `URLSearchParams`.
+! Abort stale fetches on search-as-you-type.
+
+### More Language
+
+## Iterators, Generators & Tagged Templates
+```js
+function* count(n) { for (let i = 0; i < n; i++) yield i; }       [...count(3)]   // [0,1,2]
+const it = { *[Symbol.iterator]() { yield 1; yield 2; } };       for (const x of it) {}
+const tag = (s, ...v) => s.raw.join("|");   tag`a${1}b`;       // tagged template
+```
+- Anything with `Symbol.iterator` works in `for...of`, spread and destructuring. `async function*` plus `for await` for streams.
+! A generator pauses at `yield` and resumes on `next()`.
+
+## Equality, Immutability & Execution Context
+- `Object.is(NaN, NaN)` is true, `Object.is(0, -0)` is false. `Object.freeze` is shallow; `const` is not immutability.
+- Every function call creates an **execution context** (variable environment, scope chain, `this`); the stack of contexts is the call stack.
+- Pure functions, no side effects, easier to test and memoize.
+! `freeze` only protects the top level.
+
+## Memory & Garbage Collection
+- **Mark-and-sweep:** anything unreachable from roots is freed. Leaks: forgotten timers, listeners, globals, closures holding big objects, detached DOM nodes. **WeakMap/WeakSet/WeakRef** don't keep keys alive.
+- Find leaks in DevTools: heap snapshots, allocation timeline.
+! Remove listeners and clear timers on teardown.
+
+## Implement These (Interview Classics)
+```js
+Function.prototype.myBind = function (ctx, ...a) { const f = this; return (...b) => f.apply(ctx, [...a, ...b]); };
+const promisify = fn => (...a) => new Promise((res, rej) => fn(...a, (e, v) => e ? rej(e) : res(v)));
+const memo = fn => { const m = new Map(); return x => m.has(x) ? m.get(x) : (m.set(x, fn(x)), m.get(x)); };
+const flat = a => a.reduce((r, x) => r.concat(Array.isArray(x) ? flat(x) : x), []);
+function retry(fn, n) { return fn().catch(e => n > 0 ? retry(fn, n - 1) : Promise.reject(e)); }
+```
+! Also practise: debounce, throttle, deepClone, Promise.all, curry, event emitter.
+
+## Node vs Browser, Engine & Parameters
+- Browser: DOM, `window`; Node: `fs`, `process`, no DOM; both run V8-style engines. Default and rest parameters, `arguments` (not in arrows), `switch` uses strict equality, `for...of` for values, `for...in` for keys.
+! `for...in` on arrays is a trap.
+
+### Must-Know Questions
+
+## JavaScript Questions
+Q*: Difference between `==` and `===`?
+A: `==` coerces types before comparing; `===` compares type and value. Use `===`.
+Q*: What is a closure and a real use?
+A: A function that keeps access to its defining scope's variables. Used for private state, counters, memoization and callbacks.
+Q*: Explain the event loop.
+A: The stack runs synchronous code; when empty, the loop drains the microtask queue (promises) and then takes the next macrotask (timers, I/O).
+Q*: `var` vs `let` vs `const`?
+A: `var` is function-scoped and hoisted as undefined; `let`/`const` are block-scoped with a temporal dead zone; `const` can't be reassigned.
+Q*: How does `this` work?
+A: It depends on the call site: object for method calls, undefined for plain calls in strict mode, the new object for `new`, explicit for `call/apply/bind`; arrows inherit it lexically.
+Q: Promise.all vs allSettled?
+A: `all` rejects as soon as one rejects; `allSettled` waits for all and reports each outcome.
+Q: What is prototypal inheritance?
+A: Objects delegate missing property lookups to their prototype, forming a chain ending in `null`.

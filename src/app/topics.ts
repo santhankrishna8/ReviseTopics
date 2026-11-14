@@ -10,6 +10,11 @@ export const GROUPS: { name: string; topics: Topic[] }[] = [
     { id: 'typescript', name: 'TypeScript', ready: true },
     { id: 'regex', name: 'Regex', ready: true },
   ] },
+  { name: 'DSA', topics: [
+    { id: 'dsa', name: 'DSA 1: Foundations (Arrays to Sorting)', ready: true },
+    { id: 'dsa-2', name: 'DSA 2: Trees, Heaps, Graphs, Backtracking', ready: true },
+    { id: 'dsa-3', name: 'DSA 3: DP, Advanced & Review', ready: true },
+  ] },
   { name: 'Frontend', topics: [
     { id: 'html-css', name: 'HTML & CSS', ready: true },
     { id: 'angular', name: 'Angular', ready: true },
@@ -56,6 +61,21 @@ export const GROUPS: { name: string; topics: Topic[] }[] = [
     { id: 'cheat-typescript', name: 'TypeScript', ready: true, poster: true },
     { id: 'cheat-sql', name: 'SQL', ready: true, poster: true },
     { id: 'cheat-spring-boot', name: 'Spring Boot', ready: true, poster: true },
+    { id: 'cheat-dsa', name: 'DSA', ready: true, poster: true },
+    { id: 'cheat-system-design', name: 'System Design', ready: true, poster: true },
+    { id: 'cheat-javascript', name: 'JavaScript', ready: true, poster: true },
+    { id: 'cheat-python', name: 'Python', ready: true, poster: true },
+    { id: 'cheat-react', name: 'React', ready: true, poster: true },
+    { id: 'cheat-kafka', name: 'Kafka', ready: true, poster: true },
+    { id: 'cheat-git', name: 'Git', ready: true, poster: true },
+    { id: 'cheat-docker', name: 'Docker', ready: true, poster: true },
+    { id: 'cheat-kubernetes', name: 'Kubernetes', ready: true, poster: true },
+    { id: 'cheat-maven', name: 'Maven', ready: true, poster: true },
+    { id: 'cheat-cicd', name: 'CI/CD', ready: true, poster: true },
+    { id: 'cheat-aws', name: 'AWS', ready: true, poster: true },
   ] },
 ];
 export const READY = GROUPS.flatMap(g => g.topics).filter(t => t.ready);
+
+// topic id -> its cheat sheet topic id
+export const CHEATS: Record<string, string> = { java: 'cheat-java', angular: 'cheat-angular', typescript: 'cheat-typescript', sql: 'cheat-sql', 'spring-boot': 'cheat-spring-boot', javascript: 'cheat-javascript', python: 'cheat-python', react: 'cheat-react', kafka: 'cheat-kafka', 'system-design': 'cheat-system-design', dsa: 'cheat-dsa', 'dsa-2': 'cheat-dsa', 'dsa-3': 'cheat-dsa' };

@@ -66,11 +66,11 @@ curl -u user:1a756987-6f3e-4449-a026-f222259cedcc "http://localhost:8080/hello?n
 - **Spring Security** is the library inside your application. **Keycloak, Okta, Auth0 and Entra ID** are identity providers it integrates with, and **Spring Authorization Server** lets you build your own.
 
 ## Interview Q&A | sky | wide
-Q: What is Spring Security?
+Q*: What is Spring Security?
 A: The Spring framework for authentication, authorization and protection against common attacks (CSRF, session fixation, clickjacking). It is implemented as a servlet filter chain and supports form login, HTTP Basic, OAuth2/OIDC login, JWT resource servers and method-level security.
-Q: Hashing vs encryption vs encoding?
+Q*: Hashing vs encryption vs encoding?
 A: Encoding (Base64) only changes the representation and anyone can reverse it. Encryption is reversible with a key and provides confidentiality. Hashing is one-way and is used for password storage and integrity checks.
-Q: Is HTTP Basic authentication secure?
+Q*: Is HTTP Basic authentication secure?
 A: Only over HTTPS. The credentials are merely Base64-encoded, so without TLS anyone on the network path can read them, and they are sent with every request.
 Q: Where does Spring Boot's default password come from, and what is the username?
 A: Boot generates a random UUID password at each startup and logs it ("Using generated security password: ..."); the username is user. Override them with spring.security.user.name and spring.security.user.password. The default disappears once you define your own UserDetailsService.
@@ -111,11 +111,11 @@ A: Ben Alex, as the Acegi Security System for Spring (2003). It was renamed Spri
 - Spring Security 6 (Boot 3) uses the **lambda DSL** and **`SecurityFilterChain` beans**; the old `WebSecurityConfigurerAdapter` was **removed**.
 
 ## Interview Q&A | sky | wide
-Q: Authentication vs authorization?
+Q*: Authentication vs authorization?
 A: Authentication verifies identity (who you are); authorization decides what that identity may access or do.
-Q: 401 vs 403?
+Q*: 401 vs 403?
 A: 401 means the request is not authenticated (missing or invalid credentials); 403 means the user is authenticated but lacks permission.
-Q: What is CSRF?
+Q*: What is CSRF?
 A: An attack where another site causes a logged-in user's browser to send a state-changing request that automatically includes their cookies; prevented with CSRF tokens, SameSite cookies, or by not using cookie-based authentication.
 Q: What happens when you add spring-boot-starter-security with no configuration?
 A: All endpoints require authentication, with a default user and generated password, form login and HTTP Basic enabled, CSRF protection on and security headers added.
@@ -182,11 +182,11 @@ SecurityFilterChain web(HttpSecurity http) throws Exception {
 ```
 
 ## Interview Q&A | sky | wide
-Q: Explain the Spring Security filter chain.
+Q*: Explain the Spring Security filter chain.
 A: A DelegatingFilterProxy servlet filter delegates to the FilterChainProxy bean, which picks the first SecurityFilterChain matching the request and runs its ordered security filters (context loading, CSRF, authentication, exception translation, authorization) before the request reaches the DispatcherServlet.
-Q: What is DelegatingFilterProxy?
+Q*: What is DelegatingFilterProxy?
 A: A servlet filter registered with the container that delegates to a Spring-managed filter bean, connecting the servlet lifecycle with the Spring ApplicationContext.
-Q: How do you add a custom filter?
+Q*: How do you add a custom filter?
 A: Implement a filter (usually extending OncePerRequestFilter) and register it with http.addFilterBefore/After/At relative to a known filter class.
 Q: What does ExceptionTranslationFilter do?
 A: It turns AuthenticationException into an AuthenticationEntryPoint response (login redirect or 401) and AccessDeniedException into an AccessDeniedHandler response (403).
@@ -254,11 +254,11 @@ class JpaUserDetailsService implements UserDetailsService {
 - Model coarse **roles** (ADMIN, CUSTOMER) and fine-grained **permissions** (orders:write); role hierarchies (`RoleHierarchy`) let ADMIN imply USER.
 
 ## Interview Q&A | sky | wide
-Q: What is the SecurityContextHolder?
+Q*: What is the SecurityContextHolder?
 A: The holder of the SecurityContext (and so the current Authentication) for the current thread, using a ThreadLocal by default.
-Q: How does authentication work internally for form login?
+Q*: How does authentication work internally for form login?
 A: UsernamePasswordAuthenticationFilter creates an unauthenticated token, AuthenticationManager (ProviderManager) delegates to DaoAuthenticationProvider, which loads UserDetails and checks the password hash; on success the authenticated token is stored in the SecurityContext (and session).
-Q: AuthenticationManager vs AuthenticationProvider?
+Q*: AuthenticationManager vs AuthenticationProvider?
 A: AuthenticationManager is the entry point API; ProviderManager implements it by delegating to AuthenticationProviders, each handling one authentication type.
 Q: What does UserDetailsService do?
 A: It loads user-specific data (username, password hash, authorities, account status) by username for the authentication provider.
@@ -303,11 +303,11 @@ class RegistrationService {
 - This avoids forcing all users to reset passwords when moving from SHA or MD5 to bcrypt or Argon2.
 
 ## Interview Q&A | sky | wide
-Q: How should passwords be stored?
+Q*: How should passwords be stored?
 A: Hashed with a slow, salted, adaptive algorithm such as Argon2id or bcrypt through a PasswordEncoder; never in plain text, encrypted, or with fast hashes.
-Q: Why is SHA-256 a bad password hash?
+Q*: Why is SHA-256 a bad password hash?
 A: It is designed to be fast, so attackers can test billions of guesses per second on GPUs; password hashing must be deliberately slow and salted.
-Q: What is a salt?
+Q*: What is a salt?
 A: A random value unique per password mixed into the hash so identical passwords produce different hashes and precomputed rainbow tables are useless.
 Q: What is DelegatingPasswordEncoder?
 A: A PasswordEncoder that prefixes hashes with an algorithm id, verifies hashes of any supported algorithm and encodes new ones with the current default, enabling gradual algorithm migration.
@@ -378,11 +378,11 @@ public class SecurityConfig {
 - Public endpoints: prefer `permitAll()` in the chain over `WebSecurityCustomizer.ignoring()`, so headers and other protections still apply.
 
 ## Interview Q&A | sky | wide
-Q: How do you configure Spring Security in Spring Boot 3?
+Q*: How do you configure Spring Security in Spring Boot 3?
 A: Declare a SecurityFilterChain bean built from HttpSecurity with the lambda DSL (authorizeHttpRequests, authentication mechanism, session policy, CSRF, CORS), plus beans like PasswordEncoder and UserDetailsService.
-Q: Does the order of requestMatchers matter?
+Q*: Does the order of requestMatchers matter?
 A: Yes. Rules are evaluated top to bottom and the first match decides, so specific rules go before general ones and anyRequest() comes last.
-Q: When can you disable CSRF?
+Q*: When can you disable CSRF?
 A: For stateless APIs authenticated with an Authorization header (bearer tokens) and no cookie-based authentication; keep it whenever browsers send credentials automatically.
 Q: What does SessionCreationPolicy.STATELESS do?
 A: Spring Security neither creates nor uses an HTTP session to store the SecurityContext; each request must authenticate itself, typically with a token.
@@ -438,11 +438,11 @@ class OrderSecurity {
 - **Testing**: `@WithMockUser(roles = "ADMIN")`, `@WithUserDetails`, or `SecurityMockMvcRequestPostProcessors.jwt()` in MockMvc tests.
 
 ## Interview Q&A | sky | wide
-Q: @PreAuthorize vs @Secured vs @RolesAllowed?
+Q*: @PreAuthorize vs @Secured vs @RolesAllowed?
 A: @PreAuthorize supports SpEL expressions (roles, authorities, arguments, bean calls); @Secured and @RolesAllowed (JSR-250) only list roles. @PreAuthorize is the most flexible.
-Q: @PreAuthorize vs @PostAuthorize?
+Q*: @PreAuthorize vs @PostAuthorize?
 A: PreAuthorize checks before the method runs; PostAuthorize runs the method and checks the returned object (returnObject), useful for ownership checks on loaded data.
-Q: Why might method security be ignored?
+Q*: Why might method security be ignored?
 A: It is not enabled (@EnableMethodSecurity), the object is not a Spring bean, or the method is called from inside the same class so the proxy is bypassed.
 Q: How do you implement "users can only see their own orders"?
 A: Object-level checks: filter queries by the current user, and/or @PreAuthorize with an ownership bean (@orderSecurity.isOwner(#id, authentication)) or @PostAuthorize on returnObject.
@@ -495,11 +495,11 @@ eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0 . eyJzdWIiOiJ1c2VyLTQyIiwiZXhwIjoxNzYwNDQ0MD
 - Mitigations: **short-lived access tokens** (5-15 minutes) plus **refresh tokens** (sheet 08), revocation lists by `jti` for high-risk cases, or **opaque tokens with introspection** when instant revocation matters.
 
 ## Interview Q&A | sky | wide
-Q: What is a JWT made of?
+Q*: What is a JWT made of?
 A: Three Base64URL-encoded parts separated by dots: a header (algorithm, key id), a payload of claims, and a signature over the header and payload.
-Q: Is a JWT encrypted?
+Q*: Is a JWT encrypted?
 A: A normal signed JWT (JWS) is only encoded and signed, so anyone can read it; JWE is the encrypted variant.
-Q: HS256 vs RS256?
+Q*: HS256 vs RS256?
 A: HS256 uses one shared secret for signing and verifying, so every verifier could forge tokens; RS256 signs with a private key and verifies with a public key, so many services can verify without being able to issue.
 Q: What claims should be validated?
 A: The signature with an expected algorithm and key, exp and nbf, iss, and aud, before trusting any other claim.
@@ -586,11 +586,11 @@ class TokenService {
 - On **password change or compromise**: revoke all refresh tokens and bump the token version.
 
 ## Interview Q&A | sky | wide
-Q: Walk me through JWT authentication in a Spring Boot API.
+Q*: Walk me through JWT authentication in a Spring Boot API.
 A: The client logs in and receives a short-lived access token and a refresh token; it sends the access token as a Bearer header; Spring Security's BearerTokenAuthenticationFilter with a JwtDecoder validates signature, expiry and issuer, builds a JwtAuthenticationToken with authorities and stores it in the SecurityContext; authorization rules then apply; on expiry the client uses the refresh endpoint.
-Q: Why use both access and refresh tokens?
+Q*: Why use both access and refresh tokens?
 A: Short-lived access tokens limit damage if stolen and avoid per-request lookups; long-lived refresh tokens, stored and revocable on the server, let users stay signed in without re-entering credentials.
-Q: What is refresh token rotation?
+Q*: What is refresh token rotation?
 A: Issuing a new refresh token on every refresh and invalidating the old one; reuse of an old token signals theft and revokes the whole family.
 Q: How do you revoke a JWT before it expires?
 A: Keep access tokens short, revoke refresh tokens, and if immediate revocation is required, check a jti denylist or a per-user token version on each request, or switch to opaque tokens with introspection.
@@ -649,11 +649,11 @@ grant_type=client_credentials&scope=orders:read
 - **Audience** restricts a token to the intended API; resource servers must check it.
 
 ## Interview Q&A | sky | wide
-Q: What is OAuth 2.0?
+Q*: What is OAuth 2.0?
 A: An authorization framework letting a client obtain limited, scoped access to a resource on behalf of a user (or itself) via tokens from an authorization server, without sharing the user's credentials.
-Q: Name the OAuth 2.0 roles.
+Q*: Name the OAuth 2.0 roles.
 A: Resource owner, client, authorization server and resource server.
-Q: Which grant type should a SPA use?
+Q*: Which grant type should a SPA use?
 A: Authorization Code with PKCE (ideally via a backend-for-frontend); the Implicit grant is deprecated.
 Q: What problem does PKCE solve?
 A: Interception of the authorization code: only the client holding the original code_verifier can exchange the code for tokens, so public clients without secrets are protected.
@@ -717,11 +717,11 @@ SecurityFilterChain web(HttpSecurity http) throws Exception {
 ```
 
 ## Interview Q&A | sky | wide
-Q: OAuth 2.0 vs OpenID Connect?
+Q*: OAuth 2.0 vs OpenID Connect?
 A: OAuth 2.0 handles delegated authorization (access tokens for APIs); OIDC adds an identity layer that authenticates the user, returning an ID token and standard user claims.
-Q: ID token vs access token?
+Q*: ID token vs access token?
 A: The ID token is a JWT for the client describing the authenticated user (audience is the client); the access token is for the resource server and carries scopes. Do not use one in place of the other.
-Q: What is the nonce in OIDC?
+Q*: What is the nonce in OIDC?
 A: A random value the client sends in the authorization request and checks in the ID token, tying the token to that login and preventing replay.
 Q: What is the discovery document?
 A: The JSON at /.well-known/openid-configuration listing the provider's endpoints, JWKS URI, supported scopes, claims and algorithms, letting clients configure themselves from the issuer URI.
@@ -805,11 +805,11 @@ class OrderControllerSecurityTest {
 ```
 
 ## Interview Q&A | sky | wide
-Q: How do you configure Spring Boot as an OAuth2 resource server?
+Q*: How do you configure Spring Boot as an OAuth2 resource server?
 A: Add spring-boot-starter-oauth2-resource-server, set spring.security.oauth2.resourceserver.jwt.issuer-uri (or jwk-set-uri), and enable http.oauth2ResourceServer(o -> o.jwt(...)); Spring then validates bearer JWTs with the issuer's public keys.
-Q: What does issuer-uri do?
+Q*: What does issuer-uri do?
 A: Spring fetches the issuer's discovery document to find the JWKS endpoint and validates that tokens' iss matches, enabling signature verification and key rotation automatically.
-Q: What does Spring validate in a JWT by default?
+Q*: What does Spring validate in a JWT by default?
 A: The signature (via JWKS or a configured key), exp and nbf with clock skew, and iss when configured with an issuer; audience requires an extra validator or property.
 Q: How are scopes mapped to authorities?
 A: JwtAuthenticationConverter turns scope/scp claim values into authorities prefixed SCOPE_; customise it to map roles from other claims.
@@ -851,11 +851,11 @@ A: It caches the JWKS and refetches it when a token has an unknown kid, so new s
 - Tie to experience: "We moved from HS256 tokens shared by six services to RS256 from Keycloak with JWKS, so services could verify but not mint tokens."
 
 ## Big Interview Q&A | sky | wide
-Q: Design authentication for a SPA plus microservices.
+Q*: Design authentication for a SPA plus microservices.
 A: An identity provider (Keycloak, Auth0, Entra ID) with Authorization Code + PKCE, ideally through a BFF that holds tokens and gives the browser an HttpOnly session cookie; the gateway or BFF forwards access tokens; each microservice is a resource server validating JWTs (issuer, audience, scopes); service-to-service calls use client credentials; refresh tokens rotate.
-Q: How does Spring Security authenticate a JWT request internally?
+Q*: How does Spring Security authenticate a JWT request internally?
 A: BearerTokenAuthenticationFilter extracts the token, AuthenticationManager uses JwtAuthenticationProvider with a JwtDecoder to verify signature and claims, JwtAuthenticationConverter maps claims to authorities, the JwtAuthenticationToken goes into the SecurityContext, and AuthorizationFilter applies the rules.
-Q: Session cookie vs JWT for a monolithic web app?
+Q*: Session cookie vs JWT for a monolithic web app?
 A: Session cookies are simpler and instantly revocable, with CSRF protection and HttpOnly cookies; JWTs add complexity mainly justified for stateless APIs, mobile clients and multiple services.
 Q: How do you protect an API from broken access control?
 A: Deny by default, enforce authorization on every endpoint and at the object level (ownership checks in queries or @PreAuthorize), never trust client-supplied ids or roles, and test unauthorised access paths.

@@ -1,0 +1,143 @@
+# 01 | Kafka Interview Cheat Sheet | Core concepts, producers, consumers, delivery guarantees and operations in one pass. | Kafka on one page
+
+### Core Concepts
+
+## What is Kafka?
+> A **distributed, partitioned, replicated commit log** for event streaming. Producers append records; consumers read at their own pace; records are kept for a retention period, not deleted on read.
+- Strengths: high throughput, durability, replay, decoupling, horizontal scale.
+- Use for event-driven microservices, log/metrics pipelines, CDC, stream processing.
+! Think "durable log you can replay", not "queue".
+
+## Topic, Partition, Offset, Broker
+```text
+Topic "orders"  = Partition 0: [0][1][2][3]...   Partition 1: [0][1][2]...   Partition 2: [0][1]...
+Each partition = ordered, append-only log; each record has an offset. Brokers host partitions.
+```
+- **Ordering is guaranteed only within a partition.** Records with the same **key** go to the same partition (hash of key).
+- **Replication factor** (usually 3): one **leader** per partition serves reads/writes, **followers** replicate; **ISR** = in-sync replicas.
+! Same key, same partition, same order.
+
+## Producer
+```java
+Properties p = new Properties();
+p.put("bootstrap.servers", "localhost:9092");
+p.put("key.serializer", StringSerializer.class.getName());
+p.put("value.serializer", StringSerializer.class.getName());
+p.put("acks", "all"); p.put("enable.idempotence", "true");
+try (var prod = new KafkaProducer<String,String>(p)) {
+    prod.send(new ProducerRecord<>("orders", orderId, json), (meta, ex) -> { if (ex != null) log(ex); });
+}
+```
+- **`acks`:** 0 (no wait), 1 (leader), **all** (all ISR; safest). **Idempotent producer** avoids duplicates on retry.
+- Tuning: `batch.size`, `linger.ms`, `compression.type`; `retries`, `delivery.timeout.ms`.
+! `acks=all` + `enable.idempotence=true` for no-loss, no-duplicate writes.
+
+## Consumer & Consumer Groups
+```java
+props.put("group.id", "billing"); props.put("enable.auto.commit", "false");
+consumer.subscribe(List.of("orders"));
+while (true) {
+    for (var r : consumer.poll(Duration.ofMillis(500))) process(r);
+    consumer.commitSync();                  // commit after processing = at-least-once
+}
+```
+- In a **group**, each partition is read by exactly one consumer; extra consumers beyond partitions sit idle. Different groups each get all messages.
+- **Rebalance** happens when consumers join/leave; keep `poll` fast (`max.poll.interval.ms`).
+! Max parallelism = number of partitions.
+
+### Guarantees
+
+## Delivery Semantics
+> **At-most-once:** commit before processing (may lose). **At-least-once:** process, then commit (may duplicate; default). **Exactly-once:** idempotent producer + **transactions** (`read_committed`) within Kafka, or idempotent consumers outside.
+- Make consumers **idempotent** (dedupe by event ID, upserts).
+! At-least-once + idempotent handler is the practical default.
+
+## Retention & Compaction
+- **Retention** by time/size (`retention.ms`, default 7 days). **Log compaction** keeps the latest record per key (changelog, state).
+- Consumers can **seek/replay** to any offset or timestamp.
+! Compaction = "latest value per key" forever.
+
+## Error Handling
+- Retry with backoff, then a **dead-letter topic** for poison messages. Use `DefaultErrorHandler` and `DeadLetterPublishingRecoverer` in Spring Kafka.
+- Schema evolution with **Schema Registry** (Avro/Protobuf), keep changes backward compatible.
+! Never block a partition on one bad record forever.
+
+### Ecosystem & Ops
+
+## Spring Kafka
+```java
+@KafkaListener(topics = "orders", groupId = "billing")
+public void handle(OrderEvent e) { service.process(e); }
+kafkaTemplate.send("orders", e.id(), e);
+```
+! `@KafkaListener` + `KafkaTemplate` cover most work.
+
+## Kafka Streams, Connect, KRaft
+- **Streams:** library for stateful stream processing (joins, windows, aggregations). **Connect:** ready-made source/sink connectors (DB CDC with Debezium). **KRaft** replaced ZooKeeper (ZooKeeper removed in Kafka 4.0).
+! Connect moves data; Streams transforms it.
+
+## Kafka vs RabbitMQ vs SQS
+- **Kafka:** log, replay, huge throughput, consumer-tracked offsets, ordering per partition. **RabbitMQ:** smart broker, routing, per-message ack, task queues. **SQS:** managed, simple queues, no replay.
+! Replay and streaming mean Kafka; simple work queues mean RabbitMQ/SQS.
+
+## Monitoring
+- Watch **consumer lag**, under-replicated partitions, request latency, disk, ISR shrinks. Tools: Kafka UI, Burrow, Prometheus + Grafana.
+! Lag is the first thing to check.
+
+### More Kafka
+
+## Messaging Models & When to Use Kafka
+- **Queue** (competing consumers, one reader per message) vs **pub/sub** (every subscriber gets it). Kafka does both: consumers in one group compete, different groups each receive everything. Newer **share groups** add queue-like consumption.
+- Benefits: decoupling, buffering spikes, replay, audit trail. Pitfalls: operational complexity, ordering only per partition, consumer lag, duplicates.
+! One topic, many groups, each with a full copy.
+
+## Rebalancing
+- Triggered by consumers joining/leaving/crashing, partition changes, or slow `poll` (`max.poll.interval.ms`). Eager rebalances stop everyone; **cooperative sticky** assignor and the new KIP-848 protocol move fewer partitions.
+- Reduce pain: **static membership** (`group.instance.id`), quick processing, graceful shutdown.
+! Slow processing looks like a dead consumer.
+
+## Choosing the Number of Partitions
+- Partitions = max consumer parallelism and write throughput. Estimate: `max(target throughput / per-partition throughput, number of consumers)`. You can add partitions but not remove them, and adding changes key-to-partition mapping.
+- Too many means more file handles, longer recovery and more rebalance cost.
+! Over-provision modestly; it's hard to shrink.
+
+## Operating a Cluster
+- Run **3+ brokers** across zones, `replication.factor=3`, `min.insync.replicas=2`, disable unclean leader election. Monitor lag, under-replicated partitions, disk. Use **MirrorMaker 2** for cross-cluster copy, rolling restarts for upgrades, quotas to protect brokers.
+- Security: TLS, SASL, ACLs.
+! RF 3 + min ISR 2 + acks=all is the durable setup.
+
+## Testing Kafka Code
+- Unit-test handlers as plain functions. Integration tests with **Testcontainers** (`KafkaContainer`) or `@EmbeddedKafka` in Spring; use `awaitility` for async assertions; test duplicate/redelivery and poison-message paths.
+```java
+@SpringBootTest @EmbeddedKafka(partitions = 1, topics = "orders")
+class OrderListenerTest { /* send, then await the effect */ }
+```
+! Test the failure paths, not only the happy path.
+
+## Local Setup & Common Gotchas
+```bash
+docker run -d -p 9092:9092 apache/kafka:4.3.1                       # single-node KRaft broker
+kafka-topics.sh --create --topic orders --partitions 3 --bootstrap-server localhost:9092
+kafka-console-producer.sh --topic orders --bootstrap-server localhost:9092
+kafka-console-consumer.sh --topic orders --from-beginning --bootstrap-server localhost:9092
+```
+- Gotchas: advertised listeners wrong (can't connect from outside Docker), auto-commit losing messages, no key so no ordering, huge messages (`max.message.bytes`), consumer lag ignored.
+! Check `advertised.listeners` first when clients can't connect.
+
+### Must-Know Questions
+
+## Kafka Questions
+Q*: Why is Kafka fast?
+A: Sequential disk appends, batching and compression, zero-copy transfers, page cache and partition parallelism.
+Q*: How is ordering guaranteed?
+A: Only within a partition; use a key so related events land in the same partition.
+Q*: What happens if a consumer in a group fails?
+A: The group rebalances and its partitions are reassigned to other consumers, resuming from the last committed offset.
+Q*: How do you get exactly-once?
+A: Idempotent producer plus transactions with `read_committed` consumers inside Kafka; elsewhere, idempotent processing.
+Q*: What is `acks=all`?
+A: The leader waits until all in-sync replicas have the record, trading latency for durability (with `min.insync.replicas` of 2).
+Q: Partitions vs consumers?
+A: A partition is consumed by one consumer per group, so partitions cap parallelism.
+Q: Queue vs Kafka topic?
+A: A queue deletes on consume; a Kafka topic retains records and multiple groups can read and replay.

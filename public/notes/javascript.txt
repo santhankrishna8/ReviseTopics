@@ -78,11 +78,11 @@ console.log(JSON.parse(json).tags[0]);                 // a
 - **Interpreted or compiled?** Neither label fits exactly: engines parse source, interpret bytecode and JIT-compile hot code to machine code at runtime. There is no separate compile step for the developer.
 
 ## Interview Q&A | sky | wide
-Q: What is JavaScript?
+Q*: What is JavaScript?
 A: A dynamically typed, single-threaded, garbage-collected language with first-class functions and prototype-based objects. It runs in browsers and in runtimes like Node.js, and is standardised as ECMAScript.
-Q: Is JavaScript related to Java?
+Q*: Is JavaScript related to Java?
 A: No. The name was a 1995 marketing choice. They differ in typing, object model, runtime and concurrency.
-Q: What is ECMAScript?
+Q*: What is ECMAScript?
 A: The language standard (ECMA-262) that JavaScript implements, maintained by TC39 with a new edition every year.
 Q: What did ES6 (ES2015) introduce?
 A: let and const, arrow functions, classes, template literals, destructuring, default, rest and spread parameters, modules (import/export), promises, Map and Set, Symbol, iterators and generators.
@@ -140,11 +140,11 @@ f();                    // undefined (window in sloppy mode)
 - Both now share many APIs: `fetch`, `URL`, `AbortController`, `structuredClone`, Web Streams, `crypto.subtle`.
 
 ## Interview Q&A | sky | wide
-Q: Is JavaScript single-threaded?
+Q*: Is JavaScript single-threaded?
 A: The language executes on one thread with one call stack, but the host provides asynchronous APIs and the event loop, and you can create real threads with Web Workers or Node worker_threads.
-Q: Is JavaScript interpreted or compiled?
+Q*: Is JavaScript interpreted or compiled?
 A: Modern engines interpret bytecode first and JIT-compile hot code to optimised machine code at runtime, so it is both.
-Q: `defer` vs `async`?
+Q*: `defer` vs `async`?
 A: Both download without blocking parsing. `defer` executes after parsing in document order. `async` executes as soon as downloaded, in any order.
 Q: What does strict mode change?
 A: Throws on implicit globals and silent failures, makes `this` undefined in plain function calls, and bans some confusing syntax. Modules and classes are strict by default.
@@ -229,11 +229,11 @@ new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(12
 ```
 
 ## Interview Q&A | sky | wide
-Q: What are the primitive types?
+Q*: What are the primitive types?
 A: string, number, bigint, boolean, undefined, null and symbol. Everything else is an object.
-Q: `==` vs `===`?
+Q*: `==` vs `===`?
 A: `===` compares without type conversion. `==` converts operands to a common type first, with surprising rules, so prefer `===` (except the `x == null` idiom).
-Q: Why is `typeof null` "object"?
+Q*: Why is `typeof null` "object"?
 A: A bug from the first implementation, where null's type tag matched objects. It cannot be fixed without breaking the web.
 Q: `null` vs `undefined`?
 A: `undefined` means a value was never assigned (default for missing variables, properties, arguments, returns). `null` is an explicit "empty" value set by the programmer.
@@ -318,11 +318,11 @@ for (var k = 0; k < 3; k++) {
 - The **global execution context** is created first. Too-deep recursion: `RangeError: Maximum call stack size exceeded`.
 
 ## Interview Q&A | sky | wide
-Q: `var` vs `let` vs `const`?
+Q*: `var` vs `let` vs `const`?
 A: `var` is function-scoped, hoisted as undefined and redeclarable. `let` and `const` are block-scoped with a temporal dead zone; `const` additionally cannot be reassigned, though its object can be mutated.
-Q: What is hoisting?
+Q*: What is hoisting?
 A: Declarations are processed before execution, so functions can be called before their declaration and `var` variables read as undefined. `let`, `const` and classes are hoisted but inaccessible until declared.
-Q: What is the temporal dead zone?
+Q*: What is the temporal dead zone?
 A: The period between entering a scope and the `let`/`const`/`class` declaration line, during which accessing the variable throws a ReferenceError.
 Q: What is lexical scope?
 A: Variable visibility determined by where code is written. Inner functions can access variables of outer functions.
@@ -418,11 +418,11 @@ catch { /* never runs: the error happens after try has finished */ }
 ```
 
 ## Interview Q&A | sky | wide
-Q: `for...in` vs `for...of`?
+Q*: `for...in` vs `for...of`?
 A: `for...in` walks enumerable string keys of an object, including inherited ones. `for...of` walks the values produced by an iterable such as an array, string, Map or Set.
-Q: Why can you not `break` out of `forEach`?
+Q*: Why can you not `break` out of `forEach`?
 A: `forEach` calls your function for every element; `break` is only valid in loop statements, and returning from the callback only ends that one call. Use `for...of`, `some` or `every`.
-Q: What comparison does `switch` use?
+Q*: What comparison does `switch` use?
 A: Strict equality (`===`), so `switch ("1")` does not match `case 1`.
 Q: What happens if you forget `break` in a switch case?
 A: Execution falls through into the following case bodies until a `break`, `return` or the end of the switch.
@@ -512,11 +512,11 @@ fib(90);
 ```
 
 ## Interview Q&A | sky | wide
-Q: Arrow functions vs regular functions?
+Q*: Arrow functions vs regular functions?
 A: Arrows have no own `this`, `arguments`, `super` or `prototype` (they use the enclosing scope's), cannot be constructors, and have concise syntax. Regular functions get `this` from how they are called.
-Q: What is an IIFE?
+Q*: What is an IIFE?
 A: A function expression executed immediately, used to create a private scope and avoid polluting globals.
-Q: What is a higher-order function?
+Q*: What is a higher-order function?
 A: A function that takes a function as an argument and/or returns a function, like `map` or a decorator.
 Q: What is currying?
 A: Converting a function of several arguments into a sequence of functions that each take one argument, which enables partial application and reuse.
@@ -606,11 +606,11 @@ Object.isFrozen(config);     // true
 ```
 
 ## Interview Q&A | sky | wide
-Q: `map` vs `forEach`?
+Q*: `map` vs `forEach`?
 A: `map` returns a new array of transformed values. `forEach` returns undefined and is only for side effects. Neither can break early; use `for...of` or `some` for that.
-Q: Why does `[10, 1, 3].sort()` give `[1, 10, 3]`?
+Q*: Why does `[10, 1, 3].sort()` give `[1, 10, 3]`?
 A: Without a comparator, elements are converted to strings and sorted lexicographically. Pass `(a, b) => a - b`.
-Q: `slice` vs `splice`?
+Q*: `slice` vs `splice`?
 A: `slice` returns a shallow copy of a portion without changing the array. `splice` removes and/or inserts items in place and returns the removed items.
 Q: How do you deep clone an object?
 A: `structuredClone(obj)`. JSON round-tripping works only for plain JSON data and loses types.
@@ -717,11 +717,11 @@ const Cart = (() => {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a closure?
+Q*: What is a closure?
 A: A function together with the lexical environment it was created in, which lets it keep accessing outer variables after the outer function has finished.
-Q: Give practical uses of closures.
+Q*: Give practical uses of closures.
 A: Private state (counters, module pattern), factories, memoisation, once, debounce and throttle, event handlers and callbacks that remember context.
-Q: Debounce vs throttle?
+Q*: Debounce vs throttle?
 A: Debounce waits until calls stop for a period, then runs once. Throttle runs at most once per interval while calls keep coming.
 Q: Can closures cause memory leaks?
 A: Yes, if a long-lived function (listener, timer, cache) captures large objects that are no longer needed. Remove listeners and clear timers.
@@ -813,11 +813,11 @@ Function.prototype.myCall = function (ctx = globalThis, ...args) {
 ```
 
 ## Interview Q&A | sky | wide
-Q: How is `this` determined?
+Q*: How is `this` determined?
 A: By the call site: `new` gives the new object, `call`/`apply`/`bind` give the specified object, a method call gives the object before the dot, and a plain call gives undefined (strict) or the global object. Arrow functions use the enclosing scope's `this`.
-Q: `call` vs `apply` vs `bind`?
+Q*: `call` vs `apply` vs `bind`?
 A: `call` and `apply` invoke immediately with a given `this`, taking arguments as a list or an array. `bind` returns a new function with `this` permanently set.
-Q: Why does `this` become undefined in a callback?
+Q*: Why does `this` become undefined in a callback?
 A: The method is passed as a plain function reference, so it is later called without an object (default binding). Bind it or wrap it in an arrow.
 Q: Can you rebind an arrow function's `this`?
 A: No. Arrow functions take `this` lexically, and call/apply/bind cannot change it.
@@ -899,11 +899,11 @@ class User extends Serializable(Model) {}
 - Classes in JS look classical but are prototypes underneath: `typeof class {}` is "function".
 
 ## Interview Q&A | sky | wide
-Q: What is the prototype chain?
+Q*: What is the prototype chain?
 A: The linked list of objects JavaScript follows when a property is not found on an object itself, via each object's internal [[Prototype]], ending at Object.prototype and then null.
-Q: `__proto__` vs `prototype`?
+Q*: `__proto__` vs `prototype`?
 A: `__proto__` (or `Object.getPrototypeOf`) is an object's actual prototype link. `prototype` is a property of constructor functions that becomes the prototype of instances created with `new`.
-Q: What does the `new` keyword do?
+Q*: What does the `new` keyword do?
 A: Creates an object linked to the constructor's prototype, runs the constructor with `this` set to it, and returns it (unless the constructor returns another object).
 Q: Are classes in JS real classes?
 A: They are syntax over prototype-based constructors, with extra rules (strict mode, no call without new, private fields, TDZ).
@@ -984,11 +984,11 @@ document.querySelectorAll("img[data-src]").forEach((img) => io.observe(img));
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is event bubbling and capturing?
+Q*: What is event bubbling and capturing?
 A: An event travels from the window down to the target (capture), then back up through ancestors (bubble). Listeners run in the bubble phase unless `capture: true` is set.
-Q: What is event delegation?
+Q*: What is event delegation?
 A: Handling events for many children with one listener on a common ancestor, identifying the child via `event.target.closest(...)`. It saves memory and covers dynamically added elements.
-Q: `target` vs `currentTarget`?
+Q*: `target` vs `currentTarget`?
 A: `target` is the element where the event originated. `currentTarget` is the element whose listener is currently running.
 Q: `stopPropagation` vs `preventDefault`?
 A: `stopPropagation` stops the event moving to other elements. `preventDefault` cancels the browser's default behaviour for the event.
@@ -1093,11 +1093,11 @@ function promiseAll(promises) {
 ```
 
 ## Interview Q&A | sky | wide
-Q: What is a Promise?
+Q*: What is a Promise?
 A: An object representing the eventual result of an asynchronous operation, in one of three states: pending, fulfilled or rejected. Settled promises never change.
-Q: `Promise.all` vs `allSettled` vs `race` vs `any`?
+Q*: `Promise.all` vs `allSettled` vs `race` vs `any`?
 A: `all` resolves with all results or rejects on the first rejection. `allSettled` waits for every promise and reports each outcome. `race` settles with the first to settle. `any` resolves with the first success and rejects only if all fail.
-Q: What is callback hell and how do promises fix it?
+Q*: What is callback hell and how do promises fix it?
 A: Deeply nested callbacks with repeated error handling. Promises flatten the flow into a chain with one `catch`, and give a guaranteed single resolution.
 Q: Does `fetch` reject on a 404?
 A: No. It resolves with a Response whose `ok` is false. It only rejects on network failure or abort.
@@ -1217,11 +1217,11 @@ for await (const item of pages("/api/orders")) render(item);
 ```
 
 ## Interview Q&A | sky | wide
-Q: What does an async function return?
+Q*: What does an async function return?
 A: Always a Promise: resolved with the returned value, or rejected with the thrown error.
-Q: How do you run two awaits in parallel?
+Q*: How do you run two awaits in parallel?
 A: Start both promises first and await `Promise.all([p1, p2])`, instead of awaiting them one after the other.
-Q: Why does `await` inside `forEach` not work as expected?
+Q*: Why does `await` inside `forEach` not work as expected?
 A: `forEach` ignores the promises its callback returns, so it does not wait. Use `for...of` or `Promise.all` with `map`.
 Q: How do you handle errors with async/await?
 A: Wrap awaits in try/catch (and finally for cleanup), or attach `.catch` to the returned promise at the call site.
@@ -1306,11 +1306,11 @@ console.log("script end");
 ```
 
 ## Interview Q&A | sky | wide
-Q: Explain the event loop.
+Q*: Explain the event loop.
 A: JavaScript runs one task at a time on the call stack. Async callbacks wait in queues. When the stack empties, the loop drains all microtasks (promise callbacks), optionally renders, then takes the next macrotask (timers, events, I/O).
-Q: Microtasks vs macrotasks?
+Q*: Microtasks vs macrotasks?
 A: Microtasks (promise reactions, queueMicrotask, MutationObserver) run right after the current task, all of them, before rendering. Macrotasks (setTimeout, events, I/O) run one per loop iteration.
-Q: Why does a resolved promise callback run before `setTimeout(fn, 0)`?
+Q*: Why does a resolved promise callback run before `setTimeout(fn, 0)`?
 A: Promise callbacks are microtasks, drained before the loop moves on to the next macrotask such as a timer.
 Q: What is `process.nextTick`?
 A: A Node queue processed before the promise microtask queue, after the current operation. Overusing it can starve I/O.
@@ -1409,11 +1409,11 @@ module.exports = { area };
 ```
 
 ## Interview Q&A | sky | wide
-Q: `??` vs `||`?
+Q*: `??` vs `||`?
 A: `??` returns the right side only when the left is null or undefined. `||` returns it for any falsy left side, which wrongly replaces 0, empty strings and false.
-Q: What is optional chaining?
+Q*: What is optional chaining?
 A: `?.` stops evaluation and returns undefined if the value before it is null or undefined, avoiding "cannot read property of undefined" errors.
-Q: Map vs WeakMap?
+Q*: Map vs WeakMap?
 A: Map holds keys strongly, accepts any key type and is iterable. WeakMap only accepts object keys, holds them weakly so they can be garbage collected, and is not iterable.
 Q: What is a Symbol used for?
 A: Unique property keys that cannot collide with other keys, and well-known symbols that hook into language behaviour like iteration.
@@ -1473,11 +1473,11 @@ function getLayout(node) {
 - In Node: `--inspect` with Chrome DevTools, `process.memoryUsage()`, heap snapshots via `v8.writeHeapSnapshot()`.
 
 ## Interview Q&A | sky | wide
-Q: How does garbage collection work in JavaScript?
+Q*: How does garbage collection work in JavaScript?
 A: Engines use reachability-based mark-and-sweep: everything reachable from roots (globals, stack, closures) survives, the rest is freed. V8 adds generations: a fast scavenger for young objects and mark-compact for old ones.
-Q: Name common causes of memory leaks.
+Q*: Name common causes of memory leaks.
 A: Forgotten timers, unremoved event listeners, detached DOM nodes still referenced, closures holding big data, unbounded caches, accidental globals and unsubscribed observables.
-Q: Can circular references leak?
+Q*: Can circular references leak?
 A: Not with mark-and-sweep: unreachable cycles are collected. (Old IE reference-counted DOM objects did leak.)
 Q: What is a detached DOM node?
 A: An element removed from the document but still referenced by JavaScript, so it and its subtree stay in memory.
@@ -1555,11 +1555,11 @@ navigator.serviceWorker?.register("/sw.js");
 ```
 
 ## Interview Q&A | sky | wide
-Q: localStorage vs sessionStorage vs cookies?
+Q*: localStorage vs sessionStorage vs cookies?
 A: localStorage persists per origin until cleared; sessionStorage lasts per tab session; both are about 5 MB, JS-only and not sent to the server. Cookies are small, sent with every request, and can be HttpOnly and Secure.
-Q: Where should you store an auth token?
+Q*: Where should you store an auth token?
 A: Preferably in an HttpOnly, Secure, SameSite cookie (with CSRF protection) so XSS cannot read it. localStorage is readable by any injected script.
-Q: What does SameSite do?
+Q*: What does SameSite do?
 A: It controls whether cookies are sent on cross-site requests: Strict never, Lax only on top-level navigations, None always (requires Secure). It mitigates CSRF.
 Q: Web Worker vs Service Worker?
 A: A Web Worker runs heavy computation off the main thread for a page. A Service Worker is a network proxy with its own lifecycle, enabling offline caching, push and background sync, and lives beyond a single page.
@@ -1664,11 +1664,11 @@ Array.prototype.myReduce = function (fn, init) {
 - Mention modern APIs when relevant (`structuredClone`, `toSorted`, `Object.groupBy`, `AbortSignal.timeout`): it shows you are current.
 
 ## Big Interview Q&A | sky | wide
-Q: What is the difference between synchronous and asynchronous code in JS?
+Q*: What is the difference between synchronous and asynchronous code in JS?
 A: Synchronous code runs line by line and blocks until done. Asynchronous code starts an operation, continues, and handles the result later via callbacks, promises or async/await scheduled by the event loop.
-Q: Explain `null`, `undefined` and undeclared.
+Q*: Explain `null`, `undefined` and undeclared.
 A: undefined is a declared variable or missing property without a value. null is an assigned empty value. Undeclared means never declared; reading it throws a ReferenceError.
-Q: What is the difference between shallow and deep equality?
+Q*: What is the difference between shallow and deep equality?
 A: Shallow (`===` on objects) compares references. Deep equality compares structure and values recursively.
 Q: What is event delegation and why is it useful in frameworks?
 A: One listener on a parent handles events from many children via bubbling. React, for example, attaches listeners at the root and dispatches synthetic events.

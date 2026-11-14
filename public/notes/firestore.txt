@@ -59,11 +59,11 @@ console.log(snap.exists(), snap.data());               // true { name: 'Gel Pen'
 - **vs SQL databases**: no joins, foreign keys or ad-hoc aggregation. You **denormalise** and model for your queries, and in exchange get automatic scaling and real-time sync.
 
 ## Interview Q&A | sky | wide
-Q: What is Cloud Firestore?
+Q*: What is Cloud Firestore?
 A: A serverless, NoSQL document database from Google and Firebase that stores documents in collections, scales automatically, and gives mobile and web clients real-time listeners, offline support and Security Rules for direct access.
-Q: Firestore vs Realtime Database?
+Q*: Firestore vs Realtime Database?
 A: The Realtime Database stores one JSON tree with path-based sync and bandwidth billing. Firestore organises data into documents and collections with compound queries and indexes, scales further, and bills per read, write and delete. Firestore is the default for new projects.
-Q: If clients access the database directly, what protects the data?
+Q*: If clients access the database directly, what protects the data?
 A: Firestore Security Rules, evaluated on Google's servers for every client request, using the Firebase Authentication identity (request.auth). Admin SDK calls from trusted servers bypass the rules.
 Q: Is the Firebase web config apiKey a secret?
 A: No. It only identifies the project to Google's APIs; security comes from Security Rules, Authentication and App Check.
@@ -114,11 +114,11 @@ const pens = query(collectionGroup(db, "items"), where("sku", "==", "PEN-1"));  
 - **Denormalise for reads**: there are no joins, so copy the fields a screen needs (the author's name on each post) and keep the copies in sync with batched writes or Cloud Functions triggers. Reads are frequent and billed; writes are rarer.
 
 ## Interview Q&A | sky | wide
-Q: How is Firestore data organised?
+Q*: How is Firestore data organised?
 A: In documents of fields, grouped into collections. Documents can contain subcollections, so paths alternate collection/document/collection...
-Q: Does deleting a document delete its subcollections?
+Q*: Does deleting a document delete its subcollections?
 A: No. Subcollections are independent and must be deleted separately, for example with the CLI's recursive delete or the Admin SDK's recursiveDelete.
-Q: What is the maximum document size?
+Q*: What is the maximum document size?
 A: 1 MiB. Large or growing data belongs in subcollections or Cloud Storage.
 Q: Subcollection or array field?
 A: An array or map for small, bounded data always read with the document; a subcollection for large or growing lists, for children queried on their own, or for children with separate security rules.
@@ -198,11 +198,11 @@ const p = (await getDoc(ref)).data();                                      // Pr
 - **`withConverter`** maps between your class or interface and stored data on every read and write, giving TypeScript types to references, queries and snapshots.
 
 ## Interview Q&A | sky | wide
-Q: addDoc vs setDoc?
+Q*: addDoc vs setDoc?
 A: addDoc creates a document with an auto-generated id in a collection. setDoc writes to a document id you specify, creating it or overwriting it completely (or merging with { merge: true }).
-Q: setDoc with merge vs updateDoc?
+Q*: setDoc with merge vs updateDoc?
 A: setDoc with merge creates the document if it does not exist and merges fields otherwise. updateDoc only modifies an existing document and fails with not-found if it is missing.
-Q: How do you update a field inside a map without replacing the map?
+Q*: How do you update a field inside a map without replacing the map?
 A: Use a dot-notation field path in updateDoc, for example { "address.city": "Pune" }.
 Q: How do you safely increment a counter?
 A: Use increment(n), which is applied atomically on the server without reading the document. For very hot counters, use a distributed counter (sheet 09).
@@ -259,11 +259,11 @@ stop();                                                   // unsubscribe: stops 
 - Listeners are cheaper than polling with `getDocs`, because only changes are sent. Keep queries narrow (`where`, `limit`) so the initial snapshot stays small.
 
 ## Interview Q&A | sky | wide
-Q: How do real-time updates work in Firestore?
+Q*: How do real-time updates work in Firestore?
 A: onSnapshot attaches a listener to a document or query. It delivers the current result immediately and then a new snapshot whenever matching data changes, with docChanges() describing the added, modified and removed documents.
-Q: What is latency compensation?
+Q*: What is latency compensation?
 A: Local writes update the local cache and fire listeners immediately, before the server confirms; snapshot.metadata.hasPendingWrites is true until the commit is acknowledged.
-Q: What does metadata.fromCache mean?
+Q*: What does metadata.fromCache mean?
 A: The snapshot was served from the local cache, for example while offline or before the server responds, so it may not reflect the latest server state.
 Q: How are listeners billed?
 A: One read per document in the initial result, then one read per added, modified, or changed-and-removed document (deletions are free). Reconnecting after more than 30 minutes offline is billed as a new query.
@@ -330,11 +330,11 @@ await getDocs(query(collectionGroup(db, "items"), where("sku", "==", "PEN-1"))) 
 - **`collectionGroup(db, "items")`** queries every collection named `items`; it needs a collection-group index for its filters.
 
 ## Interview Q&A | sky | wide
-Q: How do you write an OR query in Firestore?
+Q*: How do you write an OR query in Firestore?
 A: With or() (and and() for nesting), or with in / array-contains-any for several values of one field. The query is limited to 30 disjunctions in disjunctive normal form.
-Q: Why does a != or orderBy query not return some documents?
+Q*: Why does a != or orderBy query not return some documents?
 A: Documents that do not have the field are not in that field's index, so inequality filters and orderBy on the field exclude them.
-Q: How do you paginate efficiently?
+Q*: How do you paginate efficiently?
 A: With query cursors: orderBy a field, limit the page size, and startAfter the last document snapshot of the previous page. offset is not available in client SDKs and is billed for skipped documents on servers.
 Q: How do you count documents without reading them all?
 A: getCountFromServer or getAggregateFromServer with count(), sum() or average(), billed per 1,000 index entries rather than per document.
@@ -375,11 +375,11 @@ A: Yes, on up to 10 fields, backed by a composite index. Put equality fields fir
 - For range filters on several fields, put **equality fields first**, then the **most selective range field**. The composite index must prefix-match the query's `orderBy` (the console link chooses it for you).
 
 ## Interview Q&A | sky | wide
-Q: Which indexes does Firestore create automatically?
+Q*: Which indexes does Firestore create automatically?
 A: Single-field indexes for every field, including fields in maps: ascending, descending, and array-contains for arrays, unless you add exemptions.
-Q: When do you need a composite index?
+Q*: When do you need a composite index?
 A: When a query combines an inequality, range or orderBy on one field with filters on other fields, or uses ranges on several fields. Equality-only queries can often be served by merging single-field indexes.
-Q: How do you find out which composite index to create?
+Q*: How do you find out which composite index to create?
 A: Run the query against a real project: the FAILED_PRECONDITION error message contains a link that creates the needed index. Then export it into firestore.indexes.json.
 Q: Why exempt a field from indexing?
 A: To avoid write hotspots from sequential values such as timestamps, to save storage and write cost for fields never queried, and to stay under the 40,000 index entries per document.
@@ -460,11 +460,11 @@ await getDocs(query(collection(annDb, "orders"), where("uid", "==", "ann")));
 - Add **App Check** so only your genuine apps can call the backend, and do **sensitive logic** (payments, role changes) in Cloud Functions or a server with the Admin SDK.
 
 ## Interview Q&A | sky | wide
-Q: How is data secured when clients access Firestore directly?
+Q*: How is data secured when clients access Firestore directly?
 A: Security Rules, evaluated server-side on every client request: match paths, check request.auth (identity and custom claims), compare resource.data and request.resource.data, and validate the incoming data. The default is deny.
-Q: resource.data vs request.resource.data?
+Q*: resource.data vs request.resource.data?
 A: resource.data is the stored document before the operation; request.resource.data is the document as it would be after the write. Use the first for ownership checks and the second for validation.
-Q: What does "rules are not filters" mean?
+Q*: What does "rules are not filters" mean?
 A: Firestore rejects any query that could return a document the user cannot read, instead of filtering results, so queries must include constraints matching the rules, such as where("uid", "==", uid).
 Q: How do you implement admin users?
 A: Set a custom claim (admin: true) with the Admin SDK and check request.auth.token.admin in the rules, or look up a role document with get(), which costs a read.
@@ -525,11 +525,11 @@ await write;                                                       // resolves o
 - A cleared browser cache or private browsing loses unsynchronised writes. `clearIndexedDbPersistence()` wipes the cache, for example on logout.
 
 ## Interview Q&A | sky | wide
-Q: How does Firestore work offline?
+Q*: How does Firestore work offline?
 A: The SDK serves reads from a local cache, applies writes to the cache immediately while queueing them, fires listeners with fromCache and hasPendingWrites metadata, and syncs the queued writes in order when the connection returns.
-Q: Is offline persistence enabled by default?
+Q*: Is offline persistence enabled by default?
 A: On Android and Apple, yes. On the web the default is a memory cache; you enable IndexedDB persistence with initializeFirestore and persistentLocalCache, using persistentMultipleTabManager for multiple tabs.
-Q: Why should you not await a write in an offline-first UI?
+Q*: Why should you not await a write in an offline-first UI?
 A: The write's promise resolves only when the server acknowledges it, which may be much later. The local cache and listeners already reflect the change, so the UI should update from them.
 Q: What does not work offline?
 A: Transactions, aggregation queries, and anything needing documents that were never cached. Queued writes can still be rejected by Security Rules when they reach the server.
@@ -584,11 +584,11 @@ await transfer("A", "B", 1000);     // Error: Insufficient funds; nothing writte
 - **Business rules that must be trusted**: run the transaction in a **Cloud Function** with the Admin SDK, and keep the rules strict for clients.
 
 ## Interview Q&A | sky | wide
-Q: Batched write vs transaction?
+Q*: Batched write vs transaction?
 A: A batch atomically applies writes to several documents without reading and works offline. A transaction reads documents first and writes based on them, retries automatically on conflicts, and needs a connection.
-Q: Why must all reads come before writes in a transaction?
+Q*: Why must all reads come before writes in a transaction?
 A: The SDK collects the read set first so it can detect conflicts at commit time; reading after writing is rejected with an error.
-Q: What happens when two clients run conflicting transactions?
+Q*: What happens when two clients run conflicting transactions?
 A: Client transactions are optimistic: the commit fails for the one whose read documents changed, and its callback is re-run with fresh data, up to 5 attempts by default.
 Q: Why must transaction functions have no side effects?
 A: They may run several times because of retries, so side effects such as UI updates, emails or counters would repeat.
@@ -635,11 +635,11 @@ const total = (await getAggregateFromServer(collection(counterRef, "shards"), { 
 - The same **sharding idea** fixes other hotspots, for example adding a random `shard` field in front of a timestamp in a composite index.
 
 ## Interview Q&A | sky | wide
-Q: How is Firestore billed?
+Q*: How is Firestore billed?
 A: Per document read, write and delete, plus storage (including indexes) and network egress, with a daily free quota of 50,000 reads, 20,000 writes and 20,000 deletes.
-Q: What is a distributed counter and why is it needed?
+Q*: What is a distributed counter and why is it needed?
 A: A counter split across N shard documents updated at random, because a single document should sustain only about one write per second. The total is the sum of the shards, read with a sum() aggregation or by reading all shards.
-Q: What is the 500/50/5 rule?
+Q*: What is the 500/50/5 rule?
 A: When ramping traffic to a new collection, start at 500 operations per second and increase by 50% every 5 minutes, so Firestore can split the key ranges as load grows.
 Q: Why are sequential document ids or timestamps a problem?
 A: Writes all land at the end of the same index range, creating a hotspot that caps throughput (about 500 writes per second). Use auto-generated ids and exempt or shard timestamp fields.
@@ -678,11 +678,11 @@ A: 1 MiB per document, about 1 sustained write per second per document, 10 MiB p
 - Quote the mechanism: "a listener's initial snapshot bills one read per document", "rules are not filters", "client transactions are optimistic".
 
 ## Big Interview Q&A | sky | wide
-Q: Design a chat app's data model in Firestore.
+Q*: Design a chat app's data model in Firestore.
 A: rooms/{roomId} with members and lastMessage (denormalised for the room list), and rooms/{roomId}/messages/{messageId} with text, senderId and createdAt (serverTimestamp). Clients listen to the latest messages with orderBy("createdAt", "desc") and limit(50), paginating with cursors. Rules allow members to read, and to write only their own messages with server timestamps; a collection group index covers cross-room searches.
-Q: How do you keep denormalised data consistent?
+Q*: How do you keep denormalised data consistent?
 A: Update all copies in one batched write when the client changes the source, or have a Cloud Functions trigger fan the change out, accepting brief inconsistency; keep the authoritative copy in one place.
-Q: When would you not choose Firestore?
+Q*: When would you not choose Firestore?
 A: For heavy relational data with ad-hoc joins and reporting, complex aggregations, very high write rates to single documents, or when per-read pricing would explode, as with analytics scans. Use SQL, BigQuery or MongoDB there, possibly alongside Firestore.
 Q: How do you implement role-based access?
 A: Put roles in Firebase Auth custom claims (set by an Admin SDK function) and check request.auth.token in the rules; for per-resource roles, store membership on the resource (a members map) and check it in the rules, with queries filtered to match.

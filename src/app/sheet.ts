@@ -1,11 +1,11 @@
 import { Component, effect, input, output, signal, untracked } from '@angular/core';
-import { Sheet } from './notes';
+import { Sheet, store } from './notes';
 
 export type PageLink = { href: string; label: string; hint: string };
 
 @Component({
   selector: 'app-sheet',
-  host: { class: 'sheet-view', '[class.poster]': 'poster()', '(window:scroll)': 'spy()', '(window:resize)': 'spy()' },
+  host: { class: 'sheet-view', '[class.poster]': 'poster()', '[class.quick]': 'quick()', '[class.must-only]': 'mustOnly()', '(window:scroll)': 'spy()', '(window:resize)': 'spy()' },
   template: `
     <article class="doc">
       <div class="doc-bar">
@@ -14,10 +14,17 @@ export type PageLink = { href: string; label: string; hint: string };
           <span class="sep" aria-hidden="true">/</span>
           <span class="here" aria-current="page">{{ sheet().short }}</span>
         </nav>
-        <button type="button" class="btn btn-outline" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-          {{ done() ? 'Completed' : 'Mark complete' }}
-        </button>
+        <div class="bar-actions">
+          @if (cheat(); as c) { <a class="btn btn-outline" [href]="c">Cheat sheet</a> }
+          @if (!poster()) {
+            <button type="button" class="btn btn-outline" [attr.aria-pressed]="quick()" (click)="setQuick(!quick())"
+                    title="Show only definitions, tips and questions">Quick revise</button>
+          }
+          <button type="button" class="btn btn-outline" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+            {{ done() ? 'Completed' : 'Mark complete' }}
+          </button>
+        </div>
       </div>
 
       <header class="doc-head">
@@ -39,7 +46,9 @@ export type PageLink = { href: string; label: string; hint: string };
           <div class="sec-head">
             <h2 [id]="'h-' + i">@if (poster()) { <span class="num">{{ sec.num }}</span> }{{ sec.title }}</h2>
             @if (sec.isQa) {
-              <button type="button" class="quiz" [attr.aria-pressed]="quiz()" (click)="quiz.set(!quiz())"
+              <button type="button" class="quiz" [attr.aria-pressed]="mustOnly()" (click)="setMust(!mustOnly())"
+                      title="Show only the most commonly asked questions"><span class="switch" aria-hidden="true"></span>Must-know only</button>
+              <button type="button" class="quiz" [attr.aria-pressed]="quiz()" (click)="setQuiz(!quiz())"
                       title="Hide answers so you can test yourself">
                 <span class="switch" aria-hidden="true"></span>Quiz mode
               </button>
@@ -69,9 +78,9 @@ export type PageLink = { href: string; label: string; hint: string };
             } @else if (b.k === 'qa') {
               <div class="qa-list">
                 @for (p of b.pairs; track $index) {
-                  <details class="qa" [open]="!quiz()">
+                  <details class="qa" [class.must]="p.must" [open]="!quiz()">
                     <summary>
-                      <span class="qn">{{ ($index + 1).toString().padStart(2, '0') }}</span>
+                      <span class="qn">{{ ($index + 1).toString().padStart(2, '0') }}</span>@if (p.must) { <span class="star" title="Must-know" aria-label="Must-know">★</span> }
                       <span class="q" [innerHTML]="p.q"></span>
                       <svg class="qchev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                     </summary>
@@ -87,6 +96,13 @@ export type PageLink = { href: string; label: string; hint: string };
       </div>
 
       <footer class="doc-foot">
+        <div class="rate" role="group" aria-label="How well do you know this?">
+          <span>How well do you know it?</span>
+          @for (r of rates; track r.lvl) {
+            <button type="button" class="btn btn-outline" [attr.aria-pressed]="rating()?.lvl === r.lvl" (click)="rate.emit(r.lvl)">{{ r.name }}</button>
+          }
+          @if (rating(); as r) { <small>last rated {{ r.date }}</small> }
+        </div>
         <button type="button" class="btn btn-outline btn-lg" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
           {{ done() ? 'Completed' : 'Mark this sheet complete' }}
@@ -128,9 +144,15 @@ export class SheetView {
   readonly next = input<PageLink>();
   readonly done = input(false);
   readonly poster = input(false);                    // cheat sheets: sections become a grid of cards
+  readonly cheat = input<string>();
+  readonly rating = input<{ lvl: number; date: string } | null>(null);
   readonly toggleDone = output<void>();
+  readonly rate = output<number>();
+  protected readonly rates = [{ lvl: 1, name: 'Shaky' }, { lvl: 2, name: 'OK' }, { lvl: 3, name: 'Solid' }];
+  protected readonly quick = signal(store.get('quick') === '1');
+  protected setQuick(v: boolean) { this.quick.set(v); store.set('quick', v ? '1' : '0'); }
 
-  protected readonly quiz = signal(false);
+  protected readonly quiz = signal(store.get('quiz') === '1');
   protected readonly activeSec = signal(0);
   protected readonly copied = signal('');
   private raf = 0;
@@ -140,7 +162,6 @@ export class SheetView {
     effect(() => {
       this.sheet();
       const sec = this.section();
-      untracked(() => this.quiz.set(false));
       requestAnimationFrame(() => {
         const el = sec === undefined ? null : document.getElementById('sec-' + sec);
         if (el) el.scrollIntoView({ block: 'start' });
@@ -149,6 +170,10 @@ export class SheetView {
       });
     });
   }
+
+  protected readonly mustOnly = signal(store.get('must') === '1');
+  protected setMust(v: boolean) { this.mustOnly.set(v); store.set('must', v ? '1' : '0'); }
+  protected setQuiz(v: boolean) { this.quiz.set(v); store.set('quiz', v ? '1' : '0'); }
 
   protected spy() {
     cancelAnimationFrame(this.raf);

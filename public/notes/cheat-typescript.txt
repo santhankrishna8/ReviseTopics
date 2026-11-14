@@ -132,6 +132,23 @@ const q: Point = p;               // OK: p has at least x and y
 - **vs Java/C#** (nominal typing): there, a class must explicitly declare `implements`.
 ! "If it walks like a duck and quacks like a duck, it's a duck."
 
+## Intersections & Conflicts
+```ts
+type A = { id: number } & { name: string };
+type Bad = { x: string } & { x: number };        // x: never (conflicting property)
+```
+- `&` combines members; conflicting primitive properties collapse to `never`. Prefer `interface extends` for clear errors.
+! Intersection of unlike primitives is `never`.
+
+## Immutability: readonly, as const, Readonly
+```ts
+const cfg = { mode: "dark", sizes: [1, 2] } as const;          // literal types, readonly deeply
+type Mode = typeof cfg.mode;                                    // "dark"
+function f(a: readonly number[], o: Readonly<{ x: number }>) {}
+```
+- `readonly` is compile-time only; use `Object.freeze` for runtime.
+! `as const` turns widened types into exact literals.
+
 ### Functions
 
 ## Typed Functions
@@ -324,6 +341,16 @@ type Role = (typeof roles)[number]; // 'admin' | 'user'
 ```
 ! satisfies = "check me, but don't rename me"; as const = "freeze me exactly as written".
 
+## Iterators, Generators & Handy Patterns
+```ts
+function* ids(): Generator<number, void, unknown> { let i = 0; while (true) yield i++; }
+type Result<T> = { ok: true; value: T } | { ok: false; error: string };       // discriminated union
+const isStr = (x: unknown): x is string => typeof x === "string";              // type guard
+function assertNever(x: never): never { throw new Error(); }                  // exhaustive switch
+```
+- Pitfalls: `any` spreads, non-null `!` hides bugs, `as` is not a check, optional vs `undefined`, enums vs union literals (prefer unions), and `strict` mode on always.
+! Discriminated unions + `never` give exhaustive checks.
+
 ### Modules & Config
 
 ## Modules & Declaration Files
@@ -339,6 +366,13 @@ type Role = (typeof roles)[number]; // 'admin' | 'user'
 - `strict` includes `noImplicitAny` (no silent `any`) and `strictNullChecks` (`null`/`undefined` must be handled), among others. Always enable it.
 - Other key options: `target`, `module`, `outDir`, `paths` (import aliases), `noUncheckedIndexedAccess`.
 ! strict mode = turning on all the smoke detectors.
+
+## Setup & Commands
+```bash
+npm i -D typescript && npx tsc --init       npx tsc --noEmit       npx tsc -w
+```
+- Key options: `strict`, `target`, `module`, `moduleResolution`, `paths`, `noUncheckedIndexedAccess`, `skipLibCheck`.
+! Run `tsc --noEmit` in CI.
 
 ### Tricky & Quick Answers
 

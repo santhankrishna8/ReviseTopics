@@ -58,11 +58,11 @@ claude                                               # first run asks you to log
 - **Framework vs plain code**: a plain tool-calling loop is often enough for one agent; frameworks pay off for persistence, multi-agent orchestration, observability and approvals.
 
 ## Interview Q&A | sky | wide
-Q: What is an AI agent?
+Q*: What is an AI agent?
 A: A system in which an LLM repeatedly decides on actions, uses tools, observes the results and continues until it reaches a goal, rather than producing a single response.
-Q: How is an agent different from a chatbot?
+Q*: How is an agent different from a chatbot?
 A: A chatbot replies to messages; an agent takes actions through tools and controls its own multi-step process toward a goal.
-Q: Agent or workflow?
+Q*: Agent or workflow?
 A: A workflow when the steps are known (more predictable and cheaper); an agent when the steps depend on what is discovered along the way.
 Q: What is Claude Code?
 A: Anthropic's agentic coding tool: it runs in the terminal, IDEs and CI, reads and edits code, runs commands like tests and builds, and iterates until the task is done, under a permission system.
@@ -119,11 +119,11 @@ git diff main | claude -p "Review this diff for bugs; list file:line and the pro
 - **MCP servers** and **plugins** (bundles of commands, agents, hooks and MCP servers).
 
 ## Interview Q&A | sky | wide
-Q: What makes Claude Code "agentic" rather than an autocomplete tool?
+Q*: What makes Claude Code "agentic" rather than an autocomplete tool?
 A: It works in a loop toward a goal: it explores the codebase, edits files, runs commands such as tests and builds, observes the results and iterates, instead of only suggesting code for a human to apply.
-Q: Describe the agent loop.
+Q*: Describe the agent loop.
 A: Gather context (search and read code), take action (edit, run commands, call tools), verify (tests, type checks, running the app), and repeat until done, with the human able to interrupt, approve and review.
-Q: How would you use Claude Code in CI?
+Q*: How would you use Claude Code in CI?
 A: Headless mode with claude -p, a fixed tool allowlist and permission mode, structured JSON output, and the project's CLAUDE.md for conventions; for example reviewing pull requests or fixing lint failures via GitHub Actions.
 Q: What are the main ways to customise Claude Code for a team?
 A: A committed CLAUDE.md, shared settings with permission rules, project skills and slash commands, subagents for specialised tasks, hooks for automatic formatting or guardrails, and MCP servers for team tools.
@@ -174,11 +174,11 @@ A: No. It speeds up implementation, but humans still review diffs, especially fo
 - Long sessions full of failed attempts degrade results. **Restart with a better prompt** rather than pushing on.
 
 ## Interview Q&A | sky | wide
-Q: How does Claude Code understand a large codebase?
+Q*: How does Claude Code understand a large codebase?
 A: Through agentic search: it globs for files, greps for symbols and usages, reads the relevant files and build configs, and follows imports, guided by CLAUDE.md instructions, instead of relying on a pre-built vector index.
-Q: How do you find all usages of a function before changing it?
+Q*: How do you find all usages of a function before changing it?
 A: Search for the symbol and its imports across the repository (or use language-server find-references), review each call site, and confirm with the compiler or type checker after the change.
-Q: What is CLAUDE.md and what should go in it?
+Q*: What is CLAUDE.md and what should go in it?
 A: A Markdown file loaded into every session with project instructions: build and test commands, coding conventions, architecture notes and things to avoid. It should be concise and committed so the team shares it.
 Q: Why use subagents for exploration?
 A: They read many files in their own context window and return only a summary, so the main session keeps room for the actual implementation work.
@@ -227,11 +227,11 @@ A: /compact replaces the conversation history with a summary to free context; /c
 - **Least privilege by default**, wider autonomy only in sandboxes, and **human review of every diff** before merge.
 
 ## Interview Q&A | sky | wide
-Q: How does Claude Code keep terminal execution safe?
+Q*: How does Claude Code keep terminal execution safe?
 A: A permission system (prompts, allow, ask and deny rules, permission modes), optional OS-level sandboxing of commands, hooks that can block actions, checkpoints for file edits, workspace trust and managed policies, plus human review.
-Q: What is plan mode for?
+Q*: What is plan mode for?
 A: Claude explores the code and runs only read-only operations, then proposes a plan without editing source files; you review and approve before any changes, which suits large or risky tasks.
-Q: In what order are permission rules evaluated?
+Q*: In what order are permission rules evaluated?
 A: Deny first, then ask, then allow; the first match decides, so a deny cannot be bypassed by a narrower allow, and a deny at any settings level wins.
 Q: When is bypassPermissions acceptable?
 A: Only in isolated, disposable environments such as a container without internet access or sensitive credentials, where damage is contained.
@@ -277,11 +277,11 @@ instead of changing production code.
 - Treat agent output like a colleague's PR: **read the diff, run it, question surprising changes**.
 
 ## Interview Q&A | sky | wide
-Q: How would you use Claude Code to add tests to an untested module?
+Q*: How would you use Claude Code to add tests to an untested module?
 A: Have it read the module and the existing test conventions, list behaviours and edge cases for review, write tests in the project's style, run them, and report failures that reveal bugs rather than altering code or assertions to pass.
-Q: How do you refactor legacy code safely with an agent?
+Q*: How do you refactor legacy code safely with an agent?
 A: Add characterisation tests first, use plan mode to agree a step-by-step plan, apply one small step at a time with diff review and a test run after each, and commit every green step.
-Q: How do you handle a change that spans fifty files?
+Q*: How do you handle a change that spans fifty files?
 A: Find all usages up front into a checklist, change interfaces before call sites, use the compiler and tests to catch misses, pilot on a few files, then parallelise with subagents or worktrees, and finish with a search for leftovers.
 Q: What is the risk in asking an agent to "make the tests pass"?
 A: It may weaken assertions, special-case the tests or change behaviour; instruct it to fix the root cause and never modify tests without approval, and review the diff.
@@ -336,11 +336,11 @@ First explore and give me a short plan. Wait for approval before editing.
 - **Anti-patterns**: vague prompts ("fix the bug"), several unrelated goals in one prompt, no verification step, accepting diffs without reading them, letting a session fill with failed attempts instead of restarting with a sharper prompt.
 
 ## Interview Q&A | sky | wide
-Q: What makes a good prompt for a coding agent?
+Q*: What makes a good prompt for a coding agent?
 A: A clear specification with scope and examples, invariants that must hold, constraints on tools and style, concrete acceptance criteria and the commands to verify them, plus pointers to relevant files and existing patterns.
-Q: What is an invariant in this context, with an example?
+Q*: What is an invariant in this context, with an example?
 A: A property the change must preserve, for example "public method signatures of PaymentService must not change" or "existing callers without parameters get identical responses".
-Q: Why ask for a plan before code?
+Q*: Why ask for a plan before code?
 A: It exposes misunderstandings and risky approaches when they are cheap to fix, and lets you steer architecture before many files change.
 Q: Why is verification the highest-leverage part of the prompt?
 A: With a test, type check or reproducible check, the agent can detect and fix its own mistakes in the loop instead of handing you unverified code.
@@ -387,11 +387,11 @@ Servers expose: Resources (data) · Tools (actions) · Prompts (templates)
 - Statelessness makes servers easy to **scale horizontally behind load balancers**. Clients and servers detect the other side's era and **fall back to the handshake** for older peers.
 
 ## Interview Q&A | sky | wide
-Q: What problem does MCP solve?
+Q*: What problem does MCP solve?
 A: It replaces M×N bespoke integrations between AI applications and tools or data with one open protocol, so any MCP client can use any MCP server.
-Q: Explain host, client and server.
+Q*: Explain host, client and server.
 A: The host is the AI application and enforces policy; it creates one client per server connection; each server exposes resources, tools and prompts for a particular system, locally or remotely.
-Q: What message format does MCP use?
+Q*: What message format does MCP use?
 A: JSON-RPC 2.0 requests, responses and notifications, with methods such as tools/list, tools/call and resources/read.
 Q: How does a classic MCP session start?
 A: The client sends initialize with its protocol version and capabilities, the server answers with its own, and the client confirms with notifications/initialized before normal requests.
@@ -432,11 +432,11 @@ A: Anthropic created it and in December 2025 donated it to the Agentic AI Founda
 - In **2026-07-28** these no longer arrive as server-initiated requests: a server returns an **input-required result** listing what it needs, and the client **retries the original request with the answers** (Multi Round-Trip Requests). **Roots, sampling and logging are deprecated** in favour of tool parameters, direct LLM API use and stderr or OpenTelemetry logging.
 
 ## Interview Q&A | sky | wide
-Q: What are MCP's three server primitives?
+Q*: What are MCP's three server primitives?
 A: Resources (read-only data identified by URIs, application-controlled), tools (executable functions with JSON Schema inputs, model-controlled) and prompts (reusable templates with arguments, user-controlled).
-Q: When should something be a resource rather than a tool?
+Q*: When should something be a resource rather than a tool?
 A: When it is data to be read as context without side effects, such as a file or schema; use a tool when the model must decide to perform an action or computation, especially with side effects.
-Q: How does a tool report failure?
+Q*: How does a tool report failure?
 A: Execution failures return a result with isError true and an explanatory message, so the model can adapt; protocol-level problems such as an unknown tool return JSON-RPC errors.
 Q: What are tool annotations, and can you trust them?
 A: Hints such as readOnlyHint and destructiveHint that help hosts decide on confirmations and UI; they come from the server, so they are only as trustworthy as the server.
@@ -474,11 +474,11 @@ claude mcp add --transport http sentry https://mcp.sentry.dev/mcp     # remote S
 - **HTTP+SSE**: only to talk to legacy servers; don't build new ones on it.
 
 ## Interview Q&A | sky | wide
-Q: How does the stdio transport work?
+Q*: How does the stdio transport work?
 A: The client starts the server as a subprocess and exchanges newline-delimited JSON-RPC over stdin and stdout; the server logs only to stderr.
-Q: Why was the HTTP+SSE transport replaced?
+Q*: Why was the HTTP+SSE transport replaced?
 A: It needed a long-lived GET stream plus a separate POST endpoint, which was hard to scale, proxy and resume; Streamable HTTP uses a single endpoint where each POST gets a JSON reply or a short request-scoped SSE stream.
-Q: What changed in Streamable HTTP in 2026-07-28?
+Q*: What changed in Streamable HTTP in 2026-07-28?
 A: Sessions, the GET stream and stream resumption were removed; each request is independent and carries protocol-version and method headers that mirror the body.
 Q: When do you choose stdio vs Streamable HTTP?
 A: stdio for local, single-user tools on the developer's machine; Streamable HTTP for remote, multi-user servers that need authentication and scaling.
@@ -577,11 +577,11 @@ await server.connect(new StdioServerTransport());   // log to stderr, never stdo
 - **Make errors actionable** ("unknown order id; use search_orders to find ids") and keep tool names and output **deterministic** for caching.
 
 ## Interview Q&A | sky | wide
-Q: How do you build an MCP server in Python?
+Q*: How do you build an MCP server in Python?
 A: Install the mcp package, create an MCPServer (FastMCP in SDK v1), decorate functions with @mcp.tool, @mcp.resource("uri://{param}") and @mcp.prompt so type hints become schemas, and call mcp.run() for stdio or with transport="streamable-http".
-Q: How are tool input schemas defined in the TypeScript SDK?
+Q*: How are tool input schemas defined in the TypeScript SDK?
 A: With Zod schemas in registerTool; the SDK converts them to JSON Schema for tools/list and validates incoming arguments.
-Q: How do you test an MCP server?
+Q*: How do you test an MCP server?
 A: Unit-test the handlers, use the MCP Inspector to call tools interactively, and run integration tests with the SDK's in-memory client.
 Q: How do you add a server to Claude Code for the whole team?
 A: Add it with project scope so it is stored in a committed .mcp.json; teammates approve it on first use.
@@ -644,11 +644,11 @@ def get_order(order_id: str) -> dict:
 - **Log, monitor and rate-limit** every call.
 
 ## Interview Q&A | sky | wide
-Q: How does authorization work for remote MCP servers?
+Q*: How does authorization work for remote MCP servers?
 A: OAuth 2.1: the server acts as a resource server, advertises its authorization server via Protected Resource Metadata on a 401, and clients obtain tokens with authorization code plus PKCE and a resource indicator that binds the token to that server.
-Q: What is token passthrough and why is it forbidden?
+Q*: What is token passthrough and why is it forbidden?
 A: Forwarding the client's token to downstream APIs; it breaks audience checks, creates confused-deputy risks and bypasses upstream controls and auditing, so servers must obtain their own upstream credentials.
-Q: How would you secure a database-query MCP tool?
+Q*: How would you secure a database-query MCP tool?
 A: Strict input validation, parameterised queries, a read-only least-privilege DB user, results scoped to the caller, row and time limits, rate limiting, audit logging and user confirmation for any write.
 Q: What is tool poisoning?
 A: Hiding malicious instructions in a tool's description or schema so the model follows them; mitigate by trusting only vetted servers, reviewing definitions, detecting changes and keeping humans in the loop.
@@ -696,11 +696,11 @@ for item in store.search(ns):                              # add query="..." wit
 - Planning can be **implicit** (ReAct: decide one step at a time) or **explicit** (generate a full plan first, then execute, sheet 12).
 
 ## Interview Q&A | sky | wide
-Q: What are the core components of an AI agent?
+Q*: What are the core components of an AI agent?
 A: An LLM that reasons and decides, memory (short-term context plus long-term stores), tools for acting and observing, and planning (decomposition and reflection), run in a loop toward a goal.
-Q: Short-term vs long-term memory?
+Q*: Short-term vs long-term memory?
 A: Short-term memory is the context window for the current run; long-term memory lives in external stores and is retrieved across sessions.
-Q: Episodic vs semantic vs procedural memory?
+Q*: Episodic vs semantic vs procedural memory?
 A: Episodic stores past experiences and outcomes, semantic stores facts and knowledge, and procedural stores how to perform tasks, such as instructions and learned rules.
 Q: Workflow or agent?
 A: Use a workflow when the steps are known in advance (predictable, cheaper, easier to test); use an agent when the path depends on intermediate results and cannot be scripted, accepting more cost and less predictability.
@@ -785,11 +785,11 @@ def generate_with_critic(task: str, max_rounds: int = 3) -> str:
 - They combine: plan, execute steps with ReAct, and reflect after failures.
 
 ## Interview Q&A | sky | wide
-Q: ReAct vs Plan-and-Execute?
+Q*: ReAct vs Plan-and-Execute?
 A: ReAct decides one action at a time from the latest observation, which is adaptive but myopic; Plan-and-Execute writes an explicit multi-step plan, executes it (often with cheaper models) and re-plans, which suits long tasks and allows plan review.
-Q: What is the Plan-and-Solve prompt?
+Q*: What is the Plan-and-Solve prompt?
 A: A zero-shot prompt asking the model to first understand the problem and devise a plan, then carry it out step by step, reducing skipped steps compared with plain "think step by step".
-Q: Self-Refine vs Reflexion?
+Q*: Self-Refine vs Reflexion?
 A: Self-Refine iteratively critiques and rewrites one output within a task; Reflexion learns across attempts by writing reflections on failures, stored in episodic memory and used in the next trial.
 Q: What is a critic-actor loop and how do you stop it?
 A: An actor produces output and a separate critic evaluates it and gives feedback until it passes; stop on approval or after a maximum number of rounds, keeping the best version.
@@ -859,11 +859,11 @@ print(app.invoke({"task": "EV battery market", "notes": [], "next": ""})["notes"
 - **Rule of thumb**: use multi-agent systems for **broad, parallelisable, loosely coupled** work (research, data gathering); prefer **one agent** for tightly coupled work that needs shared context. Give each agent **clear task boundaries and output formats**, and add an explicit **verification step**.
 
 ## Interview Q&A | sky | wide
-Q: When would you use multiple agents instead of one?
+Q*: When would you use multiple agents instead of one?
 A: When the work splits into specialised or parallel sub-tasks that benefit from separate prompts, tools and context windows, such as broad research; not for tightly coupled tasks where shared context matters more.
-Q: Explain the supervisor pattern.
+Q*: Explain the supervisor pattern.
 A: A supervisor agent decomposes the task, routes sub-tasks to specialised worker agents, collects their results and decides the next step or finishes; workers report only to the supervisor.
-Q: Supervisor vs router?
+Q*: Supervisor vs router?
 A: A router makes one classification and hands the request to a specialist; a supervisor loops, delegating multiple times and combining results.
 Q: What is a handoff or swarm architecture?
 A: A peer-to-peer design where each agent can transfer control to another agent better suited for the next part, without a central coordinator.
@@ -948,11 +948,11 @@ result = await RagFlow(timeout=60).run(question="What is our refund window?")
 - **Plain code + tool calling** is often enough for one agent with a handful of tools. Frameworks pay off for persistence, HITL, observability and multi-agent orchestration. Other options include the OpenAI Agents SDK and the Claude Agent SDK.
 
 ## Interview Q&A | sky | wide
-Q: Describe LangGraph's programming model.
+Q*: Describe LangGraph's programming model.
 A: A graph of nodes that read and update a shared typed state, connected by normal and conditional edges (cycles allowed), with reducers for merging updates, checkpointers for persistence and interrupts for human input.
-Q: How does CrewAI model agents?
+Q*: How does CrewAI model agents?
 A: As role-based agents (role, goal, backstory, tools) assigned tasks with expected outputs, run by a crew in a sequential or hierarchical process, plus event-driven Flows for deterministic orchestration.
-Q: What is AutoGen's approach and status?
+Q*: What is AutoGen's approach and status?
 A: Multi-agent conversation, with AgentChat teams like round-robin or selector group chats over an event-driven core; it is now in maintenance mode, with Microsoft Agent Framework as the successor.
 Q: How do LlamaIndex Workflows work?
 A: Async steps decorated with @step consume and emit typed events, starting from StartEvent and finishing with StopEvent, with a Context for shared state.
@@ -1022,11 +1022,11 @@ print(final["result"])                        # done: refund order for: order 10
 - Other frameworks offer equivalents: CrewAI tasks with `human_input`, AutoGen's `UserProxyAgent`, LlamaIndex input-required events, and Claude Code's permission prompts.
 
 ## Interview Q&A | sky | wide
-Q: Why does an agent need checkpoints?
+Q*: Why does an agent need checkpoints?
 A: To persist state after each step so conversations continue across calls, crashed runs resume instead of restarting, humans can pause and resume runs, and developers can replay or fork past states.
-Q: What is a thread in LangGraph?
+Q*: What is a thread in LangGraph?
 A: A thread_id that keys a sequence of checkpoints for one conversation or job; invoking with the same thread continues from its saved state.
-Q: How does interrupt work?
+Q*: How does interrupt work?
 A: interrupt() inside a node pauses execution and saves state, returning a payload to the caller; invoking again on the same thread with Command(resume=value) continues, and interrupt returns that value.
 Q: Which actions should require human approval?
 A: Irreversible, costly or externally visible ones such as payments, deletes, outbound messages, deployments and permission changes; reads and drafts can run automatically.
@@ -1076,11 +1076,11 @@ A: Short-term memory is thread-scoped state saved by the checkpointer; long-term
 - Tie to experience: "I built an MCP server exposing our order database as three read-only tools with parameterised queries; the support agent in Claude Desktop now answers order questions without database access for the support team."
 
 ## Big Interview Q&A | sky | wide
-Q: Design an agent that handles customer refund requests.
+Q*: Design an agent that handles customer refund requests.
 A: A tool-calling agent with read tools (get order, get policy) and one write tool (issue refund) behind a LangGraph approval interrupt; typed state checkpointed in Postgres by ticket thread; policy retrieved via RAG; input validation and per-customer authorisation in tools; step limits; full audit log; evaluation on historical tickets before launch.
-Q: How would you expose an internal REST API to AI assistants company-wide?
+Q*: How would you expose an internal REST API to AI assistants company-wide?
 A: A remote MCP server over Streamable HTTP with OAuth (the company identity provider as authorisation server), a small set of task-oriented tools with strict schemas, per-user authorisation, no token passthrough, rate limits, audit logs, read-only by default and destructive hints for write tools.
-Q: Single agent or multi-agent for an automated code-migration project?
+Q*: Single agent or multi-agent for an automated code-migration project?
 A: Mostly a single agent per module with shared context, because code changes are tightly coupled; parallelise only independent modules (separate worktrees or headless runs), each verified by the build and tests, with a final human review.
 Q: How do you stop an agent from looping forever?
 A: Step and token budgets, detection of repeated identical tool calls, timeouts, explicit completion criteria, and a fallback that reports progress and asks for help.
