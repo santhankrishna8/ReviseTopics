@@ -3,38 +3,39 @@
    as you revise. Header / sidebar / sheet / "On this page". */
 :root {
   --font-sans: 'Schibsted Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
   --ease-out: cubic-bezier(.22, 1, .36, 1);
   --ease-expo: cubic-bezier(.16, 1, .3, 1);
 
-  --bg: oklch(0.993 0.002 260);
-  --rail: oklch(0.972 0.003 260);       /* sidebar, cards: one tone step down */
-  --hover: oklch(0.947 0.004 260);
-  --ink: oklch(0.2 0.008 260);
-  --ink-2: oklch(0.33 0.008 260);
-  --muted: oklch(0.48 0.008 260);
-  --line: oklch(0.915 0.004 260);
-  --line-2: oklch(0.86 0.005 260);
+  --bg: oklch(0.987 0.007 85);
+  --rail: oklch(0.965 0.011 85);       /* sidebar, cards: one tone step down */
+  --hover: oklch(0.94 0.014 85);
+  --ink: oklch(0.23 0.045 265);
+  --ink-2: oklch(0.34 0.04 265);
+  --muted: oklch(0.49 0.03 265);
+  --line: oklch(0.905 0.012 85);
+  --line-2: oklch(0.85 0.015 85);
 
-  --accent: oklch(0.22 0.008 260);      /* actions and "you are here": ink, not a colour */
-  --accent-hover: oklch(0.34 0.008 260);
+  --accent: oklch(0.36 0.13 268);      /* actions and "you are here": ink, not a colour */
+  --accent-hover: oklch(0.3 0.13 268);
   --on-accent: #fff;
-  --accent-ink: oklch(0.5 0.115 72);    /* small accent text on light grounds */
-  --accent-tint: oklch(0.965 0.05 95);
-  --done: oklch(0.86 0.165 92);         /* revised: the highlighter yellow */
-  --on-done: oklch(0.22 0.03 80);
-  --done-ink: oklch(0.55 0.13 78);
-  --hl: oklch(0.9 0.15 95 / .62);       /* highlighter for **keywords** */
+  --accent-ink: oklch(0.42 0.14 268);    /* small accent text on light grounds */
+  --accent-tint: oklch(0.955 0.03 270);
+  --done: oklch(0.85 0.16 88);         /* revised: the highlighter yellow */
+  --on-done: oklch(0.25 0.05 80);
+  --done-ink: oklch(0.5 0.12 75);
+  --hl: oklch(0.89 0.15 92 / .6);       /* highlighter for **keywords** */
 
   /* code panes are dark in both themes */
-  --code-bg: oklch(0.205 0.006 260);
-  --code-head: oklch(0.245 0.007 260);
-  --code-line: oklch(0.31 0.008 260);
-  --code-ink: oklch(0.93 0.003 260);
-  --code-muted: oklch(0.7 0.008 260);
+  --code-bg: oklch(0.215 0.04 268);
+  --code-head: oklch(0.255 0.045 268);
+  --code-line: oklch(0.33 0.045 268);
+  --code-ink: oklch(0.94 0.01 85);
+  --code-muted: oklch(0.72 0.02 268);
   --tok-k: oklch(0.77 0.13 22);    /* keywords */
   --tok-s: oklch(0.84 0.11 150);   /* strings */
-  --tok-c: oklch(0.63 0.01 260);   /* comments */
+  --tok-c: oklch(0.66 0.03 268);   /* comments */
   --tok-n: oklch(0.8 0.1 235);     /* numbers, calls */
   --tok-t: oklch(0.85 0.11 85);    /* Types */
 
@@ -47,26 +48,26 @@
 
 /* Dark: designed for late-night revision, a deep graphite rather than an inverted page. */
 :root[data-theme="dark"] {
-  --bg: oklch(0.165 0.004 260);
-  --rail: oklch(0.195 0.005 260);
-  --hover: oklch(0.24 0.006 260);
-  --ink: oklch(0.95 0.003 260);
-  --ink-2: oklch(0.86 0.004 260);
-  --muted: oklch(0.72 0.006 260);
-  --line: oklch(0.26 0.005 260);
-  --line-2: oklch(0.33 0.006 260);
-  --accent: oklch(0.95 0.003 260);
-  --accent-hover: oklch(0.86 0.004 260);
-  --on-accent: oklch(0.18 0.005 260);
-  --accent-ink: oklch(0.86 0.14 90);
-  --accent-tint: oklch(0.27 0.04 90);
-  --done: oklch(0.85 0.16 92);
-  --on-done: oklch(0.2 0.03 80);
-  --done-ink: oklch(0.85 0.16 92);
-  --hl: oklch(0.76 0.15 88 / .32);
-  --code-bg: oklch(0.21 0.005 260);
-  --code-head: oklch(0.245 0.006 260);
-  --code-line: oklch(0.31 0.007 260);
+  --bg: oklch(0.185 0.035 268);
+  --rail: oklch(0.215 0.04 268);
+  --hover: oklch(0.26 0.045 268);
+  --ink: oklch(0.95 0.01 85);
+  --ink-2: oklch(0.86 0.015 85);
+  --muted: oklch(0.73 0.02 268);
+  --line: oklch(0.27 0.04 268);
+  --line-2: oklch(0.35 0.045 268);
+  --accent: oklch(0.82 0.1 272);
+  --accent-hover: oklch(0.9 0.08 272);
+  --on-accent: oklch(0.2 0.04 268);
+  --accent-ink: oklch(0.84 0.1 275);
+  --accent-tint: oklch(0.28 0.07 272);
+  --done: oklch(0.85 0.16 88);
+  --on-done: oklch(0.22 0.04 80);
+  --done-ink: oklch(0.85 0.16 88);
+  --hl: oklch(0.78 0.15 90 / .3);
+  --code-bg: oklch(0.15 0.03 268);
+  --code-head: oklch(0.19 0.035 268);
+  --code-line: oklch(0.27 0.04 268);
   color-scheme: dark;
 }
 
@@ -137,10 +138,6 @@ a { color: inherit; }
 .theme-toggle[aria-checked="true"] .tt-thumb { translate: 28px 0; }
 .tt-thumb svg { width: 15px; height: 15px; }
 
-.overall { display: flex; align-items: center; gap: 10px; margin: 0; font-size: .86rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.overall b { color: var(--ink); font-weight: 650; }
-.meter { width: 72px; height: 6px; border-radius: 999px; background: var(--hover); overflow: hidden; }
-.meter > span { display: block; height: 100%; min-width: 6px; border-radius: inherit; background: var(--done); transition: width .6s var(--ease-expo); }
 
 /* ---------- Layout ---------- */
 .layout { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
@@ -177,8 +174,6 @@ button.topic:hover, a.topic.direct:hover { background: var(--hover); }
 .chev { width: 15px; height: 15px; color: var(--muted); transition: rotate .25s var(--ease-expo); }
 .topic[aria-expanded="true"] { font-weight: 650; }
 .topic[aria-expanded="true"] .chev { rotate: 90deg; color: var(--ink); }
-.count { font-size: .78rem; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
-.count.all-done { color: var(--accent-ink); font-weight: 650; }
 .topic.soon { color: var(--muted); cursor: default; padding-left: 31px; }
 a.topic.direct { padding-left: 31px; text-decoration: none; }
 a.topic.direct.active { background: var(--bg); font-weight: 650; box-shadow: 0 1px 2px oklch(0 0 0 / .06); }
@@ -235,8 +230,8 @@ a.topic.direct.active { background: var(--bg); font-weight: 650; box-shadow: 0 1
 
 .doc-head { margin: 56px 0 8px; }
 .doc h1 {
-  margin: 0; max-width: 18em; font: 800 clamp(2.2rem, 1.5rem + 2.4vw, 3.5rem)/1.04 var(--font-sans);
-  letter-spacing: -0.035em; text-wrap: balance; color: var(--ink);
+  margin: 0; max-width: 18em; font: 600 clamp(2.4rem, 1.6rem + 2.6vw, 3.8rem)/1.05 var(--font-display);
+  letter-spacing: -0.022em; text-wrap: balance; color: var(--ink);
 }
 .lede { margin: 18px 0 0; max-width: 56ch; font-size: 1.22rem; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
 .meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 22px 0 0; }
@@ -245,7 +240,7 @@ a.topic.direct.active { background: var(--bg); font-weight: 650; box-shadow: 0 1
 
 .sec { margin-top: 72px; }
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-.sec h2 { margin: 0; font: 750 1.7rem/1.2 var(--font-sans); letter-spacing: -0.025em; text-wrap: balance; }
+.sec h2 { margin: 0; font: 600 1.85rem/1.2 var(--font-display); letter-spacing: -0.015em; text-wrap: balance; }
 .sec ul { margin: 0 0 20px; padding-left: 1.25em; color: var(--ink-2); font-size: 1.06rem; line-height: 1.72; max-width: 72ch; }
 .sec li { margin: 8px 0; padding-left: 6px; text-wrap: pretty; }
 .sec li::marker { color: var(--muted); }
@@ -265,7 +260,7 @@ mark {
 .doc mark > code { background: none; padding: 0; }   /* **`code`**: the code sits on the highlighter stroke */
 
 .callout {
-  margin: 22px 0; padding: 18px 22px; border-radius: 14px; background: var(--rail); max-width: 72ch;
+  margin: 22px 0; padding: 18px 22px; border-radius: 4px 14px 14px 4px; background: var(--rail); border-left: 3px solid var(--done); max-width: 72ch;
   font-size: 1.06rem; line-height: 1.65; color: var(--ink); text-wrap: pretty;
 }
 .tip {
@@ -283,7 +278,7 @@ mark {
   background: var(--code-line); color: var(--code-ink); font: 600 .78rem var(--font-sans); cursor: pointer;
   transition: background-color .15s var(--ease-out);
 }
-.copy:hover { background: oklch(0.38 0.008 260); }
+.copy:hover { background: oklch(0.4 0.05 268); }
 .code pre { margin: 0; padding: 18px 20px 20px; overflow-x: auto; font: 400 .88rem/1.72 var(--font-mono); tab-size: 4; scrollbar-color: var(--code-line) transparent; }
 .code pre code { font: inherit; white-space: pre; }
 /* after the font shorthands above, which reset ligatures: keep -> and == literal */
@@ -419,7 +414,6 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 @media (max-width: 920px) {
   .top { gap: 10px; padding: 0 16px; }
   .icon-btn { display: grid; }
-  .overall { display: none; }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .layout > .main { grid-area: 1 / 1; }
   .resizer { display: none; }
@@ -476,3 +470,6 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 
 .star { color: var(--accent); font-size: .85rem; margin-right: -4px; }
 .must-only .qa:not(.must) { display: none; }
+
+.cards .sec h2 { font-family: var(--font-sans); letter-spacing: -0.015em; }
+.logo-text { font-family: var(--font-display); font-weight: 650; letter-spacing: -0.01em; }

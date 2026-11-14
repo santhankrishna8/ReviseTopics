@@ -3,6 +3,25 @@ export type Topic = { id: string; name: string; ready?: boolean; poster?: boolea
 // Groups and order follow TOPICS.md. To add a topic: write public/notes/<id>.txt in the
 // notes format (see notes.ts), then set ready: true here.
 export const GROUPS: { name: string; topics: Topic[] }[] = [
+  { name: 'Cheat Sheets', topics: [
+    { id: 'cheat-java', name: 'Java', ready: true, poster: true },
+    { id: 'cheat-angular', name: 'Angular', ready: true, poster: true },
+    { id: 'cheat-typescript', name: 'TypeScript', ready: true, poster: true },
+    { id: 'cheat-sql', name: 'SQL', ready: true, poster: true },
+    { id: 'cheat-spring-boot', name: 'Spring Boot', ready: true, poster: true },
+    { id: 'cheat-dsa', name: 'DSA', ready: true, poster: true },
+    { id: 'cheat-system-design', name: 'System Design', ready: true, poster: true },
+    { id: 'cheat-javascript', name: 'JavaScript', ready: true, poster: true },
+    { id: 'cheat-python', name: 'Python', ready: true, poster: true },
+    { id: 'cheat-react', name: 'React', ready: true, poster: true },
+    { id: 'cheat-kafka', name: 'Kafka', ready: true, poster: true },
+    { id: 'cheat-git', name: 'Git', ready: true, poster: true },
+    { id: 'cheat-docker', name: 'Docker', ready: true, poster: true },
+    { id: 'cheat-kubernetes', name: 'Kubernetes', ready: true, poster: true },
+    { id: 'cheat-maven', name: 'Maven', ready: true, poster: true },
+    { id: 'cheat-cicd', name: 'CI/CD', ready: true, poster: true },
+    { id: 'cheat-aws', name: 'AWS', ready: true, poster: true },
+  ] },
   { name: 'Languages', topics: [
     { id: 'java', name: 'Java', ready: true },
     { id: 'python', name: 'Python', ready: true },
@@ -54,25 +73,6 @@ export const GROUPS: { name: string; topics: Topic[] }[] = [
     { id: 'agile', name: 'Agile & SDLC', ready: true },
     { id: 'system-design', name: 'System Design', ready: true },
     { id: 'buzzwords', name: 'Engineering Buzzwords', ready: true },
-  ] },
-  { name: 'Cheat Sheets', topics: [
-    { id: 'cheat-java', name: 'Java', ready: true, poster: true },
-    { id: 'cheat-angular', name: 'Angular', ready: true, poster: true },
-    { id: 'cheat-typescript', name: 'TypeScript', ready: true, poster: true },
-    { id: 'cheat-sql', name: 'SQL', ready: true, poster: true },
-    { id: 'cheat-spring-boot', name: 'Spring Boot', ready: true, poster: true },
-    { id: 'cheat-dsa', name: 'DSA', ready: true, poster: true },
-    { id: 'cheat-system-design', name: 'System Design', ready: true, poster: true },
-    { id: 'cheat-javascript', name: 'JavaScript', ready: true, poster: true },
-    { id: 'cheat-python', name: 'Python', ready: true, poster: true },
-    { id: 'cheat-react', name: 'React', ready: true, poster: true },
-    { id: 'cheat-kafka', name: 'Kafka', ready: true, poster: true },
-    { id: 'cheat-git', name: 'Git', ready: true, poster: true },
-    { id: 'cheat-docker', name: 'Docker', ready: true, poster: true },
-    { id: 'cheat-kubernetes', name: 'Kubernetes', ready: true, poster: true },
-    { id: 'cheat-maven', name: 'Maven', ready: true, poster: true },
-    { id: 'cheat-cicd', name: 'CI/CD', ready: true, poster: true },
-    { id: 'cheat-aws', name: 'AWS', ready: true, poster: true },
   ] },
 ];
 export const READY = GROUPS.flatMap(g => g.topics).filter(t => t.ready);

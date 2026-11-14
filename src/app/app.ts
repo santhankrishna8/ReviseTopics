@@ -7,7 +7,7 @@ import { ThemeToggle } from './theme-toggle';
 type Route = { topic: string; sheet: string; section?: number };
 type Hit = { kind: 'Sheet' | 'Section' | 'Question'; title: string; where: string; href: string; hay: string };
 
-const HOME: Route = { topic: READY[0].id, sheet: '01' };
+const HOME: Route = { topic: 'java', sheet: '01' };   // cheat sheets lead the sidebar, but the app opens on Java
 const label = (t: Topic) => (t.poster ? `${t.name} Cheat Sheet` : t.name);   // sidebar shows the short name
 const doneKey = (topic: string, n: string) => `rev:${topic}:${n}`;
 
@@ -76,12 +76,6 @@ function byLevel(list: Sheet[]) {
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
       </button>
       <app-theme-toggle />
-      @if (totals().all) {
-        <p class="overall">
-          <span class="meter" aria-hidden="true"><span [style.width.%]="(totals().done / totals().all) * 100"></span></span>
-          <span><b>{{ totals().done }}</b> of {{ totals().all }} revised</span>
-        </p>
-      }
     </header>
 
     <div class="layout">
@@ -107,9 +101,6 @@ function byLevel(list: Sheet[]) {
                   <button type="button" class="topic" [attr.aria-expanded]="expanded().has(t.id)" (click)="toggle(t.id)">
                     <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
                     <span class="topic-name">{{ t.name }}</span>
-                    @if (sheets()[t.id]; as list) {
-                      <span class="count" [class.all-done]="doneIn(t.id) === list.length">{{ doneIn(t.id) }}/{{ list.length }}</span>
-                    }
                   </button>
                   @if (expanded().has(t.id) && levels()[t.id]; as lv) {
                     @for (l of lv; track l.level) {
@@ -206,11 +197,6 @@ export class App {
     const t = READY[READY.findIndex(r => r.id === this.route().topic) + 1];
     return t && { href: `#/${t.id}/01`, label: t.name, hint: 'Next topic' };
   });
-  protected readonly totals = computed(() => {
-    let done = 0, all = 0;
-    for (const [id, list] of Object.entries(this.sheets())) { all += list!.length; done += this.doneIn(id); }
-    return { done, all };
-  });
 
   // Search over every written topic: sheet titles, section titles and interview questions.
   protected readonly query = signal('');
@@ -275,7 +261,7 @@ export class App {
       const s = this.sheet();
       document.title = s ? `${s.title} · ${this.topicName()} · ReviseNotes` : 'ReviseNotes';
     });
-    // Load the other written topics in the background: sidebar counts, overall progress and search need them.
+    // Load the other written topics in the background: search and the due list need them.
     afterNextRender(() => setTimeout(() => READY.forEach(t => this.ensure(t.id)), 400));
   }
 
@@ -346,7 +332,6 @@ export class App {
   }
 
   protected isDone(topic: string, n: string) { this.progressTick(); return store.get(doneKey(topic, n)) === '1'; }
-  protected doneIn(topic: string) { return (this.sheets()[topic] ?? []).filter(s => this.isDone(topic, s.n)).length; }
   protected toggleDone() {
     const s = this.sheet();
     if (!s) return;
