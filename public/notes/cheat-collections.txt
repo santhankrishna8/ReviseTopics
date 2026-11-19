@@ -1,0 +1,842 @@
+# 01 | Collections, Iterators, Comparators & Strings | Every collection with its methods, complexity and gotchas, plus iterators, Comparable/Comparator, Collections/Arrays utilities and String/StringBuilder/StringBuffer. Keep it open while coding. | Collections on one page
+
+### The Big Picture
+
+## Framework Map
+> `Iterable` > `Collection` > `List`, `Set`, `Queue`. **`Map` is separate** (it does not extend Collection). Everything lives in `java.util` (concurrent ones in `java.util.concurrent`).
+```text
+Iterable
+ └─ Collection
+     ├─ List        ordered, duplicates OK, index access
+     │    ArrayList, LinkedList, Vector > Stack, CopyOnWriteArrayList
+     ├─ Set         no duplicates
+     │    HashSet, LinkedHashSet, TreeSet (SortedSet > NavigableSet), EnumSet
+     └─ Queue       process in order
+          └─ Deque  both ends:  ArrayDeque, LinkedList
+          PriorityQueue (heap), BlockingQueue (LinkedBlockingQueue, ArrayBlockingQueue)
+
+Map  (key -> value)
+ ├─ HashMap, LinkedHashMap, TreeMap (SortedMap > NavigableMap)
+ ├─ Hashtable (legacy), ConcurrentHashMap, EnumMap, WeakHashMap, IdentityHashMap
+```
+! Collection = bag of items; Map = dictionary of key to value.
+
+## Which One Do I Pick?
+```text
+Need                                   Use
+-------------------------------------  -------------------------------
+Ordered list, read by index            ArrayList            (default)
+Stack or queue                         ArrayDeque           (not Stack, not LinkedList)
+No duplicates, fastest                 HashSet
+No duplicates + keep insertion order   LinkedHashSet
+No duplicates + sorted                 TreeSet
+Key -> value, fastest                  HashMap              (default)
+Key -> value + insertion order / LRU   LinkedHashMap
+Key -> value + sorted by key           TreeMap
+Always get smallest/largest first      PriorityQueue
+Thread-safe map                        ConcurrentHashMap
+Thread-safe read-mostly list           CopyOnWriteArrayList
+Keys are an enum                       EnumMap / EnumSet
+```
+! Default answers: ArrayList, HashMap, HashSet, ArrayDeque.
+
+## Complexity Table
+```text
+                 get/index   add(end)   add/remove mid   contains/search   notes
+ArrayList        O(1)        O(1)*      O(n)             O(n)              *amortised, resize x1.5
+LinkedList       O(n)        O(1)       O(1) at node     O(n)              O(n) to reach the node
+ArrayDeque       -           O(1)       O(1) at ends     O(n)              no nulls
+HashSet/HashMap  -           O(1)       O(1)             O(1)              avg; O(log n) worst (treeified)
+LinkedHash*      -           O(1)       O(1)             O(1)              keeps order
+TreeSet/TreeMap  -           O(log n)   O(log n)         O(log n)          sorted, no null key
+PriorityQueue    peek O(1)   O(log n)   O(log n) poll     O(n)              binary min-heap
+```
+- Iterating any collection is **O(n)**. Sorting is **O(n log n)**.
+! Hash = O(1) lookup, Tree = O(log n) + sorted, Array = O(1) index.
+
+### Common Methods & Iteration
+
+## Collection Interface (every List, Set, Queue has these)
+```java
+boolean add(E e)               // add one; Set returns false if already present
+boolean addAll(Collection c)   // add all of c
+boolean remove(Object o)      // remove first match, true if removed
+boolean removeAll(Collection c)   // remove everything that is in c
+boolean retainAll(Collection c)   // keep only what is also in c (intersection)
+boolean removeIf(Predicate p)    // remove where predicate true
+boolean contains(Object o)      // is it there?
+boolean containsAll(Collection c)
+int     size()                  // number of elements
+boolean isEmpty()
+void    clear()                 // remove everything
+Object[] toArray()  /  T[] toArray(new T[0])   // to array
+Iterator<E> iterator()          // walk the elements
+Stream<E> stream()              // for stream pipelines
+void    forEach(Consumer c)     // from Iterable: lambda per element
+```
+- `equals()` and `hashCode()` decide `contains/remove/indexOf`, so override both in your own classes.
+! `size()` is a method on collections, `length` on arrays, `length()` on String.
+
+## Iterator, ListIterator & Looping
+> **Iterator** walks a collection one element at a time. It is the only safe way to **remove while looping**.
+```java
+Iterator<Integer> it = list.iterator();
+while (it.hasNext()) {          // hasNext(): is there another element?
+    int x = it.next();          // next(): return it and move forward
+    if (x % 2 == 0) it.remove();   // remove(): delete the last element returned by next()
+}
+```
+```java
+ListIterator<String> li = list.listIterator();   // List only, goes both ways
+li.hasNext();  li.next();  li.nextIndex();
+li.hasPrevious();  li.previous();  li.previousIndex();
+li.add("x");   li.set("y");   li.remove();       // add before cursor, replace last returned, delete last returned
+```
+```java
+for (String s : list) { }                       // for-each (uses Iterator; do NOT modify list inside)
+list.forEach(s -> System.out.println(s));       // lambda
+list.forEach(System.out::println);              // method ref
+map.forEach((k, v) -> System.out.println(k + "=" + v));
+for (int i = list.size() - 1; i >= 0; i--) { }  // index loop, safe to remove going backwards
+```
+- Call `next()` before `remove()`, and `remove()` only once per `next()`, otherwise `IllegalStateException`.
+- `Iterable` is the interface that allows for-each: implement `iterator()` in your own class to make it loopable.
+! Want to delete while looping? `it.remove()` or `removeIf()`. Never `list.remove()` inside for-each.
+
+## Fail-Fast vs Fail-Safe
+> **Fail-fast** (`ArrayList`, `HashMap`, `HashSet`...) throws **ConcurrentModificationException** if the collection is structurally modified during iteration (tracked by an internal `modCount`). **Fail-safe** (`CopyOnWriteArrayList`, `ConcurrentHashMap`) iterate a snapshot or weakly-consistent view and never throw.
+```java
+for (Integer n : nums) if (n == 2) nums.remove(n);   // ConcurrentModificationException
+nums.removeIf(n -> n == 2);                           // safe
+```
+- Also thrown by single-threaded code; it is not only a multithreading problem.
+- Removing the **second-to-last** element in for-each accidentally does not throw (loop ends early). A classic trick question.
+! Fail-fast = alarm rings immediately; fail-safe = works on a photocopy.
+
+### List
+
+## List Interface Methods
+> A **List** is an ordered collection with **index access** and duplicates allowed. Index starts at 0.
+```java
+list.add(x)                // append at end
+list.add(i, x)             // insert at index i, shifts the rest right
+list.addAll(otherList)     // append all
+list.addAll(i, otherList)  // insert all at index i
+E   list.get(i)            // read element at i
+E   list.set(i, x)         // replace at i, returns OLD value
+E   list.remove(i)         // remove BY INDEX, returns the removed element
+boolean list.remove(obj)   // remove first occurrence by VALUE
+int list.indexOf(x)        // first index, -1 if absent
+int list.lastIndexOf(x)    // last index, -1 if absent
+list.contains(x)
+List<E> list.subList(from, to)   // VIEW of [from, to), changes write through
+list.sort(Comparator)      // in place; pass null for natural order
+list.replaceAll(x -> x * 2)   // transform every element in place
+list.reversed()            // Java 21: reversed view
+list.getFirst() / getLast() / removeFirst() / removeLast() / addFirst(x) / addLast(x)   // Java 21 on List
+```
+- `List<Integer> l; l.remove(1)` removes **index 1**. To remove the value 1 use `l.remove(Integer.valueOf(1))`.
+- `subList` is a view, not a copy; wrap with `new ArrayList<>(list.subList(a, b))` for a copy.
+! `remove(int)` = by position, `remove(Object)` = by value.
+
+## ArrayList
+> **ArrayList** = resizable array. Best default List. Fast `get/set` by index, slow insert/remove in the middle.
+```java
+List<String> a = new ArrayList<>();            // default capacity 10 (allocated on first add)
+List<String> b = new ArrayList<>(100);         // initial capacity, avoids resizes
+List<String> c = new ArrayList<>(otherColl);   // copy
+a.add("x"); a.add(0, "y"); a.get(0); a.set(0, "z"); a.remove(0); a.remove("x");
+a.size(); a.isEmpty(); a.contains("x"); a.indexOf("x"); a.clear();
+a.ensureCapacity(1000);    // pre-size to avoid repeated copying
+a.trimToSize();            // shrink array to current size
+```
+- Grows by **1.5x** when full (copies the array). Not synchronized. Allows `null` and duplicates.
+- `get` O(1); `add` at end amortised O(1); `add(i)/remove(i)` O(n) (shifts elements); `contains` O(n).
+! ArrayList = numbered seats: jump to any seat instantly, inserting a seat shifts everyone.
+
+## LinkedList
+> **LinkedList** = doubly linked list. Implements **both List and Deque**. Fast at the ends, slow `get(i)`.
+```java
+LinkedList<Integer> ll = new LinkedList<>();
+ll.add(1); ll.addFirst(0); ll.addLast(2);     // head / tail inserts O(1)
+ll.getFirst(); ll.getLast();                  // throws NoSuchElementException if empty
+ll.peekFirst(); ll.peekLast();                // null if empty
+ll.removeFirst(); ll.removeLast();            // throws if empty
+ll.pollFirst(); ll.pollLast();                // null if empty
+ll.push(x);  ll.pop();                        // stack at the head
+ll.offer(x); ll.poll(); ll.peek();            // queue (add tail, take head)
+```
+- Each node stores prev + next, so more memory than ArrayList. `get(i)` walks from the nearer end: O(n).
+- In practice `ArrayDeque` is faster for stack/queue and `ArrayList` for lists. LinkedList is rarely the right answer.
+- Allows `null` (ArrayDeque does not).
+! LinkedList = treasure hunt: each clue points to the next, no jumping ahead.
+
+## Vector, Stack, CopyOnWriteArrayList
+```java
+Vector<Integer> v = new Vector<>();   // legacy synchronized ArrayList, grows x2
+Stack<Integer> st = new Stack<>();    // legacy, extends Vector
+st.push(1); st.pop(); st.peek(); st.empty(); st.search(1);   // empty() not isEmpty()
+List<Integer> cow = new CopyOnWriteArrayList<>();   // every write copies the array
+```
+- **Avoid Vector and Stack.** Use `ArrayList` and `ArrayDeque`.
+- **CopyOnWriteArrayList**: thread-safe, iterators are fail-safe snapshots. Great for many reads, few writes (listeners). Writes are O(n).
+! Stack is legacy. Use `Deque<Integer> st = new ArrayDeque<>()` with `push/pop/peek`.
+
+## Immutable Lists & Conversions
+```java
+List<String> l1 = List.of("a", "b");            // Java 9+, immutable, NO nulls
+l1.add("c");                                    // UnsupportedOperationException
+List<String> l2 = Arrays.asList("a", "b");      // fixed-size VIEW of the array: set OK, add/remove throws
+List<String> l3 = new ArrayList<>(Arrays.asList("a", "b"));   // truly modifiable
+List<String> l4 = Collections.unmodifiableList(l3);           // read-only VIEW (l3 changes show through)
+List<String> l5 = List.copyOf(l3);                            // immutable COPY
+List<String> l6 = stream.toList();              // Java 16+, immutable
+String[] arr = list.toArray(new String[0]);     // list to array
+List<Integer> boxed = Arrays.stream(intArr).boxed().collect(Collectors.toList());   // int[] to List
+int[] prim = list.stream().mapToInt(Integer::intValue).toArray();                   // List to int[]
+```
+! `Arrays.asList` is a window onto the array, `new ArrayList<>(...)` is a real copy.
+
+### Set
+
+## Set Interface & Implementations
+> A **Set** holds **unique** elements. Uniqueness is decided by `equals()` + `hashCode()` (Hash sets) or `compareTo/Comparator` (TreeSet).
+```java
+Set<Integer> s = new HashSet<>();
+s.add(1);          // true if added, FALSE if already present (handy for duplicate detection)
+s.remove(1);  s.contains(1);  s.size();  s.isEmpty();  s.clear();
+s.addAll(t);       // UNION
+s.retainAll(t);    // INTERSECTION
+s.removeAll(t);    // DIFFERENCE
+s.containsAll(t);  // SUBSET check
+Set<Integer> imm = Set.of(1, 2, 3);   // immutable, duplicates throw IllegalArgumentException
+```
+```text
+HashSet         O(1)       no order            allows one null    backed by a HashMap
+LinkedHashSet   O(1)       insertion order     allows one null    HashMap + linked list
+TreeSet         O(log n)   sorted              NO null            red-black tree (TreeMap)
+```
+- HashSet needs `hashCode` + `equals` on your objects, TreeSet needs `Comparable` or a Comparator.
+! A set without equals/hashCode on your class will happily store "duplicates".
+
+## TreeSet (SortedSet / NavigableSet)
+> **TreeSet** keeps elements sorted and offers **range and neighbour queries** in O(log n).
+```java
+TreeSet<Integer> t = new TreeSet<>(List.of(10, 20, 30, 40));
+t.first();  t.last();            // smallest, largest
+t.floor(25);    // 20  greatest <= 25
+t.lower(20);    // 10  greatest <  20
+t.ceiling(25);  // 30  smallest >= 25
+t.higher(30);   // 40  smallest >  30      (these four return null if none)
+t.pollFirst();  t.pollLast();    // remove + return smallest / largest
+t.headSet(30);        // [10, 20]       < 30
+t.headSet(30, true);  // [10, 20, 30]   <= 30
+t.tailSet(20);        // [20, 30, 40]   >= 20
+t.subSet(20, 40);     // [20, 30]       [20, 40)
+t.descendingSet();    // reversed view
+t.descendingIterator();
+new TreeSet<>(Comparator.reverseOrder());   // custom order
+```
+- Elements must be mutually comparable, else `ClassCastException`. `null` throws `NullPointerException`.
+- With a Comparator, "equal" means `compare == 0`: two different objects with compare 0 count as duplicates.
+! TreeSet = sorted shelf you can ask "who stands just below / above this?".
+
+## EnumSet & Set Helpers
+```java
+EnumSet<Day> weekend = EnumSet.of(Day.SAT, Day.SUN);
+EnumSet.allOf(Day.class);  EnumSet.noneOf(Day.class);  EnumSet.range(Day.MON, Day.FRI);  EnumSet.complementOf(weekend);
+Set<String> synced = Collections.synchronizedSet(new HashSet<>());
+Set<String> ks = ConcurrentHashMap.newKeySet();   // concurrent set
+```
+- EnumSet is a bit-vector internally: extremely fast and compact. Prefer it for enum flags.
+! Keys that are enums? Use EnumSet / EnumMap.
+
+### Queue & Deque
+
+## Queue Methods (two flavours)
+> A **Queue** is FIFO (first in, first out). Every operation has a version that **throws** and a version that returns a **special value**.
+```text
+Operation   Throws exception   Returns special value
+insert      add(e)             offer(e)        (false if full)
+remove      remove()           poll()          (null if empty)
+examine     element()          peek()          (null if empty)
+```
+```java
+Queue<Integer> q = new LinkedList<>();   // or ArrayDeque
+q.offer(1); q.offer(2); q.peek();   // 1  (look, don't remove)
+q.poll();                           // 1  (take from head)
+```
+! Prefer `offer / poll / peek`: they return null/false instead of throwing.
+
+## Deque & ArrayDeque (stack and queue in one)
+> **Deque** (double-ended queue) = add/remove at **both ends**. **ArrayDeque** is the go-to implementation: resizable array, no capacity limit, **no nulls**, faster than Stack and LinkedList.
+```java
+Deque<Integer> d = new ArrayDeque<>();
+// ---- as STACK (LIFO): work at the head
+d.push(1);  d.push(2);   // addFirst
+d.peek();                // 2   peekFirst
+d.pop();                 // 2   removeFirst (throws if empty)
+// ---- as QUEUE (FIFO): add at tail, take from head
+d.offer(3);              // offerLast
+d.poll();                // pollFirst (null if empty)
+// ---- both ends
+d.addFirst(x);  d.addLast(x);        d.offerFirst(x);  d.offerLast(x);
+d.removeFirst(); d.removeLast();     d.pollFirst();    d.pollLast();
+d.getFirst();   d.getLast();         d.peekFirst();    d.peekLast();
+d.size(); d.isEmpty(); d.contains(x); d.iterator(); d.descendingIterator();
+```
+- Stack: `push / pop / peek`. Queue: `offer / poll / peek`. Both on the same class.
+- Sliding window maximum, BFS, undo stacks, parentheses matching: all ArrayDeque.
+! Use ArrayDeque, not Stack (legacy, synchronized) and not LinkedList (slow nodes).
+
+## PriorityQueue (heap)
+> **PriorityQueue** = binary **min-heap**: `peek()/poll()` always give the **smallest** element (by natural order or Comparator). Iteration order is NOT sorted.
+```java
+PriorityQueue<Integer> pq = new PriorityQueue<>();                          // min-heap
+PriorityQueue<Integer> max = new PriorityQueue<>(Collections.reverseOrder());  // max-heap
+PriorityQueue<int[]> byFirst = new PriorityQueue<>((a, b) -> Integer.compare(a[0], b[0]));
+PriorityQueue<Task> pt = new PriorityQueue<>(Comparator.comparingInt(Task::priority));
+pq.offer(5);  pq.add(2);   // O(log n)
+pq.peek();                 // smallest, O(1), null if empty
+pq.poll();                 // remove smallest, O(log n)
+pq.remove(x);              // O(n)
+pq.size(); pq.isEmpty(); pq.contains(x);   // contains O(n)
+new PriorityQueue<>(collection);   // heapify, O(n)
+```
+- Top-K trick: keep a min-heap of size K; if `size > K` then `poll()`.
+- Elements must be comparable; `null` not allowed. Not thread-safe (use `PriorityBlockingQueue`).
+- Printing a PriorityQueue shows heap array order, not sorted order. Poll repeatedly to get sorted.
+! PriorityQueue = hospital triage: always serve the most urgent, not the first in line.
+
+## BlockingQueue (producer-consumer)
+```java
+BlockingQueue<Integer> bq = new LinkedBlockingQueue<>(100);   // bounded; ArrayBlockingQueue(100) too
+bq.put(x);        // BLOCKS if full
+bq.take();        // BLOCKS if empty
+bq.offer(x, 1, TimeUnit.SECONDS);    // wait up to a timeout
+bq.poll(1, TimeUnit.SECONDS);        // wait up to a timeout, else null
+```
+- Thread-safe. Use it to hand work from producer threads to consumer threads. Others: `PriorityBlockingQueue`, `DelayQueue`, `SynchronousQueue`.
+! put/take wait; offer/poll with timeout give up.
+
+### Map
+
+## Map Interface Methods
+> A **Map** stores **key -> value** pairs. Keys are unique; values may repeat. `put` on an existing key **replaces** the value.
+```java
+Map<String, Integer> m = new HashMap<>();
+m.put("a", 1);                 // returns OLD value or null
+m.get("a");                    // value or null
+m.getOrDefault("z", 0);        // value or fallback (does not insert)
+m.containsKey("a");  m.containsValue(1);   // containsValue is O(n)
+m.remove("a");                 // returns removed value or null
+m.remove("a", 1);              // remove only if mapped to 1
+m.size(); m.isEmpty(); m.clear();
+m.putAll(other);               // copy everything in
+m.putIfAbsent("a", 5);         // insert only if key missing (or null value)
+m.keySet();                    // Set<K> view
+m.values();                    // Collection<V> view
+m.entrySet();                  // Set<Map.Entry<K,V>> view
+m.replace("a", 9);             // only if key present
+m.replaceAll((k, v) -> v + 1); // transform every value
+```
+- **keySet / values / entrySet are views**: removing from them removes from the map.
+- `Map.of("a",1,"b",2)` and `Map.copyOf(m)` are immutable (no nulls); `Map.entry(k, v)` makes an entry; `Map.ofEntries(...)` for >10 pairs.
+! `get` returns null for missing keys AND for null values; use `containsKey` to tell the difference.
+
+## Map Power Methods: merge, compute, computeIfAbsent
+> These replace the "if key exists... else..." boilerplate. Know them cold, they are everywhere in interview code.
+```java
+// count frequency
+m.merge(word, 1, Integer::sum);                 // absent -> 1, present -> old + 1
+// group into lists
+groups.computeIfAbsent(key, k -> new ArrayList<>()).add(item);   // create the list if missing
+// update only if present
+m.computeIfPresent("a", (k, v) -> v + 1);
+// compute always (v is null if absent)
+m.compute("a", (k, v) -> v == null ? 1 : v + 1);
+// returning null from compute/merge function REMOVES the key
+```
+```java
+// old way, for comparison
+if (m.containsKey(w)) m.put(w, m.get(w) + 1); else m.put(w, 1);
+m.put(w, m.getOrDefault(w, 0) + 1);       // middle ground
+```
+! merge = counting, computeIfAbsent = grouping.
+
+## Iterating a Map
+```java
+for (Map.Entry<String, Integer> e : m.entrySet()) {     // BEST: key and value together
+    String k = e.getKey();  int v = e.getValue();
+    e.setValue(v + 1);                                  // writes through to the map
+}
+for (String k : m.keySet()) { }          // keys only (avoid get(k) inside: extra lookup)
+for (int v : m.values()) { }             // values only
+m.forEach((k, v) -> System.out.println(k + " " + v));
+m.entrySet().removeIf(e -> e.getValue() < 2);   // safe removal while filtering
+m.keySet().removeIf(k -> k.isEmpty());
+for (var e : m.entrySet()) { }                  // var for brevity
+```
+```java
+// sort a map by value descending
+m.entrySet().stream()
+ .sorted(Map.Entry.<String,Integer>comparingByValue().reversed())
+ .forEach(e -> System.out.println(e.getKey() + "=" + e.getValue()));
+Map.Entry.comparingByKey();   Map.Entry.comparingByValue();
+```
+! Loop with `entrySet()` when you need both key and value.
+
+## HashMap
+> **HashMap** = array of buckets. `hashCode()` picks the bucket, `equals()` picks the key inside it. Unordered, **1 null key, many null values**, not thread-safe.
+```java
+Map<String, Integer> m = new HashMap<>();              // capacity 16, load factor 0.75
+Map<String, Integer> big = new HashMap<>(1000);        // pre-size: capacity rounds to power of 2
+```
+- **Resize** at `size > capacity * 0.75` (doubles + rehash). **Treeify** when a bucket reaches 8 entries and capacity >= 64 (O(log n) lookups).
+- Keys should be **immutable** (String, Integer, records): mutating a key after insert loses the entry.
+- Own key classes: override `equals()` AND `hashCode()` together.
+- Iteration order is not guaranteed and can change after a resize.
+- Average O(1) `get/put/remove/containsKey`.
+! Post office: hashCode picks the PO box, equals picks the right letter.
+
+## LinkedHashMap (insertion order, LRU cache)
+> **LinkedHashMap** = HashMap + doubly linked list: iteration is in **insertion order**, or **access order** (for LRU).
+```java
+Map<String,Integer> lhm = new LinkedHashMap<>();            // insertion order
+// LRU cache of capacity 3
+class LRU<K,V> extends LinkedHashMap<K,V> {
+    private final int cap;
+    LRU(int cap) { super(16, 0.75f, true); this.cap = cap; }      // true = access order
+    @Override protected boolean removeEldestEntry(Map.Entry<K,V> e) { return size() > cap; }
+}
+```
+- `get()` moves the entry to the end in access-order mode, so the eldest entry is the least recently used.
+- Re-putting an existing key does not change insertion order.
+! LinkedHashMap + removeEldestEntry = LRU cache in 5 lines.
+
+## TreeMap (SortedMap / NavigableMap)
+> **TreeMap** = red-black tree: keys kept **sorted**, O(log n) for everything, **no null keys**.
+```java
+TreeMap<Integer,String> t = new TreeMap<>();    // or new TreeMap<>(Comparator.reverseOrder())
+t.put(10,"a"); t.put(20,"b"); t.put(30,"c");
+t.firstKey();  t.lastKey();           // smallest / largest key
+t.firstEntry(); t.lastEntry();        // as Map.Entry
+t.floorKey(25);    // 20   greatest key <= 25
+t.lowerKey(20);    // 10   greatest key <  20
+t.ceilingKey(25);  // 30   smallest key >= 25
+t.higherKey(30);   // null smallest key >  30     (null if none; same family: floorEntry, ceilingEntry...)
+t.pollFirstEntry(); t.pollLastEntry();           // remove + return
+t.headMap(20);        // keys <  20
+t.tailMap(20);        // keys >= 20   (tailMap(20, false) for > 20)
+t.subMap(10, 30);     // keys [10, 30)
+t.descendingMap();    t.descendingKeySet();
+```
+- Use for leaderboards, interval problems, "closest value", calendars (`floorKey/ceilingKey`).
+! TreeMap = sorted dictionary that also answers "what is just before / after this key?".
+
+## Other Maps (know when to use)
+```java
+Map<String,Integer> ht  = new Hashtable<>();             // legacy, synchronized, NO null key/value
+Map<String,Integer> chm = new ConcurrentHashMap<>();     // thread-safe, no nulls, fine-grained locking
+chm.merge("page", 1, Integer::sum);                      // atomic counting
+chm.computeIfAbsent(k, x -> new ArrayList<>());          // atomic
+Map<Day,String> em = new EnumMap<>(Day.class);           // keys are enum constants, ordered by ordinal
+Map<K,V> weak = new WeakHashMap<>();                     // entry removed when key is garbage collected
+Map<K,V> id = new IdentityHashMap<>();                   // compares keys with == not equals
+Map<K,V> sync = Collections.synchronizedMap(new HashMap<>());   // wrapper, locks whole map
+```
+```text
+HashMap        1 null key, many null values   not thread-safe       fastest
+Hashtable      no nulls                       synchronized (legacy)
+ConcurrentHashMap no nulls                    thread-safe, scalable   use in multithreaded code
+TreeMap        no null key                    sorted
+```
+- `ConcurrentHashMap` iterators are weakly consistent (no ConcurrentModificationException).
+! Multithreaded counting? `ConcurrentHashMap.merge`. Never plain HashMap.
+
+### Sorting & Ordering
+
+## Comparable (natural order)
+> **Comparable** is implemented **by the class itself** to define its **one natural order** via `compareTo`. Used by `Collections.sort`, `Arrays.sort`, `TreeSet`, `TreeMap`, `PriorityQueue`.
+```java
+class Emp implements Comparable<Emp> {
+    String name; int age;
+    @Override public int compareTo(Emp o) {
+        return Integer.compare(this.age, o.age);   // negative: this < o, 0: equal, positive: this > o
+    }
+}
+Collections.sort(list);        // uses compareTo
+Arrays.sort(empArray);
+```
+- Contract: `a.compareTo(b)` returns **negative / zero / positive**; keep it consistent with `equals`.
+- Never write `return this.age - o.age;` for values that can be large or negative: **overflow**. Use `Integer.compare`.
+- String, Integer, Double, LocalDate etc. are already Comparable.
+! Comparable = "how I sort myself". One per class.
+
+## Comparator (custom order)
+> **Comparator** is a **separate object** (or lambda) that defines **any ordering** from outside the class via `compare(a, b)`. You can have many.
+```java
+Comparator<Emp> byAge = (a, b) -> Integer.compare(a.age, b.age);
+list.sort(byAge);                     // or Collections.sort(list, byAge) / Arrays.sort(arr, byAge)
+// anonymous class form (older style)
+list.sort(new Comparator<Emp>() { public int compare(Emp a, Emp b) { return a.name.compareTo(b.name); } });
+```
+```java
+// Factory + chaining methods (the modern way)
+Comparator.comparing(Emp::getName)                   // by a key (Comparable)
+Comparator.comparingInt(Emp::getAge)                 // primitive versions avoid boxing
+Comparator.comparingDouble(Emp::getSalary)
+Comparator.comparingLong(Emp::getId)
+    .reversed()                                      // flip the order
+    .thenComparing(Emp::getName)                     // tie-breaker
+    .thenComparingInt(Emp::getAge)
+Comparator.naturalOrder();   Comparator.reverseOrder();
+Comparator.nullsFirst(Comparator.naturalOrder());    // null-safe: nullsLast(...) too
+Collections.reverseOrder();                          // reverse natural order
+String.CASE_INSENSITIVE_ORDER
+```
+```java
+// salary desc, then name asc
+list.sort(Comparator.comparingDouble(Emp::getSalary).reversed().thenComparing(Emp::getName));
+// 2D arrays / intervals by start, then end
+Arrays.sort(intervals, (a, b) -> a[0] != b[0] ? Integer.compare(a[0], b[0]) : Integer.compare(a[1], b[1]));
+Arrays.sort(strs, Comparator.comparing(String::length));
+```
+- `Arrays.sort(int[], comparator)` does NOT compile: comparators need objects (`Integer[]`, `int[][]`, `String[]`).
+- Descending primitives: sort ascending then reverse, or use `Integer[]` / streams with `.boxed()`.
+- In a chain with `.reversed()`, put the type on the first call: `Comparator.comparing((Emp e) -> e.name).reversed()`.
+! Comparator = "how YOU want to sort me today". Chain with `thenComparing`.
+
+## Comparable vs Comparator
+```text
+                 Comparable                    Comparator
+package          java.lang                     java.util
+method           compareTo(T o)                compare(T a, T b)
+where defined    inside the class              outside (separate class / lambda)
+orders           ONE natural order             MANY custom orders
+changes class?   yes                           no (works on classes you cannot edit)
+used by          sort(list), TreeSet default   sort(list, cmp), TreeSet(cmp), PriorityQueue(cmp)
+```
+- Comparator is a **functional interface** (one abstract method), so lambdas work.
+! Can't edit the class? Comparator. Want a default order? Comparable.
+
+## Collections Class (static utilities)
+```java
+Collections.sort(list);                    // natural order, stable (TimSort)
+Collections.sort(list, cmp);
+Collections.reverse(list);                 // reverse in place
+Collections.shuffle(list);                 // random order
+Collections.swap(list, i, j);
+Collections.max(coll);  Collections.min(coll);        // also with a Comparator
+Collections.frequency(coll, x);            // count occurrences
+Collections.binarySearch(list, key);       // list MUST be sorted; returns -(insertionPoint)-1 if absent
+Collections.unmodifiableList(l);  unmodifiableSet / unmodifiableMap     // read-only views
+Collections.synchronizedList(l);  synchronizedMap / synchronizedSet     // thread-safe wrappers
+Collections.emptyList();  emptyMap();  emptySet();     // immutable empties
+Collections.singletonList(x);  singleton(x);  singletonMap(k, v);
+Collections.nCopies(3, "ab");              // [ab, ab, ab]
+Collections.addAll(list, 1, 2, 3);
+Collections.fill(list, 0);                 // set every element
+Collections.rotate(list, 2);               // rotate right by 2
+Collections.disjoint(a, b);                // true if no common elements
+Collections.reverseOrder();                // comparator
+```
+- `Collections.sort` is **stable** (equal elements keep their relative order).
+! Collections (plural, with s) = utility class. Collection = the interface.
+
+## Arrays Class (static utilities)
+```java
+Arrays.sort(a);                    // dual-pivot quicksort for primitives, TimSort for objects
+Arrays.sort(a, from, to);          // range [from, to)
+Arrays.sort(objArr, comparator);   // objects only
+Arrays.fill(a, -1);                // fill all; fill(a, from, to, val)
+Arrays.toString(a);                // "[1, 2, 3]"
+Arrays.deepToString(grid);         // 2D: "[[1, 2], [3, 4]]"
+Arrays.equals(a, b);               // same content?   deepEquals for nested
+Arrays.hashCode(a);
+Arrays.copyOf(a, newLen);          // copy / grow / truncate
+Arrays.copyOfRange(a, from, to);   // [from, to)
+Arrays.binarySearch(a, key);       // sorted array only
+Arrays.asList(1, 2, 3);            // fixed-size List view
+Arrays.stream(a);                  // IntStream for int[]
+Arrays.setAll(a, i -> i * i);      // generate from index
+Arrays.mismatch(a, b);             // first index that differs (Java 9)
+```
+- `System.out.println(arr)` prints a hash like `[I@1b6d3586`. Use `Arrays.toString(arr)`.
+- `a == b` and `a.equals(b)` on arrays compare references. Use `Arrays.equals`.
+- `int[] copy = a.clone();` is a shallow copy.
+! Printing an array? Arrays.toString. Comparing arrays? Arrays.equals.
+
+## Objects Class & equals/hashCode Contract
+```java
+Objects.equals(a, b);               // null-safe equals
+Objects.hash(name, age);            // build hashCode from fields
+Objects.hashCode(o);                // 0 if null
+Objects.requireNonNull(x, "msg");   // throws NullPointerException if null
+Objects.isNull(x);  Objects.nonNull(x);
+Objects.toString(o, "default");
+Objects.requireNonNullElse(x, def);
+```
+```java
+@Override public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof Emp e)) return false;
+    return age == e.age && Objects.equals(name, e.name);
+}
+@Override public int hashCode() { return Objects.hash(name, age); }
+```
+- Contract: equal objects MUST have equal hash codes. Unequal objects may collide. Use the same fields in both.
+- Records generate `equals/hashCode/toString` for you.
+! Override equals => override hashCode. Always both.
+
+### Strings
+
+## String Methods
+> **String** is **immutable**: every "change" returns a **new** String. Literals live in the **string pool**.
+```java
+String s = "Hello, World";
+s.length();                    // 12
+s.charAt(1);                   // 'e'
+s.substring(7);                // "World"        from index
+s.substring(0, 5);             // "Hello"        [begin, end)
+s.indexOf('o');  s.indexOf("lo");   s.indexOf('o', 5);   // -1 if absent
+s.lastIndexOf('o');
+s.contains("World");           // true
+s.startsWith("He");  s.endsWith("ld");
+s.equals("x");  s.equalsIgnoreCase("hello, world");      // NEVER use == for content
+s.compareTo("Hi");             // negative/0/positive (lexicographic);  compareToIgnoreCase
+s.toUpperCase();  s.toLowerCase();
+s.trim();  s.strip();          // strip handles Unicode whitespace; stripLeading / stripTrailing
+s.isEmpty();  s.isBlank();     // isBlank: empty or only whitespace (Java 11)
+s.replace('l', 'L');  s.replace("World", "Java");        // literal, all occurrences
+s.replaceAll("[aeiou]", "*");  s.replaceFirst("l", "L"); // regex
+s.split(",\\s*");              // String[] by regex;  split(",", 2) limits parts
+s.toCharArray();               // char[]  (sort it: anagram check)
+s.chars();                     // IntStream of chars
+s.matches("[A-Za-z, ]+");      // whole-string regex match
+s.concat("!");                 // same as +
+s.repeat(3);                   // Java 11
+s.intern();                    // put/get from pool
+s.lines();                     // Stream<String> split by line (Java 11)
+String.valueOf(42);  String.valueOf(charArr);  Integer.toString(42);
+String.join("-", "a", "b", "c");   String.join(", ", list);       // "a-b-c"
+String.format("%s is %d, %.2f, %05d", "Ann", 30, 1.5, 42);
+"%s".formatted(x);             // Java 15
+new String(charArr);   new String(charArr, 0, 3);
+```
+- Comparing: `==` compares references; `.equals` compares content. `"a" == "a"` is true (pool) but `new String("a") == "a"` is false.
+- Put the literal first to avoid NPE: `"yes".equals(input)`.
+- Text blocks (Java 15): `""" ... """` for multi-line strings.
+! Strings never change. Every method hands you a new one.
+
+## Char & Number Helpers (very common in coding rounds)
+```java
+Character.isDigit(c);  Character.isLetter(c);  Character.isLetterOrDigit(c);
+Character.isUpperCase(c);  Character.isLowerCase(c);  Character.isWhitespace(c);
+Character.toUpperCase(c);  Character.toLowerCase(c);
+Character.getNumericValue('7');   // 7
+(char) ('a' + 1);                 // 'b'
+c - 'a';                          // 0..25 index for lowercase letters
+c - '0';                          // digit char to int
+int[] freq = new int[26];  freq[c - 'a']++;    // letter counts
+Integer.parseInt("123");  Integer.valueOf("123");  Integer.toString(5);
+Integer.toBinaryString(10);  Integer.toHexString(255);  Integer.parseInt("101", 2);
+Integer.MAX_VALUE;  Integer.MIN_VALUE;   // 2147483647 / -2147483648
+Integer.compare(a, b);  Integer.sum(a, b);  Integer.bitCount(n);
+Math.max(a, b);  Math.min(a, b);  Math.abs(x);  Math.pow(2, 10);  Math.sqrt(x);  Math.floorMod(a, b);
+Long.parseLong("..");  Double.parseDouble("..");  Boolean.parseBoolean("true");
+new StringBuilder().append(c).toString();     // char to String;  String.valueOf(c)
+```
+- `Integer` caches -128..127: `Integer a = 127, b = 127; a == b` is true, with 128 it is false. Always use `.equals` on wrappers.
+- `Math.abs(Integer.MIN_VALUE)` is still negative (overflow).
+! `c - 'a'` is the index trick behind half of all string problems.
+
+## StringBuilder
+> **StringBuilder** = **mutable** character sequence, **not thread-safe**, fastest. Use it to build or modify strings in loops (avoids creating a new String each time).
+```java
+StringBuilder sb = new StringBuilder();            // default capacity 16
+StringBuilder sb2 = new StringBuilder("abc");      // from a string
+StringBuilder sb3 = new StringBuilder(100);        // initial capacity
+
+sb.append("Hi").append(' ').append(42).append(3.5).append(true);   // chainable, any type
+sb.insert(0, "Say ");              // insert at index
+sb.delete(0, 4);                   // delete [start, end)
+sb.deleteCharAt(sb.length() - 1);  // remove last char (drop trailing comma)
+sb.replace(0, 2, "Yo");            // replace [start, end) with text
+sb.reverse();                      // reverse in place: palindrome check, reverse string
+sb.setCharAt(0, 'X');              // change one char (O(1))
+sb.setLength(0);                   // clear / truncate
+sb.charAt(i);   sb.length();   sb.capacity();
+sb.indexOf("x");   sb.lastIndexOf("x");
+sb.substring(1, 3);                // returns a String
+sb.isEmpty();                      // Java 15
+sb.toString();                     // convert to String when done
+sb.compareTo(other);               // Java 11
+sb.chars();                        // IntStream
+```
+```java
+// reverse a string
+String r = new StringBuilder(s).reverse().toString();
+// palindrome
+boolean pal = new StringBuilder(s).reverse().toString().equals(s);
+// join with commas
+StringBuilder out = new StringBuilder();
+for (String w : words) out.append(w).append(",");
+if (out.length() > 0) out.setLength(out.length() - 1);   // strip trailing comma
+```
+- `+=` on String in a loop is O(n^2) (copies each time). `StringBuilder.append` is amortised O(1).
+- StringBuilder does **not** override `equals()`: `sb1.equals(sb2)` is reference comparison. Compare `toString()` values.
+- `sb.length()` is a method; `sb.reverse()` returns the same builder (chainable).
+! Building text in a loop? StringBuilder. Always.
+
+## StringBuffer
+> **StringBuffer** = the **synchronized (thread-safe)** twin of StringBuilder. **Same methods**: `append, insert, delete, deleteCharAt, replace, reverse, setCharAt, setLength, charAt, length, capacity, indexOf, substring, toString`.
+```java
+StringBuffer sbf = new StringBuffer("abc");
+sbf.append("def").reverse().insert(0, "X");   // identical API to StringBuilder
+```
+- Older (Java 1.0). Every method is `synchronized`, so it is **slower**. Rarely needed: sharing one builder across threads is uncommon.
+- `StringBuilder` came in Java 5 as the unsynchronized replacement.
+! Same API, only difference: StringBuffer is thread-safe and slower.
+
+## String vs StringBuilder vs StringBuffer
+```text
+                  String             StringBuilder        StringBuffer
+mutable?          NO (immutable)     YES                  YES
+thread-safe?      yes (immutable)    NO                   YES (synchronized)
+speed             slowest to modify  FASTEST              slower than Builder
+storage           string pool / heap heap                 heap
+equals()          compares content   reference (not overridden)  reference
+concat            + or concat()      append()             append()
+use when          fixed text, keys   loops, single thread shared state, multi-thread
+```
+- Compile-time constants (`"a" + "b"`) are joined by the compiler; `+` in a loop creates many objects.
+- Java compiles `a + b + c` to a StringBuilder (or invokedynamic) behind the scenes, but not across loop iterations.
+- Thread-safe immutability: Strings can be shared safely, used as HashMap keys, and cache their `hashCode`.
+! Immutable = String. Mutable and fast = StringBuilder. Mutable and thread-safe = StringBuffer.
+
+## String Pool & Immutability Questions
+```java
+String a = "java";                 // goes to the pool
+String b = "java";                 // reuses the same pooled object
+String c = new String("java");     // new object on the heap
+a == b;            // true   same pooled reference
+a == c;            // false  different objects
+a.equals(c);       // true   same content
+a == c.intern();   // true   intern() returns the pooled instance
+```
+- Why immutable: security (class names, file paths), pool sharing, thread safety, cached hashCode for HashMap keys.
+- A password goes in `char[]` instead of String so it can be wiped from memory.
+! `==` asks "same object?", `equals` asks "same content?".
+
+## StringJoiner & Common String Patterns
+```java
+StringJoiner sj = new StringJoiner(", ", "[", "]");   // delimiter, prefix, suffix
+sj.add("a").add("b");   sj.toString();                // "[a, b]"
+String csv = list.stream().map(String::valueOf).collect(Collectors.joining(", ", "[", "]"));
+```
+```java
+// anagram check
+char[] x = s.toCharArray(), y = t.toCharArray();  Arrays.sort(x);  Arrays.sort(y);  Arrays.equals(x, y);
+// char frequency
+Map<Character,Integer> f = new HashMap<>();  for (char ch : s.toCharArray()) f.merge(ch, 1, Integer::sum);
+// reverse words
+String[] w = s.trim().split("\\s+");  Collections.reverse(Arrays.asList(w));  String.join(" ", w);
+// is palindrome (two pointers)
+int i = 0, j = s.length() - 1;  while (i < j) if (s.charAt(i++) != s.charAt(j--)) return false;
+// char[] back to String
+new String(chars);  String.valueOf(chars);
+```
+! `split("\\s+")` splits on any run of spaces; trim first or you get a leading empty string.
+
+### Streams, Concurrency & Gotchas
+
+## Collections with Streams (Collectors)
+```java
+List<Integer> evens = nums.stream().filter(n -> n % 2 == 0).collect(Collectors.toList());   // or .toList()
+Set<String> set = names.stream().collect(Collectors.toSet());
+Map<Integer,String> byId = emps.stream().collect(Collectors.toMap(Emp::id, Emp::name));     // duplicate keys throw; pass a merge fn
+Map<String,List<Emp>> byDept = emps.stream().collect(Collectors.groupingBy(Emp::dept));
+Map<String,Long> count = emps.stream().collect(Collectors.groupingBy(Emp::dept, Collectors.counting()));
+Map<Boolean,List<Integer>> parts = nums.stream().collect(Collectors.partitioningBy(n -> n > 5));
+String joined = names.stream().collect(Collectors.joining(", "));
+double avg = emps.stream().collect(Collectors.averagingDouble(Emp::salary));
+TreeMap<..> tm = stream.collect(Collectors.toMap(k, v, (a, b) -> a, TreeMap::new));   // choose map type
+nums.stream().mapToInt(Integer::intValue).sum();      // also max(), min(), average()
+nums.stream().sorted(Comparator.reverseOrder()).limit(3).toList();    // top 3
+```
+- Terminal ops: `collect, forEach, count, reduce, anyMatch, allMatch, noneMatch, findFirst, min, max`.
+! groupingBy = Map of lists, partitioningBy = true/false split.
+
+## Thread-Safe Collections Quick Guide
+```text
+Unsafe              Thread-safe choice
+ArrayList           CopyOnWriteArrayList  |  Collections.synchronizedList(list)
+HashMap             ConcurrentHashMap     (best)  |  Collections.synchronizedMap
+HashSet             ConcurrentHashMap.newKeySet() | CopyOnWriteArraySet
+TreeMap / TreeSet   ConcurrentSkipListMap / ConcurrentSkipListSet
+ArrayDeque / Queue  ConcurrentLinkedQueue / ConcurrentLinkedDeque | BlockingQueue family
+PriorityQueue       PriorityBlockingQueue
+```
+- Synchronized wrappers still need a manual `synchronized(list)` block while **iterating**.
+- Legacy: Vector, Hashtable, Stack (synchronized but slow, avoid).
+! Plain collections are not thread-safe. Pick from the concurrent family.
+
+## Gotchas Checklist
+```text
+1. list.remove(int) vs remove(Object): Integer lists remove by INDEX when given an int.
+2. Modifying a collection inside for-each -> ConcurrentModificationException. Use Iterator.remove / removeIf.
+3. Arrays.asList / List.of / Collections.unmodifiableList: add or remove throws UnsupportedOperationException.
+4. List.of / Set.of / Map.of reject nulls; List.of is immutable, Arrays.asList is fixed-size.
+5. HashMap/HashSet need equals + hashCode on custom keys; never mutate a key after inserting it.
+6. TreeMap / TreeSet / PriorityQueue need Comparable or a Comparator; TreeMap forbids null keys.
+7. PriorityQueue prints in heap order, not sorted order.
+8. Comparator with subtraction (a - b) overflows. Use Integer.compare.
+9. Arrays.sort(int[], comparator) does not compile: use Integer[] or sort then reverse.
+10. Use ==  on Strings and boxed Integers beyond -128..127 and you get false: use equals.
+11. get() returns null for both "missing" and "mapped to null": check containsKey.
+12. subList and keySet/values/entrySet are VIEWS: changes write through, structural changes to the source break the view.
+13. ArrayDeque and ConcurrentHashMap reject null elements.
+14. Collections.binarySearch / Arrays.binarySearch need SORTED input, else undefined.
+15. Stack/Vector/Hashtable are legacy: use ArrayDeque, ArrayList, ConcurrentHashMap.
+16. Remember Collection (interface) vs Collections (utility class), Arrays vs Array, Object vs Objects.
+17. Prefer interface types on the left: List<String> x = new ArrayList<>();
+```
+! Half of "weird Java bugs" in interviews are on this list.
+
+## Coding-Round Templates
+```java
+// frequency map and most frequent
+Map<Integer,Integer> f = new HashMap<>();
+for (int n : a) f.merge(n, 1, Integer::sum);
+int best = Collections.max(f.entrySet(), Map.Entry.comparingByValue()).getKey();
+
+// group anagrams
+Map<String,List<String>> g = new HashMap<>();
+for (String s : strs) { char[] c = s.toCharArray(); Arrays.sort(c); g.computeIfAbsent(new String(c), k -> new ArrayList<>()).add(s); }
+
+// top K frequent (min-heap of size k)
+PriorityQueue<Map.Entry<Integer,Integer>> pq = new PriorityQueue<>(Map.Entry.comparingByValue());
+for (var e : f.entrySet()) { pq.offer(e); if (pq.size() > k) pq.poll(); }
+
+// remove duplicates keeping order
+List<Integer> uniq = new ArrayList<>(new LinkedHashSet<>(list));
+
+// sorted unique
+List<Integer> sorted = new ArrayList<>(new TreeSet<>(list));
+
+// merge intervals: sort by start
+Arrays.sort(iv, (x, y) -> Integer.compare(x[0], y[0]));
+
+// BFS with queue
+Queue<Integer> q = new ArrayDeque<>(); q.offer(start);
+while (!q.isEmpty()) { int cur = q.poll(); /* visit, offer neighbours */ }
+
+// stack for parentheses
+Deque<Character> st = new ArrayDeque<>();
+for (char c : s.toCharArray()) { if ("([{".indexOf(c) >= 0) st.push(c); else if (st.isEmpty() || !match(st.pop(), c)) return false; }
+
+// array <-> list <-> set
+List<Integer> L = Arrays.stream(arr).boxed().toList();   Set<Integer> S = new HashSet<>(L);   int[] back = L.stream().mapToInt(i -> i).toArray();
+```
+! These ten snippets cover most coding rounds.

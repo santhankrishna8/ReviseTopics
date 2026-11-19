@@ -22,6 +22,9 @@ export const GROUPS: { name: string; topics: Topic[] }[] = [
     { id: 'cheat-cicd', name: 'CI/CD', ready: true, poster: true },
     { id: 'cheat-aws', name: 'AWS', ready: true, poster: true },
   ] },
+  { name: 'Collections & Strings', topics: [
+    { id: 'cheat-collections', name: 'Java Collections', ready: true, poster: true },
+  ] },
   { name: 'Languages', topics: [
     { id: 'java', name: 'Java', ready: true },
     { id: 'python', name: 'Python', ready: true },

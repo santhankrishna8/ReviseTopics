@@ -1,9 +1,14 @@
+@import '@fontsource-variable/schibsted-grotesk/wght.css';
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
 /* ReviseNotes: "ink and highlighter". Near-neutral ink, one grotesk, and one accent: a yellow highlighter
    that marks keywords and everything you have revised. Sheets are nodes on a branch line that fill yellow
    as you revise. Header / sidebar / sheet / "On this page". */
 :root {
-  --font-sans: 'Schibsted Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --font-sans: 'Schibsted Grotesk Variable', 'Schibsted Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Newsreader Variable', 'Newsreader', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
   --ease-out: cubic-bezier(.22, 1, .36, 1);
   --ease-expo: cubic-bezier(.16, 1, .3, 1);
@@ -46,28 +51,29 @@
   color-scheme: light;
 }
 
-/* Dark: designed for late-night revision, a deep graphite rather than an inverted page. */
+/* Dark: true black (OLED), neutral greys, same accent. */
 :root[data-theme="dark"] {
-  --bg: oklch(0.185 0.035 268);
-  --rail: oklch(0.215 0.04 268);
-  --hover: oklch(0.26 0.045 268);
-  --ink: oklch(0.95 0.01 85);
-  --ink-2: oklch(0.86 0.015 85);
-  --muted: oklch(0.73 0.02 268);
-  --line: oklch(0.27 0.04 268);
-  --line-2: oklch(0.35 0.045 268);
+  --bg: #000;
+  --rail: oklch(0.18 0 0);
+  --hover: oklch(0.25 0 0);
+  --ink: oklch(0.96 0 0);
+  --ink-2: oklch(0.86 0 0);
+  --muted: oklch(0.72 0 0);
+  --line: oklch(0.24 0 0);
+  --line-2: oklch(0.34 0 0);
   --accent: oklch(0.82 0.1 272);
   --accent-hover: oklch(0.9 0.08 272);
-  --on-accent: oklch(0.2 0.04 268);
+  --on-accent: #000;
   --accent-ink: oklch(0.84 0.1 275);
-  --accent-tint: oklch(0.28 0.07 272);
+  --accent-tint: oklch(0.26 0.05 272);
   --done: oklch(0.85 0.16 88);
   --on-done: oklch(0.22 0.04 80);
   --done-ink: oklch(0.85 0.16 88);
   --hl: oklch(0.78 0.15 90 / .3);
-  --code-bg: oklch(0.15 0.03 268);
-  --code-head: oklch(0.19 0.035 268);
-  --code-line: oklch(0.27 0.04 268);
+  --code-bg: oklch(0.12 0 0);
+  --code-head: oklch(0.16 0 0);
+  --code-line: oklch(0.27 0 0);
+  --code-muted: oklch(0.72 0 0);
   color-scheme: dark;
 }
 
@@ -90,11 +96,11 @@ a { color: inherit; }
 .logo-mark { width: 28px; height: 28px; }
 .logo-text { font-weight: 750; font-size: 1.2rem; letter-spacing: -0.025em; color: var(--ink); }
 .icon-btn {
-  display: none; place-items: center; width: 40px; height: 40px; border-radius: 999px;
+  flex: none; display: none; place-items: center; width: 40px; height: 40px; border-radius: 999px;
   border: 0; background: var(--rail); color: var(--ink); cursor: pointer;
 }
 
-.search { position: relative; display: flex; align-items: center; width: min(360px, 100%); }
+.search { position: relative; display: flex; align-items: center; width: min(360px, 100%); min-width: 0; }
 .search-icon { position: absolute; left: 14px; width: 17px; height: 17px; color: var(--muted); pointer-events: none; }
 .search input {
   width: 100%; height: 40px; padding: 0 64px 0 40px; border-radius: 999px;
@@ -334,17 +340,13 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 /* ---------- Cheat sheet posters: one sheet; "###" groups head a row-ordered grid of numbered cards ---------- */
 .sheet-view.poster { grid-template-columns: minmax(0, 1fr); }
 .poster .doc { max-width: 1680px; padding: 28px 32px 80px; }
-.poster .doc-head { margin-top: 40px; }
+.poster .doc-head { margin-top: 28px; }
+.poster .doc h1 { font-size: clamp(2rem, 1.4rem + 1.8vw, 2.9rem); }
+.poster .lede { font-size: 1.1rem; margin-top: 12px; }
+.cards > section.sec { box-shadow: 0 0 0 1px var(--line); transition: box-shadow .2s var(--ease-out); }
+.cards > section.sec:hover { box-shadow: 0 0 0 1px var(--line-2); }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr)); gap: 14px; margin-top: 8px; }   /* row order: 1 | 2, 3 | 4 ... */
-.cards [data-tone="0"] { --c: oklch(0.55 0.15 255); }
-.cards [data-tone="1"] { --c: oklch(0.55 0.15 300); }
-.cards [data-tone="2"] { --c: oklch(0.55 0.11 175); }
-.cards [data-tone="3"] { --c: oklch(0.6 0.13 70); }
-.cards [data-tone="4"] { --c: oklch(0.56 0.17 355); }
-.cards [data-tone="5"] { --c: oklch(0.57 0.1 215); }
-.cards [data-tone="6"] { --c: oklch(0.6 0.15 45); }
-.cards [data-tone="7"] { --c: oklch(0.52 0.15 275); }
-:root[data-theme="dark"] .cards [data-tone] { --c: oklch(from var(--c) 0.76 c h); }
+.cards { --c: var(--accent-ink); }   /* one accent; hierarchy comes from type and space, not a rainbow */
 
 .cards > .grp {
   grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; margin: 40px 0 4px;
@@ -360,19 +362,19 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
   display: grid; place-items: center; flex: none; min-width: 28px; height: 28px; padding: 0 7px; border-radius: 999px;
   background: color-mix(in oklch, var(--c) 16%, var(--bg)); color: var(--c); font-size: .8rem; font-weight: 750; font-variant-numeric: tabular-nums;
 }
-.cards .callout { margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; background: color-mix(in oklch, var(--c) 10%, var(--bg)); font-size: .95rem; line-height: 1.55; }
+.cards .callout { margin: 0 0 14px; padding: 2px 0 2px 14px; border-radius: 0; background: none; border-left: 2px solid var(--done); font-size: .95rem; line-height: 1.55; }
 .cards .sec ul { margin: 0 0 10px; padding-left: 1.15em; font-size: .9rem; line-height: 1.55; }
 .cards .sec li { margin: 5px 0; padding-left: 2px; }
 .cards .sec li::marker { color: var(--c); }
-.cards .tip { gap: 9px; margin: 8px 0 10px; padding: 10px 12px; border-radius: 12px; background: var(--bg); font-size: .88rem; line-height: 1.5; color: var(--ink-2); }
+.cards .tip { gap: 9px; margin: 10px 0 8px; padding: 10px 0 0; border-radius: 0; background: none; border-top: 1px solid var(--line-2); font-size: .88rem; line-height: 1.5; color: var(--ink-2); }
 .cards .tip-label { color: var(--c); font-size: .84rem; }
 .cards .code { margin: 10px 0; border-radius: 12px; }
 .cards .code figcaption { display: none; }
-.cards .code pre { padding: 11px 13px; font-size: .76rem; line-height: 1.6; overflow-x: visible; }
-.cards .code pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cards .code pre { padding: 11px 13px; font-size: .76rem; line-height: 1.6; overflow-x: auto; }   /* scroll, never wrap: keeps comment columns aligned */
+.cards .code pre code { white-space: pre; overflow-wrap: normal; }
 .cards .code[data-lang="text"] pre { overflow-x: auto; font-size: .72rem; }   /* comparison tables keep their columns */
 .cards .code[data-lang="text"] pre code { white-space: pre; overflow-wrap: normal; }
-.cards :not(pre) > code { font-size: .84em; background: var(--bg); }
+.cards :not(pre) > code { font-size: .84em; background: var(--hover); }
 .poster .doc-foot { margin-top: 56px; }
 
 /* ---------- On this page: the same branch, one node per section ---------- */
@@ -434,7 +436,8 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 @media (max-width: 560px) {
   .logo-text { display: none; }
   .logo { margin-right: 0; }
-  .search { flex: 1; width: auto; }
+  .search { flex: 1 1 0; width: auto; }
+  .search input { min-width: 0; }
   .search kbd { display: none; }
   .search input { padding-right: 14px; }
   .doc-bar .btn { min-height: 36px; padding: 0 14px; font-size: .86rem; }
@@ -473,3 +476,15 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
 
 .cards .sec h2 { font-family: var(--font-sans); letter-spacing: -0.015em; }
 .logo-text { font-family: var(--font-display); font-weight: 650; letter-spacing: -0.01em; }
+
+/* touch: 44px targets */
+@media (pointer: coarse), (max-width: 920px) {
+  .sheets a, .topic, .toc a { min-height: 44px; }
+  .btn, .quiz, .copy, .theme-toggle { min-height: 44px; }
+  .theme-toggle { width: 64px; }
+  .tt-thumb { top: 7px; }
+  .theme-toggle[aria-checked="true"] .tt-thumb { translate: 30px 0; }
+  .icon-btn { width: 44px; height: 44px; }
+  .search input { height: 44px; }
+}
+:where(.btn, .topic, .sheets a, .foot-link, .qa summary):active { opacity: .85; }
