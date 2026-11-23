@@ -466,6 +466,181 @@ afterNextRender(() => measure());       // browser-only DOM work
 - Route guards are not security: always authorise on the server.
 ! Angular cleans everything it shows, unless you tell it not to.
 
+### Advanced Components & Directives
+
+## Custom Pipes & Directives
+> A **pipe** transforms a value in a template. A **directive** adds behaviour to an element without its own template (**attribute** directive) or changes the DOM structure (**structural**).
+```ts
+@Pipe({ name: 'truncate', standalone: true, pure: true })
+export class TruncatePipe implements PipeTransform {
+  transform(v: string, max = 20) { return v.length > max ? v.slice(0, max) + '…' : v; }
+}
+
+@Directive({ selector: '[appHighlight]', standalone: true,
+  host: { '(mouseenter)': 'on()', '(mouseleave)': 'off()' } })
+export class HighlightDirective {
+  private el = inject(ElementRef<HTMLElement>);
+  on() { this.el.nativeElement.style.background = 'gold'; }
+  off() { this.el.nativeElement.style.background = ''; }
+}
+```
+- **Pure pipes** rerun only when the input reference changes (cheap); **impure** (`pure: false`) run every change detection (avoid).
+- `async` pipe subscribes, unsubscribes automatically and marks for check.
+- `@HostListener` / `@HostBinding` are the older equivalents of the `host` metadata.
+! Pure pipe = memoised; keep logic out of template method calls.
+
+## Dynamic Components, ViewContainerRef & ViewEncapsulation
+> Create components at runtime with `ViewContainerRef.createComponent()`. **ViewEncapsulation** controls style scoping.
+```ts
+const ref = this.vcr.createComponent(AlertComponent);
+ref.setInput('message', 'Saved');
+ref.destroy();
+```
+```text
+Emulated (default)  styles scoped with generated attributes
+ShadowDom           native Shadow DOM
+None                global styles
+```
+- Use `::ng-deep` sparingly (deprecated); prefer CSS variables for theming.
+- `@for ... track item.id` (or `trackBy`) stops the DOM being rebuilt on every list change.
+! Emulated encapsulation = per-component CSS without Shadow DOM.
+
+### Advanced RxJS & State
+
+## RxJS Error Handling, Retry & Typeahead Pattern
+> Handle errors inside the inner observable so the outer stream survives.
+```ts
+this.search.valueChanges.pipe(
+  debounceTime(300),
+  distinctUntilChanged(),
+  filter(q => q.length > 2),
+  switchMap(q => this.http.get<Item[]>('/api/items', { params: { q } }).pipe(
+    retry({ count: 2, delay: 500 }),
+    catchError(() => of([]))          // keep the outer stream alive
+  ))
+).subscribe(items => this.items.set(items));
+```
+- `catchError` replaces the error with a fallback; `retry` resubscribes; `finalize` runs on complete/error.
+- **Cold** observable: produces per subscriber (HTTP). **Hot:** shared source (events, Subject). `shareReplay(1)` caches and shares.
+- Combine: `combineLatest`, `forkJoin` (wait for all to complete), `withLatestFrom`, `zip`, `merge`.
+- Use `takeUntilDestroyed()` to unsubscribe.
+! switchMap for search, catchError inside it.
+
+## State Management: Service + Signals vs NgRx
+> Start simple: a service with **signals** (or `BehaviorSubject`). Use **NgRx** when many components share complex state with predictable flows and tooling needs.
+```ts
+@Injectable({ providedIn: 'root' })
+export class CartStore {
+  private readonly _items = signal<Item[]>([]);
+  readonly items = this._items.asReadonly();
+  readonly total = computed(() => this._items().reduce((s, i) => s + i.price, 0));
+  add(i: Item) { this._items.update(list => [...list, i]); }
+}
+```
+- **NgRx:** `Store` (single immutable state), **actions** (events), **reducers** (pure functions), **selectors** (derived data), **effects** (side effects like HTTP). **NgRx SignalStore** is the lighter, signal-based option.
+- Flow: component dispatches action → reducer returns new state → selectors update the view; effects handle async work.
+- Never mutate state: copy with spread.
+! Small app: service + signals. Big shared state: NgRx.
+
+### Advanced Routing & Forms
+
+## Child Routes, Route Data & Functional Guards
+> Routes can nest (child routes render inside a parent `<router-outlet>`), carry static `data`, and use **functional** guards and resolvers.
+```ts
+export const routes: Routes = [
+  { path: 'admin', canActivate: [authGuard], data: { role: 'ADMIN' },
+    loadChildren: () => import('./admin/admin.routes').then(m => m.ADMIN_ROUTES) },
+  { path: 'orders/:id', component: OrderComponent, resolve: { order: orderResolver } },
+  { path: '**', component: NotFoundComponent },
+];
+
+export const authGuard: CanActivateFn = (route) => {
+  const auth = inject(AuthService);
+  return auth.isLoggedIn() || inject(Router).createUrlTree(['/login']);
+};
+```
+- Guards: `canActivate`, `canActivateChild`, `canDeactivate` (unsaved changes), `canMatch` (hide lazy routes).
+- **Preloading:** `withPreloading(PreloadAllModules)` loads lazy routes in the background.
+- Read params as signals with `withComponentInputBinding()`.
+! Guards decide if you may enter, resolvers load data before the page shows.
+
+## Custom & Async Validators, Cross-Field Validation
+> A validator is a function returning `null` (valid) or an error object.
+```ts
+export const noSpaces: ValidatorFn = c =>
+  /\s/.test(c.value ?? '') ? { noSpaces: true } : null;
+
+export const passwordsMatch: ValidatorFn = g =>
+  g.get('pw')?.value === g.get('confirm')?.value ? null : { mismatch: true };   // on the FormGroup
+
+const usernameFree: AsyncValidatorFn = c =>
+  timer(400).pipe(switchMap(() => api.exists(c.value)), map(taken => taken ? { taken: true } : null));
+```
+- Async validators run only after sync validators pass; the control shows `pending` meanwhile.
+- `updateOn: 'blur'` reduces validation noise; `patchValue` sets part, `setValue` needs every field.
+- Show errors only when `touched` or `dirty`.
+! Group-level validator for rules that involve two fields.
+
+### Architecture, Auth & Tooling
+
+## JWT Authentication Flow in Angular
+> Login returns a token; an **interceptor** attaches it; a **guard** protects routes; **401** triggers refresh or logout.
+```ts
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const token = inject(AuthService).token();
+  const authReq = token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
+  return next(authReq).pipe(catchError(err => {
+    if (err.status === 401) inject(AuthService).logout();
+    return throwError(() => err);
+  }));
+};
+// provideHttpClient(withInterceptors([authInterceptor]))
+```
+- **Storage:** `localStorage` is XSS-readable; **httpOnly cookie** is safer (needs CSRF protection). Short-lived access token plus refresh token.
+- Hiding a route in the UI is not security: the **backend** must enforce authorization.
+! Interceptor attaches, guard gates, server decides.
+
+## InjectionToken, Environments & Configuration
+> Use an **`InjectionToken`** to inject non-class values such as config or a base URL.
+```ts
+export const API_URL = new InjectionToken<string>('API_URL');
+providers: [{ provide: API_URL, useValue: environment.apiUrl }]
+private apiUrl = inject(API_URL);
+```
+- **Environments:** `environment.ts` / `environment.prod.ts` swapped via `fileReplacements` in `angular.json`, or load a runtime `config.json` at startup (`provideAppInitializer`) so one build serves many environments.
+- Provider forms: `useClass`, `useValue`, `useFactory`, `useExisting`; `multi: true` collects many (HTTP interceptors).
+! Tokens inject config, not just classes.
+
+## Unit Testing in Depth (TestBed, Jasmine/Karma, Vitest)
+> **TestBed** builds a mini Angular module for a test.
+```ts
+describe('UserService', () => {
+  let http: HttpTestingController; let svc: UserService;
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    svc = TestBed.inject(UserService); http = TestBed.inject(HttpTestingController);
+  });
+  it('gets users', () => {
+    svc.load().subscribe(u => expect(u.length).toBe(1));
+    http.expectOne('/api/users').flush([{ id: 1 }]);
+    http.verify();
+  });
+});
+```
+- **Component test:** `fixture = TestBed.createComponent(X); fixture.detectChanges();` then query `fixture.nativeElement`.
+- **Async:** `fakeAsync` + `tick()`, `waitForAsync`, `flush()`.
+- Mock services with `{ provide: Real, useValue: fake }` or spies. Test behaviour, not implementation. E2E: Playwright or Cypress.
+! `HttpTestingController` fakes the backend; `verify()` catches unexpected calls.
+
+## Build, Bundles & Performance Checklist
+> **AOT** compiles templates at build time; **tree-shaking** removes unused code; the application builder uses esbuild/Vite.
+- **Lazy-load** routes and `@defer` heavy blocks; use `OnPush` and **signals**; `track` in `@for`.
+- Avoid heavy logic in templates (use `computed()` or pure pipes); virtual scroll (`cdk-virtual-scroll`) for huge lists.
+- Analyse with `ng build --stats-json` + a bundle analyser; set bundle **budgets** in `angular.json`.
+- Images: `NgOptimizedImage`. Unsubscribe from streams. Enable SSR/hydration where SEO or first paint matters.
+- **Micro-frontends:** Module/Native Federation to compose separately deployed apps.
+! Smaller bundle, fewer change-detection runs, less work in templates.
+
 ### Quick Answers
 
 ## Interview One-Liners

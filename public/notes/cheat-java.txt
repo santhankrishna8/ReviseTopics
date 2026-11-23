@@ -724,6 +724,195 @@ class Config {
 - **D**ependency Inversion: depend on abstractions, not concrete classes (what Spring DI does).
 ! SOLID = a building that stands: each brick does one job and can be swapped.
 
+### Core Language Deep Dive
+
+## Object Class Methods & Shallow vs Deep Copy
+> Every class extends **`Object`**, which provides `toString()`, `equals()`, `hashCode()`, `getClass()`, `clone()`, `finalize()` (deprecated), and `wait/notify/notifyAll`.
+- **Shallow copy:** copies field values; nested objects are **shared** (`clone()` default). **Deep copy:** copies nested objects too (copy constructor, serialization, or recursive clone).
+- Prefer a **copy constructor** or factory over `Cloneable` (awkward, checked exception, shallow by default).
+```java
+class Person {
+  String name; Address address;
+  Person(Person p) { this.name = p.name; this.address = new Address(p.address); }   // deep copy
+}
+```
+! Shallow copy shares the inner objects; deep copy duplicates them.
+
+## Initialization Order, Constructors & Varargs
+> Order when creating `new Child()`: **static blocks (parent then child, once at class load)** → parent instance init + parent constructor → child instance init + child constructor.
+- A constructor calls `this(...)` or `super(...)` as its **first** statement; otherwise Java inserts `super()`.
+- Never call an **overridable method** from a constructor: the child's version runs before the child's fields are set.
+- **Varargs:** `void log(String... msgs)` receives an array; must be the last parameter; one per method.
+```java
+static int sum(int... n) { int s = 0; for (int x : n) s += x; return s; }
+sum(); sum(1); sum(1, 2, 3);
+```
+! Static first, parent before child, constructor last.
+
+## Integer Cache, Wrapper Gotchas & Strings in Switch
+> `Integer` values from **-128 to 127** are cached, so `==` works there and fails outside.
+```java
+Integer a = 127, b = 127;  a == b;      // true  (cached)
+Integer c = 128, d = 128;  c == d;      // false (different objects), use equals()
+```
+- Unboxing a `null` wrapper throws **NullPointerException**.
+- `new Integer(5)` is deprecated; use `Integer.valueOf(5)`.
+- `switch` supports `int`, `char`, enums, `String` and (Java 21) pattern matching.
+! Compare wrappers with `equals()`, never `==`.
+
+## Modern Java Syntax (var, Text Blocks, Switch Expressions)
+> Features since Java 10 that reduce boilerplate.
+```java
+var list = new ArrayList<String>();          // local variable type inference (Java 10)
+
+String json = """
+    {"name": "Asha", "age": 30}
+    """;                                       // text block (Java 15)
+
+String label = switch (day) {                 // switch expression (Java 14): no fall-through, returns a value
+  case MON, TUE -> "early";
+  case SAT, SUN -> "weekend";
+  default -> { yield "mid"; }
+};
+
+if (obj instanceof String s && s.length() > 3) { ... }     // pattern matching for instanceof (Java 16)
+```
+- `var` is only for **local variables**, not fields or parameters; the type is still static.
+- Also: `List.of`, `Map.of` (immutable), `Stream.toList()` (Java 16), `String.isBlank/strip/repeat/lines`.
+! `var` is inference, not dynamic typing.
+
+## Reflection & Annotations at Runtime
+> **Reflection** inspects and manipulates classes, methods and fields at runtime. Frameworks (Spring, Hibernate, Jackson) use it with **annotations** (`@Retention(RUNTIME)`) to wire things up.
+```java
+Class<?> c = Class.forName("com.app.User");
+Object u = c.getDeclaredConstructor().newInstance();
+Field f = c.getDeclaredField("name");
+f.setAccessible(true);
+f.set(u, "Asha");
+```
+- **Cost:** slower than direct calls, breaks encapsulation, weakens compile-time checks. Modules (Java 9+) restrict deep reflection.
+- Custom annotation: `@Retention(RUNTIME) @Target(METHOD) @interface Audit {}`.
+! Reflection is how frameworks read your annotations.
+
+## Reference Types & Garbage Collection Behaviour
+> Four reference strengths control when the GC may reclaim an object.
+```text
+Strong   normal reference; never collected while reachable
+Soft     collected when memory is low (caches)
+Weak     collected at the next GC (WeakHashMap, listeners)
+Phantom  after finalisation; cleanup hooks (Cleaner)
+```
+- `WeakHashMap` entries vanish when the key is no longer strongly referenced.
+- `finalize()` is deprecated: use `try-with-resources` or `Cleaner`.
+! Strong keeps it, soft caches it, weak forgets it soon.
+
+## I/O, NIO & Serialization Basics
+> **java.io** streams bytes/chars; **java.nio.file** (`Path`, `Files`) is the modern API.
+```java
+List<String> lines = Files.readAllLines(Path.of("data.txt"));
+Files.writeString(Path.of("out.txt"), "hello");
+try (Stream<String> s = Files.lines(Path.of("big.txt"))) { s.filter(l -> l.contains("ERR")).forEach(System.out::println); }
+try (var in = new BufferedReader(new FileReader("a.txt"))) { String line = in.readLine(); }
+```
+- **Byte streams:** `InputStream/OutputStream`. **Character streams:** `Reader/Writer`. Wrap with `Buffered*` for speed.
+- **Serialization:** `implements Serializable`, `serialVersionUID`, `transient` skips a field. Prefer JSON over Java serialization (security risk).
+! Use `Files` and `Path` for new code, close everything with try-with-resources.
+
+### Concurrency Deep Dive
+
+## Java Memory Model, Happens-Before & Visibility
+> The **JMM** defines when one thread's writes are visible to another. Without synchronization a thread may read **stale** values (caches, reordering).
+- **Happens-before** guarantees: unlock → later lock of the same monitor, `volatile` write → later read, `Thread.start()`, `Thread.join()`, final field after constructor.
+- `volatile` gives **visibility and ordering**, not atomicity (`count++` is still unsafe).
+- **Safe publication:** `final` fields, `volatile`, static initializer, or a lock.
+- **Double-checked locking** needs a `volatile` field.
+! Visibility, atomicity and ordering are three different problems.
+
+## Synchronizers: CountDownLatch, CyclicBarrier, Semaphore
+> High-level coordination tools in `java.util.concurrent`.
+```text
+CountDownLatch  one-time gate: wait until N tasks call countDown()
+CyclicBarrier   N threads wait for each other, reusable
+Semaphore       limits concurrent access to N permits (connection pool, rate limit)
+Phaser          dynamic barrier with phases
+Exchanger       two threads swap objects
+```
+```java
+CountDownLatch latch = new CountDownLatch(3);
+for (int i = 0; i < 3; i++) executor.submit(() -> { work(); latch.countDown(); });
+latch.await();     // main waits until all three finish
+```
+! Latch = wait for others once, barrier = meet and go together, semaphore = limited seats.
+
+## ThreadLocal, ReentrantLock & ReadWriteLock
+> **ThreadLocal** gives each thread its own copy of a variable (user context, `SimpleDateFormat`). **ReentrantLock** is an explicit lock with `tryLock`, timeout and fairness. **ReadWriteLock** allows many readers or one writer.
+```java
+ReentrantLock lock = new ReentrantLock();
+lock.lock();
+try { /* critical section */ } finally { lock.unlock(); }   // always unlock in finally
+```
+- **ThreadLocal leak:** in thread pools call `remove()`, or values survive between requests.
+- `synchronized` is simpler; use `ReentrantLock` when you need `tryLock`, interruptible or timed locking, or multiple conditions.
+! Always unlock in `finally`; always `remove()` a ThreadLocal in pools.
+
+## ForkJoinPool, Parallel Streams & Thread Pool Sizing
+> **ForkJoin** splits a task into subtasks (divide and conquer) with **work stealing**. **Parallel streams** use the common ForkJoin pool.
+- Use `parallelStream()` only for **large, CPU-bound, stateless** work; avoid it for I/O or shared mutable state.
+- **Pool sizing:** CPU-bound ≈ cores + 1; I/O-bound ≈ cores × (1 + wait/compute). With **virtual threads** (Java 21) just create one per task.
+- `ExecutorService` must be shut down: `shutdown()` then `awaitTermination()`.
+- **Rejected tasks:** `AbortPolicy`, `CallerRunsPolicy`, `DiscardPolicy`.
+! Parallel is not automatically faster: measure first.
+
+### JVM Deep Dive
+
+## JVM Architecture, JIT & Class Loaders
+> Source → `javac` → **bytecode** → JVM loads it (**class loaders**), verifies, then **interprets** and the **JIT compiler** compiles hot methods to native code.
+- **Class loaders:** Bootstrap → Platform → Application, with **parent delegation** (ask the parent first).
+- **Runtime areas:** Heap (objects), Metaspace (class metadata, Java 8+), thread stacks, PC register, native stack.
+- **Tiered compilation:** C1 (fast) then C2 (optimised). Escape analysis can allocate objects on the stack.
+- **JIT warm-up** is why short benchmarks mislead.
+! Write once, run anywhere: bytecode plus a JVM per platform.
+
+## GC Algorithms & JVM Tuning Flags
+> The heap is split into **Young** (Eden + Survivors) and **Old** generations. Minor GC cleans young; major/full GC cleans old.
+```text
+Serial      single thread, small apps
+Parallel    throughput-focused
+G1 (default since Java 9)  region-based, predictable pauses
+ZGC / Shenandoah           very low pause (sub-millisecond), large heaps
+```
+```text
+-Xms512m -Xmx2g                    initial / max heap
+-XX:+UseG1GC  -XX:MaxGCPauseMillis=200
+-XX:+HeapDumpOnOutOfMemoryError    dump for analysis (Eclipse MAT, VisualVM)
+-Xss1m                             thread stack size
+```
+- **OutOfMemoryError** types: `Java heap space`, `Metaspace`, `unable to create native thread`. **StackOverflowError:** runaway recursion.
+- Tools: `jps`, `jstack` (threads, deadlocks), `jmap`, `jstat`, `jcmd`, VisualVM, Flight Recorder.
+! Set `-Xms` equal to `-Xmx` in production; keep the heap dump flag on.
+
+### More Design Patterns
+
+## Adapter, Decorator, Proxy & Facade
+> **Structural** patterns.
+- **Adapter:** converts one interface to another the client expects (`Arrays.asList`, `InputStreamReader`).
+- **Decorator:** wraps an object to add behaviour dynamically (`BufferedInputStream(new FileInputStream(..))`, `Collections.unmodifiableList`).
+- **Proxy:** stand-in that controls access (Spring AOP, Hibernate lazy loading, `@Transactional`).
+- **Facade:** a simple front over a complex subsystem (a service class coordinating several components).
+! Adapter changes the interface, decorator adds behaviour, proxy controls access.
+
+## Template Method, Command, Prototype & Dependency Injection
+> **Behavioural and creational** patterns interviewers add.
+- **Template Method:** base class fixes the algorithm skeleton; subclasses fill steps (`JdbcTemplate`, `HttpServlet.doGet`).
+- **Command:** wraps a request as an object (`Runnable`, undo stacks, job queues).
+- **Prototype:** create new objects by copying (clone/copy constructor).
+- **Dependency Injection:** pass collaborators in instead of creating them: makes code testable.
+- **Singleton:** best implemented as an `enum` or a Spring singleton bean.
+```java
+enum Registry { INSTANCE; void register(String s) { ... } }   // thread-safe, serialization-safe singleton
+```
+! Template = fixed skeleton, flexible steps.
+
 ### Coding Questions
 
 ## Reverse a String & Palindrome

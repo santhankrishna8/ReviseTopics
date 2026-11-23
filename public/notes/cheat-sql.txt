@@ -408,6 +408,258 @@ UPDATE accounts SET bal = bal - 100, version = version + 1 WHERE id = 1 AND vers
 - Scaling path: indexes, query tuning, cache, pool, read replicas, partitioning, then sharding.
 ! Cheapest fix first; shard last.
 
+### DDL, DML & Data Types
+
+## DDL: CREATE, ALTER, DROP
+> **DDL** defines structure. Know the syntax by heart.
+```sql
+CREATE TABLE employees (
+  id          BIGINT PRIMARY KEY AUTO_INCREMENT,        -- PostgreSQL: GENERATED ALWAYS AS IDENTITY
+  name        VARCHAR(100) NOT NULL,
+  email       VARCHAR(150) UNIQUE,
+  salary      DECIMAL(10,2) CHECK (salary >= 0),
+  dept_id     INT,
+  hired_on    DATE DEFAULT (CURRENT_DATE),
+  CONSTRAINT fk_dept FOREIGN KEY (dept_id) REFERENCES departments(id) ON DELETE SET NULL
+);
+
+ALTER TABLE employees ADD COLUMN phone VARCHAR(20);
+ALTER TABLE employees DROP COLUMN phone;
+ALTER TABLE employees RENAME COLUMN name TO full_name;
+CREATE INDEX idx_emp_dept ON employees(dept_id);
+DROP TABLE IF EXISTS temp_data;
+```
+- **ON DELETE:** `CASCADE`, `SET NULL`, `RESTRICT`/`NO ACTION`.
+- Use `DECIMAL` for money, never `FLOAT`. Use `TIMESTAMP`/`TIMESTAMPTZ` for instants.
+! Define constraints in the schema; do not trust only the application.
+
+## INSERT, UPDATE, DELETE, UPSERT & MERGE
+> **DML** changes data.
+```sql
+INSERT INTO employees (name, dept_id) VALUES ('Asha', 1), ('Ravi', 2);
+INSERT INTO archive SELECT * FROM employees WHERE hired_on < '2015-01-01';
+
+UPDATE employees SET salary = salary * 1.10 WHERE dept_id = 2;
+DELETE FROM employees WHERE id = 7;
+
+-- UPSERT
+INSERT INTO stock (sku, qty) VALUES ('A1', 5)
+ON CONFLICT (sku) DO UPDATE SET qty = stock.qty + EXCLUDED.qty;          -- PostgreSQL
+INSERT INTO stock (sku, qty) VALUES ('A1', 5)
+ON DUPLICATE KEY UPDATE qty = qty + VALUES(qty);                         -- MySQL
+
+-- MERGE (standard SQL, SQL Server, Oracle, PostgreSQL 15+)
+MERGE INTO target t USING source s ON t.id = s.id
+WHEN MATCHED THEN UPDATE SET t.val = s.val
+WHEN NOT MATCHED THEN INSERT (id, val) VALUES (s.id, s.val);
+```
+- Always run a `SELECT` with the same `WHERE` first; wrap risky changes in a transaction.
+- `UPDATE ... FROM` / `UPDATE ... JOIN` updates using another table; `RETURNING` (PostgreSQL) returns changed rows.
+! A forgotten WHERE updates or deletes every row.
+
+## Data Types & Date/String Functions
+> Pick the smallest correct type.
+```text
+INT/BIGINT  DECIMAL(p,s)  FLOAT/DOUBLE   numbers (DECIMAL for money)
+CHAR(n)  VARCHAR(n)  TEXT                strings
+DATE  TIME  TIMESTAMP  INTERVAL          dates and times
+BOOLEAN  UUID  JSON/JSONB  BLOB          others
+```
+```sql
+SELECT CONCAT(first, ' ', last), UPPER(name), LOWER(name), TRIM(name), LENGTH(name),
+       SUBSTRING(name, 1, 3), REPLACE(name, 'a', 'b'), POSITION('x' IN name);
+SELECT CURRENT_DATE, NOW(), DATE_TRUNC('month', created_at),            -- PostgreSQL
+       EXTRACT(YEAR FROM created_at), created_at + INTERVAL '7 days',
+       DATEDIFF(end_date, start_date);                                  -- MySQL
+SELECT CAST(price AS INT), price::INT;                                  -- :: is PostgreSQL
+```
+! Store timestamps in UTC; convert at the edge.
+
+### More Querying
+
+## Joins: FULL, CROSS, NATURAL & Joining Multiple Tables
+> The join types beyond INNER and LEFT.
+```text
+INNER JOIN       only matching rows
+LEFT JOIN        all left rows + matches (NULL where none)
+RIGHT JOIN       all right rows + matches
+FULL OUTER JOIN  all rows from both, NULL where unmatched
+CROSS JOIN       every combination (m x n rows)
+NATURAL JOIN     joins on same-named columns (risky, avoid)
+```
+```sql
+SELECT o.id, c.name, p.title
+FROM orders o
+JOIN customers c ON c.id = o.customer_id
+JOIN order_items i ON i.order_id = o.id
+JOIN products p ON p.id = i.product_id;
+```
+- **Filter placement:** a condition on the right table in `WHERE` turns a LEFT JOIN into an INNER JOIN; put it in the `ON` clause.
+- Joining on a 1-to-many then using `COUNT`/`SUM` can **double count**: aggregate first, then join.
+! Left join filter in ON, not in WHERE.
+
+## Set Operations: UNION, INTERSECT, EXCEPT
+> Combine result sets with the **same number and compatible types of columns**.
+```sql
+SELECT email FROM customers
+UNION                    -- removes duplicates (slower); UNION ALL keeps them
+SELECT email FROM newsletter;
+
+SELECT id FROM a INTERSECT SELECT id FROM b;     -- in both
+SELECT id FROM a EXCEPT    SELECT id FROM b;     -- in a not b  (Oracle: MINUS)
+```
+- Column names come from the first query; `ORDER BY` goes at the very end.
+- Prefer `UNION ALL` when duplicates are impossible or acceptable.
+! UNION dedupes, UNION ALL does not.
+
+## Recursive CTEs, Pivot & JSON
+> A **recursive CTE** walks hierarchies (org charts, categories, trees).
+```sql
+WITH RECURSIVE org AS (
+  SELECT id, name, manager_id, 1 AS lvl FROM employees WHERE manager_id IS NULL     -- anchor
+  UNION ALL
+  SELECT e.id, e.name, e.manager_id, o.lvl + 1
+  FROM employees e JOIN org o ON e.manager_id = o.id                                -- recursive step
+)
+SELECT * FROM org ORDER BY lvl;
+```
+- **Pivot** with conditional aggregation (works everywhere):
+```sql
+SELECT dept_id,
+       SUM(CASE WHEN YEAR(hired_on)=2024 THEN 1 ELSE 0 END) AS hired_2024,
+       SUM(CASE WHEN YEAR(hired_on)=2025 THEN 1 ELSE 0 END) AS hired_2025
+FROM employees GROUP BY dept_id;
+```
+- **JSON:** PostgreSQL `data->>'name'`, `jsonb` with GIN index; MySQL `JSON_EXTRACT(data,'$.name')`.
+- **ROLLUP / CUBE / GROUPING SETS** produce subtotals and grand totals.
+! Anchor query, UNION ALL, recursive step, with a stop condition.
+
+## Pagination: OFFSET vs Keyset
+> `LIMIT/OFFSET` is simple but slow on deep pages (the database still reads and discards skipped rows). **Keyset (seek)** pagination remembers the last key.
+```sql
+SELECT * FROM posts ORDER BY id LIMIT 20 OFFSET 10000;          -- slow deep page
+
+SELECT * FROM posts WHERE id > :last_id ORDER BY id LIMIT 20;   -- fast with an index
+-- SQL Server: OFFSET 0 ROWS FETCH NEXT 20 ROWS ONLY;  Oracle: FETCH FIRST 20 ROWS ONLY
+```
+- Always add a deterministic `ORDER BY` (with a unique tiebreaker) or pages will repeat or skip rows.
+! Seek by the last key instead of skipping rows.
+
+### Indexes & Performance Deep Dive
+
+## Index Types: Clustered, B-Tree, Composite, Covering
+> An index is a sorted structure (usually a **B-tree**) that avoids full table scans.
+- **Clustered:** the table is stored in index order (one per table; InnoDB primary key, SQL Server clustered). **Non-clustered/secondary:** separate structure pointing to rows.
+- **Composite index** `(a, b, c)` follows the **leftmost-prefix rule**: usable for `a`, `a+b`, `a+b+c`, not `b` alone. Put equality columns first, range column last.
+- **Covering index:** contains every column the query needs, so no table lookup (index-only scan; `INCLUDE` columns).
+- **Other types:** Hash (equality), GIN/GiST (JSON, full-text, arrays), partial index (`WHERE active`), unique, full-text, bitmap (analytics).
+- **Cost:** faster reads, slower writes, more storage. Index foreign keys and frequent filters, not every column.
+```sql
+CREATE INDEX idx_orders_cust_date ON orders (customer_id, created_at DESC);
+```
+! Leftmost prefix, equality before range, covering avoids the table.
+
+## Why an Index Is Not Used & EXPLAIN
+> Run `EXPLAIN` (or `EXPLAIN ANALYZE`) to see the plan, rows, cost and whether it scans or seeks.
+- **Index ignored when:** a function wraps the column (`WHERE YEAR(d)=2025`, `LOWER(email)=...`); leading wildcard `LIKE '%abc'`; implicit type conversion; `OR` across different columns; low selectivity (the planner prefers a scan); outdated statistics; negations (`!=`, `NOT IN`).
+- **Fixes:** rewrite as a range (`d >= '2025-01-01' AND d < '2026-01-01'`), functional index, matching types, `ANALYZE`/update statistics.
+- Look for: `Seq Scan` / `ALL` (bad on big tables), `Index Seek/Scan`, `Using filesort`, `Using temporary`, nested loop vs hash join.
+- `SELECT *` defeats covering indexes; select only what you need.
+! Never wrap an indexed column in a function.
+
+## MVCC, Locking & Concurrency Anomalies
+> **MVCC** keeps multiple row versions so readers do not block writers (PostgreSQL, InnoDB).
+```text
+Dirty read          see uncommitted data              (blocked at READ COMMITTED+)
+Non-repeatable read same row changes between reads    (blocked at REPEATABLE READ+)
+Phantom read        new rows appear between reads     (blocked at SERIALIZABLE; InnoDB also at RR)
+Lost update         two writers overwrite each other  (use locks or versions)
+```
+```sql
+BEGIN;
+SELECT balance FROM accounts WHERE id = 1 FOR UPDATE;      -- row lock until commit
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+COMMIT;
+-- FOR UPDATE SKIP LOCKED lets workers pick different queue rows
+```
+- **Optimistic:** version column check at update. **Pessimistic:** `FOR UPDATE`.
+- **Deadlock avoidance:** lock rows in the same order, keep transactions short, retry on deadlock error.
+! Higher isolation, fewer anomalies, more conflicts.
+
+## Temporary Tables, Views & Materialized Views
+> **Temp table:** session-scoped scratch data. **View:** a saved query (no data stored). **Materialized view:** a stored result you refresh.
+```sql
+CREATE TEMPORARY TABLE tmp_top AS SELECT * FROM sales WHERE amount > 1000;
+CREATE VIEW active_users AS SELECT id, name FROM users WHERE active = true;
+CREATE MATERIALIZED VIEW daily_sales AS SELECT ... ;
+REFRESH MATERIALIZED VIEW daily_sales;                        -- PostgreSQL
+```
+- Views simplify access and hide columns; a materialized view trades freshness for speed on heavy aggregations.
+- A CTE is only for a single statement.
+! View = saved query, materialized view = saved result.
+
+### More Interview Queries
+
+## Top N Per Group, Nth Highest & Median
+> Window functions solve most "per group" questions.
+```sql
+-- Top 3 earners in each department
+SELECT * FROM (
+  SELECT e.*, DENSE_RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS rnk
+  FROM employees e) t
+WHERE rnk <= 3;
+
+-- Nth highest salary (N = 3)
+SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 1 OFFSET 2;
+
+-- Median (PostgreSQL)
+SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary) FROM employees;
+
+-- Percentage of total
+SELECT dept_id, SUM(salary) * 100.0 / SUM(SUM(salary)) OVER () AS pct FROM employees GROUP BY dept_id;
+```
+- Use `ROW_NUMBER` for exactly N rows, `RANK` / `DENSE_RANK` to include ties.
+! Rank in a subquery, filter outside.
+
+## Running Totals, Month-over-Month, Consecutive Days & Retention
+> More patterns that keep appearing.
+```sql
+-- Running total and moving average
+SELECT day, amount,
+       SUM(amount) OVER (ORDER BY day) AS running,
+       AVG(amount) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS avg7
+FROM sales;
+
+-- Month-over-month growth
+SELECT month, revenue,
+       revenue - LAG(revenue) OVER (ORDER BY month) AS change
+FROM monthly_revenue;
+
+-- Users who logged in 3 days in a row
+SELECT DISTINCT user_id FROM (
+  SELECT user_id, login_date,
+         LAG(login_date, 2) OVER (PARTITION BY user_id ORDER BY login_date) AS two_back
+  FROM logins) t
+WHERE login_date - two_back = 2;
+
+-- Customers who ordered every month (HAVING with COUNT DISTINCT)
+SELECT customer_id FROM orders GROUP BY customer_id HAVING COUNT(DISTINCT DATE_TRUNC('month', created_at)) = 12;
+```
+- **Remove duplicates keeping one:** `DELETE ... WHERE id NOT IN (SELECT MIN(id) ... GROUP BY ...)` or delete rows with `ROW_NUMBER() > 1`.
+- **Rows in A not in B:** `LEFT JOIN ... WHERE b.id IS NULL` or `NOT EXISTS` (safer than `NOT IN` with NULLs).
+! LAG/LEAD for comparing to neighbours, SUM OVER for running totals.
+
+## Database Design Patterns & Trade-offs
+> Practical design decisions.
+- **Normalise** to 3NF for transactional data; **denormalise** for read-heavy reporting.
+- **Surrogate key** (auto id / UUID) vs **natural key** (email, isbn): surrogate keys stay stable; keep a unique constraint on the natural key.
+- **Many-to-many** needs a junction table with a composite key. **One-to-one** shares the primary key or has a unique FK.
+- **Soft delete** (`deleted_at`) keeps history but needs filters everywhere and partial unique indexes.
+- **Audit columns:** `created_at`, `updated_at`, `created_by`.
+- **CAP and ACID vs BASE:** relational databases favour consistency; many NoSQL stores favour availability.
+- **Scaling:** read replicas, partitioning (by range/hash/list), sharding (data split across servers), connection pooling (HikariCP/PgBouncer), caching.
+! Design for correctness first, then add indexes and replicas where the data shows pain.
+
 ### Classic Interview Queries
 
 ## Second Highest Salary

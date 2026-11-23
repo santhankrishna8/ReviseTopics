@@ -1,0 +1,392 @@
+# 01 | Hibernate & JPA Interview Cheat Sheet | Every card: a crisp definition you can say out loud, a concrete example, the key points, and a hook to remember it. Hibernate 6/7 with Jakarta Persistence 3.x and Spring Data JPA. | Hibernate on one page
+
+### Basics
+
+## ORM, JPA, Hibernate & Spring Data JPA
+> **ORM** maps Java objects to database tables. **JPA** (Jakarta Persistence) is the **specification** (interfaces and annotations). **Hibernate** is the most popular **implementation** of JPA. **Spring Data JPA** is a layer on top that generates repositories so you write almost no DAO code.
+- **JDBC:** you write SQL and map `ResultSet` rows by hand.
+- **JPA/Hibernate:** you work with objects; Hibernate generates the SQL.
+- **Spring Data JPA:** `interface UserRepository extends JpaRepository<User, Long>` gives CRUD for free.
+! JPA = the rulebook, Hibernate = the player, Spring Data = the coach that does the paperwork.
+
+## Object-Relational Impedance Mismatch
+> The mismatch between the **object model** (inheritance, references, collections) and the **relational model** (tables, foreign keys, rows). An ORM bridges it.
+- **Granularity:** one class may map to several columns (`@Embeddable`) or several tables.
+- **Inheritance:** SQL has no inheritance, so Hibernate has strategies (`SINGLE_TABLE`, `JOINED`, `TABLE_PER_CLASS`).
+- **Identity:** `==` vs `equals()` vs primary key.
+- **Associations:** object references vs foreign keys; many-to-many needs a join table.
+! Objects form a graph, tables form a grid; the ORM translates between them.
+
+## Core Interfaces
+> **EntityManagerFactory** (heavy, one per database, thread-safe) creates **EntityManager** (light, one per unit of work, not thread-safe). Hibernate's native names: **SessionFactory** and **Session**. Both implement the JPA interfaces.
+```java
+EntityManager em = emf.createEntityManager();
+em.getTransaction().begin();
+em.persist(new Book("Dune"));
+em.getTransaction().commit();
+em.close();
+```
+- In Spring you almost never create these: `@PersistenceContext` or a repository injects them, and `@Transactional` manages begin/commit.
+- `session.unwrap(Session.class)` gets the Hibernate API from an `EntityManager`.
+! Factory = the printing press (built once), EntityManager = one print job.
+
+## Project Setup (Spring Boot)
+> Add `spring-boot-starter-data-jpa` plus a JDBC driver. Boot auto-configures the `DataSource`, Hibernate and a transaction manager.
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/library
+spring.datasource.username=app
+spring.datasource.password=${DB_PASSWORD}
+spring.jpa.hibernate.ddl-auto=validate     # none | validate | update | create | create-drop
+spring.jpa.show-sql=true                   # dev only
+spring.jpa.open-in-view=false              # recommended
+```
+- **ddl-auto:** `update` is fine locally, never in production. Use **Flyway/Liquibase** migrations and `validate`.
+- `hibernate.format_sql` and `org.hibernate.SQL=DEBUG` log readable SQL.
+! In production the schema comes from migrations, not from Hibernate guessing.
+
+### Entity Mapping
+
+## @Entity, @Table, @Id, @Column
+> An **entity** is a class mapped to a table; every entity needs an `@Id` and a **no-arg constructor** (public or protected). The class must not be `final`, or lazy proxies cannot be created.
+```java
+@Entity
+@Table(name = "books", uniqueConstraints = @UniqueConstraint(columnNames = "isbn"))
+public class Book {
+  @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @Column(name = "title", nullable = false, length = 200)
+  private String title;
+
+  @Transient private String displayName;          // not persisted
+  @Enumerated(EnumType.STRING) private Status status;   // never ORDINAL
+  @Lob private String description;
+  @Version private Long version;                  // optimistic locking
+  protected Book() {}                             // required by JPA
+}
+```
+- `@Enumerated(STRING)` survives enum reordering; `ORDINAL` silently corrupts data.
+- Java 8 dates (`LocalDate`, `Instant`) are supported directly.
+! No-arg constructor + non-final class: Hibernate needs both to build proxies.
+
+## @GeneratedValue Strategies
+> Defines how the primary key is generated.
+```text
+IDENTITY   database auto-increment; insert runs immediately, so no JDBC batching
+SEQUENCE   database sequence; best for PostgreSQL/Oracle; allows batching (allocationSize)
+TABLE      a table simulates a sequence; slow, avoid
+AUTO       provider picks (Hibernate 6 chooses SEQUENCE where supported)
+UUID       application-generated UUID
+```
+- `IDENTITY` disables **insert batching** because the ID is only known after the insert.
+- `@SequenceGenerator(allocationSize = 50)` fetches 50 IDs per round trip.
+! Want fast bulk inserts? SEQUENCE, not IDENTITY.
+
+## Embeddable, Composite Keys & Inheritance
+> **@Embeddable** groups columns into a value object stored in the owner's table. **Composite key:** `@EmbeddedId` or `@IdClass`. **Inheritance** has three strategies.
+```java
+@Embeddable class Address { String street; String city; String zip; }
+
+@Entity class Customer {
+  @Id Long id;
+  @Embedded Address address;      // street, city, zip columns live in customer table
+}
+```
+```text
+SINGLE_TABLE    one table, discriminator column; fastest, columns nullable (default)
+JOINED          one table per class joined by PK; normalised, needs joins
+TABLE_PER_CLASS one table per concrete class; UNION queries, rarely used
+@MappedSuperclass  shared fields (id, createdAt) with no table of its own
+```
+! `@MappedSuperclass` is for sharing fields; `@Inheritance` is for polymorphic queries.
+
+## equals() and hashCode() for Entities
+> Do not use all fields or a **generated id** that is `null` before persist. Prefer a **business key** (isbn, email) or a stable id-based implementation.
+```java
+@Override public boolean equals(Object o) {
+  if (this == o) return true;
+  if (!(o instanceof Book other)) return false;
+  return id != null && id.equals(other.id);
+}
+@Override public int hashCode() { return getClass().hashCode(); }   // constant: safe in HashSet before/after persist
+```
+- Do not put lazy collections in `equals/hashCode` or `toString` (triggers loading, `LazyInitializationException`, infinite loops in bidirectional links).
+- Use `instanceof`, not `getClass()`, because of proxies.
+! Entities in a `HashSet` must keep the same hash before and after they get an id.
+
+### Relationships
+
+## The Four Associations
+> `@OneToOne`, `@OneToMany`, `@ManyToOne`, `@ManyToMany`. The side holding the **foreign key** is the **owning side**; the other side uses `mappedBy`.
+```java
+@Entity class Author {
+  @Id Long id;
+  @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
+  private List<Book> books = new ArrayList<>();
+  void addBook(Book b) { books.add(b); b.setAuthor(this); }   // keep both sides in sync
+}
+@Entity class Book {
+  @Id Long id;
+  @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "author_id")
+  private Author author;           // owning side: holds the FK column
+}
+```
+- Only the **owning side** controls the foreign key; `mappedBy` side is read-only for the database.
+- Always write helper methods (`addBook`) so both sides stay consistent.
+! Many side owns the FK. If you only set the inverse side, nothing is saved.
+
+## Unidirectional vs Bidirectional & @ManyToMany
+> **Unidirectional:** only one entity knows the other. **Bidirectional:** both do (needs `mappedBy` and sync helpers). Prefer **`@ManyToOne` alone** or bidirectional with care.
+- A **unidirectional `@OneToMany`** without `@JoinColumn` creates an extra join table and extra SQL: avoid it.
+- **`@ManyToMany`:** use a `Set`, not a `List` (a List makes Hibernate delete and re-insert every row). Never cascade `REMOVE` on it.
+- If the join table needs extra columns (date, role), model it as an **entity** with two `@ManyToOne`.
+```java
+@ManyToMany
+@JoinTable(name = "student_course",
+           joinColumns = @JoinColumn(name = "student_id"),
+           inverseJoinColumns = @JoinColumn(name = "course_id"))
+private Set<Course> courses = new HashSet<>();
+```
+! Many-to-many with extra data is really two many-to-ones around a third entity.
+
+## Cascade Types & orphanRemoval
+> **Cascade** propagates an operation from parent to children. **orphanRemoval** deletes a child removed from the parent's collection.
+```text
+PERSIST  MERGE  REMOVE  REFRESH  DETACH  ALL
+```
+- `CascadeType.ALL` + `orphanRemoval = true` fits a **true parent-child** (Order → OrderLine), never many-to-many or shared entities.
+- **REMOVE vs orphanRemoval:** REMOVE deletes children when the parent is deleted; orphanRemoval also deletes a child just by removing it from the list.
+- Cascade `REMOVE` on `@ManyToOne` is dangerous (deleting a child deletes the parent).
+! Cascade is for things that cannot live without the parent.
+
+### Fetching & Performance
+
+## Lazy vs Eager Loading
+> **LAZY** loads the association on first access via a **proxy**; **EAGER** loads it with the parent. Defaults: `@ManyToOne` and `@OneToOne` are **EAGER**, `@OneToMany` and `@ManyToMany` are **LAZY**.
+- Best practice: make **everything LAZY** and fetch what you need per query (`JOIN FETCH`, `@EntityGraph`).
+- **LazyInitializationException:** a lazy association is touched after the session is closed. Fix by fetching it inside the transaction, with a DTO, or with `JOIN FETCH`, **not** by switching to EAGER or enabling Open Session in View.
+- `getReference()` returns a lazy proxy without a query; `find()` hits the database.
+! EAGER is a global decision you cannot undo per query; LAZY plus fetch joins can.
+
+## The N+1 Problem
+> **N+1:** one query loads N parents, then **N more queries** load each parent's lazy child. Typical when looping over entities and touching a lazy association.
+```java
+List<Author> authors = repo.findAll();            // 1 query
+authors.forEach(a -> a.getBooks().size());        // +N queries
+```
+- **Fixes:**
+- `JOIN FETCH`: `select a from Author a join fetch a.books`
+- `@EntityGraph(attributePaths = "books")` on a repository method
+- `@BatchSize(size = 50)` or `hibernate.default_batch_fetch_size`: loads children for many parents in one `IN` query
+- **DTO projections** for read-only screens
+- **Detect:** `show-sql`, Hibernate statistics, `datasource-proxy`, or tests asserting query counts.
+- **Pitfalls:** fetching two `List` collections gives a `MultipleBagFetchException` (use `Set`, or fetch in two queries); `JOIN FETCH` with pagination loads everything in memory (`HHH000104`).
+! The most asked Hibernate question: spot it, name it, fix it with JOIN FETCH or EntityGraph.
+
+## Pagination & Projections
+> Fetch only what you need. **Pagination** with `Pageable`; **projections** return partial data instead of whole entities.
+```java
+Page<Book> page = repo.findByStatus(Status.OPEN, PageRequest.of(0, 20, Sort.by("title")));
+
+interface BookSummary { Long getId(); String getTitle(); }        // interface projection
+List<BookSummary> findByAuthorId(Long id);
+
+record BookDto(Long id, String title) {}                          // DTO projection in JPQL
+@Query("select new com.app.BookDto(b.id, b.title) from Book b")
+List<BookDto> findAllDtos();
+```
+- `Page` runs an extra `COUNT` query; use `Slice` to skip it.
+- For deep pages prefer **keyset pagination** over big `OFFSET`.
+- Never return entities from REST controllers: use DTOs.
+! Read screens want DTOs; write flows want entities.
+
+### Persistence Context & Lifecycle
+
+## Entity Lifecycle States
+> An entity is in one of four states relative to the **persistence context** (the session).
+```text
+Transient  new Book(), not known to Hibernate, no row
+Managed    attached to a session; changes are tracked and flushed
+Detached   was managed, session closed; changes not tracked
+Removed    scheduled for deletion on flush
+```
+- `persist()` makes transient → managed. `merge()` copies a detached state onto a managed instance and **returns** it (use the return value).
+- `remove()` removes a managed entity. `detach()` / `clear()` stop tracking.
+! Only managed entities get automatic updates.
+
+## Persistence Context, Dirty Checking & Flush
+> The **persistence context** is the first-level cache and the unit of work. **Dirty checking** compares managed entities with their snapshot at flush and issues `UPDATE`s automatically, so you do not call `save()` on a managed entity.
+```java
+@Transactional
+void rename(Long id, String title) {
+  Book b = repo.findById(id).orElseThrow();
+  b.setTitle(title);        // no save() needed: UPDATE happens at commit
+}
+```
+- **Flush** pushes pending SQL to the database: at commit, before a JPQL query that could be affected (`AUTO` mode), or manually (`em.flush()`).
+- Flush is not commit: data is visible to your transaction but can still roll back.
+- Large loops: call `flush()` and `clear()` every N items to keep memory flat.
+! Change a managed entity inside a transaction and Hibernate writes it for you.
+
+## persist vs merge vs save vs saveAndFlush
+> **persist** (JPA): new entity only, returns void. **merge** (JPA): copies state of a detached or new object onto a managed one and returns it. **save** (Spring Data): calls `persist` if the entity is new, else `merge`. **saveAndFlush** also flushes immediately.
+- "New" is decided by the id (null) or `@Version` (null) or `Persistable`.
+- `merge` with an assigned id first does a `SELECT`; use `persist` for known-new entities.
+- `getReferenceById` returns a proxy; `findById` returns an `Optional` and hits the database.
+! After `merge`, use the returned object, not the one you passed in.
+
+## First-Level & Second-Level Cache
+> **First-level cache:** per session, always on, ensures one instance per id inside a transaction. **Second-level (L2) cache:** shared across sessions, **opt-in** (Ehcache, Caffeine, Infinispan, Redis via JCache). **Query cache** caches result ids for a query.
+```java
+@Entity @Cacheable
+@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+class Country { ... }
+```
+- Strategies: `READ_ONLY`, `NONSTRICT_READ_WRITE`, `READ_WRITE`, `TRANSACTIONAL`.
+- Good for **read-mostly reference data**; poor for frequently changing data or clustered setups without invalidation.
+- Same entity loaded twice in one session: second `find` costs no SQL.
+! L1 is automatic and per transaction; L2 is optional and global.
+
+### Querying
+
+## JPQL, Criteria API & Native SQL
+> **JPQL** queries entities and fields (not tables). **Criteria API** builds queries in code, type-safe, good for dynamic filters. **Native SQL** is raw SQL for database-specific features.
+```java
+// JPQL
+em.createQuery("select b from Book b where b.author.name = :name", Book.class)
+  .setParameter("name", "Frank").getResultList();
+
+// Native
+@Query(value = "select * from books where title ilike %:t%", nativeQuery = true)
+List<Book> search(@Param("t") String t);
+```
+- Always use **named/positional parameters**: avoids SQL injection and enables query plan reuse.
+- **Dynamic filtering:** Spring Data **Specifications**, Querydsl, or the Criteria API.
+- `@NamedQuery` is validated at startup.
+! JPQL talks to your classes, native SQL talks to your tables.
+
+## Spring Data JPA Repositories
+> `Repository` → `CrudRepository` → `PagingAndSortingRepository` → `JpaRepository` (adds `flush`, batch ops). Query methods are **derived from the method name**.
+```java
+interface BookRepository extends JpaRepository<Book, Long> {
+  List<Book> findByAuthorNameAndStatus(String name, Status s);
+  Optional<Book> findFirstByIsbn(String isbn);
+  boolean existsByIsbn(String isbn);
+  long countByStatus(Status s);
+  List<Book> findTop5ByOrderByCreatedAtDesc();
+
+  @Modifying @Transactional
+  @Query("update Book b set b.status = :s where b.id in :ids")
+  int updateStatus(@Param("s") Status s, @Param("ids") List<Long> ids);
+}
+```
+- Keywords: `And`, `Or`, `Between`, `LessThan`, `Like`, `In`, `IsNull`, `OrderBy`, `Distinct`.
+- `@Modifying` queries bypass the persistence context: use `clearAutomatically = true` if you read the same entities afterwards.
+- `@Query` beats a 90-character method name.
+! Method name = query; `@Query` when the name gets silly.
+
+## Auditing & Soft Delete
+> **Auditing:** automatically fill `createdAt`, `updatedAt`, `createdBy`. **Soft delete:** mark rows deleted instead of removing them.
+```java
+@MappedSuperclass @EntityListeners(AuditingEntityListener.class)
+abstract class Auditable {
+  @CreatedDate Instant createdAt;
+  @LastModifiedDate Instant updatedAt;
+  @CreatedBy String createdBy;
+}
+// enable with @EnableJpaAuditing and an AuditorAware<String> bean
+
+@Entity
+@SQLDelete(sql = "update books set deleted = true where id = ?")
+@SQLRestriction("deleted = false")      // Hibernate 6.3+ (was @Where)
+class Book { boolean deleted; ... }
+```
+! Auditing = who and when, soft delete = never really gone.
+
+### Transactions & Concurrency
+
+## @Transactional (Deep Dive)
+> A **transaction** is one atomic unit of work. Spring wraps the bean in a **proxy** that begins before the method and commits or rolls back after.
+- **Rollback:** runtime exceptions and errors by default; checked exceptions only with `rollbackFor`.
+- **Propagation:** `REQUIRED` (default), `REQUIRES_NEW` (suspends and starts a new one), `SUPPORTS`, `MANDATORY`, `NOT_SUPPORTED`, `NEVER`, `NESTED` (savepoint).
+- **readOnly = true:** skips dirty-checking flush and lets drivers route to replicas.
+- **Isolation:** `READ_COMMITTED` (default on most DBs), `REPEATABLE_READ`, `SERIALIZABLE`.
+- **Traps:** self-invocation (`this.other()`) bypasses the proxy; `private` or `final` methods are not intercepted; catching the exception inside swallows the rollback; a transaction should wrap the **service** method, not the controller.
+- Keep transactions short: no HTTP calls or file I/O inside.
+! `@Transactional` is an AOP proxy, so calls inside the same class skip it.
+
+## Optimistic vs Pessimistic Locking
+> **Optimistic:** assume no conflict, detect at write time with a **`@Version`** column; throws `OptimisticLockException` on a stale update. **Pessimistic:** lock the row up front with `SELECT ... FOR UPDATE`.
+```java
+@Entity class Account { @Id Long id; @Version Long version; BigDecimal balance; }
+// UPDATE account SET balance=?, version=? WHERE id=? AND version=?   (0 rows updated -> exception)
+
+@Lock(LockModeType.PESSIMISTIC_WRITE)
+@Query("select a from Account a where a.id = :id")
+Optional<Account> lockById(@Param("id") Long id);
+```
+- Optimistic: best for **low contention**, scales well; retry on failure.
+- Pessimistic: **high contention**, short critical sections; watch for deadlocks.
+! Optimistic = "check the version when you save"; pessimistic = "lock it now".
+
+## Batch Processing
+> Insert or update many rows efficiently by **batching JDBC statements**.
+```properties
+spring.jpa.properties.hibernate.jdbc.batch_size=50
+spring.jpa.properties.hibernate.order_inserts=true
+spring.jpa.properties.hibernate.order_updates=true
+```
+- Requires a non-`IDENTITY` id strategy.
+- Flush and clear the persistence context every batch to avoid `OutOfMemoryError`.
+- For huge loads use **JDBC batch**, `StatelessSession` or a bulk `@Modifying` query.
+! Batching is off by default; turn on batch_size and use SEQUENCE ids.
+
+### Common Problems & Practices
+
+## Common Exceptions
+> Know what causes each one.
+```text
+LazyInitializationException     lazy field read after the session closed
+MultipleBagFetchException       JOIN FETCH on two Lists in one query
+OptimisticLockException         stale @Version on update
+NonUniqueResultException        query returned more than one row for getSingleResult
+TransientObjectException        referencing an unsaved entity (missing cascade/persist)
+DetachedEntityPassedToPersist   persist() on an entity that already has an id
+StackOverflowError              toString/equals/JSON recursion on a bidirectional link
+```
+! Most are "the session or the object graph is not in the state I assumed".
+
+## Hibernate Best Practices
+> A checklist for mapping and performance reviews.
+- Make every association **LAZY**; fetch explicitly per use case.
+- Prefer `Set` for `@ManyToMany`; keep both sides of bidirectional links in sync.
+- Use **DTO projections** for read APIs; never expose entities from controllers.
+- Turn off **Open Session in View** (`spring.jpa.open-in-view=false`).
+- Use **Flyway/Liquibase** and `ddl-auto=validate`.
+- Use `@Enumerated(STRING)`, `@Version`, and a stable `equals/hashCode`.
+- Index every foreign key column; check generated SQL with `show-sql` in development.
+- Keep transactions short and in the service layer.
+! Lazy by default, DTO for reads, migrations for schema, short transactions.
+
+## Hibernate vs MyBatis vs jOOQ
+> **Hibernate/JPA:** full ORM, productivity, caching, but hides SQL. **MyBatis:** you write SQL, it maps results; more control. **jOOQ:** type-safe SQL builder generated from the schema.
+- Pick **JPA** for CRUD-heavy domain models; **MyBatis/jOOQ** for complex reporting SQL; you can mix JPA with native queries or jOOQ in one app.
+! ORM for domain models, SQL tools for reports.
+
+### Quick Answers
+
+## Interview One-Liners
+- **JPA vs Hibernate:** specification vs implementation.
+- **Session vs EntityManager:** Hibernate's API vs the JPA standard; same idea.
+- **Persistence context:** first-level cache plus unit of work.
+- **save() on a managed entity:** unnecessary; dirty checking updates it.
+- **persist vs merge:** new entity vs detached/new copy returning a managed one.
+- **LAZY vs EAGER defaults:** to-one is EAGER, to-many is LAZY.
+- **N+1:** one query per child; fix with JOIN FETCH, EntityGraph or batch size.
+- **mappedBy:** marks the inverse side; the other side owns the foreign key.
+- **IDENTITY vs SEQUENCE:** auto-increment (no batching) vs sequence (batchable).
+- **L1 vs L2 cache:** per session automatic vs shared opt-in.
+- **Optimistic vs pessimistic lock:** version check on save vs row lock up front.
+- **LazyInitializationException:** lazy access with a closed session; fetch inside the transaction.
+- **@Transactional rollback:** runtime exceptions by default.
+- **ddl-auto in production:** `validate` or `none` with migrations.

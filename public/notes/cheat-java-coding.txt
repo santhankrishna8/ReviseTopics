@@ -1,0 +1,1173 @@
+# 01 | Java Coding Questions | The commonly asked Java coding questions as short, simple code snippets. Read the code, understand the one idea behind it, then write it yourself. | Java coding snippets
+
+### Strings
+
+## Reverse a String
+> **Idea:** build the string from the last character to the first.
+```java
+String rev = new StringBuilder(s).reverse().toString();
+
+// manual
+String rev2 = "";
+for (int i = s.length() - 1; i >= 0; i--) rev2 += s.charAt(i);
+```
+! Time O(n).
+
+## Palindrome String
+> **Idea:** compare the first and last characters, moving inward.
+```java
+boolean isPalindrome(String s) {
+    int l = 0, r = s.length() - 1;
+    while (l < r) {
+        if (s.charAt(l++) != s.charAt(r--)) return false;
+    }
+    return true;
+}
+```
+! Time O(n), space O(1).
+
+## Anagram Check
+> **Idea:** same letters with same counts.
+```java
+boolean isAnagram(String a, String b) {
+    if (a.length() != b.length()) return false;
+    int[] count = new int[26];
+    for (int i = 0; i < a.length(); i++) {
+        count[a.charAt(i) - 'a']++;
+        count[b.charAt(i) - 'a']--;
+    }
+    for (int c : count) if (c != 0) return false;
+    return true;
+}
+```
+! Sorting both strings also works, O(n log n).
+
+## Count Vowels, Consonants, Digits, Spaces
+> **Idea:** one loop, classify each character.
+```java
+int v = 0, c = 0, d = 0, sp = 0;
+for (char ch : s.toLowerCase().toCharArray()) {
+    if ("aeiou".indexOf(ch) >= 0) v++;
+    else if (Character.isLetter(ch)) c++;
+    else if (Character.isDigit(ch)) d++;
+    else if (ch == ' ') sp++;
+}
+```
+! One pass, O(n).
+
+## Character Frequency
+> **Idea:** a map from character to count.
+```java
+Map<Character, Integer> freq = new LinkedHashMap<>();
+for (char ch : s.toCharArray()) {
+    freq.put(ch, freq.getOrDefault(ch, 0) + 1);
+}
+```
+! `LinkedHashMap` keeps first-seen order. Almost every string question starts here.
+
+## First Non-Repeated Character
+> **Idea:** count first, then find the first with count 1.
+```java
+Map<Character, Integer> freq = new LinkedHashMap<>();
+for (char ch : s.toCharArray()) freq.merge(ch, 1, Integer::sum);
+
+for (char ch : s.toCharArray()) {
+    if (freq.get(ch) == 1) return ch;
+}
+```
+! Two passes, O(n).
+
+## Remove Duplicate Characters
+> **Idea:** keep a character only the first time you see it.
+```java
+Set<Character> set = new LinkedHashSet<>();
+for (char ch : s.toCharArray()) set.add(ch);
+
+StringBuilder sb = new StringBuilder();
+for (char ch : set) sb.append(ch);   // "programming" -> "progamin"
+```
+! Set for "seen", builder for the result.
+
+## Remove Spaces / Special Characters
+> **Idea:** regex replace.
+```java
+s.replaceAll("\\s", "");                 // remove all spaces
+s.replaceAll("[^a-zA-Z0-9]", "");        // keep letters and digits
+s.trim().replaceAll("\\s+", " ");        // collapse extra spaces
+```
+! `replace` is literal, `replaceAll` is regex.
+
+## Count Words & Reverse Words
+> **Idea:** split on whitespace.
+```java
+String[] words = s.trim().split("\\s+");
+int count = words.length;
+
+// reverse word order
+StringBuilder sb = new StringBuilder();
+for (int i = words.length - 1; i >= 0; i--) sb.append(words[i]).append(" ");
+String result = sb.toString().trim();
+```
+! Use `\\s+`, not a single space.
+
+## Longest Word / Capitalize Each Word
+> **Idea:** loop over the words.
+```java
+String longest = "";
+for (String w : s.split("\\s+")) {
+    if (w.length() > longest.length()) longest = w;
+}
+
+// capitalize
+StringBuilder sb = new StringBuilder();
+for (String w : s.split("\\s+")) {
+    sb.append(Character.toUpperCase(w.charAt(0)))
+      .append(w.substring(1).toLowerCase()).append(" ");
+}
+```
+! Watch empty words from extra spaces.
+
+## String Rotation Check
+> **Idea:** every rotation of `s1` appears inside `s1 + s1`.
+```java
+boolean isRotation(String s1, String s2) {
+    return s1.length() == s2.length() && (s1 + s1).contains(s2);
+}
+// "abcd" and "cdab" -> "abcdabcd" contains "cdab"
+```
+! A one-line trick interviewers love.
+
+## String Compression (aaabbc → a3b2c1)
+> **Idea:** count runs of equal adjacent characters.
+```java
+StringBuilder sb = new StringBuilder();
+int count = 1;
+for (int i = 1; i <= s.length(); i++) {
+    if (i < s.length() && s.charAt(i) == s.charAt(i - 1)) {
+        count++;
+    } else {
+        sb.append(s.charAt(i - 1)).append(count);
+        count = 1;
+    }
+}
+```
+! `i <= length` handles the last group.
+
+## Valid Parentheses
+> **Idea:** a stack. The last opened must be the first closed.
+```java
+boolean isValid(String s) {
+    Deque<Character> stack = new ArrayDeque<>();
+    for (char ch : s.toCharArray()) {
+        if (ch == '(') stack.push(')');
+        else if (ch == '[') stack.push(']');
+        else if (ch == '{') stack.push('}');
+        else if (stack.isEmpty() || stack.pop() != ch) return false;
+    }
+    return stack.isEmpty();
+}
+```
+! Push the expected closing bracket, then compare on pop.
+
+## Longest Substring Without Repeating Characters
+> **Idea:** sliding window with a set.
+```java
+int longest(String s) {
+    Set<Character> window = new HashSet<>();
+    int left = 0, max = 0;
+    for (int right = 0; right < s.length(); right++) {
+        while (window.contains(s.charAt(right))) {
+            window.remove(s.charAt(left++));
+        }
+        window.add(s.charAt(right));
+        max = Math.max(max, right - left + 1);
+    }
+    return max;
+}
+```
+! O(n). Window = a substring with no repeats.
+
+## Longest Palindromic Substring
+> **Idea:** expand around every centre.
+```java
+String longestPalindrome(String s) {
+    int start = 0, end = 0;
+    for (int i = 0; i < s.length(); i++) {
+        int len = Math.max(expand(s, i, i), expand(s, i, i + 1));
+        if (len > end - start) {
+            start = i - (len - 1) / 2;
+            end = i + len / 2;
+        }
+    }
+    return s.substring(start, end + 1);
+}
+
+int expand(String s, int l, int r) {
+    while (l >= 0 && r < s.length() && s.charAt(l) == s.charAt(r)) { l--; r++; }
+    return r - l - 1;
+}
+```
+! O(n²) time, O(1) space.
+
+## Longest Common Prefix
+> **Idea:** shrink the first word until all words start with it.
+```java
+String prefix = words[0];
+for (String w : words) {
+    while (!w.startsWith(prefix)) {
+        prefix = prefix.substring(0, prefix.length() - 1);
+    }
+}
+```
+! Stops when the prefix becomes empty.
+
+## All Permutations of a String
+> **Idea:** backtracking. Fix one character, permute the rest.
+```java
+void permute(String prefix, String rest) {
+    if (rest.isEmpty()) { System.out.println(prefix); return; }
+    for (int i = 0; i < rest.length(); i++) {
+        permute(prefix + rest.charAt(i),
+                rest.substring(0, i) + rest.substring(i + 1));
+    }
+}
+// permute("", "abc")
+```
+! n! results: choose, explore, repeat.
+
+## Pangram, Isogram, Case Swap, String to Integer
+> **Idea:** small checks.
+```java
+// Pangram: all 26 letters present
+Set<Character> set = new HashSet<>();
+for (char c : s.toLowerCase().toCharArray()) if (Character.isLetter(c)) set.add(c);
+boolean pangram = set.size() == 26;
+
+// Swap case
+for (char c : s.toCharArray())
+    sb.append(Character.isUpperCase(c) ? Character.toLowerCase(c) : Character.toUpperCase(c));
+
+// String to int (atoi)
+int num = 0;
+for (char c : s.toCharArray()) num = num * 10 + (c - '0');
+```
+! `c - '0'` converts a digit char to its value.
+
+### Numbers & Math
+
+## Prime Number Check
+> **Idea:** check divisors only up to √n.
+```java
+boolean isPrime(int n) {
+    if (n < 2) return false;
+    for (int i = 2; i * i <= n; i++) {
+        if (n % i == 0) return false;
+    }
+    return true;
+}
+```
+! O(√n).
+
+## Primes up to N (Sieve)
+> **Idea:** cross out the multiples of each prime.
+```java
+boolean[] composite = new boolean[n + 1];
+for (int i = 2; i * i <= n; i++) {
+    if (!composite[i]) {
+        for (int j = i * i; j <= n; j += i) composite[j] = true;
+    }
+}
+for (int i = 2; i <= n; i++) if (!composite[i]) System.out.println(i);
+```
+! O(n log log n). Start crossing at `i*i`.
+
+## Factorial
+> **Idea:** `n! = n × (n-1)!`, with `0! = 1`.
+```java
+long fact(int n) {
+    long result = 1;
+    for (int i = 2; i <= n; i++) result *= i;
+    return result;
+}
+
+// recursive
+long factR(int n) { return n <= 1 ? 1 : n * factR(n - 1); }
+```
+! `long` overflows after 20!. Use `BigInteger` beyond that.
+
+## Fibonacci Series
+> **Idea:** each number is the sum of the previous two.
+```java
+int a = 0, b = 1;
+for (int i = 0; i < n; i++) {
+    System.out.println(a);
+    int next = a + b;
+    a = b;
+    b = next;
+}
+```
+! Loop is O(n). Plain recursion is O(2ⁿ), so add memoization.
+
+## Reverse a Number, Palindrome Number, Sum of Digits
+> **Idea:** `% 10` gets the last digit, `/ 10` drops it.
+```java
+int rev = 0, sum = 0, temp = n;
+while (temp > 0) {
+    int digit = temp % 10;
+    rev = rev * 10 + digit;
+    sum += digit;
+    temp /= 10;
+}
+boolean palindrome = (rev == n);
+```
+! One loop gives reverse, sum and palindrome check.
+
+## Armstrong Number
+> **Idea:** sum of digits raised to the digit count equals the number (153 = 1³+5³+3³).
+```java
+int digits = String.valueOf(n).length();
+int sum = 0, temp = n;
+while (temp > 0) {
+    sum += Math.pow(temp % 10, digits);
+    temp /= 10;
+}
+boolean armstrong = (sum == n);
+```
+! Strong number: sum of digit factorials. Perfect number: sum of divisors equals n.
+
+## Perfect Number
+> **Idea:** sum of proper divisors equals the number (28 = 1+2+4+7+14).
+```java
+int sum = 0;
+for (int i = 1; i <= n / 2; i++) {
+    if (n % i == 0) sum += i;
+}
+boolean perfect = (sum == n);
+```
+! Loop only to n/2.
+
+## GCD and LCM
+> **Idea:** Euclid: `gcd(a, b) = gcd(b, a % b)`.
+```java
+int gcd(int a, int b) {
+    return b == 0 ? a : gcd(b, a % b);
+}
+
+int lcm(int a, int b) {
+    return a / gcd(a, b) * b;
+}
+```
+! Divide before multiplying to avoid overflow.
+
+## Swap Two Numbers Without a Third Variable
+> **Idea:** arithmetic or XOR.
+```java
+a = a + b;
+b = a - b;
+a = a - b;
+
+// XOR
+a ^= b;
+b ^= a;
+a ^= b;
+```
+! In real code, a temp variable is clearer.
+
+## Power of Two & Count Set Bits
+> **Idea:** `n & (n-1)` clears the lowest set bit.
+```java
+boolean powerOfTwo = n > 0 && (n & (n - 1)) == 0;
+
+int count = 0;
+while (n != 0) {
+    n &= n - 1;
+    count++;
+}
+
+boolean odd = (n & 1) == 1;
+```
+! Also `Integer.toBinaryString(n)` for decimal to binary.
+
+## FizzBuzz
+> **Idea:** check the most specific condition first.
+```java
+for (int i = 1; i <= 100; i++) {
+    if (i % 15 == 0) System.out.println("FizzBuzz");
+    else if (i % 3 == 0) System.out.println("Fizz");
+    else if (i % 5 == 0) System.out.println("Buzz");
+    else System.out.println(i);
+}
+```
+! `% 15` must come first.
+
+## Leap Year
+> **Idea:** divisible by 4, but centuries only if divisible by 400.
+```java
+boolean leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+```
+! 1900 is not a leap year, 2000 is.
+
+## Power (x^n) in O(log n)
+> **Idea:** halve the exponent each step.
+```java
+double pow(double x, int n) {
+    if (n == 0) return 1;
+    double half = pow(x, n / 2);
+    return n % 2 == 0 ? half * half : half * half * x;
+}
+```
+! Handle negative `n` with `1 / pow(x, -n)`.
+
+### Arrays
+
+## Largest and Second Largest
+> **Idea:** one pass with two variables.
+```java
+int first = Integer.MIN_VALUE, second = Integer.MIN_VALUE;
+for (int x : a) {
+    if (x > first) { second = first; first = x; }
+    else if (x > second && x != first) second = x;
+}
+```
+! O(n). Do not sort.
+
+## Reverse an Array
+> **Idea:** swap the two ends and move inward.
+```java
+int l = 0, r = a.length - 1;
+while (l < r) {
+    int t = a[l];
+    a[l++] = a[r];
+    a[r--] = t;
+}
+```
+! O(n) time, O(1) space.
+
+## Rotate an Array by k
+> **Idea:** three reversals.
+```java
+void rotate(int[] a, int k) {
+    k %= a.length;
+    reverse(a, 0, a.length - 1);
+    reverse(a, 0, k - 1);
+    reverse(a, k, a.length - 1);
+}
+
+void reverse(int[] a, int l, int r) {
+    while (l < r) { int t = a[l]; a[l++] = a[r]; a[r--] = t; }
+}
+```
+! Rotates right by k.
+
+## Find Duplicates in an Array
+> **Idea:** a set remembers what you have seen.
+```java
+Set<Integer> seen = new HashSet<>();
+Set<Integer> duplicates = new HashSet<>();
+for (int x : a) {
+    if (!seen.add(x)) duplicates.add(x);
+}
+```
+! `add` returns false when the value already exists.
+
+## Remove Duplicates from a Sorted Array
+> **Idea:** two pointers: slow writes, fast reads.
+```java
+int k = 1;
+for (int i = 1; i < a.length; i++) {
+    if (a[i] != a[i - 1]) a[k++] = a[i];
+}
+// k is the new length
+```
+! In place, O(n).
+
+## Missing Number (1 to n)
+> **Idea:** expected sum minus actual sum.
+```java
+int n = a.length + 1;
+int expected = n * (n + 1) / 2;
+int actual = 0;
+for (int x : a) actual += x;
+int missing = expected - actual;
+```
+! O(n) time, O(1) space.
+
+## Two Sum
+> **Idea:** for each `x`, look for `target - x` in a map.
+```java
+int[] twoSum(int[] a, int target) {
+    Map<Integer, Integer> map = new HashMap<>();   // value -> index
+    for (int i = 0; i < a.length; i++) {
+        if (map.containsKey(target - a[i])) return new int[]{map.get(target - a[i]), i};
+        map.put(a[i], i);
+    }
+    return new int[0];
+}
+```
+! One pass, O(n).
+
+## Move Zeros to the End
+> **Idea:** `k` is the next position for a non-zero.
+```java
+int k = 0;
+for (int x : a) {
+    if (x != 0) a[k++] = x;
+}
+while (k < a.length) a[k++] = 0;
+```
+! Order of non-zeros is preserved.
+
+## Sort 0s, 1s and 2s (Dutch National Flag)
+> **Idea:** three pointers: low, mid, high.
+```java
+int low = 0, mid = 0, high = a.length - 1;
+while (mid <= high) {
+    if (a[mid] == 0) swap(a, low++, mid++);
+    else if (a[mid] == 1) mid++;
+    else swap(a, mid, high--);
+}
+```
+! One pass. Do not move `mid` after swapping with `high`.
+
+## Maximum Subarray Sum (Kadane's)
+> **Idea:** extend the running sum or start fresh.
+```java
+int cur = a[0], best = a[0];
+for (int i = 1; i < a.length; i++) {
+    cur = Math.max(a[i], cur + a[i]);
+    best = Math.max(best, cur);
+}
+```
+! O(n). If the running sum goes negative, drop it.
+
+## Subarray With Given Sum
+> **Idea:** prefix sums in a map.
+```java
+Map<Integer, Integer> seen = new HashMap<>();   // prefix sum -> index
+seen.put(0, -1);
+int sum = 0;
+for (int i = 0; i < a.length; i++) {
+    sum += a[i];
+    if (seen.containsKey(sum - target)) {
+        // subarray from seen.get(sum - target) + 1 to i
+    }
+    seen.put(sum, i);
+}
+```
+! Prefix sum difference = subarray sum. Works with negatives.
+
+## Merge Two Sorted Arrays
+> **Idea:** two pointers, take the smaller head each time.
+```java
+int[] res = new int[a.length + b.length];
+int i = 0, j = 0, k = 0;
+while (i < a.length && j < b.length) {
+    res[k++] = a[i] <= b[j] ? a[i++] : b[j++];
+}
+while (i < a.length) res[k++] = a[i++];
+while (j < b.length) res[k++] = b[j++];
+```
+! O(m + n).
+
+## Intersection & Union of Arrays
+> **Idea:** use sets.
+```java
+Set<Integer> set1 = new HashSet<>(), set2 = new HashSet<>();
+for (int x : a) set1.add(x);
+for (int x : b) set2.add(x);
+
+Set<Integer> union = new HashSet<>(set1);
+union.addAll(set2);
+
+Set<Integer> common = new HashSet<>(set1);
+common.retainAll(set2);
+```
+! O(n + m).
+
+## Majority Element (> n/2)
+> **Idea:** Boyer-Moore voting. Different elements cancel out.
+```java
+int candidate = 0, count = 0;
+for (int x : a) {
+    if (count == 0) candidate = x;
+    count += (x == candidate) ? 1 : -1;
+}
+```
+! O(n), O(1) space.
+
+## Product of Array Except Self
+> **Idea:** left products times right products, no division.
+```java
+int n = a.length;
+int[] res = new int[n];
+res[0] = 1;
+for (int i = 1; i < n; i++) res[i] = res[i - 1] * a[i - 1];
+
+int right = 1;
+for (int i = n - 1; i >= 0; i--) {
+    res[i] *= right;
+    right *= a[i];
+}
+```
+! O(n), handles zeros.
+
+## Leaders in an Array
+> **Idea:** scan from the right keeping the max.
+```java
+int max = Integer.MIN_VALUE;
+for (int i = a.length - 1; i >= 0; i--) {
+    if (a[i] > max) {
+        System.out.println(a[i]);   // leader
+        max = a[i];
+    }
+}
+```
+! Leader = greater than everything on its right.
+
+## Binary Search
+> **Idea:** halve a sorted range each step.
+```java
+int search(int[] a, int target) {
+    int lo = 0, hi = a.length - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (a[mid] == target) return mid;
+        if (a[mid] < target) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return -1;
+}
+```
+! O(log n). `lo + (hi - lo) / 2` avoids overflow.
+
+## Bubble Sort
+> **Idea:** swap adjacent out-of-order pairs; the largest bubbles to the end.
+```java
+for (int i = 0; i < a.length - 1; i++) {
+    boolean swapped = false;
+    for (int j = 0; j < a.length - 1 - i; j++) {
+        if (a[j] > a[j + 1]) {
+            int t = a[j]; a[j] = a[j + 1]; a[j + 1] = t;
+            swapped = true;
+        }
+    }
+    if (!swapped) break;
+}
+```
+! O(n²), stops early if already sorted.
+
+## Selection & Insertion Sort
+> **Idea:** selection picks the minimum; insertion places each item into the sorted left part.
+```java
+// Selection
+for (int i = 0; i < a.length - 1; i++) {
+    int min = i;
+    for (int j = i + 1; j < a.length; j++) if (a[j] < a[min]) min = j;
+    int t = a[i]; a[i] = a[min]; a[min] = t;
+}
+
+// Insertion
+for (int i = 1; i < a.length; i++) {
+    int key = a[i], j = i - 1;
+    while (j >= 0 && a[j] > key) { a[j + 1] = a[j]; j--; }
+    a[j + 1] = key;
+}
+```
+! Both O(n²). Insertion is great for nearly sorted data.
+
+## Merge Sort
+> **Idea:** split in halves, sort each, merge.
+```java
+void mergeSort(int[] a, int l, int r) {
+    if (l >= r) return;
+    int m = (l + r) / 2;
+    mergeSort(a, l, m);
+    mergeSort(a, m + 1, r);
+    merge(a, l, m, r);
+}
+
+void merge(int[] a, int l, int m, int r) {
+    int[] tmp = new int[r - l + 1];
+    int i = l, j = m + 1, k = 0;
+    while (i <= m && j <= r) tmp[k++] = a[i] <= a[j] ? a[i++] : a[j++];
+    while (i <= m) tmp[k++] = a[i++];
+    while (j <= r) tmp[k++] = a[j++];
+    System.arraycopy(tmp, 0, a, l, tmp.length);
+}
+```
+! O(n log n), O(n) space, stable.
+
+## Quick Sort
+> **Idea:** pick a pivot, smaller left, larger right, recurse.
+```java
+void quickSort(int[] a, int lo, int hi) {
+    if (lo >= hi) return;
+    int pivot = a[hi], i = lo;
+    for (int j = lo; j < hi; j++) {
+        if (a[j] < pivot) { int t = a[i]; a[i] = a[j]; a[j] = t; i++; }
+    }
+    int t = a[i]; a[i] = a[hi]; a[hi] = t;
+    quickSort(a, lo, i - 1);
+    quickSort(a, i + 1, hi);
+}
+```
+! O(n log n) average, O(n²) worst, in place.
+
+## Matrix: Transpose & Rotate 90°
+> **Idea:** rotate = transpose, then reverse each row.
+```java
+// Transpose (square matrix)
+for (int i = 0; i < n; i++)
+    for (int j = i + 1; j < n; j++) {
+        int t = m[i][j]; m[i][j] = m[j][i]; m[j][i] = t;
+    }
+
+// Reverse each row -> rotated 90° clockwise
+for (int[] row : m) {
+    for (int l = 0, r = n - 1; l < r; l++, r--) {
+        int t = row[l]; row[l] = row[r]; row[r] = t;
+    }
+}
+```
+! Main diagonal: `i == j`. Anti diagonal: `i + j == n - 1`.
+
+## Spiral Order of a Matrix
+> **Idea:** walk right, down, left, up and shrink the boundaries.
+```java
+int top = 0, bottom = m.length - 1, left = 0, right = m[0].length - 1;
+while (top <= bottom && left <= right) {
+    for (int j = left; j <= right; j++) System.out.print(m[top][j] + " ");
+    top++;
+    for (int i = top; i <= bottom; i++) System.out.print(m[i][right] + " ");
+    right--;
+    if (top <= bottom)
+        for (int j = right; j >= left; j--) System.out.print(m[bottom][j] + " ");
+    bottom--;
+    if (left <= right)
+        for (int i = bottom; i >= top; i--) System.out.print(m[i][left] + " ");
+    left++;
+}
+```
+! Four boundaries, four directions.
+
+## Trapping Rain Water
+> **Idea:** water above `i` = `min(maxLeft, maxRight) - height[i]`.
+```java
+int l = 0, r = h.length - 1, maxL = 0, maxR = 0, water = 0;
+while (l < r) {
+    if (h[l] < h[r]) {
+        maxL = Math.max(maxL, h[l]);
+        water += maxL - h[l++];
+    } else {
+        maxR = Math.max(maxR, h[r]);
+        water += maxR - h[r--];
+    }
+}
+```
+! Two pointers, O(n), O(1) space.
+
+## Container With Most Water
+> **Idea:** area = min height × width. Move the shorter side.
+```java
+int l = 0, r = h.length - 1, best = 0;
+while (l < r) {
+    best = Math.max(best, Math.min(h[l], h[r]) * (r - l));
+    if (h[l] < h[r]) l++; else r--;
+}
+```
+! The shorter line limits the area, so move it.
+
+### Collections & Streams
+
+## Count Frequency of Words
+> **Idea:** a map with `merge`.
+```java
+Map<String, Integer> freq = new HashMap<>();
+for (String w : words) freq.merge(w, 1, Integer::sum);
+
+// stream version
+Map<String, Long> freq2 = Arrays.stream(words)
+    .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+```
+! Top K: sort entries by value, or use a min-heap of size K.
+
+## Sort a Map by Value
+> **Idea:** sort the entries, collect into a `LinkedHashMap`.
+```java
+Map<String, Integer> sorted = map.entrySet().stream()
+    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                              (a, b) -> a, LinkedHashMap::new));
+```
+! A `HashMap` has no order, so collect into `LinkedHashMap`.
+
+## Remove Duplicates from a List
+> **Idea:** use a set.
+```java
+List<Integer> unique = new ArrayList<>(new LinkedHashSet<>(list));
+
+// stream
+List<Integer> unique2 = list.stream().distinct().toList();
+```
+! `LinkedHashSet` keeps insertion order.
+
+## Common Elements of Two Lists
+> **Idea:** `retainAll` on a set copy.
+```java
+Set<Integer> common = new HashSet<>(list1);
+common.retainAll(list2);
+```
+! O(n + m).
+
+## Stream Questions (Most Asked)
+> **Idea:** a pipeline of filter, map, collect.
+```java
+nums.stream().filter(n -> n % 2 == 0).toList();                       // even numbers
+nums.stream().mapToInt(i -> i).sum();                                  // sum
+nums.stream().max(Integer::compare).get();                             // max
+words.stream().collect(Collectors.groupingBy(String::length));         // group by length
+nums.stream().sorted(Comparator.reverseOrder()).skip(1).findFirst();   // 2nd highest
+emps.stream().collect(Collectors.groupingBy(Emp::dept, Collectors.averagingDouble(Emp::salary)));
+String.join(",", list);   list.stream().distinct().count();
+```
+! Also: partitioningBy, flatMap, `anyMatch/allMatch`, `Collectors.toMap`.
+
+## Find Duplicate Elements Using Streams
+> **Idea:** a set that rejects repeats.
+```java
+Set<Integer> seen = new HashSet<>();
+nums.stream().filter(n -> !seen.add(n)).collect(Collectors.toSet());
+```
+! `Set.add` returns false when already present.
+
+## LRU Cache
+> **Idea:** a `LinkedHashMap` in access order that evicts the eldest entry.
+```java
+class LRUCache<K, V> extends LinkedHashMap<K, V> {
+    private final int capacity;
+
+    LRUCache(int capacity) {
+        super(capacity, 0.75f, true);   // true = access order
+        this.capacity = capacity;
+    }
+
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+        return size() > capacity;
+    }
+}
+```
+! O(1) get and put. From scratch: HashMap plus doubly linked list.
+
+### Linked List, Stack, Queue, Trees
+
+## Reverse a Linked List
+> **Idea:** three pointers: prev, curr, next.
+```java
+Node reverse(Node head) {
+    Node prev = null, curr = head;
+    while (curr != null) {
+        Node next = curr.next;
+        curr.next = prev;
+        prev = curr;
+        curr = next;
+    }
+    return prev;
+}
+```
+! O(n) time, O(1) space.
+
+## Find Middle of a Linked List
+> **Idea:** slow moves 1, fast moves 2.
+```java
+Node slow = head, fast = head;
+while (fast != null && fast.next != null) {
+    slow = slow.next;
+    fast = fast.next.next;
+}
+// slow is the middle
+```
+! When fast reaches the end, slow is at the middle.
+
+## Detect a Cycle in a Linked List
+> **Idea:** Floyd's tortoise and hare. They meet if there is a cycle.
+```java
+boolean hasCycle(Node head) {
+    Node slow = head, fast = head;
+    while (fast != null && fast.next != null) {
+        slow = slow.next;
+        fast = fast.next.next;
+        if (slow == fast) return true;
+    }
+    return false;
+}
+```
+! O(n) time, O(1) space.
+
+## Nth Node From the End
+> **Idea:** move one pointer n steps ahead, then move both.
+```java
+Node fast = head, slow = head;
+for (int i = 0; i < n; i++) fast = fast.next;
+while (fast != null) {
+    slow = slow.next;
+    fast = fast.next;
+}
+// slow is the nth node from the end
+```
+! One pass.
+
+## Merge Two Sorted Lists
+> **Idea:** a dummy head and a tail pointer.
+```java
+Node merge(Node a, Node b) {
+    Node dummy = new Node(0), tail = dummy;
+    while (a != null && b != null) {
+        if (a.val <= b.val) { tail.next = a; a = a.next; }
+        else { tail.next = b; b = b.next; }
+        tail = tail.next;
+    }
+    tail.next = (a != null) ? a : b;
+    return dummy.next;
+}
+```
+! The dummy node removes head special cases.
+
+## Remove Duplicates from a Sorted Linked List
+> **Idea:** skip the next node if it has the same value.
+```java
+Node curr = head;
+while (curr != null && curr.next != null) {
+    if (curr.val == curr.next.val) curr.next = curr.next.next;
+    else curr = curr.next;
+}
+```
+! O(n).
+
+## Palindrome Linked List
+> **Idea:** find the middle, reverse the second half, compare.
+```java
+boolean isPalindrome(Node head) {
+    Node slow = head, fast = head;
+    while (fast != null && fast.next != null) { slow = slow.next; fast = fast.next.next; }
+
+    Node second = reverse(slow);           // reverse second half
+    Node first = head;
+    while (second != null) {
+        if (first.val != second.val) return false;
+        first = first.next;
+        second = second.next;
+    }
+    return true;
+}
+```
+! O(n) time, O(1) space. Uses `reverse` from above.
+
+## Stack Using an Array
+> **Idea:** a `top` index.
+```java
+class Stack {
+    int[] a = new int[100];
+    int top = -1;
+
+    void push(int x) {
+        if (top == a.length - 1) throw new RuntimeException("Overflow");
+        a[++top] = x;
+    }
+
+    int pop() {
+        if (top == -1) throw new RuntimeException("Underflow");
+        return a[top--];
+    }
+}
+```
+! Check overflow on push, underflow on pop.
+
+## Queue Using Two Stacks
+> **Idea:** two reversals give FIFO.
+```java
+class MyQueue {
+    Deque<Integer> in = new ArrayDeque<>(), out = new ArrayDeque<>();
+
+    void push(int x) { in.push(x); }
+
+    int pop() {
+        if (out.isEmpty()) {
+            while (!in.isEmpty()) out.push(in.pop());
+        }
+        return out.pop();
+    }
+}
+```
+! Move from `in` to `out` only when `out` is empty.
+
+## Min Stack
+> **Idea:** a second stack of running minimums.
+```java
+class MinStack {
+    Deque<Integer> stack = new ArrayDeque<>(), mins = new ArrayDeque<>();
+
+    void push(int x) {
+        stack.push(x);
+        mins.push(mins.isEmpty() ? x : Math.min(x, mins.peek()));
+    }
+
+    void pop() { stack.pop(); mins.pop(); }
+
+    int getMin() { return mins.peek(); }
+}
+```
+! O(1) for push, pop and getMin.
+
+## Binary Tree Traversals
+> **Idea:** recursion on left and right. Only the position of the node changes.
+```java
+void inorder(Node n) {          // left, node, right (sorted for a BST)
+    if (n == null) return;
+    inorder(n.left);
+    System.out.print(n.val + " ");
+    inorder(n.right);
+}
+// preorder: print first.  postorder: print last.
+```
+! DFS = recursion or stack, BFS = queue.
+
+## Level Order Traversal (BFS)
+> **Idea:** a queue; process one level at a time using the queue size.
+```java
+Queue<Node> q = new LinkedList<>();
+q.add(root);
+while (!q.isEmpty()) {
+    int size = q.size();
+    for (int i = 0; i < size; i++) {
+        Node n = q.poll();
+        System.out.print(n.val + " ");
+        if (n.left != null) q.add(n.left);
+        if (n.right != null) q.add(n.right);
+    }
+}
+```
+! `size` fixes the number of nodes in the current level.
+
+## Height of a Binary Tree & Validate BST
+> **Idea:** recursion on both children.
+```java
+int height(Node n) {
+    if (n == null) return 0;
+    return 1 + Math.max(height(n.left), height(n.right));
+}
+
+boolean isBST(Node n, long min, long max) {
+    if (n == null) return true;
+    if (n.val <= min || n.val >= max) return false;
+    return isBST(n.left, min, n.val) && isBST(n.right, n.val, max);
+}
+// isBST(root, Long.MIN_VALUE, Long.MAX_VALUE)
+```
+! Pass down `(min, max)` bounds to validate a BST.
+
+### OOP, Concurrency & Patterns
+
+## Singleton
+> **Idea:** private constructor plus one static instance.
+```java
+// Easiest thread-safe way
+public enum Singleton { INSTANCE; }
+
+// Holder idiom (lazy, thread-safe)
+public class Singleton {
+    private Singleton() {}
+    private static class Holder { static final Singleton INSTANCE = new Singleton(); }
+    public static Singleton getInstance() { return Holder.INSTANCE; }
+}
+```
+! Enum or holder idiom. Avoid plain lazy init without synchronization.
+
+## Immutable Class
+> **Idea:** `final` class, `final` fields, no setters, defensive copies.
+```java
+public final class Person {
+    private final String name;
+    private final List<String> tags;
+
+    public Person(String name, List<String> tags) {
+        this.name = name;
+        this.tags = new ArrayList<>(tags);          // copy in
+    }
+
+    public String getName() { return name; }
+    public List<String> getTags() { return new ArrayList<>(tags); }   // copy out
+}
+```
+! `String` is the classic example of an immutable class.
+
+## Custom Exception
+> **Idea:** extend `Exception` (checked) or `RuntimeException` (unchecked).
+```java
+class InsufficientFundsException extends Exception {
+    public InsufficientFundsException(String message) {
+        super(message);
+    }
+}
+
+if (balance < amount) throw new InsufficientFundsException("Low balance");
+```
+! Checked must be declared or caught. Unchecked need not.
+
+## Print Odd/Even With Two Threads
+> **Idea:** a shared counter; each thread waits for its turn.
+```java
+class Printer {
+    int num = 1;
+    final int max = 10;
+
+    synchronized void print(boolean odd) throws InterruptedException {
+        while (num <= max) {
+            if ((num % 2 == 1) == odd) {
+                System.out.println(num++);
+                notifyAll();
+            } else {
+                wait();
+            }
+        }
+        notifyAll();
+    }
+}
+// new Thread(() -> p.print(true)).start();  new Thread(() -> p.print(false)).start();
+```
+! Use `while`, not `if`, around `wait()`.
+
+## Producer-Consumer
+> **Idea:** a `BlockingQueue` does the waiting for you.
+```java
+BlockingQueue<Integer> queue = new ArrayBlockingQueue<>(5);
+
+Runnable producer = () -> {
+    try { for (int i = 1; i <= 10; i++) queue.put(i); }      // blocks when full
+    catch (InterruptedException e) { }
+};
+
+Runnable consumer = () -> {
+    try { while (true) System.out.println(queue.take()); }   // blocks when empty
+    catch (InterruptedException e) { }
+};
+```
+! `put` blocks when full, `take` blocks when empty.
+
+## Print Patterns (Triangle, Pyramid)
+> **Idea:** outer loop for rows, inner loops for spaces then stars.
+```java
+// Right triangle
+for (int i = 1; i <= n; i++) {
+    for (int j = 1; j <= i; j++) System.out.print("* ");
+    System.out.println();
+}
+
+// Pyramid
+for (int i = 1; i <= n; i++) {
+    for (int j = 1; j <= n - i; j++) System.out.print(" ");
+    for (int j = 1; j <= 2 * i - 1; j++) System.out.print("*");
+    System.out.println();
+}
+```
+! Pyramid row `i`: `n - i` spaces, then `2i - 1` stars. Diamond = pyramid + inverted pyramid.

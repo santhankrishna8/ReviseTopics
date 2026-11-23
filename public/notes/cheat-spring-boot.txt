@@ -476,6 +476,246 @@ Mono<User> m = webClient.get().uri("/users/1").retrieve().bodyToMono(User.class)
 - Split by **business capability / bounded context** (DDD), strangler fig, database per service. Cross-service consistency: **saga** (orchestration or choreography), **outbox**, idempotent consumers, eventual consistency.
 ! Split by business boundaries, not technical layers.
 
+### Spring Internals
+
+## Spring MVC Request Lifecycle
+> Every request goes through the **DispatcherServlet** (front controller).
+```text
+Client -> Filter chain -> DispatcherServlet
+  -> HandlerMapping (which controller method?)
+  -> HandlerAdapter -> Interceptor.preHandle
+  -> Controller method (args via ArgumentResolvers, @RequestBody via HttpMessageConverter / Jackson)
+  -> Interceptor.postHandle
+  -> return value -> HttpMessageConverter (JSON) or ViewResolver (HTML)
+  -> Interceptor.afterCompletion -> Response
+```
+- **Filter** (Servlet level, before Spring MVC, e.g. security, logging) vs **Interceptor** (Spring MVC, knows the handler) vs **AOP** (any bean method).
+- Exceptions go to `@ExceptionHandler` / `@ControllerAdvice` (`HandlerExceptionResolver`).
+! Filter → DispatcherServlet → Interceptor → Controller.
+
+## Bean Lifecycle, BeanPostProcessor & Circular Dependencies
+> Lifecycle: instantiate → inject dependencies → `Aware` callbacks → `BeanPostProcessor.before` → `@PostConstruct` / `afterPropertiesSet` → `BeanPostProcessor.after` (**proxies created here**) → ready → `@PreDestroy` on shutdown.
+- **BeanPostProcessor** lets you modify every bean (this is how AOP proxies and `@Autowired` work). **BeanFactoryPostProcessor** modifies definitions before beans exist.
+- **Circular dependency:** A needs B and B needs A. Constructor injection fails fast (`BeanCurrentlyInCreationException`); Boot 2.6+ forbids it by default. Fix by redesigning, extracting a third class, or `@Lazy`.
+- Prototype beans injected into singletons stay the same instance unless you use `ObjectProvider` or `@Lookup`.
+! Proxies are created after initialisation, so `@PostConstruct` runs on the raw object.
+
+## Spring AOP: Advice, Pointcut, Proxies
+> **AOP** separates cross-cutting concerns (logging, security, transactions, timing) from business code.
+```java
+@Aspect @Component
+class TimingAspect {
+  @Around("execution(* com.app.service..*(..))")
+  Object time(ProceedingJoinPoint pjp) throws Throwable {
+    long t = System.nanoTime();
+    try { return pjp.proceed(); }
+    finally { log.info("{} took {} ms", pjp.getSignature(), (System.nanoTime() - t) / 1_000_000); }
+  }
+}
+```
+- Terms: **Aspect**, **Advice** (`@Before`, `@After`, `@AfterReturning`, `@AfterThrowing`, `@Around`), **Pointcut** (where), **JoinPoint** (the method call), **Weaving**.
+- Spring uses **runtime proxies** (JDK dynamic if an interface exists, otherwise CGLIB). Only **public method calls from outside the bean** are intercepted (self-invocation is not).
+! `@Transactional`, `@Cacheable` and `@Async` are all AOP proxies.
+
+## Conditional Beans, Custom Starters & Auto-Configuration
+> Auto-configuration classes are listed in `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` and activate through **conditions**.
+```java
+@AutoConfiguration
+@ConditionalOnClass(DataSource.class)
+class MyAutoConfig {
+  @Bean @ConditionalOnMissingBean            // back off if the user defines their own
+  MyClient client(MyProps p) { return new MyClient(p.url()); }
+}
+```
+- Common conditions: `@ConditionalOnClass`, `@ConditionalOnMissingBean`, `@ConditionalOnProperty`, `@Profile`.
+- **Custom starter:** a `-starter` module (dependencies) plus an `-autoconfigure` module; user config via `@ConfigurationProperties`.
+- Debug with `--debug` or the Actuator `conditions` endpoint.
+! Auto-config applies only when your beans are missing.
+
+## Application Events, @Async, @Scheduled & @Retryable
+> **Events** decouple components; `@Async` runs on another thread; `@Scheduled` runs on a timer.
+```java
+record OrderPlaced(Long id) {}
+publisher.publishEvent(new OrderPlaced(1L));
+
+@EventListener void on(OrderPlaced e) { ... }
+@TransactionalEventListener(phase = AFTER_COMMIT) void after(OrderPlaced e) { ... }   // only if the transaction commits
+
+@Async CompletableFuture<Void> sendMail() { ... }           // needs @EnableAsync
+@Scheduled(cron = "0 0 2 * * *") void nightly() { ... }     // needs @EnableScheduling
+```
+- `@Async` is also proxy-based: call it from another bean. Configure a `TaskExecutor` (the default may be unbounded).
+- Multi-instance deployments run `@Scheduled` on every node: use **ShedLock** or Quartz.
+- Retry: Spring Retry `@Retryable` (needs `@EnableRetry`) or Resilience4j.
+! AFTER_COMMIT events avoid sending emails for rolled-back orders.
+
+### Data & Persistence in Spring
+
+## Spring Data JPA Essentials
+> Repositories generate queries from method names, `@Query`, or **Specifications**; return entities, projections or DTOs.
+```java
+interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
+  Optional<User> findByEmail(String email);
+  Page<User> findByActiveTrue(Pageable pageable);
+  @EntityGraph(attributePaths = "roles") List<User> findAll();
+}
+Page<User> p = repo.findAll(PageRequest.of(0, 20, Sort.by("name").descending()));
+```
+- Avoid **N+1**: `JOIN FETCH`, `@EntityGraph`, DTO projections. Use `Slice` to skip the count query.
+- Disable **open-in-view** (`spring.jpa.open-in-view=false`).
+- Full detail in the **Hibernate cheat sheet**.
+! Return DTOs from controllers, never entities.
+
+## DTOs, Mapping & Validation Layers
+> A **DTO** is the shape of data you expose or accept, separate from the entity. Map with **MapStruct** (compile-time, fast), ModelMapper (reflection), or by hand.
+```java
+public record CreateUserRequest(@NotBlank String name, @Email String email) {}
+public record UserResponse(Long id, String name) {}
+
+@Mapper(componentModel = "spring")
+interface UserMapper { UserResponse toResponse(User u); User toEntity(CreateUserRequest r); }
+```
+- DTOs prevent over-posting (mass assignment), lazy-loading surprises and leaking internals.
+- Validate at the edge (`@Valid` on the request body); enforce business rules in the service; database constraints are the last line.
+! Entity = persistence model, DTO = API contract.
+
+## Database Migrations: Flyway & Liquibase
+> Version-controlled schema changes applied automatically at startup.
+```text
+src/main/resources/db/migration/
+  V1__create_users.sql
+  V2__add_email_index.sql
+  R__refresh_views.sql          (repeatable)
+```
+- Flyway records applied versions in `flyway_schema_history` and validates checksums: **never edit an applied migration**, add a new one.
+- Use with `spring.jpa.hibernate.ddl-auto=validate`. Make changes backward compatible (add column, backfill, then drop later).
+- Test migrations against a real database with **Testcontainers**.
+! Migrations are append-only history.
+
+### Security Deep Dive
+
+## Spring Security Filter Chain & Config
+> Security is a chain of **servlet filters** (`SecurityFilterChain`) in front of the DispatcherServlet. The `Authentication` is stored in the `SecurityContext`.
+```java
+@Configuration @EnableMethodSecurity
+class SecurityConfig {
+  @Bean SecurityFilterChain chain(HttpSecurity http) throws Exception {
+    return http
+      .csrf(c -> c.disable())                               // for stateless token APIs only
+      .sessionManagement(s -> s.sessionCreationPolicy(STATELESS))
+      .authorizeHttpRequests(a -> a
+        .requestMatchers("/api/auth/**", "/actuator/health").permitAll()
+        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+        .anyRequest().authenticated())
+      .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+      .build();
+  }
+  @Bean PasswordEncoder encoder() { return new BCryptPasswordEncoder(); }
+}
+```
+- Flow: filter extracts credentials → `AuthenticationManager` → `AuthenticationProvider` → `UserDetailsService` loads the user → `PasswordEncoder` checks the password → `SecurityContextHolder` stores the result.
+- **Method security:** `@PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")`.
+- **Authentication** = who are you; **Authorization** = what may you do. `hasRole('X')` checks `ROLE_X`; `hasAuthority` is exact.
+! Deny by default: `anyRequest().authenticated()` last.
+
+## JWT, OAuth2 & Password Storage
+> **JWT** is a signed token (`header.payload.signature`) a stateless API validates on each request. **OAuth2** is an authorization framework (roles: resource owner, client, authorization server, resource server); **OIDC** adds identity on top.
+- Access token: short-lived (minutes). Refresh token: long-lived, stored securely, rotated.
+- Spring: `spring-boot-starter-oauth2-resource-server` validates JWTs from an issuer (Keycloak, Auth0, Entra).
+```properties
+spring.security.oauth2.resourceserver.jwt.issuer-uri=https://auth.example.com/realms/app
+```
+- **Grant types:** Authorization Code + **PKCE** (web/mobile), Client Credentials (service to service). Avoid Implicit and Password grants.
+- Store passwords with **BCrypt/Argon2**, never plain or fast hashes. Never put secrets in a JWT payload (it is only encoded).
+- **CSRF** matters for cookie-based sessions; **CORS** is configured separately and does not replace authentication.
+! JWT is signed, not encrypted.
+
+### Testing & API Quality
+
+## Test Slices, Mockito & Testcontainers
+> Test at the smallest useful scope.
+```java
+@WebMvcTest(UserController.class)        // controller + MVC layer only
+class UserControllerTest {
+  @Autowired MockMvc mvc;
+  @MockitoBean UserService service;      // @MockBean before Boot 3.4
+  @Test void returns200() throws Exception {
+    when(service.find(1L)).thenReturn(new UserResponse(1L, "Asha"));
+    mvc.perform(get("/api/users/1")).andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Asha"));
+  }
+}
+```
+```text
+@SpringBootTest   full context (integration)      @DataJpaTest   JPA layer + embedded/Testcontainers DB
+@WebMvcTest       controller slice                @JsonTest      JSON mapping
+```
+- Plain unit tests with **Mockito** (`@Mock`, `@InjectMocks`, `verify`) are fastest. Use **Testcontainers** (real PostgreSQL/Kafka in Docker) for integration tests.
+- Pyramid: many unit tests, fewer slice tests, few full-stack tests.
+! Smallest slice that proves the behaviour.
+
+## API Design: Versioning, OpenAPI, Pagination & Errors
+> Consistent contracts make APIs easy to use.
+- **Versioning:** URL (`/api/v1/users`), header or media type; never break existing clients.
+- **Docs:** `springdoc-openapi` generates Swagger UI at `/swagger-ui.html`.
+- **Pagination:** `?page=0&size=20&sort=name,asc`; return total count and links.
+- **Errors:** RFC 9457 **ProblemDetail** with a consistent shape.
+```java
+@RestControllerAdvice
+class ApiErrors extends ResponseEntityExceptionHandler {
+  @ExceptionHandler(NotFoundException.class)
+  ProblemDetail notFound(NotFoundException e) {
+    ProblemDetail p = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    p.setTitle("Resource not found");
+    return p;
+  }
+}
+```
+- **Idempotency:** GET/PUT/DELETE are idempotent; make POST safe with an idempotency key. Use correct status codes: 201 + `Location`, 204, 400, 401, 403, 404, 409, 422.
+! One error shape for the whole API.
+
+### Microservices & Production
+
+## Spring Cloud: Gateway, Config, Discovery & Resilience
+> Common microservice building blocks (many teams now use Kubernetes equivalents).
+- **API Gateway** (Spring Cloud Gateway): single entry point, routing, auth, rate limiting.
+- **Service discovery** (Eureka, Consul, or Kubernetes DNS) and client-side load balancing.
+- **Config server** (or ConfigMaps/Vault): central configuration; `@RefreshScope`.
+- **Resilience4j:** circuit breaker, retry, rate limiter, bulkhead, time limiter.
+```java
+@CircuitBreaker(name = "payments", fallbackMethod = "fallback")
+@Retry(name = "payments")
+public Receipt pay(Order o) { return client.charge(o); }
+Receipt fallback(Order o, Throwable t) { return Receipt.pending(o); }
+```
+- **Observability:** Micrometer metrics, distributed tracing (trace id across services), centralised logs.
+! Gateway at the door, discovery for finding, circuit breaker for failing.
+
+## Packaging, Docker, Native Image & Virtual Threads
+> Ship a fat JAR or a container image.
+```text
+./mvnw clean package            -> target/app.jar          java -jar app.jar
+./mvnw spring-boot:build-image  -> OCI image with Buildpacks (no Dockerfile)
+```
+- **Layered JARs** make Docker caching efficient. Externalise config via env vars (`SPRING_DATASOURCE_URL`).
+- **GraalVM native image:** very fast start and low memory, longer build, restricted reflection.
+- **Virtual threads (Java 21):** `spring.threads.virtual.enabled=true` lets blocking MVC code scale to many concurrent requests.
+- **Graceful shutdown:** `server.shutdown=graceful`. Health probes: `/actuator/health/liveness` and `/readiness`.
+- WebFlux (reactive, `Mono`/`Flux`) suits high-concurrency non-blocking I/O; MVC with virtual threads covers most needs.
+! Same JAR, three ways to run: JVM, container, native.
+
+## Common Boot Errors & Fixes
+> Typical failures and their causes.
+```text
+NoSuchBeanDefinitionException        missing @Component/@Bean or component scan outside the main package
+NoUniqueBeanDefinitionException      two candidates: use @Primary or @Qualifier
+BeanCurrentlyInCreationException     circular dependency
+Port 8080 already in use             change server.port or stop the other process
+HttpMessageNotReadableException      malformed JSON body -> 400
+LazyInitializationException          lazy JPA field read outside a transaction
+Whitelabel Error Page                no mapping; check the path and the package of your controller
+```
+! Read the root cause at the bottom of the stack trace first.
+
 ### Quick Answers
 
 ## Interview One-Liners

@@ -1,0 +1,267 @@
+# 01 | Scenario & Project Answers | Fill-in-the-blank answer frames for the questions every Java, Angular, Spring Boot, Hibernate and SQL interview asks: your project, performance problems, production bugs, design choices and teamwork. Replace the [brackets] with your real project facts and say them out loud. | Scenario answers
+
+### Introduce Yourself & Your Project
+
+## Tell Me About Yourself (60 seconds)
+> **Frame:** present, past, future. Keep it to one minute and end by connecting to the role.
+- **Present:** "I'm a [role] with [N] years of experience in Java, Spring Boot, Angular and SQL. Currently I work on [product] at [company]."
+- **Past:** "Before that I [one achievement], where I [built/optimised/migrated] [thing] with [stack]."
+- **Strengths:** "I'm strongest in [REST APIs / JPA performance / Angular component design], and I care about clean code and testing."
+- **Future:** "I'm looking for a role where I can [own features end to end / work on scalable systems], which is why this position fits."
+! Present → past proof → why this role. No life story.
+
+## Explain Your Project
+> **Frame:** problem, users, architecture, your part, result. Rehearse until it takes two minutes.
+- **What it is:** "[App] is a [web app] for [users] to [do what]."
+- **Architecture:** "Angular front end → Spring Boot REST APIs → [MySQL/PostgreSQL] via Hibernate/JPA. Authentication with [JWT/OAuth2]. Deployed with [Docker/Kubernetes/AWS]."
+- **Modules:** name 3 or 4 (login, orders, reports, notifications).
+- **My role:** "I built [the order module APIs, the Angular dashboard, the report queries], wrote [unit/integration] tests, and handled [code reviews/deployments]."
+- **Impact:** a number: "cut report time from [30s] to [3s]", "handled [10k] requests/day".
+! Always know your project's tables, endpoints, and one hard problem you solved.
+
+## Project Follow-Up Questions to Prepare
+> Interviewers dig into what you said. Prepare short answers for each.
+- How is the app **structured**? (controller → service → repository, DTOs, config)
+- How does **authentication** work? Where is the token stored? How does it refresh?
+- Which **tables** and relationships did you design? Any indexes?
+- How do you **handle errors** and validation? (`@RestControllerAdvice`, `@Valid`, `ProblemDetail`)
+- How do you **test**? (JUnit, Mockito, `@WebMvcTest`, Testcontainers, coverage)
+- How do you **deploy**? (CI/CD pipeline, environments, config and secrets)
+- What would you **improve** if you had more time?
+! If you cannot explain a technology on your resume, remove it from your resume.
+
+### Performance & Production Problems
+
+## An API Is Slow: How Do You Investigate?
+> **Frame:** measure, find the bottleneck layer, fix, verify. Never guess.
+- **Measure:** reproduce, check latency percentiles (p95, p99), use APM/Actuator metrics/logs with timings.
+- **Locate:** is it the **database** (slow query, N+1), **external call**, **CPU/GC**, **thread pool** exhaustion, or the **network/payload size**?
+- **Database fixes:** `EXPLAIN` the query, add or fix an index, remove N+1 (`JOIN FETCH`, `@EntityGraph`), paginate, select only needed columns (DTO projection).
+- **App fixes:** cache hot reads (`@Cacheable`/Redis), batch calls, make independent calls parallel, async for non-critical work, compress responses.
+- **Verify:** compare before and after with the same load; add a metric or alert.
+! "I measured first, found [N+1 in the orders endpoint], fixed it with a fetch join, p95 dropped from X to Y."
+
+## A SQL Query Is Slow
+> **Frame:** read the plan, then change the query or the indexes.
+- Run `EXPLAIN ANALYZE`: look for full scans, big sorts, nested loops over large sets.
+- **Index** the columns in `WHERE`, `JOIN` and `ORDER BY`; use a **composite** index in the right column order; consider a **covering** index.
+- Avoid functions on indexed columns, leading-wildcard `LIKE`, `SELECT *`, and `OFFSET` on deep pages (use keyset pagination).
+- Replace correlated subqueries with joins/window functions; update statistics.
+- Last resorts: denormalize, materialized view, partition, read replica, caching.
+! Explain plan → index or rewrite → measure again.
+
+## Memory Leak or OutOfMemoryError in Production
+> **Frame:** capture evidence, find the retaining object, fix, add safeguards.
+- **Capture:** run with `-XX:+HeapDumpOnOutOfMemoryError`; look at GC logs and heap trend.
+- **Analyse:** open the dump in Eclipse MAT or VisualVM; find the biggest **dominator** and what holds the reference.
+- **Usual suspects:** unbounded caches/static maps, `ThreadLocal` not removed, unclosed streams/connections, listeners never unregistered, huge result sets loaded into memory.
+- **Fix:** bound the cache (Caffeine with size/TTL), close resources (try-with-resources), paginate/stream data.
+- **Prevent:** memory alerts, load tests, container memory limits.
+! Heap dump, dominator tree, find who still references it.
+
+## High CPU or Application Hangs
+> **Frame:** thread dumps tell the story.
+- Take **3 thread dumps** a few seconds apart (`jstack`/`jcmd Thread.print`).
+- Many threads **RUNNABLE** in the same method → hot loop or heavy computation. Many **BLOCKED/WAITING** on the same lock → contention or **deadlock** (dumps report it).
+- **Connection pool exhausted** (all threads waiting for a DB connection): find slow queries or unreturned connections; check HikariCP metrics.
+- Fix the hot code, shorten locks, size the pools, add timeouts.
+! Thread dump first, theories second.
+
+## Debugging a Production Bug You Cannot Reproduce
+> **Frame:** gather evidence, narrow down, fix safely.
+- Check **logs with the correlation/trace id**, error rate dashboards, recent deployments and config changes.
+- Compare data, environment and versions between prod and local; replay the request in a test environment.
+- Add targeted logging or a feature flag; write a **failing test** first, then the fix.
+- Roll back if the impact is high; communicate status; write a short **post-mortem** (cause, fix, prevention).
+! Stabilise first (rollback), then find the root cause.
+
+## Handling a Production Outage or Incident
+> **Frame:** restore, communicate, learn.
+- **Detect** (alerts) → **triage** severity → **mitigate** (rollback, scale up, disable a feature, failover) → **communicate** to stakeholders → **root cause** → **post-mortem** with action items.
+- Do not debug while customers are down if a rollback fixes it.
+! Mitigate first, investigate after.
+
+### Design & Technical Decisions
+
+## How Do You Secure Your REST API?
+> **Frame:** layers of defence.
+- **HTTPS** everywhere; **authentication** with JWT/OAuth2 (short-lived access token, refresh token).
+- **Authorization:** role checks plus ownership checks (`@PreAuthorize`), deny by default.
+- **Validation:** `@Valid` + Bean Validation, DTOs (no mass assignment), parameterized queries (no SQL injection).
+- **Hardening:** rate limiting, CORS to known origins, security headers, no secrets in Git (Vault/env vars), dependency scanning, no sensitive data in logs.
+- **Passwords:** BCrypt/Argon2. **Audit:** log logins and critical actions.
+! Authenticate, authorize, validate, limit, encrypt.
+
+## How Do You Handle Exceptions and Errors in Your API?
+> **Frame:** one consistent error contract.
+- Throw **meaningful custom exceptions** in the service layer (`NotFoundException`, `ConflictException`).
+- A single `@RestControllerAdvice` maps them to HTTP status and a **ProblemDetail**/JSON body (`status`, `message`, `timestamp`, `path`, `errors`).
+- Validation errors → **400** with field messages; not found → 404; conflict → 409; unexpected → 500 with a generic message (log the stack trace, do not leak it).
+- Add a **correlation id** to logs and responses.
+! One handler, one format, no stack traces to clients.
+
+## How Do You Design a Scalable Application?
+> **Frame:** stateless services, scale out, cache, async.
+- **Stateless** app instances behind a load balancer; session state in Redis or tokens.
+- **Database:** indexes, connection pooling, read replicas, partitioning/sharding later.
+- **Cache** hot data (Redis, CDN, HTTP caching). **Asynchronous** work via queues (Kafka/RabbitMQ) for emails, reports, events.
+- **Resilience:** timeouts, retries with backoff, circuit breakers, idempotent endpoints, rate limiting.
+- **Observability:** metrics, logs, traces; autoscaling.
+! Stateless + cache + queue + replicas.
+
+## Monolith or Microservices? How Did You Decide?
+> **Frame:** trade-offs, not fashion.
+- **Monolith:** simple to build, test, deploy; right for small teams and early products. Keep it **modular**.
+- **Microservices:** independent deploy/scale, team ownership, but add network failures, distributed transactions, observability and operational cost.
+- **Say:** "I'd start with a modular monolith and split a module out when it needs independent scaling or team ownership."
+- Mention patterns used: API gateway, service discovery, circuit breaker, **saga** for distributed transactions, event-driven messaging.
+! Split when the pain is real, not before.
+
+## How Do You Maintain Data Consistency Across Services?
+> **Frame:** avoid distributed transactions.
+- Each service owns its database. Use **eventual consistency** with events.
+- **Saga pattern:** a sequence of local transactions with **compensating actions** (choreography via events, or an orchestrator).
+- **Outbox pattern:** write the event in the same DB transaction as the data, then publish it, so no message is lost.
+- Make consumers **idempotent** (dedupe by event id) because delivery is at-least-once.
+! Local transactions + events + compensation.
+
+## Why Did You Choose X Over Y? (Technology Choice Frame)
+> **Frame:** requirements → options → decision → trade-off accepted.
+- "We needed [requirement]. We compared [A] and [B]. We chose [A] because [reason: team skill, performance, ecosystem, cost]. The trade-off was [downside], which we handled by [mitigation]."
+- **Examples to prepare:** JPA vs JDBC/MyBatis, SQL vs NoSQL, JWT vs sessions, REST vs messaging, Angular signals vs RxJS/NgRx, monolith vs microservices, Kafka vs RabbitMQ.
+! Always state a trade-off: it proves you thought about it.
+
+## How Do You Ensure Code Quality?
+> **Frame:** automation plus review.
+- **Tests:** unit (JUnit, Mockito), slice and integration (Testcontainers), a few end-to-end; coverage as a guide, not a goal.
+- **Reviews:** pull requests with small changes and checklists. **Static analysis:** SonarQube, Checkstyle, SpotBugs. **CI** runs build, tests and scans on every push.
+- **Practices:** SOLID, clean naming, small methods, logging and error handling standards, documentation (OpenAPI).
+! Small PRs, automated checks, tests that matter.
+
+### Java, Spring, Hibernate, Angular, SQL Scenarios
+
+## Hibernate: Page Loads Hundreds of SQL Queries
+> **Scenario:** a list page runs 1 query plus one per row.
+- **Diagnose:** turn on SQL logging or statistics: this is the **N+1** problem (lazy association read in a loop).
+- **Fix:** `JOIN FETCH` or `@EntityGraph`, `@BatchSize`/`default_batch_fetch_size`, or a **DTO projection** for read-only pages.
+- **Watch:** do not fetch two lists in one query (`MultipleBagFetchException`); do not paginate with a collection fetch join.
+- **Prevent:** keep associations LAZY, add a test that asserts the query count.
+! Name N+1, show the fix, mention the prevention.
+
+## Hibernate: LazyInitializationException
+> **Scenario:** a lazy field is read after the transaction closed.
+- **Cause:** the session is gone, so the proxy cannot load data.
+- **Proper fixes:** load what you need inside the service transaction (`JOIN FETCH`, `@EntityGraph`) or map to a **DTO** inside the transaction.
+- **Not recommended:** switching to EAGER, or relying on Open Session in View (it hides N+1 and holds connections).
+! Fetch in the transaction, return DTOs.
+
+## Spring Boot: Two Users Update the Same Record (Concurrency)
+> **Scenario:** lost updates.
+- Add a **`@Version`** column for **optimistic locking**; on conflict catch `ObjectOptimisticLockingFailureException` and return **409** or retry.
+- For hot rows use **pessimistic locking** (`SELECT ... FOR UPDATE`) or an atomic SQL update (`set qty = qty - 1 where qty > 0`).
+- In a distributed setup add an **idempotency key** and unique constraints.
+! Optimistic by default, pessimistic for high contention.
+
+## Spring Boot: Prevent Duplicate Payments / Double Submit
+> **Scenario:** a user clicks twice or the client retries.
+- Require an **idempotency key**; store it with a **unique constraint**; return the saved result for repeated keys.
+- Wrap the work in one **transaction**; disable the button in the UI as a convenience only.
+- Make downstream calls idempotent as well.
+! Idempotency key + unique constraint.
+
+## Spring Boot: @Transactional Is Not Working
+> **Checklist:** the usual causes.
+- **Self-invocation** (calling a transactional method from the same class bypasses the proxy).
+- Method is `private`/`final`, or the class is not a Spring bean.
+- A **checked exception** does not roll back unless `rollbackFor` is set; the exception is caught and swallowed.
+- Wrong import (`javax`/`jakarta` vs Spring's annotation); async or new thread loses the transaction.
+- `readOnly = true` and then a write; wrong propagation (`REQUIRES_NEW` inside a failing outer).
+! Proxy rules and exception rules explain nearly every case.
+
+## Spring Boot: Application Fails to Start
+> **Checklist:** read the bottom of the log.
+- `NoSuchBeanDefinitionException` → missing annotation or package outside the scan; `NoUniqueBeanDefinitionException` → `@Primary`/`@Qualifier`.
+- **Circular dependency** → redesign or extract; `Port in use` → change `server.port`.
+- **DataSource failure** → URL, credentials, driver, DB not reachable; **Flyway checksum** failure → someone edited an applied migration.
+- Use `--debug` to see the auto-configuration report.
+! Root cause is at the bottom of the stack trace.
+
+## Angular: Page Is Slow or Janky
+> **Frame:** measure, then reduce work.
+- Profile with Angular DevTools and the browser Performance tab; check bundle size and network.
+- Fixes: **OnPush + signals**, `track` in `@for`, **lazy-load** routes, `@defer` heavy blocks, **virtual scroll** for long lists, avoid method calls in templates (use `computed`/pure pipes), debounce inputs, unsubscribe, optimise images (`NgOptimizedImage`).
+- Reduce API calls with caching, `shareReplay`, and pagination.
+! Less change detection, smaller bundle, fewer requests.
+
+## Angular: Handling API Errors, Loading and Auth Expiry
+> **Frame:** central handling.
+- An **HTTP interceptor** adds the token, catches **401** (refresh the token or redirect to login) and maps errors to a toast.
+- Components use `catchError` and a loading/error state (signals); `retry` for transient failures only.
+- Route **guards** protect pages; the backend still enforces permissions.
+! Interceptor for cross-cutting concerns, guards for navigation.
+
+## SQL: Report Shows Wrong Totals (Duplicate Rows After Join)
+> **Scenario:** `SUM(amount)` is too high.
+- **Cause:** joining a 1-to-many table repeats the parent rows, so values are summed more than once.
+- **Fix:** aggregate each child table in a subquery/CTE first, then join; or use `COUNT(DISTINCT ...)` carefully; verify with a manual count.
+! Aggregate before you join.
+
+## SQL: Large Table Migration or Schema Change Without Downtime
+> **Frame:** expand, migrate, contract.
+- **Expand:** add the new nullable column/table (backward compatible). **Migrate:** backfill in small batches, dual-write. **Contract:** switch reads, then drop the old column in a later release.
+- Use versioned migrations (Flyway/Liquibase), test on a copy of production data, create indexes concurrently, and keep a rollback plan.
+! Never rename or drop in one step.
+
+### Behavioural Questions (STAR Method)
+
+## STAR Answer Frame
+> **S**ituation, **T**ask, **A**ction, **R**esult. Spend most of the time on **Action** (what *you* did) and end with a measurable **Result**.
+- **S:** one sentence of context. **T:** your responsibility. **A:** 3 to 4 concrete steps using "I". **R:** the number, outcome, or lesson.
+- Prepare **5 stories**: a technical challenge, a conflict, a failure, a deadline/pressure, a time you led or learned something. One story can answer several questions.
+! Situation short, Action long, Result with a number.
+
+## Biggest Challenge / Proudest Achievement
+> **Frame:** pick a technical problem with a clear before and after.
+- "In [project], [problem] caused [impact]. I was responsible for [task]. I [profiled, found the root cause, redesigned/optimised]. As a result [metric improved], and I [documented / shared it with the team]."
+! Quantify: time, cost, errors, users.
+
+## Tell Me About a Mistake or Failure
+> **Frame:** own it, fix it, prevent it.
+- "I [deployed/changed] [thing] without [checking X], which caused [impact]. I [rolled back quickly, communicated, fixed the root cause]. Since then I [added a test/checklist/alert]."
+- Never blame others; show the lesson and the process change.
+! Honest, brief, with a lasting improvement.
+
+## Conflict With a Teammate or Disagreement With a Lead
+> **Frame:** facts, listening, shared goal.
+- "We disagreed on [approach]. I listened to their concerns, shared data (a benchmark or prototype), and we agreed on [decision] because [shared goal]. The relationship stayed strong and the result was [outcome]."
+! Disagree with data, not with the person.
+
+## Tight Deadline / Unclear Requirements / Learning Something New Fast
+> **Frame:**
+- **Deadline:** prioritised must-haves, communicated risks early, cut scope not quality, delivered [result].
+- **Unclear requirements:** asked clarifying questions, wrote down assumptions, confirmed with the owner, built a small prototype for feedback.
+- **Learning fast:** official docs, a small proof of concept, asked a senior for review, then applied it to [feature].
+! Communicate early; do not go silent.
+
+## Why Should We Hire You? / Why Are You Leaving? / Where in 5 Years?
+> **Frame:** positive and specific.
+- **Why hire you:** "I match your stack (Java, Spring Boot, Angular, SQL), I've delivered [result], and I learn fast and write tested code."
+- **Why leaving:** growth, scale, or tech exposure; **never** criticise the current employer.
+- **5 years:** deeper technical ownership, mentoring others, and growing toward [senior engineer/architect].
+- **Questions to ask them:** team structure, tech stack and release process, how success is measured, onboarding.
+! Align your strengths with their needs.
+
+### Quick Answers
+
+## Interview One-Liners
+- **Slow API:** measure, find the layer, fix (index, N+1, cache), measure again.
+- **Slow query:** `EXPLAIN`, index, rewrite, keyset pagination.
+- **Memory leak:** heap dump, dominator tree, find the reference holder.
+- **Hang or high CPU:** take thread dumps and compare them.
+- **Lost updates:** `@Version` optimistic lock, or an atomic update.
+- **Duplicate requests:** idempotency key + unique constraint.
+- **N+1:** fetch join, entity graph, batch size, DTO projection.
+- **Distributed consistency:** saga, outbox, idempotent consumers.
+- **Secure an API:** HTTPS, JWT/OAuth2, authorization, validation, rate limits, no secrets in code.
+- **Outage:** mitigate (rollback), communicate, root cause, post-mortem.
+- **Behavioural answers:** STAR with a number in the result.
