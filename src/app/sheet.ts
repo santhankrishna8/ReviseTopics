@@ -1,10 +1,31 @@
-import { Component, effect, input, output, signal, untracked } from '@angular/core';
+import { Directive, ElementRef, Component, DestroyRef, afterNextRender, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { Sheet, store } from './notes';
 
 export type PageLink = { href: string; label: string; hint: string };
 
+// A code block that scrolls sideways must be reachable by keyboard (WCAG 2.1.1). Only blocks that actually
+// overflow become a tab stop, so a cheat sheet with 80 short snippets does not add 80 stops.
+@Directive({ selector: 'pre[scrollRegion]', host: { '[attr.tabindex]': 'overflowing() ? 0 : null', '[attr.role]': 'overflowing() ? "region" : null', '[attr.aria-label]': 'overflowing() ? scrollRegion() : null' } })
+export class ScrollRegion {
+  readonly scrollRegion = input('Code');
+  protected readonly overflowing = signal(false);
+  constructor() {
+    const pre = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      const check = () => this.overflowing.set(pre.scrollWidth > pre.clientWidth + 1);
+      const ro = new ResizeObserver(check);
+      ro.observe(pre);
+      if (pre.firstElementChild) ro.observe(pre.firstElementChild);
+      check();
+      destroyRef.onDestroy(() => ro.disconnect());
+    });
+  }
+}
+
 @Component({
   selector: 'app-sheet',
+  imports: [ScrollRegion],
   host: { class: 'sheet-view', '[class.poster]': 'poster()', '[class.quick]': 'quick()', '[class.must-only]': 'mustOnly()', '(window:scroll)': 'spy()', '(window:resize)': 'spy()' },
   template: `
     <article class="doc">
@@ -46,7 +67,7 @@ export type PageLink = { href: string; label: string; hint: string };
         @if (sec.group) {
           <h2 class="sec grp" [id]="'sec-' + i" [attr.data-tone]="sec.tone">{{ sec.title }}</h2>
         } @else {
-        <section class="sec" [class.hide-body]="poster() && selfTest() && !revealed().has(i)" [id]="'sec-' + i" [attr.data-tone]="sec.tone" [attr.aria-labelledby]="'h-' + i">
+        <section class="sec" [class.hide-body]="poster() && selfTest() && !revealed().has(i)" [id]="'sec-' + i" [attr.data-tone]="sec.tone" [attr.aria-labelledby]="'h-' + i" tabindex="-1">
           <div class="sec-head">
             <h2 [id]="'h-' + i">@if (poster()) { <span class="num">{{ sec.num }}</span> }{{ sec.title }}</h2>
             @if (sec.isQa) {
@@ -80,14 +101,14 @@ export type PageLink = { href: string; label: string; hint: string };
                     {{ copied() === key ? 'Copied' : 'Copy' }}
                   </button>
                 </figcaption>
-                <pre><code [innerHTML]="b.html"></code></pre>
+                <pre [scrollRegion]="(b.file || 'Code example') + ', scrollable'"><code [innerHTML]="b.html"></code></pre>
               </figure>
             } @else if (b.k === 'qa') {
               <div class="qa-list">
                 @for (p of b.pairs; track $index) {
                   <details class="qa" [class.must]="p.must" [open]="!quiz()">
                     <summary>
-                      <span class="qn">{{ ($index + 1).toString().padStart(2, '0') }}</span>@if (p.must) { <span class="star" title="Must-know" aria-label="Must-know">★</span> }
+                      <span class="qn">{{ ($index + 1).toString().padStart(2, '0') }}</span>@if (p.must) { <span class="star" title="Must-know" aria-hidden="true">★</span><span class="sr-only">Must-know. </span> }
                       <span class="q" [innerHTML]="p.q"></span>
                       <svg class="qchev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
                     </summary>
@@ -163,7 +184,11 @@ export class SheetView {
   protected readonly selfTest = signal(store.get('selftest') === '1');   // cheat sheets: hide card bodies until revealed
   protected readonly revealed = signal<Set<number>>(new Set());
   protected setSelfTest(v: boolean) { this.selfTest.set(v); this.revealed.set(new Set()); store.set('selftest', v ? '1' : '0'); }
-  protected reveal(i: number) { this.revealed.update(s => new Set(s).add(i)); }
+  // The "Show answer" button is removed once pressed; hand focus to the card so keyboard users are not dropped on <body>.
+  protected reveal(i: number) {
+    this.revealed.update(s => new Set(s).add(i));
+    requestAnimationFrame(() => document.getElementById('sec-' + i)?.focus({ preventScroll: true }));
+  }
   protected readonly activeSec = signal(0);
   protected readonly copied = signal('');
   private raf = 0;

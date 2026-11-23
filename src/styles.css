@@ -86,6 +86,16 @@ a { color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
+/* Skip link: first tab stop, visible only on focus. <main> is its target (tabindex -1), so no ring on it. */
+.skip {
+  position: fixed; top: 8px; left: 8px; z-index: 100; padding: 10px 18px; border-radius: 999px;
+  background: var(--accent); color: var(--on-accent); font-weight: 650; text-decoration: none;
+  translate: 0 calc(-100% - 16px);
+}
+.skip:focus-visible { translate: 0 0; outline-color: var(--ink); }
+.main:focus, .sec:focus:not(:focus-visible) { outline: none; }
+.drawer-close { display: none; }
+
 /* ---------- Header ---------- */
 .top {
   position: sticky; top: 0; z-index: var(--z-sticky); height: var(--header-h);
@@ -113,7 +123,7 @@ a { color: inherit; }
 .search input::-webkit-search-cancel-button { display: none; }
 .search kbd {
   position: absolute; right: 10px; padding: 2px 8px; border-radius: 999px; background: var(--bg);
-  color: var(--muted); font: 500 .72rem var(--font-sans); pointer-events: none;
+  color: var(--muted); font: 500 .75rem var(--font-sans); pointer-events: none;
 }
 .results {
   position: absolute; top: calc(100% + 10px); right: 0; width: min(500px, calc(100vw - 32px)); max-height: 60vh; overflow-y: auto;
@@ -126,20 +136,21 @@ a { color: inherit; }
 .results li[aria-selected="true"] { background: var(--rail); }
 .hit-kind {
   grid-row: span 2; align-self: start; margin-top: 2px; padding: 2px 8px; border-radius: 999px;
-  background: var(--accent-tint); color: var(--accent-ink); font: 600 .7rem var(--font-sans);
+  background: var(--accent-tint); color: var(--accent-ink); font: 600 .75rem var(--font-sans);
 }
 .hit-title { font-weight: 600; font-size: .94rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hit-where { font-size: .82rem; color: var(--muted); }
-.results .no-hits { display: block; padding: 14px 12px; color: var(--muted); cursor: default; }
+.results .no-hits { margin: 0; padding: 14px 12px; color: var(--muted); }
 
 .theme-toggle {
   position: relative; flex: none; width: 60px; height: 32px; padding: 0; border-radius: 999px; cursor: pointer;
   border: 0; background: var(--rail); color: var(--ink); transition: background-color .3s var(--ease-out);
+  box-shadow: inset 0 0 0 1px var(--muted);   /* track edge: 3:1 against the header (WCAG 1.4.11) */
 }
 .theme-toggle:hover { background: var(--hover); }
 .tt-thumb {
-  position: absolute; top: 3px; left: 3px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px;
-  background: var(--bg); box-shadow: 0 1px 3px oklch(0 0 0 / .2); transition: translate .35s var(--ease-expo);
+  position: absolute; top: 50%; left: 3px; margin-top: -13px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px;
+  background: var(--bg); box-shadow: 0 1px 3px oklch(0 0 0 / .2), 0 0 0 1px var(--muted); transition: translate .35s var(--ease-expo);
 }
 .theme-toggle[aria-checked="true"] .tt-thumb { translate: 28px 0; }
 .tt-thumb svg { width: 15px; height: 15px; }
@@ -183,7 +194,7 @@ button.topic:hover, a.topic.direct:hover { background: var(--hover); }
 .topic.soon { color: var(--muted); cursor: default; padding-left: 31px; }
 a.topic.direct { padding-left: 31px; text-decoration: none; }
 a.topic.direct.active { background: var(--bg); font-weight: 650; box-shadow: 0 1px 2px oklch(0 0 0 / .06); }
-.tag { font-size: .7rem; font-weight: 600; color: var(--muted); background: var(--hover); border-radius: 999px; padding: 1px 8px; }
+.tag { font-size: .75rem; font-weight: 600; color: var(--muted); background: var(--hover); border-radius: 999px; padding: 1px 8px; }
 
 .level { margin: 10px 0 4px; padding-left: 32px; font-size: .76rem; font-weight: 600; color: var(--muted); }
 .sheets { position: relative; margin: 0 0 4px 16px; }
@@ -302,10 +313,10 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
   transition: background-color .2s var(--ease-out), color .2s var(--ease-out);
 }
 .quiz:hover { background: var(--hover); }
-.switch { position: relative; width: 30px; height: 18px; border-radius: 999px; background: var(--line-2); transition: background-color .25s var(--ease-out); }
-.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px oklch(0 0 0 / .25); transition: translate .3s var(--ease-expo); }
+.switch { position: relative; flex: none; width: 30px; height: 18px; border-radius: 999px; background: var(--muted); transition: background-color .25s var(--ease-out); }   /* off = muted track, on = accent track: both ≥3:1 */
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--bg); box-shadow: 0 1px 2px oklch(0 0 0 / .25); transition: translate .3s var(--ease-expo); }
 .quiz[aria-pressed="true"] { background: var(--accent-tint); color: var(--accent-ink); }
-.quiz[aria-pressed="true"] .switch { background: var(--done); }
+.quiz[aria-pressed="true"] .switch { background: var(--accent); }
 .quiz[aria-pressed="true"] .switch::after { translate: 12px 0; }
 
 .qa-list { display: grid; gap: 8px; }
@@ -440,7 +451,7 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
   .search input { min-width: 0; }
   .search kbd { display: none; }
   .search input { padding-right: 14px; }
-  .doc-bar .btn { min-height: 36px; padding: 0 14px; font-size: .86rem; }
+  .doc-bar .btn { padding: 0 14px; font-size: .86rem; }   /* height stays 44px: set by the touch-target rule below */
   .lede { font-size: 1.1rem; }
   .sec h2 { font-size: 1.45rem; }
   .sec-head { flex-wrap: wrap; }
@@ -482,10 +493,32 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
   .sheets a, .topic, .toc a { min-height: 44px; }
   .btn, .quiz, .copy, .theme-toggle { min-height: 44px; }
   .theme-toggle { width: 64px; }
-  .tt-thumb { top: 7px; }
+  .tt-thumb { margin-top: -13px; }
   .theme-toggle[aria-checked="true"] .tt-thumb { translate: 30px 0; }
   .icon-btn { width: 44px; height: 44px; }
   .search input { height: 44px; }
+  .logo { min-width: 44px; min-height: 44px; justify-content: center; }
+  .doc-bar .btn, .rate .btn { min-height: 44px; }
+}
+
+/* phone drawer: a visible way out (Esc and the backdrop also close it) */
+@media (max-width: 920px) {
+  .drawer-close {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin: 0 0 4px; padding: 0 12px;
+    border: 0; border-radius: 10px; background: none; color: var(--ink); font: 600 .97rem var(--font-sans); cursor: pointer;
+  }
+  .drawer-close:hover { background: var(--hover); }
+}
+
+/* Windows High Contrast / forced colours: shadows and background images are dropped, so draw the states with borders */
+@media (forced-colors: active) {
+  .theme-toggle, .quiz .switch, .tt-thumb { border: 1px solid ButtonText; }
+  .quiz[aria-pressed="true"] .switch, .btn[aria-pressed="true"], .btn.is-done { outline: 2px solid Highlight; outline-offset: -2px; }
+  .sheets a::before, .toc a::before { border: 1.5px solid CanvasText; }
+  .sheets a.done::before, .toc a.active::before { background: Highlight; border-color: Highlight; }
+  .sheets a.active, a.topic.direct.active { outline: 2px solid Highlight; }
+  mark { background: Mark; color: MarkText; }
+  .results li[aria-selected="true"] { outline: 2px solid Highlight; }
 }
 :where(.btn, .topic, .sheets a, .foot-link, .qa summary):active { opacity: .85; }
 

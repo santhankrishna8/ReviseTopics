@@ -40,6 +40,8 @@ function byLevel(list: Sheet[]) {
   imports: [SheetView, ThemeToggle],
   host: { '(window:hashchange)': 'onHash()', '(window:keydown)': 'onKey($event)' },
   template: `
+    <a class="skip" href="#main" (click)="skipToMain($event)">Skip to content</a>
+    <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ announcement() }}</p>
     <header class="top">
       <button type="button" class="icon-btn menu" popovertarget="sidebar" aria-label="Open topic list">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -51,24 +53,27 @@ function byLevel(list: Sheet[]) {
 
       <div class="search" (focusout)="onSearchBlur($event)">
         <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <input #searchBox type="search" placeholder="Search notes" autocomplete="off" spellcheck="false"
+        <input #searchBox type="search" placeholder="Search" autocomplete="off" spellcheck="false"
                role="combobox" aria-label="Search notes" aria-controls="search-results" aria-autocomplete="list"
-               [attr.aria-expanded]="showResults()" [attr.aria-activedescendant]="showResults() ? 'hit-' + activeHit() : null"
+               [attr.aria-expanded]="showResults() && hits().length > 0" [attr.aria-activedescendant]="showResults() && hits().length ? 'hit-' + activeHit() : null"
                [value]="query()" (input)="onQuery($event)" (focus)="openSearch()" (keydown)="onSearchKey($event)" />
         <kbd aria-hidden="true">{{ shortcut }}</kbd>
+        <span class="sr-only" role="status">{{ searchStatus() }}</span>
         @if (showResults()) {
-          <ul id="search-results" class="results" role="listbox" aria-label="Search results">
-            @for (h of hits(); track h.href + h.title; let i = $index) {
-              <li [id]="'hit-' + i" role="option" [attr.aria-selected]="i === activeHit()"
-                  (mousedown)="$event.preventDefault()" (click)="go(h.href)" (mousemove)="activeHit.set(i)">
-                <span class="hit-kind">{{ h.kind }}</span>
-                <span class="hit-title">{{ h.title }}</span>
-                <span class="hit-where">{{ h.where }}</span>
-              </li>
-            } @empty {
-              <li class="no-hits" role="presentation">No matches for "{{ query().trim() }}"</li>
-            }
-          </ul>
+          @if (hits().length) {
+            <ul id="search-results" class="results" role="listbox" aria-label="Search results">
+              @for (h of hits(); track h.href + h.title; let i = $index) {
+                <li [id]="'hit-' + i" role="option" [attr.aria-selected]="i === activeHit()"
+                    (mousedown)="$event.preventDefault()" (click)="go(h.href)" (mousemove)="activeHit.set(i)">
+                  <span class="hit-kind">{{ h.kind }}</span>
+                  <span class="hit-title">{{ h.title }}</span>
+                  <span class="hit-where">{{ h.where }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <div class="results"><p class="no-hits">No matches for "{{ query().trim() }}"</p></div>
+          }
         }
       </div>
 
@@ -80,6 +85,10 @@ function byLevel(list: Sheet[]) {
 
     <div class="layout">
       <nav id="sidebar" #sidebar popover aria-label="Topics" (toggle)="onDrawerToggle($event)">
+        <button type="button" class="drawer-close" popovertarget="sidebar" popovertargetaction="hide">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          Close topic list
+        </button>
         @if (due().length) {
           <p class="label">Due for revision ({{ due().length }})</p>
           <ul class="sheets due">
@@ -95,7 +104,7 @@ function byLevel(list: Sheet[]) {
                   @let here = route().topic === t.id;
                   <a class="topic direct" [href]="'#/' + t.id + '/01'" [class.active]="here" [attr.aria-current]="here ? 'page' : null">
                     <span class="topic-name">{{ t.name }}</span>
-                    @if (isDone(t.id, '01')) { <svg class="tick" viewBox="0 0 24 24" aria-label="revised"><path d="M20 6 9 17l-5-5"/></svg> }
+                    @if (isDone(t.id, '01')) { <svg class="tick" viewBox="0 0 24 24" role="img" aria-label="revised"><path d="M20 6 9 17l-5-5"/></svg> }
                   </a>
                 } @else if (t.ready) {
                   <button type="button" class="topic" [attr.aria-expanded]="expanded().has(t.id)" (click)="toggle(t.id)">
@@ -129,7 +138,8 @@ function byLevel(list: Sheet[]) {
         <p class="label">Progress</p>
         <div class="data-actions">
           <button type="button" class="btn btn-outline" (click)="exportProgress()">Export</button>
-          <label class="btn btn-outline">Import<input type="file" accept="application/json" hidden (change)="importProgress($event)" /></label>
+          <button type="button" class="btn btn-outline" (click)="importFile.click()">Import</button>
+          <input #importFile type="file" accept="application/json" hidden tabindex="-1" aria-hidden="true" (change)="importProgress($event)" />
         </div>
       </nav>
       <div class="resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="sidebar"
@@ -137,7 +147,7 @@ function byLevel(list: Sheet[]) {
            [attr.aria-valuenow]="sidebarW()" [attr.aria-valuemin]="minSidebarW" [attr.aria-valuemax]="maxSidebarW"
            (pointerdown)="startResize($event)" (keydown)="resizeKey($event)" (dblclick)="sidebarW.set(defaultSidebarW)"></div>
 
-      <main class="main" id="main">
+      <main class="main" id="main" tabindex="-1">
         @if (sheet(); as s) {
           <app-sheet [topicName]="topicName()" [base]="'#/' + route().topic + '/' + s.n" [sheet]="s"
                      [section]="route().section" [prev]="prev()" [next]="next()"
@@ -150,7 +160,7 @@ function byLevel(list: Sheet[]) {
             <button type="button" class="btn btn-primary" (click)="retry()">Try again</button>
           </div>
         } @else {
-          <div class="state skeleton" aria-busy="true" aria-label="Loading notes">
+          <div class="state skeleton" role="status" aria-busy="true" aria-label="Loading notes">
             <span></span><span></span><span></span><span></span>
           </div>
         }
@@ -168,6 +178,8 @@ export class App {
   protected readonly error = signal('');
   protected readonly expanded = signal(new Set([this.route().topic]));
   private readonly progressTick = signal(0);
+  protected readonly announcement = signal('');   // polite live region: "<sheet title>, <topic>" after each navigation
+  private announcedKey = '';
 
   protected readonly levels = computed(() => {
     const out: Partial<Record<string, ReturnType<typeof byLevel>>> = {};
@@ -231,6 +243,11 @@ export class App {
       .slice(0, 8);
   });
   protected readonly showResults = computed(() => this.searchOpen() && this.query().trim().length > 0);
+  protected readonly searchStatus = computed(() => {
+    if (!this.showResults()) return '';
+    const n = this.hits().length;
+    return n ? `${n} ${n === 1 ? 'result' : 'results'}` : 'No matches';
+  });
 
   private readonly searchBox = viewChild.required<ElementRef<HTMLInputElement>>('searchBox');
   private readonly sidebar = viewChild.required<ElementRef<HTMLElement>>('sidebar');
@@ -260,6 +277,15 @@ export class App {
     effect(() => {
       const s = this.sheet();
       document.title = s ? `${s.title} · ${this.topicName()} · ReviseNotes` : 'ReviseNotes';
+      // Hash routing never reloads the page, so a screen reader hears nothing when the sheet changes: announce it.
+      // Not on first load (the browser already reads the title), and only when the sheet itself changes.
+      const key = s ? `${this.route().topic}/${s.n}` : '';
+      untracked(() => {
+        if (key && key !== this.announcedKey) {
+          if (this.announcedKey !== '') this.announcement.set(`${s!.title}, ${this.topicName()}`);
+          this.announcedKey = key;
+        }
+      });
     });
     // Load the other written topics in the background: search and the due list need them.
     afterNextRender(() => setTimeout(() => READY.forEach(t => this.ensure(t.id)), 400));
@@ -273,6 +299,13 @@ export class App {
     } catch (e) {
       if (id === this.route().topic) this.error.set(`The notes file could not be fetched (${(e as Error).message}). Check that the app is running, then try again.`);
     }
+  }
+
+  // href="#main" would hijack the hash router, so the skip link focuses <main> instead.
+  protected skipToMain(e: Event) {
+    e.preventDefault();
+    document.getElementById('main')?.focus({ preventScroll: true });
+    document.getElementById('main')?.scrollIntoView({ block: 'start' });
   }
 
   protected retry() { this.error.set(''); this.ensure(this.route().topic); }
