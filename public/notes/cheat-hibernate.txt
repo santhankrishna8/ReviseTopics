@@ -373,6 +373,83 @@ StackOverflowError              toString/equals/JSON recursion on a bidirectiona
 - Pick **JPA** for CRUD-heavy domain models; **MyBatis/jOOQ** for complex reporting SQL; you can mix JPA with native queries or jOOQ in one app.
 ! ORM for domain models, SQL tools for reports.
 
+### Advanced Mapping & Tuning
+
+## JPA Lifecycle Callbacks & Entity Listeners
+> Run code at points in an entity's life: `@PrePersist`, `@PostPersist`, `@PreUpdate`, `@PostUpdate`, `@PreRemove`, `@PostRemove`, `@PostLoad`.
+```java
+@Entity
+class Document {
+  @PrePersist void onCreate() { createdAt = Instant.now(); }
+  @PreUpdate  void onUpdate() { updatedAt = Instant.now(); }
+}
+@EntityListeners(AuditTrailListener.class)      // keep callback logic out of the entity
+```
+- Callbacks run on the **flush**, not at the `persist()` call; they must not call the `EntityManager` or touch other entities.
+- Spring Data auditing (`@CreatedDate`) is built on the same idea.
+! PrePersist sets defaults, PreUpdate stamps changes.
+
+## @NaturalId, @DynamicUpdate, @Immutable & @Formula
+> Hibernate-specific annotations that interviewers like to probe.
+- **`@NaturalId`:** a business key (isbn, email). Gives an efficient lookup by natural id with caching, and a unique constraint.
+- **`@DynamicUpdate`:** generates `UPDATE` with **only the changed columns** (default updates all). Helps wide tables; costs a little per-update SQL generation.
+- **`@DynamicInsert`:** inserts only non-null columns so database defaults apply.
+- **`@Immutable`:** entity is read-only, never updated: good for reference data and views.
+- **`@Formula("(select count(*) from comments c where c.post_id = id)")`:** a calculated, read-only field.
+- **`@Where` / `@SQLRestriction`**, **`@Filter`:** global or toggleable row filters (multi-tenant or soft delete).
+- **`@BatchSize`**, **`@Fetch(FetchMode.SUBSELECT)`:** tune loading of collections.
+- **`@Convert`** (JPA `AttributeConverter`): map a custom type to a column (encrypt a field, store JSON, `Boolean` to `Y/N`).
+```java
+@Convert(converter = YesNoConverter.class) private boolean active;
+```
+! DynamicUpdate = only changed columns; NaturalId = business key lookup.
+
+## Hibernate Envers (Entity Auditing)
+> **Envers** keeps a **history of every change** to an entity in `_AUD` tables with a revision number.
+```java
+@Entity @Audited
+class Product { @Id Long id; String name; BigDecimal price; }
+// Spring Data Envers:  repo.findRevisions(id)   ->   who/when/what changed at each revision
+```
+- Customise `@RevisionEntity` to store the user and timestamp; use `@NotAudited` for fields to skip.
+- Cost: extra tables and writes. Use for audit trails and compliance, not for every entity.
+- Alternatives: database triggers, event sourcing, CDC (Debezium).
+! Envers = automatic version history in _AUD tables.
+
+## Connection Pooling (HikariCP) & Hibernate Statistics
+> Opening a database connection is expensive, so Boot uses a pool: **HikariCP** (default, fastest).
+```properties
+spring.datasource.hikari.maximum-pool-size=10
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.connection-timeout=30000
+spring.datasource.hikari.max-lifetime=1800000
+spring.datasource.hikari.leak-detection-threshold=20000
+```
+- **Pool size:** small is better: roughly `cores * 2 + effective disk spindles` per database; more connections than the DB can run in parallel only adds queueing.
+- Pool exhaustion shows as `Connection is not available, request timed out`: causes are slow queries, long transactions, missing `close`, or I/O (HTTP calls) inside a transaction.
+- **Open Session in View** keeps a connection for the whole request: disable it.
+- **Detect problems:** `hibernate.generate_statistics=true`, `org.hibernate.stat` logging, `datasource-proxy`/p6spy to count queries, Hikari metrics through Micrometer.
+! Small pool, short transactions, leak detection on.
+
+## What Changed in Hibernate 6 and 7
+> Mention these to show you are current.
+- **Jakarta Persistence** namespace: `jakarta.persistence.*` replaced `javax.persistence.*` (Spring Boot 3+, Hibernate 6+).
+- **Query engine rewritten** (semantic query model): better SQL, stricter HQL validation, many HQL improvements (`union`, `cte`, window functions, `ilike`).
+- **`@Type`/UserType** rework, `@JdbcTypeCode` (e.g. map to JSON: `@JdbcTypeCode(SqlTypes.JSON)`), and built-in support for `java.time` and `UUID`.
+- **ID generation:** `GenerationType.AUTO` now prefers **sequences**; `IDENTITY` still disables batching.
+- **`@Where` → `@SQLRestriction`** and `@SQLDelete` refinements; `hibernate-jpamodelgen` is `hibernate-processor`.
+- Hibernate 7 aligns with **Jakarta Persistence 3.2** and further tightens the API.
+- **Migration tip:** upgrade Boot first, replace `javax` imports, review custom `UserType`s and native query result mapping.
+! javax to jakarta, new query engine, sequences by default.
+
+## Multi-Tenancy, Stored Procedures & Bulk Operations
+> Less common, but easy to mention.
+- **Multi-tenancy:** `DATABASE` (one DB per tenant), `SCHEMA` (one schema per tenant), or `DISCRIMINATOR` (a `tenant_id` column with `@TenantId` / `@Filter`). Resolve the tenant from the request via `CurrentTenantIdentifierResolver`.
+- **Stored procedures:** `@NamedStoredProcedureQuery` or `em.createStoredProcedureQuery("proc")`; native calls for database-specific logic.
+- **Bulk operations:** `update`/`delete` JPQL statements bypass the persistence context and entity callbacks: clear the context afterwards. For huge loads use **`StatelessSession`**, JDBC batching, or `COPY`/bulk loaders.
+- **`@Lob`** for large objects; stream them instead of loading into memory.
+! Bulk statements skip the persistence context: clear it afterwards.
+
 ### Quick Answers
 
 ## Interview One-Liners

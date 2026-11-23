@@ -1,0 +1,303 @@
+# 01 | JUnit 5 & Mockito Interview Cheat Sheet | Every card: a crisp definition you can say out loud, a concrete example, the key points, and a hook to remember it. JUnit 5 (Jupiter), Mockito 5, AssertJ and Spring Boot test support. | Testing on one page
+
+### Testing Basics
+
+## Why Test? The Test Pyramid
+> **Unit tests** check one class in isolation (fast, many). **Integration tests** check several parts together (database, HTTP). **End-to-end tests** drive the whole system (slow, few).
+- Pyramid: lots of unit tests, fewer integration tests, very few UI/E2E tests.
+- A good test is **fast, isolated, repeatable, self-validating, readable** (FIRST).
+- **Arrange / Act / Assert** (or Given / When / Then) keeps each test readable.
+- Test **behaviour**, not private implementation details; one logical assertion per test.
+! Many fast unit tests, a few slow end-to-end tests.
+
+## JUnit 5 Architecture
+> JUnit 5 = **Platform** (runs tests, IDE/build integration) + **Jupiter** (the new programming and extension model) + **Vintage** (runs JUnit 3/4 tests).
+- Package: `org.junit.jupiter.api`. Needs Java 8+. Spring Boot's `spring-boot-starter-test` brings JUnit 5, Mockito, AssertJ, Hamcrest, JSONPath.
+- Test classes and methods can be **package-private**; no need for `public`.
+- JUnit 4 vs 5: `@Test` package changed; `@Before` → `@BeforeEach`; `@BeforeClass` → `@BeforeAll`; `@Ignore` → `@Disabled`; `@RunWith` → `@ExtendWith`; `expected=` → `assertThrows`.
+! Platform runs it, Jupiter writes it, Vintage runs the old ones.
+
+## Core Annotations & Lifecycle
+> Lifecycle order: `@BeforeAll` (once) → for each test: `@BeforeEach` → `@Test` → `@AfterEach` → finally `@AfterAll`.
+```java
+class CalculatorTest {
+  private Calculator calc;
+
+  @BeforeAll static void initAll() { /* once, must be static (unless PER_CLASS) */ }
+  @BeforeEach void setUp() { calc = new Calculator(); }            // fresh object per test
+  @AfterEach void tearDown() { }
+  @AfterAll static void tearDownAll() { }
+
+  @Test @DisplayName("adds two numbers")
+  void add() { assertEquals(5, calc.add(2, 3)); }
+
+  @Test @Disabled("bug #123")
+  void skipped() { }
+}
+```
+- A **new instance** of the test class is created for every test (so fields never leak between tests). `@TestInstance(PER_CLASS)` shares one instance.
+- Other useful annotations: `@Tag("slow")`, `@Nested`, `@Timeout`, `@RepeatedTest(5)`, `@TempDir`, `@Order` with `@TestMethodOrder`.
+! BeforeEach gives every test a clean start.
+
+## Assertions (JUnit & AssertJ)
+> **Assertions** verify results. JUnit has basic ones; **AssertJ** gives readable, fluent ones.
+```java
+assertEquals(5, result);                         // expected first, actual second
+assertTrue(list.isEmpty());   assertNull(x);   assertSame(a, b);
+assertArrayEquals(new int[]{1, 2}, arr);
+assertThrows(IllegalArgumentException.class, () -> service.find(-1));   // can inspect the exception
+assertAll("user", () -> assertEquals("Asha", u.name()), () -> assertEquals(30, u.age()));   // reports all failures
+assertTimeout(Duration.ofSeconds(1), () -> slow());
+
+// AssertJ
+assertThat(name).isEqualTo("Asha").startsWith("A").hasSize(4);
+assertThat(list).hasSize(3).contains("a").doesNotContain("z").extracting(User::name).containsExactly("a", "b", "c");
+assertThatThrownBy(() -> service.find(-1)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("negative");
+assertThat(0.1 + 0.2).isCloseTo(0.3, within(0.0001));
+```
+- **Expected first** is the JUnit convention; a swapped order gives confusing failure messages.
+- Add a failure **message supplier** (`() -> "..."`) so it is built only on failure.
+! assertThrows replaces `@Test(expected=...)` and lets you check the message.
+
+## Parameterized, Repeated & Dynamic Tests
+> Run one test with many inputs. Needs `junit-jupiter-params`.
+```java
+@ParameterizedTest
+@ValueSource(strings = {"racecar", "level", "madam"})
+void palindromes(String s) { assertTrue(Strings.isPalindrome(s)); }
+
+@ParameterizedTest
+@CsvSource({"2,3,5", "10,-4,6", "0,0,0"})
+void addCases(int a, int b, int expected) { assertEquals(expected, calc.add(a, b)); }
+
+@ParameterizedTest
+@MethodSource("invalidEmails")
+void rejects(String email) { assertFalse(Validator.isValid(email)); }
+static Stream<String> invalidEmails() { return Stream.of("a", "a@", "@b.com"); }
+
+@ParameterizedTest @NullAndEmptySource @EnumSource(Status.class)
+void others(Object o) { }
+```
+- Sources: `@ValueSource`, `@CsvSource`, `@CsvFileSource`, `@MethodSource`, `@EnumSource`, `@NullSource`, `@EmptySource`, `@ArgumentsSource`.
+- `@RepeatedTest(3)` repeats; `@TestFactory` returns **dynamic tests** generated at runtime.
+! One method, many data rows.
+
+## Nested Tests, Tags, Conditions & Extensions
+> Structure and control tests.
+- **`@Nested`** inner classes group related scenarios ("when the cart is empty...") and share outer setup.
+- **`@Tag("integration")`** + build filters run groups separately (fast vs slow).
+- **Conditional:** `@EnabledOnOs`, `@EnabledIfSystemProperty`, `@EnabledIfEnvironmentVariable`, `assumeTrue(...)` (skips instead of failing).
+- **Extensions** (`@ExtendWith`) replace JUnit 4 runners and rules: Mockito (`MockitoExtension`), Spring (`SpringExtension`), custom ones for timing, DB setup, etc.
+- `@TempDir Path dir` gives a temporary directory that is cleaned up automatically.
+! Extensions are how Mockito and Spring plug into JUnit 5.
+
+### Mockito
+
+## Mocks, Stubs, Spies & Fakes
+> A **mock** is a fake object whose behaviour you script and whose calls you verify. A **stub** returns canned answers. A **spy** wraps a **real** object so you can override some methods. A **fake** is a simple working implementation (an in-memory repository).
+- Mock the **collaborators** (repositories, HTTP clients), not the class under test.
+- Do not mock simple value objects, DTOs, or types you do not own without a thin wrapper.
+- Too many mocks in one test usually signals a design problem.
+! Mock the neighbours, test the target.
+
+## Mockito Basics: @Mock, @InjectMocks, when/thenReturn
+> `@ExtendWith(MockitoExtension.class)` creates mocks and injects them into the object under test.
+```java
+@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+  @Mock OrderRepository repo;
+  @Mock PaymentClient payments;
+  @InjectMocks OrderService service;               // constructor/setter/field injection of the mocks
+
+  @Test
+  void placesOrder() {
+    when(repo.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(payments.charge(eq(100.0), anyString())).thenReturn(PaymentResult.OK);
+
+    Order o = service.place(new OrderRequest("c1", 100.0));
+
+    assertThat(o.status()).isEqualTo(Status.PAID);
+    verify(payments).charge(100.0, "c1");
+    verify(repo, times(1)).save(any());
+    verifyNoMoreInteractions(payments);
+  }
+}
+```
+- Unstubbed methods return defaults: `null`, `0`, `false`, empty collections/`Optional.empty()`.
+- `MockitoExtension` uses **strict stubs**: unused stubbing fails with `UnnecessaryStubbingException` (keeps tests honest).
+! when/thenReturn to set up, verify to check the interaction.
+
+## Stubbing: Exceptions, Void Methods & Consecutive Calls
+> Different ways to script behaviour.
+```java
+when(repo.findById(1L)).thenReturn(Optional.of(user));
+when(repo.findById(2L)).thenThrow(new NotFoundException());
+when(api.call()).thenReturn("a").thenReturn("b").thenThrow(new RuntimeException());   // consecutive
+
+doThrow(new IllegalStateException()).when(mailer).send(any());      // void methods need doX().when()
+doNothing().when(mailer).send(any());
+doAnswer(inv -> { log(inv.getArgument(0)); return null; }).when(auditor).record(any());
+
+when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));        // return the argument
+```
+- Use **`doReturn(x).when(spy).m()`** with spies: `when(spy.m())` would call the real method.
+- `thenReturn` vs `thenAnswer`: fixed value vs computed from the arguments.
+! Void methods use the doX().when() style.
+
+## Argument Matchers & ArgumentCaptor
+> **Matchers** (`any()`, `anyString()`, `eq()`, `argThat()`) match arguments. **Captors** grab the actual argument for further assertions.
+```java
+verify(repo).save(argThat(o -> o.total() > 0));
+
+ArgumentCaptor<Email> captor = ArgumentCaptor.forClass(Email.class);
+verify(mailer).send(captor.capture());
+assertThat(captor.getValue().to()).isEqualTo("a@x.com");
+```
+- **Rule:** if you use a matcher for one argument you must use matchers for **all**: `verify(x).f(eq("a"), anyInt())`, not `f("a", anyInt())`.
+- `any()` matches null; `anyString()` does not (in Mockito 2+).
+! All-or-nothing: mix raw values and matchers and Mockito throws.
+
+## verify: times, never, order & Timeouts
+> Verify **interactions**, mainly for side effects (sending an email, saving, publishing an event).
+```java
+verify(mailer).send(any());                       // exactly once (default)
+verify(mailer, times(2)).send(any());
+verify(mailer, never()).send(any());
+verify(mailer, atLeastOnce()).send(any());
+verify(audit, timeout(500)).record(any());        // async code
+InOrder inOrder = inOrder(a, b);  inOrder.verify(a).first();  inOrder.verify(b).second();
+verifyNoInteractions(mailer);   verifyNoMoreInteractions(repo);
+```
+- Prefer asserting **results** over verifying calls; over-verifying makes tests brittle against refactoring.
+! Assert outcomes first, verify only meaningful side effects.
+
+## Spies, Static & Constructor Mocking, Final Classes
+> **Spy:** `spy(realObject)` or `@Spy`; the real code runs unless stubbed.
+```java
+List<String> real = new ArrayList<>();
+List<String> spy = spy(real);
+doReturn(100).when(spy).size();
+
+try (MockedStatic<UUID> m = mockStatic(UUID.class)) {         // Mockito 5 mocks final classes/static by default
+  m.when(UUID::randomUUID).thenReturn(FIXED);
+}
+try (MockedConstruction<Client> c = mockConstruction(Client.class)) { /* new Client() returns a mock */ }
+```
+- Mockito 5 uses the **inline mock maker** by default, so **final classes and static methods** can be mocked (before, PowerMock was needed).
+- Static mocks are **thread-local** and must be closed (try-with-resources).
+- Better design: inject a `Clock` or an `IdGenerator` instead of mocking statics.
+! Needing static mocking is a hint to inject the dependency.
+
+## @Mock vs @MockBean / @MockitoBean vs @Spy
+> **@Mock** is a plain Mockito mock (no Spring). **@MockBean** (Spring Boot ≤ 3.3) and **@MockitoBean** (Spring Framework 6.2+/Boot 3.4+) **replace a bean in the Spring context** with a mock.
+- Use `@Mock` + `@InjectMocks` for **pure unit tests** (fast, no Spring).
+- Use `@MockitoBean` in `@WebMvcTest` / `@SpringBootTest` to stub a collaborator the controller needs.
+- Every different set of mock beans creates a **new Spring context** and slows the suite: reuse the same setup where possible.
+! @Mock = no Spring, @MockitoBean = Spring context bean.
+
+### Spring Boot Tests
+
+## Test Slices & @SpringBootTest
+> Load only the part of the context you need.
+```text
+@SpringBootTest        full application context (integration), optionally with a random port
+@WebMvcTest            controllers + MVC infrastructure only (mock the services)
+@DataJpaTest           JPA repositories + embedded or Testcontainers DB, rolled back after each test
+@JsonTest              Jackson serialisation only
+@RestClientTest        RestClient / RestTemplate against a mock server
+@DataMongoTest etc.    other data stores
+```
+- Slices are **much faster** than `@SpringBootTest`. Use `@AutoConfigureMockMvc` with `@SpringBootTest` when you want the full context plus MockMvc.
+- `@ActiveProfiles("test")` and `@TestPropertySource` override configuration; `@Sql` runs scripts; `@DirtiesContext` forces a fresh context (slow, use rarely).
+! Pick the smallest slice that proves the behaviour.
+
+## MockMvc: Testing Controllers
+> **MockMvc** calls the controller through the full MVC stack without starting a server.
+```java
+@WebMvcTest(UserController.class)
+class UserControllerTest {
+  @Autowired MockMvc mvc;
+  @Autowired ObjectMapper om;
+  @MockitoBean UserService service;
+
+  @Test
+  void createsUser() throws Exception {
+    when(service.create(any())).thenReturn(new UserResponse(1L, "Asha"));
+
+    mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON)
+            .content(om.writeValueAsString(new CreateUserRequest("Asha", "a@x.com"))))
+       .andExpect(status().isCreated())
+       .andExpect(header().exists("Location"))
+       .andExpect(jsonPath("$.name").value("Asha"));
+  }
+
+  @Test
+  void validationError() throws Exception {
+    mvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"\"}"))
+       .andExpect(status().isBadRequest());
+  }
+}
+```
+- With Spring Security add `.with(user("u").roles("ADMIN"))`, `.with(jwt())` and `.with(csrf())`, or `@WithMockUser`.
+- **MockMvcTester** (Spring 6.2+) gives AssertJ-style assertions. `TestRestTemplate` / `WebTestClient` hit a real running port.
+! MockMvc tests the web layer: status, headers, JSON, validation.
+
+## @DataJpaTest, Testcontainers & Test Data
+> Test repositories against a **real database engine** to catch dialect and constraint problems.
+```java
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = Replace.NONE)
+@Testcontainers
+class UserRepositoryTest {
+  @Container @ServiceConnection
+  static PostgreSQLContainer<?> db = new PostgreSQLContainer<>("postgres:16");
+
+  @Autowired UserRepository repo;
+
+  @Test
+  void findsByEmail() {
+    repo.save(new User("a@x.com", "Asha"));
+    assertThat(repo.findByEmail("a@x.com")).isPresent();
+  }
+}
+```
+- `@ServiceConnection` (Boot 3.1+) wires the container's URL, user and password automatically.
+- H2 in-memory is fast but can hide PostgreSQL/MySQL-specific behaviour: prefer Testcontainers for important queries.
+- Build test data with **builders / object mothers**; keep tests independent (each rolls back or cleans up).
+! Real database in a container beats an in-memory imitation.
+
+## Testing Async Code, Time & Randomness
+> Make tests deterministic.
+- **Time:** inject a `Clock` (`Clock.fixed(...)`), never call `LocalDate.now()` directly in logic you test.
+- **Async:** wait with **Awaitility** (`await().atMost(2, SECONDS).untilAsserted(...)`), not `Thread.sleep`.
+- **Randomness/IDs:** inject a generator or seed it.
+- **Concurrency:** test with several threads and `CountDownLatch`; repeat the test (`@RepeatedTest`) to expose flakiness.
+- **Flaky tests:** usually shared state, time, ordering, network or sleeps. Fix the cause; do not add retries.
+! Control time and randomness; never sleep in tests.
+
+## Coverage, TDD & What Makes a Good Test
+> **Coverage** (JaCoCo) shows which lines/branches ran, not whether they were **verified**.
+- 100% coverage with no assertions is worthless; aim for **meaningful assertions on business logic** (70 to 80% is a sensible gate) and branch coverage on tricky code.
+- **TDD:** write a failing test (red), make it pass with the simplest code (green), refactor, repeat.
+- **Good test names** describe the behaviour: `rejectsOrderWhenStockIsZero`.
+- **Mutation testing** (PIT) checks whether your tests catch real changes.
+- **Avoid:** testing getters, over-mocking, shared mutable fixtures, order-dependent tests, logic in tests.
+! Coverage tells you what is untested, not what is well tested.
+
+### Quick Answers
+
+## Interview One-Liners
+- **JUnit 5 parts:** Platform, Jupiter, Vintage.
+- **@BeforeEach vs @BeforeAll:** before every test (instance) vs once per class (static).
+- **assertThrows:** verifies an exception and returns it for inspection.
+- **Parameterized tests:** one test, many inputs via `@ValueSource`, `@CsvSource`, `@MethodSource`.
+- **Mock vs spy:** fully fake vs wraps a real object.
+- **@Mock vs @MockitoBean:** plain Mockito vs Spring context replacement.
+- **@InjectMocks:** builds the object under test and injects the mocks.
+- **Void method stubbing:** `doThrow(...).when(mock).method()`.
+- **Matcher rule:** all arguments are matchers, or none.
+- **ArgumentCaptor:** capture the actual argument passed to a mock.
+- **@WebMvcTest vs @SpringBootTest:** web slice with mocks vs the full context.
+- **@DataJpaTest:** repository slice, transactional, rolled back.
+- **Testcontainers:** real databases and brokers in Docker for integration tests.
+- **Flaky test causes:** time, shared state, ordering, sleeps, network.

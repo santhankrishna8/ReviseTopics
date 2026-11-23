@@ -13,6 +13,9 @@ export const GROUPS: { name: string; topics: Topic[] }[] = [
     { id: 'cheat-hibernate', name: 'Hibernate & JPA', ready: true, poster: true },
     { id: 'cheat-spring-security', name: 'Spring Security', ready: true, poster: true },
     { id: 'cheat-java-coding', name: 'Java Coding Questions', ready: true, poster: true },
+    { id: 'cheat-java-output', name: 'Java Output Questions', ready: true, poster: true },
+    { id: 'cheat-lld', name: 'Low-Level Design', ready: true, poster: true },
+    { id: 'cheat-junit-mockito', name: 'JUnit & Mockito', ready: true, poster: true },
     { id: 'cheat-sql-queries', name: 'SQL Query Questions', ready: true, poster: true },
     { id: 'cheat-scenarios', name: 'Scenario & Project Answers', ready: true, poster: true },
     { id: 'cheat-dsa', name: 'DSA', ready: true, poster: true },
@@ -87,4 +90,4 @@ export const GROUPS: { name: string; topics: Topic[] }[] = [
 export const READY = GROUPS.flatMap(g => g.topics).filter(t => t.ready);
 
 // topic id -> its cheat sheet topic id
-export const CHEATS: Record<string, string> = { java: 'cheat-java', angular: 'cheat-angular', typescript: 'cheat-typescript', sql: 'cheat-sql', 'spring-boot': 'cheat-spring-boot', hibernate: 'cheat-hibernate', security: 'cheat-spring-security', javascript: 'cheat-javascript', python: 'cheat-python', react: 'cheat-react', kafka: 'cheat-kafka', 'system-design': 'cheat-system-design', dsa: 'cheat-dsa', 'dsa-2': 'cheat-dsa', 'dsa-3': 'cheat-dsa' };
+export const CHEATS: Record<string, string> = { java: 'cheat-java', angular: 'cheat-angular', typescript: 'cheat-typescript', sql: 'cheat-sql', 'spring-boot': 'cheat-spring-boot', hibernate: 'cheat-hibernate', testing: 'cheat-junit-mockito', security: 'cheat-spring-security', javascript: 'cheat-javascript', python: 'cheat-python', react: 'cheat-react', kafka: 'cheat-kafka', 'system-design': 'cheat-system-design', dsa: 'cheat-dsa', 'dsa-2': 'cheat-dsa', 'dsa-3': 'cheat-dsa' };

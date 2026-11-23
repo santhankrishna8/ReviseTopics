@@ -963,6 +963,82 @@ Map<String, Integer> m = list.stream().collect(Collectors.toMap(Emp::dept, Emp::
 - **Sealed classes:** restrict which classes may extend, so a `switch` can be exhaustive without `default`.
 ! Know your project's Java version and one real feature you used from it.
 
+### JDBC & Servlets
+
+## JDBC Basics: Connection, PreparedStatement, ResultSet
+> **JDBC** is Java's standard API for talking to relational databases. Steps: get a **Connection** → create a **PreparedStatement** → execute → read the **ResultSet** → close everything.
+```java
+String sql = "select id, name from users where email = ?";
+try (Connection con = dataSource.getConnection();
+     PreparedStatement ps = con.prepareStatement(sql)) {
+  ps.setString(1, email);                         // parameters are 1-based
+  try (ResultSet rs = ps.executeQuery()) {
+    while (rs.next()) {
+      long id = rs.getLong("id");
+      String name = rs.getString("name");
+    }
+  }
+}   // try-with-resources closes ResultSet, Statement and Connection in reverse order
+```
+- **`executeQuery`** for SELECT (returns a ResultSet); **`executeUpdate`** for INSERT/UPDATE/DELETE (returns the row count); **`execute`** for anything.
+- **Statement vs PreparedStatement vs CallableStatement:** plain SQL (injection risk) vs precompiled with parameters (safe, faster for repeats) vs stored procedures.
+- **Always use PreparedStatement** with `?` placeholders: it prevents **SQL injection**.
+- Driver: `Class.forName` is no longer needed (auto-loaded via the service loader). `DriverManager` is simple; a **DataSource with a pool** (HikariCP) is what production uses.
+- Get generated keys: `con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)` then `ps.getGeneratedKeys()`.
+- `rs.wasNull()` after reading a primitive that may be NULL; `getObject(..., LocalDate.class)` for dates.
+! PreparedStatement + try-with-resources + a pooled DataSource.
+
+## JDBC Transactions, Batching & Isolation
+> By default each statement **auto-commits**. Turn it off to group statements into one transaction.
+```java
+try (Connection con = ds.getConnection()) {
+  con.setAutoCommit(false);
+  try {
+    debit(con, from, amount);
+    credit(con, to, amount);
+    con.commit();
+  } catch (SQLException e) {
+    con.rollback();
+    throw e;
+  }
+}
+```
+```java
+try (PreparedStatement ps = con.prepareStatement("insert into logs(msg) values (?)")) {
+  for (String m : messages) { ps.setString(1, m); ps.addBatch(); }
+  ps.executeBatch();                              // one round trip for many rows
+}
+```
+- **Savepoints:** `con.setSavepoint()` and `rollback(savepoint)` for partial rollback.
+- **Isolation:** `con.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED)` (also `REPEATABLE_READ`, `SERIALIZABLE`).
+- **ResultSet types:** forward-only (default, fastest), scrollable, updatable. Use `setFetchSize` to stream large results.
+- **Problems with raw JDBC:** boilerplate, manual mapping, leaks if not closed: that is why **JdbcTemplate**, JPA and Hibernate exist.
+```java
+List<User> users = jdbcTemplate.query("select * from users where age > ?", (rs, i) -> new User(rs.getLong("id"), rs.getString("name")), 18);
+```
+! Disable auto-commit, commit on success, roll back on failure, always close.
+
+## Servlet Basics, Lifecycle & Filters
+> A **servlet** is a Java class that handles HTTP requests inside a servlet container (Tomcat, Jetty). Spring MVC's **DispatcherServlet** is a servlet.
+```java
+@WebServlet("/hello")
+public class HelloServlet extends HttpServlet {
+  @Override protected void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+    res.setContentType("text/plain");
+    res.getWriter().println("Hello " + req.getParameter("name"));
+  }
+}
+```
+- **Lifecycle:** `init()` once at startup → `service()` per request (dispatches to `doGet/doPost/...`) → `destroy()` at shutdown. **One instance** serves all threads, so servlets must be **thread-safe**: avoid mutable instance fields.
+- **Filter:** intercepts requests before and after the servlet (`doFilter(req, res, chain)`): logging, auth, compression, CORS. Order configured in `web.xml`, `@Order` or registration beans.
+- **Listener:** reacts to lifecycle events (`ServletContextListener`, `HttpSessionListener`).
+- **Session:** `request.getSession()`; stored via a cookie (`JSESSIONID`) or URL rewriting.
+- **Forward vs redirect:** forward is server-side, same request, URL unchanged; redirect sends a **new** request (302), URL changes.
+- **GET vs POST:** idempotent and cacheable, parameters in the URL vs body for changes. **Request vs session vs application scope.**
+- **JSP** (server-side templating) compiles to servlets; modern apps use REST + a front end instead.
+- `javax.servlet` became **`jakarta.servlet`** in Jakarta EE 9+ / Spring Boot 3.
+! One servlet instance, many threads: keep it stateless.
+
 ### Coding Questions
 
 ## Reverse a String & Palindrome

@@ -758,6 +758,169 @@ Page<User> page = repo.findAll(
 - `spring.config.import=optional:configserver:` pulls from Spring Cloud Config.
 ! Command line beats env vars beats profile file beats base file.
 
+### JSON, Caching & Messaging
+
+## Jackson & JSON Handling
+> **Jackson** converts Java objects to JSON and back (`ObjectMapper`); Spring Boot wires it into `@RequestBody` and `@ResponseBody` automatically.
+```java
+public class UserDto {
+  @JsonProperty("user_name") private String name;              // rename a field
+  @JsonIgnore private String password;                          // never serialise
+  @JsonInclude(JsonInclude.Include.NON_NULL) private String nick;   // skip nulls
+  @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd") private LocalDate dob;
+  @JsonAlias({"mail", "email_address"}) private String email;   // accept alternative names on input
+  @JsonCreator public UserDto(@JsonProperty("user_name") String name) { this.name = name; }
+}
+@JsonIgnoreProperties(ignoreUnknown = true)                     // tolerate extra fields on input
+@JsonPropertyOrder({"id", "name"})
+```
+- **Boot settings:** `spring.jackson.property-naming-strategy=SNAKE_CASE`, `spring.jackson.default-property-inclusion=non_null`, `spring.jackson.serialization.write-dates-as-timestamps=false`.
+- **Java 8 dates** need the `jackson-datatype-jsr310` module (Boot registers it): without it `LocalDate` fails or becomes an array.
+- **Records** are supported directly. **Custom logic:** `@JsonSerialize(using=...)` / `@JsonDeserialize`, or a `Module` bean.
+- **Polymorphism:** `@JsonTypeInfo` + `@JsonSubTypes`. **Views:** `@JsonView` for different shapes of one class.
+- **Bidirectional entities** cause **infinite recursion** (`StackOverflowError`): use DTOs, or `@JsonManagedReference` / `@JsonBackReference`, or `@JsonIgnore`. DTOs are the real fix.
+- Unknown property on input fails by default in plain Jackson (`FAIL_ON_UNKNOWN_PROPERTIES`), but **Boot disables that** for you.
+```java
+String json = mapper.writeValueAsString(obj);
+UserDto u = mapper.readValue(json, UserDto.class);
+List<UserDto> list = mapper.readValue(json, new TypeReference<List<UserDto>>() {});
+```
+! Never serialise JPA entities: map to DTOs, and keep passwords out with @JsonIgnore or no field at all.
+
+## Caching With Spring Cache & Redis
+> **Spring Cache** adds caching with annotations (AOP proxy, so self-invocation is not cached). **Redis** is the usual shared cache across instances.
+```java
+@EnableCaching
+@Service
+class ProductService {
+  @Cacheable(value = "products", key = "#id", unless = "#result == null")
+  public Product get(Long id) { return repo.findById(id).orElseThrow(); }     // runs only on a cache miss
+
+  @CachePut(value = "products", key = "#p.id")                                // always runs, updates the cache
+  public Product update(Product p) { return repo.save(p); }
+
+  @CacheEvict(value = "products", key = "#id")                                // remove an entry
+  public void delete(Long id) { repo.deleteById(id); }
+
+  @CacheEvict(value = "products", allEntries = true) public void clearAll() { }
+}
+```
+```properties
+spring.cache.type=redis
+spring.data.redis.host=localhost
+spring.cache.redis.time-to-live=10m
+```
+- **TTL** per cache with `RedisCacheConfiguration.entryTtl(...)`; use a JSON serializer (not default Java serialization) so values are readable and versions compatible.
+- **Patterns:** cache-aside (what `@Cacheable` does), write-through, write-behind. **Eviction policies:** LRU, LFU, TTL.
+- **Problems:** **stale data** (set TTL, evict on update), **cache stampede** (many requests rebuild the same missing key: `@Cacheable(sync = true)`, locks, jittered TTLs), **cache penetration** (requests for keys that do not exist: cache nulls briefly or use a Bloom filter), **cache avalanche** (many keys expire together: randomise TTLs).
+- Local in-memory option: **Caffeine** (fastest, per-instance); combine L1 Caffeine + L2 Redis for hot data.
+- `RedisTemplate` / `StringRedisTemplate` for direct use (counters, rate limits, sessions, distributed locks).
+! Cache reads that are expensive and rarely change; always have a TTL and an eviction story.
+
+## Messaging With Kafka & RabbitMQ in Spring
+> Use messaging to **decouple services**, absorb spikes and process work asynchronously.
+```java
+// Kafka
+@Service class OrderEvents {
+  private final KafkaTemplate<String, OrderPlaced> kafka;
+  void publish(OrderPlaced e) { kafka.send("orders", e.orderId(), e); }          // key = orderId keeps ordering per order
+}
+@KafkaListener(topics = "orders", groupId = "billing")
+void on(OrderPlaced e, Acknowledgment ack) { billing.handle(e); ack.acknowledge(); }
+
+// RabbitMQ
+rabbitTemplate.convertAndSend("orders.exchange", "order.created", event);
+@RabbitListener(queues = "billing.queue") void on(OrderPlaced e) { billing.handle(e); }
+```
+- **Kafka:** durable log, partitions, consumer groups, replay, very high throughput, ordering **per partition** (see the Kafka cheat sheet). **RabbitMQ:** smart broker, exchanges and routing keys, per-message acknowledgements, flexible routing, lower volume.
+- **Reliability checklist:** at-least-once delivery means **consumers must be idempotent** (dedupe by event id); **retries with backoff** then a **dead-letter topic/queue** (`DefaultErrorHandler` + `DeadLetterPublishingRecoverer`); manual or batch acks; `acks=all` and idempotent producers.
+- **Outbox pattern:** save the event in the **same DB transaction** as the data, then a relay publishes it: avoids "saved but never published".
+- Serialisation: JSON or Avro/Protobuf with a schema registry. Use `@TransactionalEventListener(AFTER_COMMIT)` when publishing from a transaction.
+- **Choose:** Kafka for event streaming and big throughput; RabbitMQ for task queues and complex routing; SQS/SNS in AWS.
+! At-least-once delivery + idempotent consumers + a dead-letter queue.
+
+## WebSocket, STOMP & Server-Sent Events
+> For **pushing data to the browser** without polling.
+- **Polling:** client asks repeatedly (simple, wasteful). **Long polling:** server holds the request until data exists. **SSE:** one-way server → client stream over HTTP (auto-reconnect). **WebSocket:** full-duplex, persistent connection (chat, games, collaboration).
+```java
+// SSE
+@GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+SseEmitter stream() { SseEmitter e = new SseEmitter(0L); emitters.add(e); e.onCompletion(() -> emitters.remove(e)); return e; }
+
+// WebSocket with STOMP
+@Configuration @EnableWebSocketMessageBroker
+class WsConfig implements WebSocketMessageBrokerConfigurer {
+  public void registerStompEndpoints(StompEndpointRegistry r) { r.addEndpoint("/ws").setAllowedOrigins("https://app.example.com"); }
+  public void configureMessageBroker(MessageBrokerRegistry r) { r.enableSimpleBroker("/topic"); r.setApplicationDestinationPrefixes("/app"); }
+}
+@MessageMapping("/chat") @SendTo("/topic/messages") ChatMessage send(ChatMessage m) { return m; }
+```
+- Scaling out needs an external broker (RabbitMQ/Redis) or sticky connections; secure the handshake with a token; set allowed origins.
+- Use **SSE** for dashboards and notifications, **WebSocket** for two-way real time.
+! SSE for one-way, WebSocket for two-way.
+
+## Spring Batch & Scheduled Jobs
+> **Spring Batch** processes large volumes of data in **chunks** with restartability, retry, skip and job history.
+```text
+Job -> Step(s) -> chunk-oriented:  ItemReader (read one) -> ItemProcessor (transform/filter) -> ItemWriter (write a chunk)
+JobRepository stores execution state in the database so a failed job can restart where it stopped
+```
+```java
+@Bean Step importStep(JobRepository repo, PlatformTransactionManager tx) {
+  return new StepBuilder("import", repo)
+      .<CsvUser, User>chunk(500, tx)                  // commit every 500 items
+      .reader(reader()).processor(processor()).writer(writer())
+      .faultTolerant().skipLimit(10).skip(ParseException.class).retryLimit(3).retry(DeadlockLoserDataAccessException.class)
+      .build();
+}
+```
+- **Use** for nightly imports, reports, migrations; **not** for request/response work. Trigger with a scheduler, API, or Kubernetes CronJob.
+- `@Scheduled` is fine for light tasks; multi-instance deployments need **ShedLock** or Quartz so a job runs once.
+- Chunk size balances memory and commit cost; use paging/cursor readers for big tables; partition steps for parallelism.
+! Read, process, write in chunks; the job repository makes it restartable.
+
+### Logging & Monitoring
+
+## Logging: SLF4J, Logback, Levels & MDC
+> **SLF4J** is the logging API; **Logback** is Spring Boot's default implementation (Log4j2 also supported). Log through the API, never `System.out`.
+```java
+private static final Logger log = LoggerFactory.getLogger(OrderService.class);    // or Lombok @Slf4j
+log.info("Order {} placed for customer {}", orderId, customerId);   // {} placeholders: no string concatenation
+log.error("Payment failed for order {}", orderId, ex);              // exception as the LAST argument keeps the stack trace
+if (log.isDebugEnabled()) log.debug("payload {}", expensive());
+```
+```properties
+logging.level.root=INFO
+logging.level.com.example=DEBUG
+logging.level.org.hibernate.SQL=DEBUG
+logging.file.name=app.log
+logging.pattern.level=%5p [%X{traceId}]
+```
+- **Levels:** `TRACE < DEBUG < INFO < WARN < ERROR`. Production default INFO. Change levels at runtime through Actuator `/loggers`.
+- **MDC (Mapped Diagnostic Context):** thread-local key/values added to every log line (requestId, userId). Set it in a **filter**, always **clear it** in `finally`; it does not follow threads automatically (copy it for async work).
+```java
+MDC.put("requestId", UUID.randomUUID().toString());
+try { chain.doFilter(req, res); } finally { MDC.clear(); }
+```
+- **Structured (JSON) logging** (Boot 3.4+ `logging.structured.format.console=ecs` or logstash encoder) for ELK/Loki/CloudWatch.
+- **Never log** passwords, tokens, card numbers or personal data; log **once** at the boundary rather than at every layer; log meaningful context, not noise.
+- Rolling files by size/time in `logback-spring.xml`; async appenders for throughput.
+! Parameterised messages, exception as the last argument, MDC for correlation ids.
+
+## Monitoring, Metrics & Alerting
+> **Observability = logs + metrics + traces.** Spring Boot: **Actuator** exposes endpoints, **Micrometer** records metrics and exports to Prometheus, Datadog, CloudWatch; **Grafana** shows dashboards; tracing via Micrometer Tracing + OpenTelemetry.
+```properties
+management.endpoints.web.exposure.include=health,info,metrics,prometheus
+management.endpoint.health.probes.enabled=true
+management.metrics.tags.application=orders
+```
+- **Key metrics:** the **RED** method for services (**R**ate, **E**rrors, **D**uration/latency percentiles p95/p99) and the **USE** method for resources (**U**tilisation, **S**aturation, **E**rrors). Also JVM heap/GC, thread pools, DB pool usage, queue lag.
+- **Custom metric:** `meterRegistry.counter("orders.placed", "type", "web").increment();` or `@Timed`.
+- **Distributed tracing:** a **trace id** passes through every service call (W3C `traceparent` header); each hop is a **span**; tools: Zipkin, Jaeger, Tempo. Put the trace id in logs.
+- **Health:** `/actuator/health/liveness` (restart me?) and `/readiness` (send traffic?) for Kubernetes; secure sensitive endpoints.
+- **Alerting:** alert on **symptoms users feel** (error rate, latency, saturation) with sensible thresholds, link to runbooks; track SLIs/SLOs.
+! Logs say what happened, metrics say how much, traces say where.
+
 ### Quick Answers
 
 ## Interview One-Liners

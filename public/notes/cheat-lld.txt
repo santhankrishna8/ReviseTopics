@@ -1,0 +1,201 @@
+# 01 | Low-Level Design (LLD) Interview Cheat Sheet | How to answer "design a parking lot / library / ATM" in Java: a repeatable method, the design principles and patterns that matter, and a class design for the most common problems. Each problem lists the classes, the relationships, the pattern, and the core logic. | LLD on one page
+
+### The Method
+
+## How to Approach Any LLD Question (6 Steps)
+> **Logic:** do not start with classes. Clarify, list nouns and verbs, then design and justify.
+- **1. Clarify requirements:** who uses it, which features, what is out of scope, how many users, any concurrency.
+- **2. Identify entities (nouns):** become classes (`Vehicle`, `Ticket`, `ParkingSpot`).
+- **3. Identify behaviours (verbs):** become methods (`park`, `unpark`, `calculateFee`).
+- **4. Relationships:** has-a (composition), is-a (inheritance), uses (dependency); draw a quick class diagram.
+- **5. Apply patterns only where they fit:** Strategy for swappable rules, Factory for creation, Observer for notifications, State for lifecycles, Singleton sparingly.
+- **6. Walk through a scenario** end to end, then discuss **extensibility, thread safety and edge cases**.
+! Requirements first, classes second, patterns last.
+
+## SOLID in One Line Each (With Examples)
+> The principles interviewers expect you to name while designing.
+- **S: Single Responsibility:** one reason to change. `InvoicePrinter` prints, `InvoiceCalculator` calculates.
+- **O: Open/Closed:** extend without editing. New discount = new `DiscountStrategy` class, not another `if`.
+- **L: Liskov Substitution:** a subclass must work wherever the parent is used. A `Square` that breaks `Rectangle.setWidth` violates it.
+- **I: Interface Segregation:** many small interfaces. Do not force `Robot` to implement `eat()`.
+- **D: Dependency Inversion:** depend on interfaces, inject implementations (`PaymentService` takes a `PaymentGateway`).
+- Also: **DRY**, **KISS**, **composition over inheritance**, **program to an interface**, **law of Demeter** (talk to friends only).
+! If your design needs `if (type == ...)` chains, you probably need polymorphism.
+
+## Patterns You Will Actually Use
+> Match the problem to the pattern.
+```text
+Strategy     swappable algorithm        pricing rules, payment methods, sorting, rate-limit algorithms
+Factory      create without new X()     VehicleFactory, NotificationFactory, ShapeFactory
+Builder      many optional fields       Order, Pizza, HttpRequest
+Singleton    exactly one instance       config, logger, ParkingLot (use an enum or DI)
+Observer     notify subscribers         notifications, stock tickers, event listeners
+State        behaviour by state         vending machine, ATM, order status, elevator
+Decorator    add behaviour by wrapping  toppings, logging, compression streams
+Command      request as an object       undo/redo, job queues, remote control
+Adapter      convert an interface       wrap a third-party payment SDK
+Template     fixed steps, custom parts  report generators, data import pipelines
+```
+! Say why the pattern fits, not just its name.
+
+### Class Design: Classic Problems
+
+## Parking Lot
+> **Requirements:** multiple floors, spot types (small, medium, large), park and unpark vehicles, ticket with entry time, fee on exit.
+- **Classes:** `ParkingLot` (singleton/facade), `Floor`, `ParkingSpot` (id, type, occupied), `Vehicle` (abstract: `Car`, `Bike`, `Truck`), `Ticket` (id, vehicle, spot, entryTime), `FeeStrategy`.
+- **Patterns:** **Strategy** for fees (hourly, flat, by vehicle type); **Factory** for vehicles; optional Observer for "lot full" display.
+- **Logic:** `park(vehicle)`: find the first free spot that fits the vehicle's size, mark it occupied, return a `Ticket`. `unpark(ticket)`: compute fee = `strategy.fee(entry, now, vehicleType)`, free the spot.
+```java
+interface FeeStrategy { double fee(Duration d, VehicleType t); }
+class HourlyFee implements FeeStrategy {
+  public double fee(Duration d, VehicleType t) { return Math.max(1, Math.ceil(d.toMinutes() / 60.0)) * rate(t); }
+  double rate(VehicleType t) { return switch (t) { case BIKE -> 10; case CAR -> 20; case TRUCK -> 40; }; }
+}
+class ParkingLot {
+  private final List<Floor> floors; private final FeeStrategy fee;
+  synchronized Ticket park(Vehicle v) {               // synchronized: two cars must not get the same spot
+    for (Floor f : floors) { Optional<ParkingSpot> s = f.findSpot(v.type()); if (s.isPresent()) return new Ticket(v, s.get().occupy(), Instant.now()); }
+    throw new LotFullException();
+  }
+}
+```
+- **Extensions:** nearest-spot allocation (min-heap per floor), EV charging spots, multiple entry gates, payment.
+! Spot lookup + ticket + fee strategy; synchronise allocation.
+
+## Library Management System
+> **Requirements:** members borrow and return books, limits per member, due dates and fines, search by title/author, reservations.
+- **Classes:** `Library`, `Book` (isbn, title, author), `BookItem` (a physical copy with status: AVAILABLE, LOANED, RESERVED), `Member`, `Loan` (item, member, issueDate, dueDate), `Fine`, `SearchService`.
+- **Key idea:** separate **Book** (the title) from **BookItem** (each physical copy).
+- **Logic:** `borrow`: check member limit and fines, find an available `BookItem`, create a `Loan`, mark LOANED. `return`: mark AVAILABLE, fine = days late × rate, notify the next reservation (**Observer**).
+- **Patterns:** Strategy for fine calculation, Observer for reservations, State for item status.
+! Book vs BookItem is the insight interviewers look for.
+
+## ATM
+> **Requirements:** insert card, enter PIN, check balance, withdraw, deposit; dispense notes; handle errors.
+- **Classes:** `ATM`, `Card`, `Account`, `Bank` (interface to the bank service), `CashDispenser`, `Transaction`, `ATMState`.
+- **Pattern:** **State** (`Idle` → `CardInserted` → `Authenticated` → `Transaction`); each state allows only some actions, which removes `if/else` chains.
+- **Chain of Responsibility** for notes: try 2000, then 500, then 100 until the amount is zero.
+```java
+interface ATMState { void insertCard(ATM a); void enterPin(ATM a, String pin); void withdraw(ATM a, int amt); }
+class CashDispenser {
+  private final DispenseHandler first;                 // 2000 -> 500 -> 100
+  void dispense(int amount) { first.handle(amount); }
+}
+```
+- **Rules:** verify PIN (3 attempts), check balance and ATM cash, do the account update in one **transaction**, log it.
+! State pattern for the flow, chain for the notes.
+
+## Tic-Tac-Toe (and N×N Game Boards)
+> **Requirements:** two players, N×N board, detect win/draw.
+- **Classes:** `Game`, `Board`, `Player`, `Symbol/Cell`, `GameState`.
+- **O(1) win check:** keep counters instead of scanning: `rows[N]`, `cols[N]`, `diag`, `antiDiag`. A move adds +1 (player 1) or -1 (player 2) to its row, column and diagonals; a win is when any counter reaches ±N.
+```java
+int move(int r, int c, int player) {                   // player is +1 or -1
+  int add = player;
+  rows[r] += add; cols[c] += add;
+  if (r == c) diag += add;
+  if (r + c == n - 1) anti += add;
+  if (Math.abs(rows[r]) == n || Math.abs(cols[c]) == n || Math.abs(diag) == n || Math.abs(anti) == n) return player;   // winner
+  return 0;
+}
+```
+- Draw: `moves == n * n` with no winner. Validate bounds and occupied cells.
+! Counters turn a win check from O(N²) to O(1).
+
+## Vending Machine
+> **Requirements:** select item, insert coins, dispense item and change, refunds.
+- **Classes:** `VendingMachine`, `Item`, `Slot/Inventory`, `Coin`, `State` (`Idle`, `HasMoney`, `Dispensing`, `OutOfStock`).
+- **Pattern:** **State**; the machine delegates `selectItem`, `insertCoin`, `dispense`, `cancel` to the current state object.
+- **Change:** greedy over denominations (largest first) works for standard coins; mention that non-standard coin sets need DP.
+! Each state handles each action differently: that is the whole design.
+
+## Elevator System
+> **Requirements:** several elevators, floor requests, move efficiently, handle direction.
+- **Classes:** `ElevatorController`, `Elevator` (currentFloor, direction, state, stops), `Request` (internal/external), `Direction`.
+- **Logic:** each elevator keeps two sorted sets of stops (up, down) and serves them in its current direction (the **SCAN** algorithm), then reverses.
+- **Dispatch (Strategy):** assign an external request to the nearest elevator moving the same direction, or an idle one.
+- **Patterns:** **State** (idle, moving up, moving down, door open), **Strategy** for scheduling, **Observer** for floor display.
+! Two TreeSets of stops plus a scheduling strategy.
+
+## Rate Limiter
+> **Requirements:** allow at most N requests per user per time window.
+- **Algorithms (Strategy):** **Fixed window** (counter per window; burst at the boundary), **Sliding window log** (timestamps in a deque; exact, more memory), **Token bucket** (refill rate, allows bursts; most common), **Leaky bucket** (steady outflow).
+```java
+class TokenBucket {
+  private final long capacity, refillPerSec; private double tokens; private long last = System.nanoTime();
+  TokenBucket(long capacity, long refillPerSec) { this.capacity = capacity; this.refillPerSec = refillPerSec; this.tokens = capacity; }
+  synchronized boolean tryAcquire() {
+    long now = System.nanoTime();
+    tokens = Math.min(capacity, tokens + (now - last) / 1e9 * refillPerSec);
+    last = now;
+    if (tokens >= 1) { tokens -= 1; return true; }
+    return false;
+  }
+}
+// one bucket per user: ConcurrentHashMap<String, TokenBucket>
+```
+- Distributed: keep counters in **Redis** (atomic `INCR` + `EXPIRE`, or a Lua script).
+! Token bucket + one bucket per key + thread safety.
+
+## Notification System
+> **Requirements:** send email, SMS and push; user preferences; templates; retries.
+- **Classes:** `NotificationService`, `Channel` (interface: `EmailChannel`, `SmsChannel`, `PushChannel`), `Notification`, `Template`, `UserPreference`.
+- **Patterns:** **Strategy/Factory** for channels, **Observer** for events (order placed → notify), **Decorator** for adding logging/retry, **Chain** for fallback (push → SMS).
+- **Reliability:** send asynchronously via a queue, **retry with backoff**, dead-letter queue, idempotency key so a user does not get duplicates.
+! New channel = new class, no changes to the service (Open/Closed).
+
+## Splitwise (Expense Sharing)
+> **Requirements:** add expenses, split equally/by amount/by percentage, show who owes whom, simplify debts.
+- **Classes:** `User`, `Group`, `Expense` (payer, amount, splits), `Split` (abstract: `EqualSplit`, `ExactSplit`, `PercentSplit`), `BalanceSheet`.
+- **Logic:** keep a `Map<User, Map<User, Double>>` of balances: for each expense, every participant owes the payer their share.
+- **Simplify debts:** compute each user's **net balance**; repeatedly match the largest creditor with the largest debtor (two heaps) to minimise the number of transactions.
+- **Pattern:** Strategy for split types. Validate that exact splits sum to the total and percentages sum to 100.
+! Net balance per person, then match creditors and debtors.
+
+## BookMyShow / Ticket Booking (Concurrency Focus)
+> **Requirements:** browse shows, select seats, pay, no double booking.
+- **Classes:** `Movie`, `Theatre`, `Screen`, `Show`, `Seat`, `Booking`, `Payment`, `User`.
+- **Core problem:** two users choosing the same seat. Use a **seat lock with expiry**: `lockSeats(show, seats, user)` is atomic (DB row lock or `UPDATE ... WHERE status='FREE'` returning 1 row), a timer releases it after ~5 minutes if payment fails, and `confirm` turns LOCKED into BOOKED.
+- **Patterns:** State for seat status (FREE, LOCKED, BOOKED), Strategy for pricing, Observer for confirmation messages.
+! Atomic seat lock + expiry solves double booking.
+
+## LRU Cache & Other Data-Structure Designs
+> **Logic:** pair a **hash map** (O(1) lookup) with an **ordering structure** (O(1) recency or eviction).
+- **LRU:** HashMap key → node of a doubly linked list; move to head on access, evict the tail. Java shortcut: `LinkedHashMap` with `accessOrder = true` and `removeEldestEntry`.
+- **LFU:** map key → frequency bucket (a `LinkedHashSet` per count) plus `minFreq`.
+- **Min stack:** a second stack of minimums. **Queue via two stacks:** amortised O(1).
+- **TinyURL:** counter/base62 or hash → short code; map short → long; collisions and expiry.
+- **Thread-safe cache:** `ConcurrentHashMap` + `computeIfAbsent`, or Caffeine.
+! A map plus an ordering structure is the pattern.
+
+### Quality & Follow-ups
+
+## Concurrency Follow-Ups in LLD
+> Interviewers always ask "what if two users do this at once?"
+- **Shared mutable state:** guard with `synchronized`, `ReentrantLock`, or atomic classes; keep critical sections small.
+- **Collections:** `ConcurrentHashMap`, `CopyOnWriteArrayList`, `BlockingQueue` for producer-consumer.
+- **Check-then-act races** (check free spot, then take it) must be **one atomic step**.
+- **Databases:** optimistic locking (`@Version`) or `SELECT ... FOR UPDATE`; unique constraints as the final safety net.
+- Prefer **immutable** objects for values (`Ticket`, `Money`) to avoid shared-state bugs.
+! Make check-and-act atomic.
+
+## Extensibility, Testing & What to Say at the End
+> **Logic:** close by showing you thought beyond the happy path.
+- **Extensibility:** "To add a new X, I add a class implementing Y; nothing else changes" (Open/Closed).
+- **Testing:** interfaces make it easy to mock collaborators; show one unit test (fee calculation, win detection).
+- **Edge cases:** invalid input, full capacity, duplicate requests, timeouts, partial failures, clock/time zones.
+- **Persistence & scaling:** which entities go to the database, which need caching, and what you would change at 100x scale.
+- **Trade-offs:** name one decision you made and its downside.
+! Finish with extensibility, concurrency and testing.
+
+## Interview One-Liners
+- **LLD vs HLD:** classes and code structure vs services and infrastructure.
+- **Composition vs inheritance:** has-a gives flexibility; is-a couples tightly.
+- **Strategy vs State:** the caller picks an algorithm vs the object changes its own behaviour as its state changes.
+- **Factory vs Builder:** which type to create vs how to assemble a complex object.
+- **Singleton risks:** hidden global state and hard testing; prefer dependency injection.
+- **Open/Closed in practice:** add new classes, do not edit working ones.
+- **Parking lot core:** spot allocation, ticket, fee strategy, synchronised allocation.
+- **ATM/vending core:** the State pattern.
+- **Rate limiter core:** token bucket per key, thread-safe, Redis when distributed.
+- **Booking core:** atomic seat lock with expiry.

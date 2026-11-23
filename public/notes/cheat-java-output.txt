@@ -1,0 +1,302 @@
+# 01 | Java Output Questions: Tricky Snippets | Predict the output before you read the answer. Every result below was run on Java 21, and each card names the rule behind it so you can handle a variation. Turn on Self-test and try each one first. | Tricky output
+
+### try, catch, finally
+
+## finally Overrides return
+> **Rule:** `finally` always runs. A `return` inside `finally` **replaces** any earlier return or exception.
+```java
+static int a() { try { return 1; } finally { return 2; } }
+static int b() { int x = 1; try { return x; } finally { x = 5; } }
+// a() -> 2        b() -> 1
+```
+- In `b()` the return value (1) is **copied before** `finally` runs, so changing `x` later has no effect (for primitives; for an object the reference is copied, so mutating the object **is** visible).
+- `finally` is skipped only by `System.exit()`, a JVM crash, or an infinite loop/thread kill.
+- Never `return` from `finally`: it swallows exceptions.
+! Primitive return values are copied before finally runs.
+
+## Order of try, catch, finally Output
+> **Rule:** try runs until it throws; the matching catch runs; finally always runs last.
+```java
+static int c() {
+  try { throw new RuntimeException(); }
+  catch (Exception e) { return 1; }
+  finally { System.out.print("[finally]"); }
+}
+// prints [finally] before the caller receives 1
+```
+- Exception thrown in `finally` replaces the one from try/catch.
+- Multiple catches: the **most specific first**, or the code does not compile ("exception already caught").
+! Catch returns 1, but finally prints first.
+
+### Strings
+
+## String Pool & == vs equals
+> **Rule:** literals and compile-time constants share one pooled object; `new String` and runtime concatenation create new objects.
+```java
+String s1 = "hello", s2 = "hello", s3 = new String("hello");
+String h = "hel", s5 = h + "lo";
+s1 == s2          // true   same pooled literal
+s1 == s3          // false  new object on the heap
+s1 == "hel" + "lo"// true   constant folded at compile time
+s1 == s5          // false  concatenation with a variable happens at runtime
+s1 == s3.intern() // true   intern() returns the pooled one
+s1.equals(s3)     // true   same characters
+```
+- A `final String h = "hel"` makes `h + "lo"` a **constant** again, so `==` gives true.
+! Compare strings with equals; `==` compares references.
+
+## String Is Immutable: Unused Results
+> **Rule:** String methods **return** a new String; the original never changes.
+```java
+String s = "abc";
+s.toUpperCase();              // result thrown away
+System.out.println(s);        // abc
+"  a ".trim().length();       // 1
+```
+- Same for `replace`, `substring`, `concat`, `trim`. A `StringBuilder` **does** change itself.
+- `new StringBuilder("a").equals(new StringBuilder("a"))` is **false** (no `equals` override; use `compareTo` or `toString().equals`).
+! Forgetting to assign the result is a classic bug.
+
+## String Concatenation Order & char Math
+> **Rule:** evaluate **left to right**. `int + int` adds; once a String is involved, `+` concatenates. `char + int` is numeric.
+```java
+1 + 2 + "3" + 4 + 5     // "3345"     (1+2=3, then text)
+"" + 'a' + 1            // "a1"
+'a' + 1                 // 98          int
+(char) ('a' + 1)        // 'b'
+'a' + 'b' + "c"         // "195c"     97+98=195 first
+"b" + 'a' + 1 + 2       // "ba12"
+"a" + null              // "anull"
+```
+- `char c = 'a'; c += 1;` compiles (compound assignment casts back) and gives `'b'`; `c = c + 1;` does **not** compile.
+! Numbers add until the first String appears.
+
+## split, substring & null Cases
+> **Rule:** `split` drops trailing empty strings unless you pass a negative limit.
+```java
+"a,b,,".split(",").length      // 2     trailing empties removed
+"a,b,,".split(",", -1).length  // 4     keep them
+"hello".substring(1, 3)        // "el"   end index is exclusive
+String n = null; n + n         // "nullnull"
+```
+- `"abc".split("")` splits into characters; `split("|")` needs escaping (`"\\|"`) because the argument is a **regex**.
+! split takes a regex and trims trailing empties.
+
+### Overloading & Polymorphism
+
+## Method Overload Resolution
+> **Rule:** the compiler picks by **static (declared) types** in this order: exact match → widening → boxing → varargs.
+```java
+static void ov(Object o) {}  static void ov(String s) {}  static void ov(Integer i) {}
+ov("a");            // String          most specific
+ov(1);              // Integer         boxing (no Object-vs-Integer ambiguity: Integer is more specific)
+ov((Object) null);  // Object
+ov(null);           // COMPILE ERROR: ambiguous (String and Integer both fit)
+
+static void pr(long l) {}  static void pr(Integer i) {}
+pr(5);              // long            widening beats boxing
+
+static void v(int... a) {}  static void v(int a, int b) {}
+v(1, 2);            // two-int         varargs is the last resort
+v(1);  v();         // varargs
+```
+- `ch('a')` with overloads `char` and `int` picks `char`; `ch('a' + 1)` picks `int` (the expression is an int).
+- Overloading is **compile-time**; overriding is **runtime**.
+! Widening, then boxing, then varargs.
+
+## Overriding vs Hiding: Methods, Fields, Statics
+> **Rule:** instance **methods** use the **runtime** type; **fields and static methods** use the **declared** type.
+```java
+class A { String name() { return "A"; } static String st() { return "A-static"; } String f = "A-field"; }
+class B extends A { String name() { return "B"; } static String st() { return "B-static"; } String f = "B-field"; }
+A ab = new B();
+ab.name();   // B          overridden: runtime type
+ab.st();     // A-static   static is hidden, not overridden
+ab.f;        // A-field    fields are never polymorphic
+```
+! Only instance methods are polymorphic.
+
+## Constructor Calls an Overridable Method
+> **Rule:** the parent constructor runs **before** the child's fields are initialised, so the child's override sees default values.
+```java
+class Base { Base() { init(); } void init() { System.out.print("Base "); } }
+class Derived extends Base { int v = 10; void init() { System.out.print("Derived v=" + v); } }
+new Derived();     // Derived v=0
+```
+- Order: parent static → child static → parent constructor → child field initialisers → child constructor.
+! Never call overridable methods from a constructor.
+
+### Numbers & Operators
+
+## Integer Cache & Wrapper Equality
+> **Rule:** `Integer` values from **-128 to 127** are cached; `==` is true only inside that range.
+```java
+Integer a = 127, b = 127;   a == b          // true
+Integer c = 128, d = 128;   c == d          // false
+Integer.valueOf(1000).equals(1000)          // true
+Long.valueOf(1).equals(1)                   // false   Long vs Integer: different types
+Integer in = null; int z = false ? 1 : in;  // NullPointerException (unboxing)
+```
+! Always use equals for wrapper objects.
+
+## Integer Division, Modulo & Overflow
+> **Rule:** int arithmetic truncates toward zero and **wraps around silently** on overflow.
+```java
+5 / 2            // 2          -5 / 2   // -2
+-5 % 3           // -2         5 % -3   // 2     sign follows the dividend
+5.0 / 0          // Infinity   0.0 / 0  // NaN    doubles do not throw
+5 / 0            // ArithmeticException (ints)
+Integer.MAX_VALUE + 1        // -2147483648
+Math.abs(Integer.MIN_VALUE)  // -2147483648   no positive counterpart
+24*60*60*1000*1000           // 500654080     int overflow
+24L*60*60*1000*1000          // 86400000000   one long fixes it
+1 / 2 * 2.0                  // 0.0           int division first
+```
+- Make one operand `long`/`double` **before** the overflowing step.
+! Int overflow does not throw; it wraps.
+
+## Floating Point & Rounding
+> **Rule:** binary floating point cannot represent most decimals exactly.
+```java
+0.1 + 0.2            // 0.30000000000000004
+0.1 + 0.2 == 0.3     // false
+1.1f == 1.1          // false   float vs double precision
+Double.NaN == Double.NaN   // false   use Double.isNaN
+Math.round(2.5)      // 3
+Math.round(-2.5)     // -2     rounds half toward positive infinity
+(int) 3.99           // 3      truncation, not rounding
+Double.MIN_VALUE > 0 // true   smallest positive, not most negative
+```
+- Use `BigDecimal` (built from **strings**) for money; compare doubles with a tolerance.
+! Never use == for floating point.
+
+## Casting, Narrowing & Compound Assignment
+> **Rule:** narrowing casts keep the low bits; compound assignment (`+=`) casts for you.
+```java
+(byte) 200            // -56   200 wraps into a signed byte
+byte b = 10; b += 5;  // OK, 15   (b = b + 5 would not compile: int to byte)
+short s = 1; s++;     // 2
+float f = 1.1;        // COMPILE ERROR: double to float
+int x = 10L;          // COMPILE ERROR: long to int
+long l = Integer.MAX_VALUE; l++;   // 2147483648
+```
+! `+=` hides a cast; plain `=` does not.
+
+## i++ and ++i Puzzles
+> **Rule:** `i++` yields the **old** value then increments; `++i` increments then yields the new value. Assignment stores the result **after** the right side is evaluated.
+```java
+int i = 5; i = i++ + ++i;    // 5 + 7  -> 12
+int j = 5; j = j++;          // j stays 5  (old value is stored back)
+int k = 10; k += k++ + ++k;  // 10 + (10 + 12) -> 32
+```
+- Compound assignment evaluates the left operand **first**, then the right.
+- Do not write code like this: explain the rule and stop.
+! Post-increment returns the old value, which is then overwritten.
+
+## Short-Circuit vs Non-Short-Circuit Operators
+> **Rule:** `&&` and `||` stop early; `&` and `|` always evaluate both sides.
+```java
+int a = 0; boolean r1 = (a++ > 0) && (a++ > 0);   // a == 1   second side skipped
+int c = 0; boolean r2 = (c++ >= 0) | (c++ > 0);   // c == 2   both sides evaluated
+```
+! Side effects in the second operand may not happen.
+
+## Bitwise Shifts & Literals
+> **Rule:** shift counts are masked to the type size; `>>` keeps the sign, `>>>` fills with zeros; a leading `0` means octal.
+```java
+1 << 33       // 2     33 & 31 = 1
+-8 >> 1       // -4    arithmetic shift
+-8 >>> 28     // 15    logical shift
+010 + 1       // 9     octal 10 = 8
+0x10 + 0b11   // 19    16 + 3
+7 ^ 5         // 2
+Integer.toBinaryString(-1).length()   // 32
+```
+! A leading zero literal is octal.
+
+### Collections & References
+
+## Pass by Value With Objects
+> **Rule:** Java passes **a copy of the reference**. You can mutate the object, but you cannot re-point the caller's variable.
+```java
+static void change(StringBuilder sb, String s, int[] a, int n) {
+  sb.append("X");   s = s + "X";   a[0] = 99;   n = 99;
+}
+// StringBuilder "A" -> "AX"   String "A" -> "A"   int[] {1} -> {99}   int 1 -> 1
+```
+! Mutation is visible; reassignment is not.
+
+## List remove(int) vs remove(Object)
+> **Rule:** `remove(1)` on a `List<Integer>` removes **index** 1; to remove the value use `remove(Integer.valueOf(1))`.
+```java
+List<Integer> li = new ArrayList<>(List.of(1, 2, 3, 4));
+li.remove(1);                    // [1, 3, 4]   removed index 1
+li.remove(Integer.valueOf(1));   // [3, 4]      removed value 1
+Arrays.asList(1, 2).add(3);      // UnsupportedOperationException (fixed-size list)
+```
+! Overload picks `int` first, so the index version wins.
+
+## ConcurrentModificationException Puzzles
+> **Rule:** removing from a list inside a for-each throws `ConcurrentModificationException` on the **next** `next()`, **unless** you removed the second-to-last element (then `hasNext()` is false and the loop quietly ends).
+```java
+List<Integer> a = new ArrayList<>(List.of(1, 2, 3));
+for (Integer x : a) if (x == 2) a.remove(x);      // no exception, result [1, 3]  (quirk)
+List<Integer> b = new ArrayList<>(List.of(1, 2, 3));
+for (Integer x : b) if (x == 1) b.remove(x);      // ConcurrentModificationException
+```
+- **Safe ways:** `Iterator.remove()`, `list.removeIf(x -> x == 1)`, or iterate a copy.
+! The behaviour depends on position: fix it, do not rely on it.
+
+## HashMap, HashSet & Null Handling
+> **Rule:** `HashMap` allows one null key and null values; `TreeMap` rejects null keys; `Hashtable` and `ConcurrentHashMap` reject nulls. A class without `equals/hashCode` uses identity.
+```java
+Map<String,Integer> m = new HashMap<>(); m.put(null, 1); m.put(null, 2);   // {null=2}
+new TreeMap<String,Integer>().put(null, 1);                                 // NullPointerException
+Set<Object> s = new HashSet<>(); s.add(new Object()); s.add(new Object());  // size 2: different identities
+new int[]{1}.equals(new int[]{1})        // false   arrays use identity
+Arrays.equals(new int[]{1}, new int[]{1})// true
+```
+! Override equals and hashCode together, or sets and maps misbehave.
+
+### Control Flow & Compile Errors
+
+## Loops, break, continue & Labels
+> **Rule:** `continue` skips to the next iteration of the **innermost** loop; `break` exits the innermost loop; a **label** targets an outer one.
+```java
+int cnt = 0;
+for (int x = 0; x < 3; x++)
+  for (int y = 0; y < 3; y++) { if (y == 1) continue; if (x == 2) break; cnt++; }
+// cnt == 4   (x=0: y=0,2 -> 2;  x=1: y=0,2 -> 2;  x=2: breaks at y=0)
+
+outer: for (int x = 0; x < 3; x++) for (int y = 0; y < 3; y++) { if (y == 1) continue outer; }
+```
+! Trace the loop variables on paper, row by row.
+
+## Does It Compile? Common Errors
+> **Rule:** these fail at **compile time**, not run time.
+```text
+int x; System.out.println(x);                local variable not initialised
+byte b = b1 + b2;                            int cannot be assigned to byte
+char c = 'a'; c = c + 1;                     int cannot be assigned to char
+final int n = 1; n = 2;                      cannot assign a final variable
+List<Object> l = new ArrayList<String>();    incompatible types (generics are invariant)
+void f() throws IOException {}  f();         unhandled checked exception
+catch (Exception e) {} catch (IOException e) {}   unreachable catch (specific must come first)
+int y = 5; int y = 6;                        variable already defined
+return statement missing in a non-void method
+static void m(String s) {} static void m(Integer i) {}  m(null);   ambiguous method call
+```
+- Runtime-only: `ClassCastException`, `ArrayStoreException` (`Object[] o = new String[1]; o[0] = 1;`), `NullPointerException`, `NumberFormatException`.
+! Read the compiler message literally: it names the rule you broke.
+
+## Static, Instance Blocks & Class Loading Order
+> **Rule:** static blocks run **once** when the class is first used; instance blocks run before **every** constructor body.
+```java
+class P { static { print("P-static"); } { print("P-init"); } P() { print("P-ctor"); } }
+class C extends P { static { print("C-static"); } { print("C-init"); } C() { print("C-ctor"); } }
+new C();   // P-static C-static P-init P-ctor C-init C-ctor
+new C();   // P-init P-ctor C-init C-ctor        (static blocks do not run again)
+```
+- A `static` field initialiser runs in textual order with static blocks.
+- An exception in a static block gives `ExceptionInInitializerError`, then `NoClassDefFoundError` on later use.
+! Static once, parent before child, instance blocks before the constructor.

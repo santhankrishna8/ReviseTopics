@@ -674,6 +674,74 @@ ng update @angular/core @angular/cli              move to the next major version
 - Keep `NgModule` libraries working via `importProvidersFrom` / importing the module in a standalone component.
 ! One major at a time, schematics first, tests between steps.
 
+### UI, i18n, PWA & End-to-End Testing
+
+## Angular Material & the CDK
+> **Angular Material** is the official component library (buttons, forms, tables, dialogs, datepicker) following Material Design. The **CDK** (Component Dev Kit) offers behaviour **without styling**: overlay, drag and drop, virtual scroll, a11y helpers, clipboard.
+```bash
+ng add @angular/material            # installs, sets a theme, adds fonts/icons
+```
+```ts
+@Component({ standalone: true, imports: [MatButtonModule, MatTableModule, MatDialogModule, MatFormFieldModule, MatInputModule], ... })
+export class UsersComponent {
+  private dialog = inject(MatDialog);
+  open() { this.dialog.open(EditUserComponent, { data: user, width: '480px' }).afterClosed().subscribe(r => ...); }
+}
+```
+- **Theming:** Material 3 design tokens and Sass mixins; override with CSS variables, avoid `::ng-deep`.
+- Commonly asked: `MatTable` with `MatSort` and `MatPaginator`, `MatDialog`, `MatSnackBar`, `MatAutocomplete`, form-field validation messages (`mat-error`), `CdkVirtualScrollViewport` for long lists.
+- **Alternatives:** PrimeNG, NG-ZORRO, Tailwind with headless components (Spartan/Angular Aria).
+! Material for ready components, CDK when you want custom UI with built-in behaviour.
+
+## Internationalisation (i18n) & Localisation
+> **i18n** prepares the app for multiple languages; **localisation** supplies the translations, dates, numbers and currencies.
+- **Built-in (compile-time):** mark text with `i18n` attributes, extract with `ng extract-i18n` to XLIFF, translate, and build **one bundle per locale**. Fast at runtime, but a separate build per language.
+```html
+<h1 i18n="@@welcome">Welcome</h1>
+<span i18n>{count, plural, =0 {no items} =1 {one item} other {{{count}} items}}</span>
+```
+- **Runtime libraries:** **ngx-translate** or **Transloco** load JSON translation files and switch language without reloading (`{{ 'HOME.TITLE' | translate }}`).
+- **Pipes** use the locale: `date`, `currency`, `number`, `percent`; set `LOCALE_ID` (and register locale data).
+- Also handle **right-to-left** layouts, text expansion, pluralisation, and time zones.
+! Built-in i18n = a build per language; Transloco/ngx-translate = switch at runtime.
+
+## PWA & Service Workers
+> A **Progressive Web App** is installable, works offline and can receive push notifications, powered by a **service worker** (a background script that intercepts network requests).
+```bash
+ng add @angular/pwa             # adds manifest, icons and ngsw-config.json
+```
+- **`ngsw-config.json`** defines caching: `assetGroups` (app shell: prefetch) and `dataGroups` (API responses: strategies `freshness` (network first) or `performance` (cache first)).
+- **Update flow:** `SwUpdate.versionUpdates` tells you a new version is ready, then prompt the user to reload.
+- Requires **HTTPS**; the service worker only runs in production builds.
+- Other pieces: web app manifest, `SwPush` for push notifications, background sync.
+! Cache the app shell, choose a strategy for API data, and prompt for updates.
+
+## Accessibility (a11y) in Angular
+> Build UIs everyone can use (WCAG). Interviewers ask for concrete practices.
+- Use **semantic HTML** (`button`, `nav`, `main`, `label`), not clickable `div`s; every input needs a **label**.
+- **Keyboard support:** everything reachable and operable with Tab/Enter/Space, visible focus styles, logical tab order.
+- **ARIA** only when needed: `aria-label`, `aria-expanded`, `aria-live` for dynamic updates, `role`.
+- **Focus management** on route changes and in dialogs (CDK `FocusTrap`, `LiveAnnouncer`); text alternatives (`alt`) for images; sufficient **colour contrast** (4.5:1).
+- Test with a screen reader, **axe**/Lighthouse, and keyboard-only navigation. Angular CDK `a11y` module helps.
+! Semantic HTML first, ARIA second.
+
+## End-to-End Testing (Playwright, Cypress) & Component Testing
+> **E2E tests** drive a real browser through user journeys (login, create order). **Playwright** and **Cypress** are the usual choices (Protractor is retired).
+```ts
+test('user can log in', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill('a@x.com');
+  await page.getByLabel('Password').fill('secret');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL('/dashboard');
+});
+```
+- Select by **role/label/text**, not CSS classes; avoid fixed sleeps (use auto-waiting); keep E2E tests few and focused on **critical flows**.
+- **Stub the network** (`page.route`) for deterministic tests, or run against a seeded test backend.
+- **Pyramid:** many unit tests (Jasmine/Karma or Jest/Vitest) → component tests with `TestBed` / **Testing Library** → a few E2E tests. Run in CI headless.
+- **Visual regression** and **a11y checks** (axe) can be added to E2E runs.
+! Few, stable, user-centred E2E tests; mock the network when you can.
+
 ### Quick Answers
 
 ## Interview One-Liners

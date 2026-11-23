@@ -51,7 +51,7 @@
 > **Open:** Java Coding Questions cheat sheet (use **Self-test**).
 - **Do:** Arrays (second largest, rotate, two sum, Kadane, move zeros, binary search), Numbers (prime, Fibonacci, factorial, GCD), Strings (valid parentheses, longest substring), Linked list (reverse, cycle, middle).
 - Say the **logic** before coding; state the time and space complexity.
-- Redo the ones you could not finish in 10 minutes.
+- Redo the ones you could not finish in 10 minutes. Then do the **Java Output Questions** sheet with Self-test on: predict each result before revealing it.
 ! Interviewers grade your reasoning, not just the final code.
 
 ## Day 6: SQL Fundamentals
@@ -77,6 +77,7 @@
 ## Day 9: REST APIs, Validation, Errors & Testing
 > **Open:** Spring Boot cheat sheet → REST APIs, Validation & Errors, Testing, API Quality, Production Features.
 - **Cards:** controller annotations, `ResponseEntity`, status codes, Bean Validation, `@RestControllerAdvice`/ProblemDetail, DTOs/MapStruct, pagination, versioning, test slices, Mockito, Actuator, Flyway.
+- **Also open:** the **JUnit & Mockito** cheat sheet, and the Spring Boot cards on Jackson, Redis caching, messaging and logging.
 - **Practise:** design a CRUD API for orders including errors and pagination; write the controller test.
 ! Consistent error format and correct status codes impress interviewers.
 
@@ -106,6 +107,7 @@
 
 ## Day 14: Scenarios, Mock Interview & Weak Spots
 > **Open:** Scenario & Project Answers cheat sheet; then every sheet's cards you rated **Shaky**.
+- **Also:** work through two problems from the **Low-Level Design** sheet (parking lot, ATM) aloud.
 - **Do:** write your two-minute **project explanation**, STAR stories, and answers for "slow API", "N+1", "production bug", "secure an API". Practise out loud or with a friend.
 - Run a **mock interview**: 10 random questions from the Q&A sections with **Quiz mode** on, plus one coding problem and one SQL query under a timer.
 - Re-rate all five topics; list three weak cards and re-read just those.
