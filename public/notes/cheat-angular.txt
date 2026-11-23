@@ -641,6 +641,39 @@ describe('UserService', () => {
 - **Micro-frontends:** Module/Native Federation to compose separately deployed apps.
 ! Smaller bundle, fewer change-detection runs, less work in templates.
 
+### Versions & Migration
+
+## Angular Version Milestones (What to Mention)
+> Interviewers ask "what changed recently". Know the story: **modules → standalone, zone.js → signals, decorators/structural directives → built-in syntax**.
+```text
+v2+      TypeScript rewrite of AngularJS (1.x); components, DI, RxJS
+v9       Ivy renderer default: smaller bundles, faster builds, better debugging
+v14      standalone components introduced; typed reactive forms; inject()
+v15      standalone APIs stable; functional guards and interceptors; directive composition
+v16      signals introduced (preview); required inputs; takeUntilDestroyed
+v17      built-in control flow @if / @for / @switch; @defer; new application builder (esbuild/Vite)
+v18      zoneless change detection (experimental); Material 3; unified control-state events
+v19      standalone is the default; incremental hydration; linkedSignal / resource (experimental)
+v20      signal APIs stable; structural directives *ngIf/*ngFor deprecated; zoneless in developer preview
+```
+- For the **latest** releases and exact status of newer features, check the official release notes (angular.dev) before the interview.
+- **AngularJS (1.x) vs Angular:** JavaScript, controllers/scope, two-way digest cycle vs TypeScript, components, one-way flow, DI, AOT.
+! Say the direction of travel: standalone + signals + less zone.js.
+
+## Migrating to Standalone, Signals & New Control Flow
+> Angular ships **schematics** that migrate code automatically, one step at a time.
+```text
+ng generate @angular/core:standalone              convert NgModules/components to standalone (3 steps)
+ng generate @angular/core:control-flow            *ngIf/*ngFor -> @if/@for
+ng generate @angular/core:signal-input-migration  @Input() -> input()
+ng generate @angular/core:inject                  constructor injection -> inject()
+ng update @angular/core @angular/cli              move to the next major version
+```
+- Upgrade **one major version at a time**; run tests after each; use `ng update` and the official **update guide**.
+- Do not mix everything at once: standalone first, then control flow, then signals, then OnPush/zoneless.
+- Keep `NgModule` libraries working via `importProvidersFrom` / importing the module in a standalone component.
+! One major at a time, schematics first, tests between steps.
+
 ### Quick Answers
 
 ## Interview One-Liners

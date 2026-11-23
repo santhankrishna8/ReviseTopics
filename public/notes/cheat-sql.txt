@@ -725,6 +725,27 @@ now          NOW()           NOW()          GETDATE()    SYSDATE
 ```
 ! The ideas are the same everywhere; only a few function names change.
 
+## MySQL vs PostgreSQL: What Interviewers Ask
+> Both are open-source relational databases; know where they differ.
+```text
+                    MySQL (InnoDB)                    PostgreSQL
+default isolation   REPEATABLE READ                   READ COMMITTED
+MVCC / locking      undo logs, gap locks              tuple versions + VACUUM
+auto id             AUTO_INCREMENT                    SERIAL / IDENTITY / sequences
+upsert              ON DUPLICATE KEY UPDATE           ON CONFLICT DO UPDATE
+returning rows      not supported (use LAST_INSERT_ID) INSERT/UPDATE ... RETURNING
+JSON                JSON                              JSON and JSONB (indexable with GIN)
+indexes             B-tree, hash (memory), full-text  B-tree, hash, GIN, GiST, BRIN, partial, expression
+window functions    8.0+                              yes (long supported)
+recursive CTE       8.0+                              yes
+case sensitivity    case-insensitive collations       case-sensitive; use ILIKE / citext
+string concat       CONCAT()                          || operator or CONCAT()
+boolean             TINYINT(1)                        true BOOLEAN type
+```
+- **MySQL** is simple and very common for web apps; **PostgreSQL** is stricter and richer (advanced types, extensions like PostGIS, better standards compliance).
+- PostgreSQL needs **VACUUM** (autovacuum) to reclaim dead rows; MySQL InnoDB uses the clustered primary key, so a good PK matters even more.
+! Different defaults, same SQL fundamentals: say which one your project used.
+
 ## Interview One-Liners
 - **WHERE vs HAVING:** filter rows before grouping vs groups after.
 - **DELETE vs TRUNCATE:** selected rows, can roll back vs all rows, fast.

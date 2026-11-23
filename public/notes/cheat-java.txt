@@ -913,6 +913,56 @@ enum Registry { INSTANCE; void register(String s) { ... } }   // thread-safe, se
 ```
 ! Template = fixed skeleton, flexible steps.
 
+### Gotchas & Edge Cases
+
+## Generics Edge Cases & Common Compile Errors
+> Generics are checked at **compile time** and **erased** at runtime. Most surprises come from that.
+- `List<Object> = new ArrayList<String>()` does **not** compile: generics are **invariant** (a `List<String>` is not a `List<Object>`). Use `List<? extends Object>`.
+- Cannot do `new T()`, `new T[10]`, `T.class`, `instanceof List<String>`, or have a **static** field of type `T`.
+- **Overloading clash:** `void f(List<String>)` and `void f(List<Integer>)` have the same erasure: compile error.
+- **PECS:** *Producer Extends, Consumer Super*: read from `? extends T`, write to `? super T`.
+- **Generic methods:** `static <T extends Comparable<T>> T max(List<T> l)`. **Raw types** (`List`) disable checks: avoid them.
+- **Heap pollution:** mixing raw and generic types can throw `ClassCastException` far from the cause.
+```java
+List<? extends Number> src = List.of(1, 2.5);   Number n = src.get(0);   // read OK, add() not allowed
+List<? super Integer> dst = new ArrayList<Number>();  dst.add(5);        // write OK, read gives Object
+```
+! Invariant, erased, and PECS: that is 90% of generics questions.
+
+## Stream & Optional Pitfalls
+> Streams are **lazy** (nothing runs until a terminal operation) and **single-use**.
+- Reusing a stream throws `IllegalStateException: stream has already been operated upon`.
+- **No side effects** in `map/filter`; do not modify the source collection while streaming (`ConcurrentModificationException`).
+- `peek` is for debugging only. `sorted()` and `distinct()` are **stateful** and can be expensive; `limit` short-circuits infinite streams (`Stream.iterate`, `generate`).
+- `toList()` (Java 16) is **unmodifiable**; `Collectors.toList()` makes no promise; `Collectors.toMap` throws on **duplicate keys** unless you pass a merge function.
+- **Parallel streams** share the common pool: avoid for I/O or ordered side effects.
+- **Optional:** use as a **return type**, not for fields or parameters; never call `get()` without `isPresent`; prefer `orElse`, `orElseGet` (lazy), `orElseThrow`, `map`; `orElse(expensive())` always evaluates.
+- `Optional.of(null)` throws NPE; use `ofNullable`.
+```java
+Map<String, Integer> m = list.stream().collect(Collectors.toMap(Emp::dept, Emp::salary, Integer::sum));   // merge duplicates
+```
+! Lazy until the terminal operation; use orElseGet for expensive defaults.
+
+## Java 8 vs 11 vs 17 vs 21: What to Say in an Interview
+> Pick a few features per version and say what problem they solved.
+```text
+8    lambdas, streams, Optional, default methods, java.time          functional style
+9    modules (JPMS), List.of / Map.of, private interface methods     less boilerplate
+10   var                                                              type inference
+11   HttpClient, String.isBlank/strip/lines, run .java directly       LTS
+14   switch expressions, helpful NullPointerException messages
+15   text blocks
+16   records, pattern matching for instanceof, Stream.toList()
+17   sealed classes, strong encapsulation of JDK internals            LTS
+21   virtual threads, record patterns, pattern matching for switch    LTS
+     sequenced collections (getFirst/getLast/reversed)
+25   scoped values, simpler main, flexible constructor bodies         LTS
+```
+- **Virtual threads:** cheap threads managed by the JVM; write simple blocking code, scale to thousands of concurrent tasks. Not faster for CPU-bound work.
+- **Records:** immutable data carriers with generated `equals/hashCode/toString`.
+- **Sealed classes:** restrict which classes may extend, so a `switch` can be exhaustive without `default`.
+! Know your project's Java version and one real feature you used from it.
+
 ### Coding Questions
 
 ## Reverse a String & Palindrome

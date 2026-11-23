@@ -716,6 +716,48 @@ Whitelabel Error Page                no mapping; check the path and the package 
 ```
 ! Read the root cause at the bottom of the stack trace first.
 
+### More Spring Data & Config
+
+## Dynamic Queries With JPA Specifications
+> A **Specification** is a reusable predicate. Combine them to build search filters (name, status, date range) without writing many query methods.
+```java
+public class UserSpecs {
+  static Specification<User> nameLike(String n) {
+    return (root, q, cb) -> n == null ? null : cb.like(cb.lower(root.get("name")), "%" + n.toLowerCase() + "%");
+  }
+  static Specification<User> status(Status s) {
+    return (root, q, cb) -> s == null ? null : cb.equal(root.get("status"), s);
+  }
+  static Specification<User> createdAfter(Instant t) {
+    return (root, q, cb) -> t == null ? null : cb.greaterThan(root.get("createdAt"), t);
+  }
+}
+// repository extends JpaSpecificationExecutor<User>
+Page<User> page = repo.findAll(
+    where(nameLike(name)).and(status(status)).and(createdAfter(from)),
+    PageRequest.of(0, 20, Sort.by("createdAt").descending()));
+```
+- A `null` predicate is ignored, so optional filters just work.
+- Alternatives: **Querydsl**, the Criteria API directly, `Example` queries, or a custom repository fragment for very complex queries.
+- Join conditions inside Specifications can cause duplicates or N+1: use `query.distinct(true)` and fetch carefully.
+! Each filter is one small, null-safe specification; combine with and/or.
+
+## Externalized Configuration & Property Precedence
+> Boot reads config from many sources; **later/higher sources override** earlier ones.
+```text
+(low)   defaults in code
+        application.properties / application.yml  (packaged in the jar)
+        application-{profile}.properties          (profile-specific overrides the base)
+        OS environment variables                  (SPRING_DATASOURCE_URL, relaxed binding)
+        Java system properties                    (-Dserver.port=9090)
+(high)  command-line arguments                    (--server.port=9090)
+```
+- **Profiles:** `spring.profiles.active=prod`; `@Profile("dev")` on beans; `application-prod.yml`.
+- **Typed config:** `@ConfigurationProperties(prefix = "app.mail")` on a record or class, validated with `@Validated`. Prefer it over scattered `@Value`.
+- **Secrets:** never commit them: use environment variables, Kubernetes Secrets, Vault or a cloud secret manager; `${DB_PASSWORD}` placeholders in YAML.
+- `spring.config.import=optional:configserver:` pulls from Spring Cloud Config.
+! Command line beats env vars beats profile file beats base file.
+
 ### Quick Answers
 
 ## Interview One-Liners

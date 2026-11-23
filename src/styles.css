@@ -488,3 +488,10 @@ code, pre, .doc :not(pre) > code, .code pre { font-variant-ligatures: none; font
   .search input { height: 44px; }
 }
 :where(.btn, .topic, .sheets a, .foot-link, .qa summary):active { opacity: .85; }
+
+/* Self-test on cheat sheets: a card shows only its title until "Show answer" is pressed */
+.cards > section.sec.hide-body > :not(.sec-head):not(.reveal) { display: none; }
+.cards .reveal { display: block; width: 100%; margin: 4px 0 10px; padding: 14px; border: 1px dashed var(--line-2); border-radius: 12px; background: none; color: var(--accent-ink); font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; }
+.cards .reveal:hover { background: var(--hover); }
+.cards .reveal:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+@media print { .cards .reveal { display: none !important; } .cards > section.sec.hide-body > :not(.sec-head) { display: revert !important; } }

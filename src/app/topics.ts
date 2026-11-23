@@ -4,6 +4,7 @@ export type Topic = { id: string; name: string; ready?: boolean; poster?: boolea
 // notes format (see notes.ts), then set ready: true here.
 export const GROUPS: { name: string; topics: Topic[] }[] = [
   { name: 'Cheat Sheets', topics: [
+    { id: 'cheat-plan', name: '14-Day Revision Plan', ready: true, poster: true },
     { id: 'cheat-java', name: 'Java', ready: true, poster: true },
     { id: 'cheat-angular', name: 'Angular', ready: true, poster: true },
     { id: 'cheat-typescript', name: 'TypeScript', ready: true, poster: true },

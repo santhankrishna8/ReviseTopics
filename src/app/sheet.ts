@@ -16,6 +16,10 @@ export type PageLink = { href: string; label: string; hint: string };
         </nav>
         <div class="bar-actions">
           @if (cheat(); as c) { <a class="btn btn-outline" [href]="c">Cheat sheet</a> }
+          @if (poster()) {
+            <button type="button" class="btn btn-outline" [attr.aria-pressed]="selfTest()" (click)="setSelfTest(!selfTest())"
+                    title="Hide each card's answer so you can test yourself, then reveal it">Self-test</button>
+          }
           @if (!poster()) {
             <button type="button" class="btn btn-outline" [attr.aria-pressed]="quick()" (click)="setQuick(!quick())"
                     title="Show only definitions, tips and questions">Quick revise</button>
@@ -42,7 +46,7 @@ export type PageLink = { href: string; label: string; hint: string };
         @if (sec.group) {
           <h2 class="sec grp" [id]="'sec-' + i" [attr.data-tone]="sec.tone">{{ sec.title }}</h2>
         } @else {
-        <section class="sec" [id]="'sec-' + i" [attr.data-tone]="sec.tone" [attr.aria-labelledby]="'h-' + i">
+        <section class="sec" [class.hide-body]="poster() && selfTest() && !revealed().has(i)" [id]="'sec-' + i" [attr.data-tone]="sec.tone" [attr.aria-labelledby]="'h-' + i">
           <div class="sec-head">
             <h2 [id]="'h-' + i">@if (poster()) { <span class="num">{{ sec.num }}</span> }{{ sec.title }}</h2>
             @if (sec.isQa) {
@@ -54,6 +58,9 @@ export type PageLink = { href: string; label: string; hint: string };
               </button>
             }
           </div>
+          @if (poster() && selfTest() && !revealed().has(i)) {
+            <button type="button" class="reveal" (click)="reveal(i)">Show answer</button>
+          }
           @for (b of sec.blocks; track $index) {
             @if (b.k === 'ul') {
               <ul>
@@ -153,6 +160,10 @@ export class SheetView {
   protected setQuick(v: boolean) { this.quick.set(v); store.set('quick', v ? '1' : '0'); }
 
   protected readonly quiz = signal(store.get('quiz') === '1');
+  protected readonly selfTest = signal(store.get('selftest') === '1');   // cheat sheets: hide card bodies until revealed
+  protected readonly revealed = signal<Set<number>>(new Set());
+  protected setSelfTest(v: boolean) { this.selfTest.set(v); this.revealed.set(new Set()); store.set('selftest', v ? '1' : '0'); }
+  protected reveal(i: number) { this.revealed.update(s => new Set(s).add(i)); }
   protected readonly activeSec = signal(0);
   protected readonly copied = signal('');
   private raf = 0;
@@ -161,6 +172,7 @@ export class SheetView {
     // New sheet or deep link to a section: reset quiz mode, then scroll once the DOM is updated.
     effect(() => {
       this.sheet();
+      untracked(() => this.revealed.set(new Set()));
       const sec = this.section();
       requestAnimationFrame(() => {
         const el = sec === undefined ? null : document.getElementById('sec-' + sec);
