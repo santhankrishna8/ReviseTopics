@@ -1,0 +1,531 @@
+@ Must-Know
+# b | Interview Basics: Caching | The caching questions asked in Java full-stack, Angular and AI interviews. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Concepts
+Q*: What is caching and why use it?
+A: Keeping a copy of data in a faster place (memory) so the next request does not hit the slow source (database, remote API, an expensive calculation). It cuts response time and load on the source. Example: product details cached in Redis for 10 minutes instead of querying MySQL on every page view.
+Q*: Cache hit vs cache miss? What is the hit ratio?
+A: A hit means the data was in the cache; a miss means it was not, so we read the source and usually store it. Hit ratio = hits / (hits + misses). A high ratio (above 80–90%) means the cache is doing its job.
+Q*: What is cache-aside (lazy loading)?
+A: The most common pattern. The app checks the cache first; on a miss it reads the database, puts the result in the cache with a TTL, and returns it. On an update it writes the database and deletes (evicts) the cache entry. Spring's `@Cacheable` and `@CacheEvict` implement exactly this.
+Q*: Write-through vs write-back (write-behind)?
+A: Write-through writes to the cache and the database together, so the cache is always fresh but writes are slower. Write-back writes to the cache first and to the database later in batches: fast writes, but data can be lost if the cache crashes before flushing.
+Q*: What are TTL and eviction? Name the eviction policies.
+A: TTL (time to live) removes an entry after a set time, so stale data does not live forever. Eviction removes entries when the cache is full: LRU (least recently used, the most common), LFU (least frequently used), FIFO (oldest first).
+Q*: What is cache invalidation and why is it hard?
+A: Removing or updating cached data when the source changes. It is hard because the cache and the database can briefly disagree, especially with many servers. The usual answer: update the database, then delete the cache key, and add a TTL as a safety net.
+Q: Local (in-memory) vs distributed cache?
+A: Local (Caffeine, a HashMap) lives inside one app instance: fastest, but each instance has its own copy and they can disagree. Distributed (Redis) is one shared cache over the network: every instance sees the same data and it survives app restarts, at the cost of a network hop.
+Q: What should you not cache?
+A: Data that changes on every request, data that must always be exactly current (account balance during payment), huge objects that are rarely reused, and sensitive data in shared caches unless it is protected.
+
+## Problems
+Q*: What is a cache stampede (thundering herd)?
+A: A popular key expires and thousands of requests miss at once and all hit the database together. Fixes: a lock so only one request reloads the key (others wait or get the old value), refreshing before expiry, and adding random jitter to TTLs.
+Q: Cache penetration vs cache avalanche?
+A: Penetration: requests for keys that do not exist (id = -1) always miss and hit the database; fix by caching the "not found" result briefly or using a Bloom filter. Avalanche: many keys expire at the same moment, or the cache goes down, and the database is flooded; fix with TTL jitter, a replicated cache and rate limits.
+
+## Spring, Hibernate, HTTP, Angular
+Q*: How do you add caching in Spring Boot?
+A: Add `@EnableCaching` on a configuration class, then `@Cacheable("products")` on a read method (cached by its arguments), `@CachePut` to update the cache, and `@CacheEvict` to remove an entry on update or delete. Without extra setup Spring uses an in-memory map; add `spring-boot-starter-data-redis` (or Caffeine) for a real cache.
+Q*: Why does @Cacheable sometimes not work?
+A: It works through a Spring proxy, so a call from another method in the same class (self-invocation) skips the proxy and the cache. It also does nothing without `@EnableCaching`, and it ignores private methods.
+Q*: Hibernate first-level vs second-level cache?
+A: The first-level cache is the persistence context (the Session or EntityManager): on by default, it lasts one transaction, and loading the same entity twice runs one SQL query. The second-level cache is shared across sessions and must be turned on with a provider (Ehcache, Hazelcast, Infinispan) and `@Cacheable` / `@Cache` on entities.
+Q: What is Redis?
+A: An in-memory key-value store used as a distributed cache, session store, rate limiter, message broker and for distributed locks. It supports strings, hashes, lists, sets and sorted sets, TTL per key, and optional persistence to disk.
+Q: How does HTTP caching work?
+A: The server sends `Cache-Control: max-age=3600` so the browser or CDN reuses the response for an hour. With `ETag`, the browser asks again with `If-None-Match`; if nothing changed the server replies `304 Not Modified` with no body, which saves bandwidth.
+Q: How do you cache an HTTP call in Angular?
+A: In a service, keep the Observable with `shareReplay(1)` so every subscriber shares one request and late subscribers get the last value. Or store results in a signal or a Map keyed by URL, or write an HTTP interceptor that caches GET responses.
+Q: What is an LRU cache and how do you build one in Java?
+A: A fixed-size cache that removes the least recently used entry when full. In Java, extend `LinkedHashMap` with `accessOrder = true` and override `removeEldestEntry` to return `size() > capacity`. Without that class: a HashMap plus a doubly linked list, giving O(1) get and put.
+
+@ Beginner
+# 01 | Caching Fundamentals | What a cache is, where caches live from the browser to the database, what to cache, hit ratio and TTL | Fundamentals
+
+## What a Cache Is
+> A **cache** is a small, fast store that keeps copies of data that is **expensive to fetch or compute**, so repeated requests are served from memory instead of the slow source.
+```text
+Request ──▶ Cache ──hit──▶ return (≈1 ms)
+              │
+             miss
+              ▼
+           Database / API / computation (≈20–500 ms) ──▶ store in cache ──▶ return
+```
+- **Speed:** memory reads take microseconds; a DB query or API call takes milliseconds or more.
+- **Load:** fewer queries means the database copes with more users.
+- **Cost:** fewer calls to paid APIs (LLM calls, maps, payment lookups).
+- **Trade-off:** the cache can be **stale** (out of date), and it uses memory. Every cache answers: *how stale is acceptable?*
+! A cache is your desk drawer: the things you use often, so you don't walk to the storeroom every time.
+
+## Where Caches Live
+```text
+Layer                   Example                                  Caches what
+----------------------  ---------------------------------------  -------------------------------
+Browser                 HTTP cache, Service Worker, memory        JS/CSS/images, API responses
+CDN                     CloudFront, Cloudflare, Akamai            static files, public pages near the user
+API gateway / proxy     Nginx, Spring Cloud Gateway               whole responses
+Application (local)     Caffeine, ConcurrentHashMap               hot lookups inside one instance
+Distributed             Redis, Memcached, Hazelcast               shared data for all instances, sessions
+ORM                     Hibernate first- and second-level cache   entities by id, query results
+Database                buffer pool, query plan cache             pages of tables and indexes
+CPU                     L1/L2/L3                                  memory lines (hardware)
+```
+- In a full-stack answer, name **three layers**: browser/CDN for static files, Redis for shared API data, Hibernate first-level cache inside a transaction.
+
+## What to Cache
+- **Good:** read-heavy, rarely changing data: product catalogue, country list, user profile, configuration, permission lookups, results of expensive computations, responses from slow third-party APIs.
+- **Careful:** data that must be exact right now (stock during checkout, balances), per-user data in shared caches (key it by user id), large objects (memory).
+- **Bad:** data that changes on every request, write-heavy data with few reads.
+- Rule of thumb: **read often, change rarely, OK to be a little old.**
+
+## Key Terms
+- **Hit / miss / hit ratio:** hits ÷ (hits + misses). Watch it in metrics (Actuator `cache.gets` with `result=hit|miss`).
+- **TTL (time to live):** an entry expires after a fixed time. The safety net for every cache.
+- **Eviction:** removing entries when memory is full (LRU, LFU, FIFO).
+- **Invalidation:** removing entries because the source changed.
+- **Warm-up:** pre-loading hot keys at startup so the first users do not all miss.
+- **Cold start:** an empty cache after a restart, so every request misses at first.
+- **Cache key:** what identifies an entry, for example `product:42` or `user:7:orders:page:1`.
+
+## Interview Q&A
+Q*: What is caching? Give an example from a project.
+A: Storing frequently read, rarely changing data in memory to avoid repeated slow lookups. Example: product details in Redis with a 10-minute TTL, evicted when an admin edits the product; database reads dropped and page responses went from about 200 ms to about 20 ms.
+Q: How do you choose a TTL?
+A: From how stale the data may be: seconds for prices or stock, minutes for product details, hours or days for country lists and configuration. Add random jitter so keys do not all expire together.
+Q: How do you know a cache is working?
+A: Monitor the hit ratio, latency and memory use, and the database load before and after. A low hit ratio means bad keys, a TTL that is too short, or data that is not reused.
+
+# 02 | Cache Strategies, Eviction & Consistency | Cache-aside, read-through, write-through, write-back, write-around; LRU, LFU, FIFO; invalidation, stampede, penetration, avalanche | Strategies
+
+## Read Strategies
+```text
+CACHE-ASIDE (lazy loading): the app talks to both
+  read:   cache.get(k) ── miss ──▶ db.read(k) ──▶ cache.set(k, v, ttl) ──▶ return v
+  update: db.write(k, v) ──▶ cache.delete(k)        (next read reloads it)
+
+READ-THROUGH: the app talks only to the cache; the cache loads from the DB on a miss
+  read:   cache.get(k)  →  (cache library calls the loader → db.read(k))
+```
+- **Cache-aside** is the default answer: simple, the cache can fail without breaking reads, only requested data is cached. Spring `@Cacheable` works this way.
+- **Read-through** moves the loading logic into the cache library (Caffeine `LoadingCache`, Hazelcast MapLoader).
+! Cache-aside: look in the drawer; if it is empty, fetch from the storeroom and put a copy in the drawer.
+
+## Write Strategies
+```text
+Strategy        On write                                   Pros                      Cons
+--------------  -----------------------------------------  ------------------------  -------------------------------
+Write-through   write cache AND db together                cache always fresh        slower writes, caches unread data
+Write-back      write cache now, db later (async, batch)   very fast writes          data loss if cache dies first
+Write-around    write db only; cache fills on next read    no cache pollution        first read after a write misses
+Cache-aside     write db, then DELETE the cache key        simple, safe default      brief stale window
+```
+- **Why delete instead of update** the key on write? Two concurrent writers can update the cache in the wrong order and leave old data. Deleting means the next read loads the truth.
+- **Order:** update the **database first**, then delete the cache. Deleting first lets a reader reload the old value before the DB write lands.
+
+## Eviction Policies
+- **LRU (Least Recently Used):** evict what has not been used for the longest time. The default in most caches. Good for "recent things get reused".
+- **LFU (Least Frequently Used):** evict what is used least often. Good when some keys are always hot. Caffeine uses **W-TinyLFU**, which mixes both.
+- **FIFO:** evict the oldest inserted. Simple, rarely the best.
+- **TTL / TTI:** expire after a fixed time since write (TTL) or since last access (time to idle).
+- **Random:** cheap; Redis offers `allkeys-random`.
+- **Redis `maxmemory-policy`:** `noeviction` (default: writes fail when full), `allkeys-lru`, `volatile-lru` (only keys with a TTL), `allkeys-lfu`, `volatile-ttl`. For a pure cache use **`allkeys-lru`** or `allkeys-lfu`.
+! LRU = clear out what you haven't touched lately; LFU = clear out what you barely ever touch.
+
+## Consistency & Invalidation
+- **Stale reads** are the price of caching. Decide per data type: is 1 minute stale OK? 1 second? never?
+- **TTL as a safety net:** even if an eviction is missed, the entry dies eventually.
+- **Event-based invalidation:** publish "product 42 changed" (Kafka, Redis pub/sub) so every instance evicts its local copy.
+- **Versioned keys:** `product:42:v7`. Bumping the version makes old entries unreachable.
+- **Multi-level caches** (Caffeine in front of Redis): evict both, local first via pub/sub.
+- "There are only two hard things in computer science: cache invalidation and naming things." Quote it, then give the DB-then-delete-plus-TTL answer.
+
+## Failure Modes: Stampede, Penetration, Avalanche, Hot Key
+- **Stampede (thundering herd / dog-piling):** a hot key expires and thousands of requests reload it at once. **Fix:** a per-key lock or single-flight (Caffeine and Spring `@Cacheable(sync = true)` let only one thread load), refresh-ahead before expiry, stale-while-revalidate.
+- **Penetration:** lookups for keys that never exist always miss and reach the DB (often an attack). **Fix:** cache the empty result briefly (`null` marker, 1 minute), validate input, a **Bloom filter** of existing ids.
+- **Avalanche:** many keys expire at the same time, or the cache cluster dies. **Fix:** random **TTL jitter** (600 s ± 60 s), a replicated cache (Redis Sentinel or Cluster), circuit breakers and rate limits in front of the DB.
+- **Hot key:** one key gets so much traffic that one Redis node overheats. **Fix:** a local cache in front, or replicate the key under several names (`hot:42:1..N`).
+
+## Interview Q&A
+Q*: Which caching strategy would you use for a product catalogue?
+A: Cache-aside with Redis: `@Cacheable` on reads with a TTL of a few minutes plus jitter, `@CacheEvict` when a product is updated (database first, then evict). Optionally a small Caffeine cache in front for the hottest items.
+Q*: How do you keep the cache and database consistent?
+A: Write to the database, then delete the key; give every entry a TTL; for several instances with local caches, broadcast invalidations. Accept a short stale window, or skip caching for data that must be exact.
+Q: How do you prevent a cache stampede?
+A: Let only one request rebuild an expired key (a lock or `@Cacheable(sync = true)`), serve the old value while refreshing, refresh hot keys before they expire, and add jitter to TTLs.
+
+@ Intermediate
+# 03 | Caching in Spring Boot | @EnableCaching, @Cacheable, @CachePut, @CacheEvict, keys and conditions, Caffeine and Redis cache managers, TTLs, the proxy trap | Spring Cache
+
+## Turn It On
+```java
+@SpringBootApplication
+@EnableCaching                                    // without this, the annotations do nothing
+public class ShopApp { public static void main(String[] a) { SpringApplication.run(ShopApp.class, a); } }
+```
+- With no cache library on the classpath, Boot uses a **`ConcurrentMapCacheManager`**: in-memory, no TTL, no size limit. Fine for demos, not production.
+- Add **`spring-boot-starter-data-redis`** (shared cache) or **`com.github.ben-manes.caffeine:caffeine`** (local cache) and Boot auto-configures the matching `CacheManager`.
+
+## The Annotations
+```java
+@Service
+public class ProductService {
+    private final ProductRepository repo;
+    public ProductService(ProductRepository repo) { this.repo = repo; }
+
+    @Cacheable(value = "products", key = "#id")                         // miss: run the method, store the result; hit: skip the method
+    public ProductDto findById(Long id) { return toDto(repo.findById(id).orElseThrow()); }
+
+    @Cacheable(value = "products", key = "#id", unless = "#result == null")   // don't cache empty results
+    public ProductDto findOrNull(Long id) { ... }
+
+    @Cacheable(value = "search", key = "#q + ':' + #page", condition = "#q.length() > 2")   // cache only longer queries
+    public List<ProductDto> search(String q, int page) { ... }
+
+    @CachePut(value = "products", key = "#result.id()")                 // always runs; refreshes the cached value
+    public ProductDto update(ProductDto p) { return toDto(repo.save(toEntity(p))); }
+
+    @CacheEvict(value = "products", key = "#id")                        // remove one entry
+    public void delete(Long id) { repo.deleteById(id); }
+
+    @CacheEvict(value = "products", allEntries = true)                  // clear the whole cache
+    public void reloadCatalogue() { ... }
+
+    @Caching(evict = { @CacheEvict(value = "products", key = "#p.id()"), @CacheEvict(value = "search", allEntries = true) })
+    public void rename(ProductDto p) { ... }
+}
+```
+- **Default key:** the method arguments (one argument = that value; several = a `SimpleKey` of all). Use `key = "#id"` to be explicit.
+- **`condition`** is checked **before** the call (whether to use the cache at all); **`unless`** is checked **after** (whether to store the result).
+- **`@Cacheable(sync = true)`**: only one thread loads a missing key; the others wait. Stops stampedes.
+- Cache **DTOs**, not JPA entities: entities carry lazy proxies and Hibernate state that break serialisation.
+! @Cacheable reads, @CachePut refreshes, @CacheEvict forgets.
+
+## The Proxy Trap
+> Spring caching works through a **proxy** around the bean. A call from **inside the same class** does not go through the proxy, so the cache is skipped silently.
+```java
+@Service
+public class ReportService {
+    public Report daily() { return build("daily"); }            // calls build directly: NO caching
+
+    @Cacheable("reports")
+    public Report build(String type) { ... }
+}
+```
+- **Fixes:** move the cached method to another bean, or inject the bean into itself (`@Lazy ReportService self; self.build(...)`).
+- Also ignored: `private` methods, and `final` methods with CGLIB proxies.
+- The same trap applies to `@Transactional` and `@Async`: say so, it shows you understand proxies.
+
+## Redis as the Cache
+```yaml
+# application.yml
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cache:
+    type: redis
+    redis:
+      time-to-live: 10m          # default TTL for every cache
+      cache-null-values: false
+```
+```java
+@Configuration
+class CacheConfig {
+    @Bean
+    RedisCacheManagerBuilderCustomizer ttls() {          // different TTL per cache
+        return b -> b
+            .withCacheConfiguration("products", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(10))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair
+                    .fromSerializer(new GenericJackson2JsonRedisSerializer())))    // JSON, not Java serialisation
+            .withCacheConfiguration("search", RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofSeconds(60)));
+    }
+}
+```
+- Keys look like `products::42` in Redis.
+- **Java serialisation** (the default) needs `Serializable` classes and breaks when a class changes; JSON is readable and safer.
+
+## Caffeine as a Local Cache
+```yaml
+spring:
+  cache:
+    type: caffeine
+    cache-names: products, countries
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=5m,recordStats
+```
+- Fastest option (no network), but **per instance**: with 3 instances there are 3 copies, which can briefly disagree after an update.
+- Common pattern: **Caffeine (L1, seconds) in front of Redis (L2, minutes)**.
+
+## Interview Q&A
+Q*: @Cacheable vs @CachePut vs @CacheEvict?
+A: `@Cacheable` skips the method on a hit and caches the result on a miss. `@CachePut` always runs the method and writes the result to the cache. `@CacheEvict` removes one entry, or all entries with `allEntries = true`.
+Q*: Why might @Cacheable not cache anything?
+A: `@EnableCaching` is missing, the method is called from inside the same class (self-invocation skips the proxy), the method is private, `condition` or `unless` excludes it, or each call has a different key.
+Q: condition vs unless?
+A: `condition` is evaluated before the method runs and decides whether caching applies at all. `unless` is evaluated after, can use `#result`, and decides whether to store it.
+Q: Which cache manager does Spring Boot use by default?
+A: A `ConcurrentMapCacheManager` (a simple in-memory map with no TTL or size limit), unless Redis, Caffeine, Ehcache or Hazelcast is on the classpath, in which case it auto-configures that one.
+
+# 04 | Redis | Data types, TTL, eviction, persistence, use cases beyond caching, RedisTemplate, sessions and distributed locks | Redis
+
+## What Redis Is
+> **Redis** is an **in-memory key-value data store**, single-threaded for commands (so each command is atomic), with sub-millisecond reads. It is used as a **cache**, **session store**, **rate limiter**, **message broker** (pub/sub, streams), **leaderboard** and **distributed lock**.
+```bash
+SET product:42 '{"name":"Pen","price":10}' EX 600     # value with a 600-second TTL
+GET product:42
+TTL product:42                                       # seconds left
+DEL product:42
+INCR page:views                                      # atomic counter
+EXPIRE session:abc 1800
+```
+! Redis is a giant, very fast HashMap that lives outside your app and every instance can share.
+
+## Data Types and Their Uses
+```text
+Type          Commands                  Use for
+------------  ------------------------  ---------------------------------------------
+String        SET, GET, INCR, SETNX     cached JSON, counters, locks, rate limits
+Hash          HSET, HGET, HGETALL       an object's fields (user:7 name, email)
+List          LPUSH, RPOP, LRANGE       queues, recent items
+Set           SADD, SISMEMBER, SINTER   unique visitors, tags, "who liked this"
+Sorted set    ZADD, ZRANGE, ZRANK       leaderboards, top-N, time-ordered feeds
+Stream        XADD, XREADGROUP          event log with consumer groups
+```
+
+## Persistence, Eviction, High Availability
+- **RDB:** snapshots to disk every N seconds (fast restart, may lose the last minutes). **AOF:** logs every write (safer, bigger). Pure caches can turn both off.
+- **`maxmemory` + `maxmemory-policy`:** what to evict when full. Cache: `allkeys-lru` or `allkeys-lfu`.
+- **Replication + Sentinel:** a primary with replicas and automatic failover. **Cluster:** data split over 16384 hash slots across nodes.
+
+## Using Redis From Spring
+```java
+@Service
+public class RateLimiter {
+    private final StringRedisTemplate redis;
+    public RateLimiter(StringRedisTemplate redis) { this.redis = redis; }
+
+    public boolean allow(String userId) {                              // 100 requests per minute
+        String key = "rate:" + userId + ":" + (System.currentTimeMillis() / 60000);
+        Long count = redis.opsForValue().increment(key);               // INCR is atomic
+        if (count == 1) redis.expire(key, Duration.ofMinutes(1));
+        return count <= 100;
+    }
+}
+
+// distributed lock: only one instance runs the nightly job
+Boolean got = redis.opsForValue().setIfAbsent("lock:nightly", instanceId, Duration.ofMinutes(5));   // SET NX EX
+```
+- **Spring Session + Redis** (`spring-session-data-redis`) stores HTTP sessions in Redis so any instance can serve any user.
+- For production locks use **Redisson**, which handles renewal and safe release.
+
+## Interview Q&A
+Q*: Why is Redis fast?
+A: Everything is in memory, it uses efficient data structures, and a single-threaded event loop avoids locking. Network I/O is the main cost.
+Q: Redis vs Memcached?
+A: Memcached is a simple, multi-threaded string cache. Redis has rich data types, persistence, replication, pub/sub, Lua scripts and transactions, so it does far more than caching.
+Q: What happens when Redis runs out of memory?
+A: It follows `maxmemory-policy`: with the default `noeviction` writes fail; with `allkeys-lru` it evicts the least recently used keys. Set an eviction policy for any cache.
+Q: How do you use Redis for sessions in Spring Boot?
+A: Add Spring Session with Redis. Sessions are stored in Redis instead of the server's memory, so the app is stateless and a user can hit any instance behind the load balancer.
+
+# 05 | Caching Inside Java & Hibernate | LRU cache with LinkedHashMap, memoization, Integer and String caches, Hibernate first- and second-level cache, query cache | Java & Hibernate
+
+## LRU Cache With LinkedHashMap (coding question)
+> `LinkedHashMap` with **`accessOrder = true`** moves an entry to the end on every `get`; overriding **`removeEldestEntry`** drops the first (least recently used) entry when the size passes the capacity.
+```java
+class LRUCache<K, V> extends LinkedHashMap<K, V> {
+    private final int capacity;
+    LRUCache(int capacity) {
+        super(capacity, 0.75f, true);                 // true = access order, not insertion order
+        this.capacity = capacity;
+    }
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<K, V> eldest) { return size() > capacity; }
+}
+
+LRUCache<Integer, String> c = new LRUCache<>(3);
+c.put(1, "one"); c.put(2, "two"); c.put(3, "three");
+c.get(1);                    // 1 becomes most recent
+c.put(4, "four");            // full: evicts 2, the least recently used
+System.out.println(c);       // {3=three, 1=one, 4=four}
+```
+- **Without LinkedHashMap** (the follow-up): a `HashMap<K, Node>` for O(1) lookup plus a **doubly linked list** for recency. `get` moves the node to the head; `put` adds at the head and removes the tail when full. Both O(1).
+- Not thread-safe: wrap it with `Collections.synchronizedMap` or use Caffeine.
+! HashMap finds it fast; the linked list remembers who was used last.
+
+## Memoization
+```java
+static Map<Integer, Long> memo = new HashMap<>();
+static long fib(int n) {
+    if (n < 2) return n;
+    Long cached = memo.get(n);
+    if (cached != null) return cached;               // cache hit
+    long result = fib(n - 1) + fib(n - 2);
+    memo.put(n, result);                             // remember for next time
+    return result;
+}
+fib(50);                                             // 12586269025, instantly (without the memo: billions of calls)
+```
+- **Trap:** `memo.computeIfAbsent(n, k -> fib(k - 1) + fib(k - 2))` looks neater but a **recursive** `computeIfAbsent` on a `HashMap` throws `ConcurrentModificationException` (Java 9+). Use get/put as above.
+- Memoization = caching a function's results by its arguments. It is the top-down form of dynamic programming.
+
+## Caches Built Into Java
+```java
+Integer a = 127, b = 127, c = 128, d = 128;
+System.out.println(a == b);      // true:  Integer.valueOf caches -128..127
+System.out.println(c == d);      // false: two different objects. Always compare with equals()
+```
+- **String pool:** string literals are cached and shared, which is one reason `String` is immutable.
+- `Boolean`, `Byte`, `Character` (0–127), `Short` and `Long` (-128..127) cache too.
+
+## Hibernate First-Level Cache
+> The **persistence context** (one `EntityManager` / `Session`, usually one transaction) is a cache of every entity it has loaded. It is **always on** and cannot be turned off.
+```java
+@Transactional
+public void demo(Long id) {
+    Product p1 = em.find(Product.class, id);    // SELECT ... runs
+    Product p2 = em.find(Product.class, id);    // no SQL: returned from the first-level cache
+    System.out.println(p1 == p2);               // true: the same object
+}
+```
+- It also tracks changes (**dirty checking**): modify `p1` and Hibernate issues an `UPDATE` at commit without `save()`.
+- It ends with the transaction, so it does not help across requests. That needs the second-level cache.
+
+## Hibernate Second-Level & Query Cache
+- **Second-level cache:** shared by all sessions in the application. **Off by default.** Turn it on with a JCache provider (Ehcache, Hazelcast, Infinispan) and mark entities:
+```java
+@Entity
+@Cacheable                                                          // jakarta.persistence.Cacheable
+@org.hibernate.annotations.Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+public class Country { @Id Long id; String name; }
+```
+```properties
+spring.jpa.properties.hibernate.cache.use_second_level_cache=true
+spring.jpa.properties.hibernate.cache.region.factory_class=jcache
+spring.jpa.properties.hibernate.cache.use_query_cache=true
+```
+- Good for **read-mostly reference data** (countries, categories). Bad for frequently updated data.
+- **Query cache** stores the **ids** a query returned; the entities themselves come from the second-level cache. It is invalidated whenever any table in the query changes, so it helps only for rarely changing tables.
+- Deep dive: **JPA & Hibernate → Caching: First-Level, Second-Level & Query Cache**.
+
+## Interview Q&A
+Q*: Design an LRU cache.
+A: A HashMap for O(1) lookup plus a doubly linked list ordered by use. On `get`, move the node to the front. On `put`, insert at the front and, if over capacity, remove the node at the back and its map entry. In Java, `LinkedHashMap` with access order and `removeEldestEntry` does this in a few lines.
+Q*: First-level vs second-level cache in Hibernate?
+A: First-level: per session or transaction, always on, guarantees one object per id inside that transaction. Second-level: per application, shared across sessions, optional, needs a provider and `@Cache` on the entity.
+Q: Why is `Integer a = 128, b = 128; a == b` false?
+A: Autoboxing uses `Integer.valueOf`, which returns cached objects only for -128 to 127. 128 creates two different objects, and `==` compares references. Use `equals`.
+
+# 06 | HTTP, CDN & Angular Caching | Cache-Control, ETag and 304, CDNs, service workers, shareReplay services, caching interceptors, cache busting | HTTP & Frontend
+
+## HTTP Cache Headers
+```http
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=3600          # browser and CDN may reuse this for 1 hour
+ETag: "v42"                                   # version fingerprint of this response
+Last-Modified: Tue, 24 Nov 2026 10:00:00 GMT
+```
+```http
+GET /api/products/42
+If-None-Match: "v42"                          # "I have version v42, has it changed?"
+
+HTTP/1.1 304 Not Modified                     # no body sent: the browser reuses its copy
+```
+- **`max-age=N`**: fresh for N seconds, no request at all. **`no-cache`**: may store, but must revalidate every time (ETag). **`no-store`**: never store (bank pages, personal data). **`private`**: only the browser, not shared caches. **`public`**: CDNs may cache. **`immutable`**: will never change (hashed file names).
+- **Spring:** `ResponseEntity.ok().cacheControl(CacheControl.maxAge(Duration.ofHours(1))).eTag("v42").body(dto)`, or add `ShallowEtagHeaderFilter` for automatic ETags.
+! max-age = "don't even ask"; ETag = "ask, and I'll say 304 if nothing changed".
+
+## CDN and Static Files
+- A **CDN** keeps copies of static files (and public pages) on servers close to users: lower latency, less load on your server.
+- **Angular builds** output hashed file names (`main-AAMUXMEI.js`). Serve them with `Cache-Control: public, max-age=31536000, immutable`; a new build gets new names, so users never see stale code (**cache busting**).
+- Serve **`index.html`** with `no-cache`, so users always pick up the new hashed file names.
+- **Service worker** (`@angular/service-worker`, PWA): caches the app shell and chosen API calls in the browser for offline use and instant loads.
+
+## Angular: Cache an API Call in a Service
+```typescript
+@Injectable({ providedIn: 'root' })
+export class CountryService {
+  private http = inject(HttpClient);
+  // one HTTP call, shared by every subscriber, replayed to late subscribers
+  readonly countries$ = this.http.get<Country[]>('/api/countries').pipe(shareReplay(1));
+}
+
+@Injectable({ providedIn: 'root' })
+export class ProductService {
+  private http = inject(HttpClient);
+  private cache = new Map<number, Observable<Product>>();
+  get(id: number): Observable<Product> {                       // per-id cache
+    if (!this.cache.has(id)) this.cache.set(id, this.http.get<Product>(`/api/products/${id}`).pipe(shareReplay(1)));
+    return this.cache.get(id)!;
+  }
+  invalidate(id: number) { this.cache.delete(id); }            // after an update
+}
+```
+- **Without `shareReplay`**, every `async` pipe or `subscribe` fires its own HTTP request (cold Observables).
+- **Signals version:** keep the result in a `signal`, or use `httpResource()` / `resource()` and load it once in a root service.
+
+## Angular: Caching Interceptor
+```typescript
+const cache = new Map<string, HttpResponse<unknown>>();
+
+export const cacheInterceptor: HttpInterceptorFn = (req, next) => {
+  if (req.method !== 'GET' || req.headers.has('x-no-cache')) return next(req);   // cache only GETs
+  const hit = cache.get(req.urlWithParams);
+  if (hit) return of(hit.clone());                                               // served from memory
+  return next(req).pipe(tap(ev => { if (ev instanceof HttpResponse) cache.set(req.urlWithParams, ev.clone()); }));
+};
+```
+- Add a TTL (store the time with the response) and clear the map on logout, so one user's data never shows for the next.
+- Browser storage for caching: `localStorage` (strings, ~5 MB, survives restarts), `sessionStorage` (per tab), IndexedDB (large structured data).
+
+## Interview Q&A
+Q*: How do you make sure users get the new Angular build after a deployment?
+A: Angular's production build gives files content-hashed names, which are cached for a year as immutable; `index.html` is served with `no-cache`, so the browser always fetches the latest one, which points to the new file names.
+Q: no-cache vs no-store?
+A: `no-cache` allows storing but requires revalidation with the server (ETag or Last-Modified) before each use. `no-store` forbids storing at all, for sensitive data.
+Q: How do you stop duplicate HTTP calls in Angular?
+A: Share the Observable with `shareReplay(1)` in a root service, or store the result in a signal, so every component reuses one request instead of each subscribing separately.
+
+@ Advanced
+# 07 | Caching in AI & LLM Apps | Prompt caching, response caching, semantic caching with embeddings, embedding caches, KV cache | AI Caching
+
+## Why AI Apps Cache
+- LLM calls are **slow** (seconds) and **paid per token**. Caching can cut cost and latency a lot for repeated or similar requests.
+- Four layers: **provider prompt caching**, **exact response cache**, **semantic cache**, **embedding cache**.
+
+## Provider Prompt Caching
+> Providers (Anthropic, OpenAI, Google) can cache the **processed prefix** of a prompt: a long system prompt, tool definitions, or a big document. Later requests that start with the **same prefix** reuse it, cost less, and start answering faster.
+- Put **stable content first** (system prompt, tools, documents) and **changing content last** (the user's question). Any change in the prefix breaks the cache.
+- Some APIs cache automatically; others need you to mark the cache point (Anthropic `cache_control`). Cached entries expire after minutes of no use.
+! Prompt caching = the model remembers the first chapters of the book, so you only pay to read the new page.
+
+## Exact and Semantic Response Caching
+```text
+Exact cache:     key = hash(model + prompt + params)   →  Redis  →  stored answer
+                 hits only when the text is identical
+
+Semantic cache:  embed(question) → vector search over past questions
+                 similarity ≥ 0.95?  return the stored answer   else call the LLM, store question vector + answer
+                 "How do I reset my password?" ≈ "I forgot my password, how do I change it?"
+```
+- **Exact cache** is safe and simple. Use it for deterministic calls (`temperature = 0`, classification, extraction).
+- **Semantic cache** hits more often but can return a **wrong answer for a question that only looks similar**. Use a high threshold, scope it per user or tenant, never for personalised or time-sensitive answers, and give it a TTL.
+- Tools: Redis with vector search, pgvector, GPTCache, LangChain caches.
+
+## Embedding Cache and KV Cache
+- **Embedding cache:** store `hash(text) → vector` so re-indexing unchanged documents in a RAG pipeline does not pay to embed them again.
+- **Retrieval cache:** cache the retrieved chunks for popular queries.
+- **KV cache** (inside the model server): during generation the model keeps each token's attention keys and values so it does not recompute the whole prompt for every new token. It is why long prompts use GPU memory, and what "prefix caching" in vLLM reuses across requests.
+
+## Interview Q&A
+Q*: How would you reduce the cost and latency of an LLM feature?
+A: Use provider prompt caching with stable content first; cache exact responses in Redis for deterministic calls; add a semantic cache with a high similarity threshold for FAQ-style questions; cache embeddings; use smaller models where they are good enough; and stream responses so users see output sooner.
+Q: What is the risk of a semantic cache?
+A: Two questions can be close in embedding space but need different answers ("cancel my order" vs "cancel my subscription"), so the cache returns the wrong one. Use a high threshold, scope by user or tenant, set TTLs, and skip it for personalised or factual time-sensitive queries.
+Q: What is the KV cache?
+A: The attention keys and values of tokens already processed, kept in GPU memory during generation so each new token does not recompute the whole sequence. Prefix caching reuses it across requests that share a prompt prefix.

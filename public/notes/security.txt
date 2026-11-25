@@ -1,3 +1,55 @@
+@ Must-Know
+
+# b | Interview Basics: Authentication, Authorization & JWT | The security questions every Java full-stack and Angular interview asks. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Authentication & Authorization
+Q*: Authentication vs authorization?
+A: Authentication checks who you are: login with a password, a token or SSO. Authorization checks what you are allowed to do: roles and permissions, such as only ADMIN can delete users. Authentication always comes first.
+Q*: 401 vs 403?
+A: 401 Unauthorized means not authenticated: no token, or a bad or expired one. 403 Forbidden means authenticated but not allowed: a USER calling an ADMIN endpoint.
+Q*: Session-based vs token-based authentication?
+A: Session: the server stores the login in a session and gives the browser a session-id cookie; simple and easy to revoke, but the server holds state. Token (JWT): the server signs a token and stores nothing; the client sends the token on every request, so it scales across many servers and suits SPAs, mobile apps and microservices, but is harder to revoke early.
+Q: What is RBAC?
+A: Role-Based Access Control: permissions are given to roles (ADMIN, MANAGER, USER), and users get roles. In Spring: `hasRole("ADMIN")` in URL rules or `@PreAuthorize("hasRole('ADMIN')")` on methods.
+Q: Roles vs authorities in Spring Security?
+A: Both are `GrantedAuthority` strings. A role is an authority with the `ROLE_` prefix: `hasRole("ADMIN")` checks for `ROLE_ADMIN`, while `hasAuthority("orders:write")` checks the exact string. Use roles for coarse groups, authorities for fine permissions.
+
+## JWT
+Q*: What is a JWT?
+A: A JSON Web Token: a compact, signed string of three Base64URL parts, `header.payload.signature`. The server creates it at login; the client sends it as `Authorization: Bearer <token>`; the server verifies the signature and expiry instead of looking up a session, which makes it stateless.
+Q*: What is inside a JWT? What do we encode?
+A: Header: the algorithm, `{"alg":"HS256","typ":"JWT"}`. Payload: claims about the user: `sub` (user id), `roles`, `iat` (issued at), `exp` (expiry), `iss` (issuer), `aud` (audience). Signature: HMAC-SHA256 of header plus payload with the server's secret (or RSA with a private key). Header and payload are only encoded, not encrypted.
+Q*: Is a JWT encrypted? Can someone read it?
+A: No. A normal JWT (JWS) is only Base64URL-encoded, so anyone can decode and read it at jwt.io. What they cannot do is change it: editing the payload breaks the signature. So never put passwords or secrets in it. If the content must be hidden, use JWE (encrypted JWT).
+Q*: How does the server verify a JWT?
+A: It splits the token, recomputes the signature over header and payload with its key, and compares it with the token's signature. Then it checks `exp` (not expired), `iss` and `aud` (issued by us, for us). If all pass, it trusts the claims and builds the logged-in user from them.
+Q*: Access token vs refresh token?
+A: The access token is short-lived (5–15 minutes) and is sent on every API call. The refresh token is long-lived (days), sent only to the refresh endpoint, and stored and revocable on the server. When the access token expires, the client uses the refresh token to get a new one without logging in again.
+Q: HS256 vs RS256?
+A: HS256 uses one shared secret to sign and verify, so every service that verifies can also create tokens. RS256 signs with a private key and verifies with a public key, so microservices only need the public key (published as a JWKS). Use RS256 when many services verify tokens.
+Q: How do you log out or revoke a JWT?
+A: The client deletes the token and the server revokes the refresh token. Because the access token is short-lived, it simply expires. If it must die immediately, keep a denylist of token ids (`jti`) in Redis until they expire, or bump a per-user token version.
+Q: Where should Angular store the JWT?
+A: Safest: an HttpOnly, Secure, SameSite cookie (JavaScript cannot read it, so XSS cannot steal it), or the access token in memory plus the refresh token in an HttpOnly cookie. localStorage is simple and common, but any XSS script can read it. Say the trade-off in the interview.
+
+## Spring Security & Angular
+Q*: How does Spring Security work?
+A: Every request passes a chain of servlet filters (the SecurityFilterChain) before reaching the controller. An authentication filter reads the credentials or token, an AuthenticationManager verifies them, and the result is stored in the SecurityContext. Then the authorization filter checks the rules (`authorizeHttpRequests`). Failures become 401 or 403.
+Q*: How do you implement JWT authentication in Spring Boot?
+A: 1. A login endpoint authenticates the username and password with the AuthenticationManager and returns a signed JWT. 2. A filter extending `OncePerRequestFilter` reads the `Authorization` header, validates the token, and puts an Authentication with the user's roles into the SecurityContext. 3. A SecurityFilterChain bean makes the API stateless, permits `/auth/**`, requires authentication elsewhere, and adds the filter before `UsernamePasswordAuthenticationFilter`. (Spring's built-in alternative: `oauth2ResourceServer().jwt()`.)
+Q*: How does Angular send the token and protect routes?
+A: An HTTP interceptor (`HttpInterceptorFn`) clones every request and adds `Authorization: Bearer <token>`; register it with `provideHttpClient(withInterceptors([authInterceptor]))`. A route guard (`CanActivateFn`) checks if the user is logged in, or has the right role, and otherwise redirects to `/login`. Guards are for user experience only: the backend must still check every request.
+Q: How are passwords stored?
+A: Never in plain text and never encrypted: hashed with a slow, salted algorithm such as BCrypt or Argon2 (`BCryptPasswordEncoder`). At login the entered password is hashed and compared with the stored hash.
+Q: Hashing vs encryption vs encoding?
+A: Encoding changes the format for transport and anyone can reverse it (Base64). Encryption hides data and can be reversed with a key (AES, RSA). Hashing is one-way: it cannot be reversed, only compared (BCrypt, SHA-256).
+Q: Why is CSRF protection usually disabled for JWT APIs?
+A: CSRF tricks the browser into sending its cookies automatically. A Bearer token in the `Authorization` header is never sent automatically, so a stateless JWT API is not exposed. If the JWT lives in a cookie, CSRF protection is needed again.
+Q: What is CORS?
+A: A browser rule that blocks a page from one origin (`localhost:4200`) from reading responses from another origin (`localhost:8080`) unless the server allows it with `Access-Control-Allow-Origin` headers. In Spring, configure it with a `CorsConfigurationSource` bean and `http.cors()`. It is not a security feature for the server; it protects users in the browser.
+Q: What is OAuth 2.0? How is it different from JWT?
+A: OAuth 2.0 is a protocol for delegated authorization: a user lets an app access their data at another service ("Login with Google") without giving it their password; the app gets an access token. JWT is just a token format. OAuth often uses JWTs as access tokens, but they are different things. OpenID Connect adds login (an ID token) on top of OAuth.
+
 @ Beginner
 
 # 00 | Security Basics: Start Here | Core vocabulary, hashing vs encryption vs encoding, history of Spring Security and the OAuth, OIDC and JWT standards, adding Spring Security to an app and what happens, HTTP authentication schemes, OAuth vs OIDC vs SAML vs JWT | Start Here
@@ -598,6 +650,235 @@ Q: Where should a SPA store tokens?
 A: Prefer a BFF that keeps tokens server-side with an HttpOnly session cookie; otherwise keep the access token in memory and the refresh token in an HttpOnly, Secure, SameSite cookie. Avoid localStorage for sensitive applications because XSS can read it.
 Q: What happens on logout with JWTs?
 A: The client discards tokens and the server revokes the refresh token (and, if needed, denylists the current access token's jti until it expires).
+
+
+# 13 | Full-Stack Login: JWT Filter in Spring Boot + Angular Interceptor & Guards | The code interviewers ask you to write or explain: login endpoint, OncePerRequestFilter, SecurityFilterChain, Angular auth service, interceptor, guards, role checks | Full-Stack Login
+
+## The Whole Flow on One Page
+```text
+ANGULAR                                          SPRING BOOT
+login form ── POST /auth/login {user, pass} ──▶  AuthController
+                                                  AuthenticationManager checks BCrypt hash
+          ◀── 200 { token: "eyJ..." } ─────────   JwtService signs {sub, roles, iat, exp}
+AuthService keeps the token
+authGuard lets the user into /orders
+HttpClient GET /api/orders
+authInterceptor adds Authorization: Bearer eyJ... ─▶ JwtAuthFilter (OncePerRequestFilter)
+                                                      valid?  SecurityContext = user + roles
+                                                      authorizeHttpRequests / @PreAuthorize
+          ◀── 200 orders   or 401 (bad token)   or 403 (wrong role)
+interceptor sees 401 → logout → /login
+```
+! Angular attaches the token and hides pages; Spring checks every request. Never trust the frontend alone.
+
+## 1. JwtService: Create and Read Tokens (jjwt 0.12)
+```java
+// pom.xml: io.jsonwebtoken:jjwt-api, jjwt-impl, jjwt-jackson (0.12.x)
+@Service
+public class JwtService {
+    private final SecretKey key;
+    public JwtService(@Value("${app.jwt.secret}") String base64Secret) {          // 256-bit random secret, from env
+        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(base64Secret));
+    }
+
+    public String generate(UserDetails user) {
+        List<String> roles = user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
+        return Jwts.builder()
+                .subject(user.getUsername())                                       // sub
+                .claim("roles", roles)                                             // custom claim
+                .issuedAt(new Date())                                              // iat
+                .expiration(new Date(System.currentTimeMillis() + 15 * 60 * 1000)) // exp: 15 minutes
+                .signWith(key)                                                     // HS256 signature
+                .compact();
+    }
+
+    public Claims parse(String token) {          // throws JwtException if the signature is wrong or it expired
+        return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+    }
+}
+```
+
+## 2. Login Endpoint
+```java
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+    private final AuthenticationManager authManager;
+    private final JwtService jwt;
+    public AuthController(AuthenticationManager authManager, JwtService jwt) { this.authManager = authManager; this.jwt = jwt; }
+
+    record LoginRequest(String username, String password) {}
+    record TokenResponse(String token) {}
+
+    @PostMapping("/login")
+    public TokenResponse login(@RequestBody LoginRequest req) {
+        Authentication auth = authManager.authenticate(                       // BadCredentialsException -> 401
+                new UsernamePasswordAuthenticationToken(req.username(), req.password()));
+        return new TokenResponse(jwt.generate((UserDetails) auth.getPrincipal()));
+    }
+}
+```
+- `authenticate` loads the user through your `UserDetailsService` and compares the password with the **BCrypt** hash.
+
+## 3. JwtAuthFilter: Runs Once per Request
+```java
+@Component
+public class JwtAuthFilter extends OncePerRequestFilter {
+    private final JwtService jwt;
+    public JwtAuthFilter(JwtService jwt) { this.jwt = jwt; }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
+            throws ServletException, IOException {
+        String header = req.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {     // no token: carry on as anonymous
+            chain.doFilter(req, res);                               // protected URLs will then answer 401
+            return;
+        }
+        try {
+            Claims claims = jwt.parse(header.substring(7));
+            List<SimpleGrantedAuthority> authorities = ((List<?>) claims.get("roles")).stream()
+                    .map(r -> new SimpleGrantedAuthority(r.toString())).toList();
+            var auth = new UsernamePasswordAuthenticationToken(claims.getSubject(), null, authorities);
+            SecurityContextHolder.getContext().setAuthentication(auth);   // "this request is ajay, ROLE_USER"
+        } catch (JwtException e) {
+            SecurityContextHolder.clearContext();                    // bad or expired token: stays anonymous -> 401
+        }
+        chain.doFilter(req, res);
+    }
+}
+```
+- The roles come **from the token**, so no database call per request. That is the "stateless" part.
+
+## 4. SecurityFilterChain: Wire It Up
+```java
+@Configuration
+@EnableMethodSecurity                                         // turns on @PreAuthorize
+public class SecurityConfig {
+    @Bean
+    SecurityFilterChain api(HttpSecurity http, JwtAuthFilter jwtFilter) throws Exception {
+        return http
+            .csrf(csrf -> csrf.disable())                      // Bearer header is not sent automatically: no CSRF risk
+            .cors(Customizer.withDefaults())                   // uses the CorsConfigurationSource bean below
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(a -> a
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")   // authorization by URL
+                .anyRequest().authenticated())
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+            .build();
+    }
+
+    @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+
+    @Bean AuthenticationManager authManager(AuthenticationConfiguration cfg) throws Exception {
+        return cfg.getAuthenticationManager();
+    }
+
+    @Bean CorsConfigurationSource cors() {                     // let the Angular dev server call the API
+        var c = new CorsConfiguration();
+        c.setAllowedOrigins(List.of("http://localhost:4200"));
+        c.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
+        c.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        var src = new UrlBasedCorsConfigurationSource();
+        src.registerCorsConfiguration("/**", c);
+        return src;
+    }
+}
+```
+
+## 5. Authorization in the Service Layer
+```java
+@Service
+public class OrderService {
+    @PreAuthorize("hasRole('ADMIN')")                                  // role check
+    public void deleteOrder(long id) { ... }
+
+    @PreAuthorize("hasAuthority('orders:write')")                      // fine-grained permission
+    public Order update(Order o) { ... }
+
+    @PreAuthorize("#username == authentication.name or hasRole('ADMIN')")   // ownership: only your own orders
+    public List<Order> ordersOf(String username) { ... }
+}
+```
+- **Ownership checks** stop **IDOR** (changing `/orders/42` to `/orders/43` to see someone else's order). Roles alone do not.
+- `hasRole('ADMIN')` checks the authority `ROLE_ADMIN`, so the token must carry `ROLE_ADMIN`.
+
+## 6. Angular: AuthService
+```typescript
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  readonly token = signal<string | null>(localStorage.getItem('token'));   // see "Where to Store Tokens" for safer options
+  readonly isLoggedIn = computed(() => !!this.token() && !this.isExpired(this.token()!));
+  readonly roles = computed<string[]>(() => this.token() ? this.payload(this.token()!).roles ?? [] : []);
+
+  login(username: string, password: string) {
+    return this.http.post<{ token: string }>('/auth/login', { username, password }).pipe(
+      tap(res => { localStorage.setItem('token', res.token); this.token.set(res.token); }));
+  }
+  logout() { localStorage.removeItem('token'); this.token.set(null); this.router.navigate(['/login']); }
+
+  private payload(t: string) {                     // read the claims: Base64URL-decode the middle part
+    const b64 = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(b64));
+  }
+  private isExpired(t: string) { return this.payload(t).exp * 1000 < Date.now(); }
+}
+```
+- The frontend **reads** the payload (roles, expiry) to decide what to show. It cannot **verify** the signature: it has no secret. Only the server can.
+
+## 7. Angular: Interceptor
+```typescript
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const auth = inject(AuthService);
+  const token = auth.token();
+  const authed = token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;   // requests are immutable: clone
+  return next(authed).pipe(
+    catchError((err: HttpErrorResponse) => {
+      if (err.status === 401) auth.logout();          // expired or invalid: back to login (or call /auth/refresh)
+      return throwError(() => err);
+    }));
+};
+
+// app.config.ts
+export const appConfig: ApplicationConfig = {
+  providers: [provideRouter(routes), provideHttpClient(withInterceptors([authInterceptor]))],
+};
+```
+! The interceptor is the stamp at the post office: every letter leaving gets the token stamped on it.
+
+## 8. Angular: Guards
+```typescript
+export const authGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return auth.isLoggedIn() ? true : inject(Router).createUrlTree(['/login']);
+};
+
+export const roleGuard = (role: string): CanActivateFn => () =>
+  inject(AuthService).roles().includes(role) ? true : inject(Router).createUrlTree(['/forbidden']);
+
+export const routes: Routes = [
+  { path: 'login', component: LoginComponent },
+  { path: 'orders', component: OrdersComponent, canActivate: [authGuard] },
+  { path: 'admin', loadComponent: () => import('./admin').then(m => m.Admin), canActivate: [authGuard, roleGuard('ROLE_ADMIN')] },
+];
+```
+- `canActivate` = may I open this route? `canMatch` = should this route even match (and its lazy code download)? `canDeactivate` = may I leave (unsaved form)?
+- Hide buttons with `@if (auth.roles().includes('ROLE_ADMIN'))`, but remember the **API** must still say 403.
+
+## Interview Q&A
+Q*: Walk me through JWT login in a Spring Boot + Angular app.
+A: Angular posts the credentials to `/auth/login`; Spring's AuthenticationManager checks them against the BCrypt hash and JwtService returns a signed token with the username, roles and expiry. Angular stores it, and an interceptor adds `Authorization: Bearer` to every call. On the server, a OncePerRequestFilter validates the token and fills the SecurityContext; URL rules and `@PreAuthorize` decide access. Guards in Angular stop users opening pages they cannot use, and a 401 sends them back to login.
+Q*: Why extend OncePerRequestFilter?
+A: It guarantees the filter runs exactly once per request, even when the request is forwarded or dispatched again inside the servlet container, so the token is not parsed twice.
+Q: Why add the filter before UsernamePasswordAuthenticationFilter?
+A: So the user is already authenticated from the token before Spring's own login filter and the authorization checks run.
+Q: Are Angular guards enough to protect admin pages?
+A: No. Guards only control navigation in the browser and anyone can bypass them. The backend must check roles on every request; guards just give a better user experience.
+Q: What does the frontend do with an expired token?
+A: The interceptor sees the 401 and either calls the refresh endpoint and retries the request, or logs the user out and redirects to login.
 
 @ Advanced
 
