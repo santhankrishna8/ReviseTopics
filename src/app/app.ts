@@ -92,7 +92,7 @@ function byLevel(list: Sheet[]) {
         </button>
         <!-- Role: chosen once, so it reads as a sentence; the list opens only to change it. -->
         <div class="role">
-          <div class="role-pick" (focusout)="onRoleBlur($event)" (keydown.escape)="closeRoles(true)">
+          <div class="role-pick" (focusout)="onRoleBlur($event)" (keydown.escape)="onRoleEscape($event)">
           <p class="role-line">
             <span id="role-prefix">Preparing for</span>
             <button #roleBtn type="button" class="role-btn" aria-labelledby="role-prefix role-name"
@@ -230,6 +230,7 @@ export class App {
   protected setTrack(id: Track | 'all') { this.track.set(id); store.set('track', id); }
   protected readonly trackInfo = computed(() => TRACKS.find(t => t.id === this.track())!);
   protected readonly rolesOpen = signal(false);
+  private readonly failed = signal(new Set<string>());
   private readonly roleBtn = viewChild.required<ElementRef<HTMLButtonElement>>('roleBtn');
   protected closeRoles(refocus = false) {
     if (!this.rolesOpen()) return;
@@ -240,6 +241,8 @@ export class App {
   // A mouse or touch pick closes the list. Arrow keys also fire click, but with detail 0: they keep it open
   // so keyboard users can move through the options; Escape or Tab closes it. (mousedown is prevented on the
   // options, so pressing one does not blur the button and close the list before the click lands.)
+  // While the list is open, Escape closes only the list: cancelling the keydown stops the phone drawer (a popover) closing too.
+  protected onRoleEscape(e: Event) { if (this.rolesOpen()) { e.preventDefault(); this.closeRoles(true); } }
   protected onRolePick(e: MouseEvent) { if (e.detail > 0) this.closeRoles(true); }
   protected onRoleBlur(e: FocusEvent) {
     if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) this.closeRoles();
@@ -247,7 +250,8 @@ export class App {
   // Progress through the role's Interview Basics sheets (id "b"), and the first one not yet revised.
   // Hidden until every topic in the role has loaded, so the count never jumps.
   protected readonly basics = computed(() => {
-    const topics = this.visible().filter(t => !t.poster);
+    const failed = this.failed();
+    const topics = this.visible().filter(t => !t.poster && !failed.has(t.id));   // a topic that failed to load is left out, not waited on
     const loaded = this.sheets();
     if (!topics.length || topics.some(t => !loaded[t.id])) return null;
     const withBasics = topics.filter(t => loaded[t.id]!.some(s => s.n === 'b'));
@@ -381,7 +385,9 @@ export class App {
     try {
       const list = await loadTopic(id);
       this.sheets.update(s => ({ ...s, [id]: list }));
+      if (this.failed().has(id)) this.failed.update(f => { const n = new Set(f); n.delete(id); return n; });
     } catch (e) {
+      this.failed.update(f => new Set(f).add(id));
       if (id === this.route().topic) this.error.set(`The notes file could not be fetched (${(e as Error).message}). Check that the app is running, then try again.`);
     }
   }
