@@ -1,0 +1,322 @@
+# 01 | Missed in Interviews | The questions you could not answer in a real interview, with the answer to say out loud. Read this first before every interview. Turn on Self-test, say each answer, then reveal it. After each interview, add the new ones here. | Read this first
+
+### How to Answer a Basic Question
+
+## The 3-Part Answer
+> Every basic question ("What is X?") gets the same shape: **one-line definition**, then **a small example**, then **one detail that shows depth**. That takes about 30–45 seconds.
+- **Definition:** "A HashMap is a key-value store that gives O(1) average get and put."
+- **Example:** "Like counting votes: `map.merge(country, 1, Integer::sum)`."
+- **Depth:** "Internally it is an array of buckets; collisions go into a list that becomes a red-black tree after 8 entries."
+- If you blank: say the part you **do** know, out loud. Silence is the only wrong answer. "I haven't used X directly, but it solves the same problem as Y, which I have used..."
+! Definition, example, depth. Say it in 30 seconds or it is not ready.
+
+### Asked: JWT
+
+## What is JWT?
+> **JWT (JSON Web Token)** is a compact, **signed** token that proves who the user is. The server creates it at login; the client sends it on every request in the `Authorization: Bearer <token>` header; the server checks the signature instead of looking up a session. That makes it **stateless**.
+```text
+eyJhbGciOiJIUzI1NiJ9 . eyJzdWIiOiJhamF5Iiwicm9sZXMiOlsiVVNFUiJdLCJleHAiOjE3MzU2OTYwMDB9 . 4fX9...signature
+      HEADER                              PAYLOAD (claims)                                   SIGNATURE
+```
+- **Flow:** login with username + password → server verifies → server signs a JWT → client stores it → client sends it with every request → server verifies the signature and expiry → allowed or `401`.
+- **Why use it:** no server-side session store, works across many servers and microservices, works for mobile and SPA clients.
+- **Downside:** you cannot easily "log out" a JWT before it expires. So keep access tokens short (5–15 min) and use a **refresh token** to get new ones.
+! JWT = a signed ID card. Anyone can read it; only the server can sign it, so no one can forge it.
+
+## What Do We Encode in a JWT?
+> A JWT has three parts, each **Base64URL-encoded** and joined with dots: **header.payload.signature**. Encoded is **not** encrypted: anyone can decode the header and payload, so **never put passwords or secrets in it**.
+```json
+// 1. HEADER: which algorithm signed it
+{ "alg": "HS256", "typ": "JWT" }
+
+// 2. PAYLOAD: the claims (facts about the user)
+{
+  "sub": "ajay",                  // subject: who the token is for (user id or username)
+  "roles": ["USER", "ADMIN"],     // custom claim: used for authorization
+  "iat": 1735692400,              // issued at (seconds since 1970)
+  "exp": 1735693300,              // expires at: the server rejects it after this
+  "iss": "auth.myapp.com",        // issuer: who created it
+  "aud": "orders-api"             // audience: who it is meant for
+}
+
+// 3. SIGNATURE: proves header + payload were not changed
+HMACSHA256( base64Url(header) + "." + base64Url(payload), secretKey )
+```
+- **Registered claims:** `sub`, `exp`, `iat`, `iss`, `aud`, `nbf` (not before), `jti` (token id, used for revocation lists).
+- **Put in it:** user id, username, roles/permissions, expiry. **Never:** password, card numbers, personal data.
+- **HS256** = one shared secret signs and verifies. **RS256** = private key signs, public key verifies (better for microservices: services only need the public key).
+- If someone edits the payload (e.g. adds `"ADMIN"`), the signature no longer matches and the server rejects it.
+! Base64 is a costume, not a lock: the signature is the lock.
+
+## Authentication vs Authorization
+> **Authentication** = *who are you?* (login, verify the password or token). **Authorization** = *what are you allowed to do?* (roles and permissions). Authentication always comes first.
+- Failed authentication → **401 Unauthorized**. Authenticated but not allowed → **403 Forbidden**.
+- Spring: authentication by the filter chain (JWT filter sets the `SecurityContext`); authorization by `authorizeHttpRequests(...)` rules and `@PreAuthorize("hasRole('ADMIN')")`.
+! 401 = "I don't know you". 403 = "I know you, and the answer is no".
+
+### Asked: HashMap
+
+## What is a HashMap?
+> **HashMap** is a `Map` implementation that stores **key → value** pairs and gives **O(1) average** `put`, `get` and `remove`. Keys are unique, it allows **one `null` key** and many `null` values, it keeps **no order**, and it is **not thread-safe**.
+```java
+Map<String, Integer> votes = new HashMap<>();
+votes.put("USA", 1);
+votes.merge("USA", 1, Integer::sum);         // USA=2: add 1, or start at 1
+votes.getOrDefault("India", 0);              // 0
+votes.containsKey("USA");                    // true
+for (Map.Entry<String, Integer> e : votes.entrySet()) System.out.println(e.getKey() + "=" + e.getValue());
+```
+- **Need order?** `LinkedHashMap` (insertion order), `TreeMap` (sorted by key, O(log n)).
+- **Need thread safety?** `ConcurrentHashMap` (not `Hashtable`, not `Collections.synchronizedMap`).
+! A HashMap is a wall of numbered lockers: the key's hash picks the locker.
+
+## How Does HashMap Work Internally?
+> Inside is an **array of buckets** (`Node<K,V>[] table`, default size **16**). On `put`, it computes the key's `hashCode()`, picks a bucket with `index = (n - 1) & hash`, and stores the entry there. If two keys land in the same bucket (a **collision**), they are chained in a **linked list**, which becomes a **red-black tree** when it grows past **8**.
+```text
+put("USA", 4)
+ 1. h = "USA".hashCode()          then spread:  hash = h ^ (h >>> 16)
+ 2. index = (16 - 1) & hash   ->  say 5
+ 3. bucket 5 empty?  store Node(hash, "USA", 4)
+    not empty?       walk the nodes: same hash AND equals()  -> replace value
+                                      none equal               -> add new node at the end
+ 4. size > capacity * loadFactor (16 * 0.75 = 12)?  -> resize: double to 32, re-place entries
+
+get("USA")  -> same hash, same index, walk the bucket comparing with equals()
+```
+- **Load factor 0.75:** resize when 75% full, so buckets stay short.
+- **Java 8 treeify:** a bucket with more than **8** nodes (and table ≥ 64) becomes a tree, so worst case is **O(log n)** instead of O(n). It turns back into a list at **6**.
+- **Why `equals()` and `hashCode()` both matter:** `hashCode` finds the bucket, `equals` finds the exact key inside it. Equal objects **must** have equal hash codes, or `get` looks in the wrong bucket and returns `null`.
+- **Never use a mutable key** (one whose fields change after insertion): its hash changes and the entry is lost.
+! hashCode picks the locker, equals picks the item inside it.
+
+### Asked: Collectors Class
+
+## What is the Collectors Class?
+> `java.util.stream.Collectors` is a utility class of ready-made **collectors**: recipes that `collect()` uses to turn a stream into a **List, Set, Map, String, count or groups**.
+```java
+List<String> names = List.of("Ajay", "Joe", "Michael", "Anu");
+
+names.stream().collect(Collectors.toList());                     // [Ajay, Joe, Michael, Anu]
+names.stream().collect(Collectors.toSet());                      // no duplicates, no order
+names.stream().collect(Collectors.joining(", ", "[", "]"));      // "[Ajay, Joe, Michael, Anu]"
+names.stream().collect(Collectors.counting());                   // 4
+
+names.stream().collect(Collectors.groupingBy(n -> n.charAt(0)));            // {A=[Ajay, Anu], J=[Joe], M=[Michael]}
+names.stream().collect(Collectors.groupingBy(String::length, Collectors.counting()));   // {3=2, 4=1, 7=1}
+names.stream().collect(Collectors.partitioningBy(n -> n.length() > 3));     // {false=[Joe, Anu], true=[Ajay, Michael]}
+names.stream().collect(Collectors.toMap(n -> n, String::length));          // Ajay=4, Joe=3, Michael=7, Anu=3 (HashMap: any order)
+```
+- **Downstream collectors** (the second argument of `groupingBy`): `counting()`, `summingInt()`, `averagingDouble()`, `mapping()`, `maxBy()`, `toSet()`.
+- **`toMap` trap:** duplicate keys throw `IllegalStateException`. Pass a merge function: `toMap(k, v, (a, b) -> a + b)`.
+- Full list with every method: **Java Streams & Lambdas → Collectors**.
+! groupingBy = sort mail into labelled bins; counting() = count the letters in each bin.
+
+### Asked: Streams Coding
+
+## Votes Per Country (your interview question)
+> **Problem:** candidates map to countries (`"Ajay-India"`). Given the votes, find the votes per country and the winning country. **Logic:** build `candidate → country`, map each vote to its country, count per country, take the max.
+```java
+String[] candidates = {"Ajay-India", "Michael-USA", "Joe-USA"};
+String[] votes      = {"Ajay", "Michael", "Michael", "Michael", "Joe"};
+
+// 1. candidate -> country
+Map<String, String> countryOf = Arrays.stream(candidates)
+        .map(s -> s.split("-"))
+        .collect(Collectors.toMap(p -> p[0], p -> p[1]));          // {Ajay=India, Michael=USA, Joe=USA}
+
+// 2. votes per country
+Map<String, Long> votesPerCountry = Arrays.stream(votes)
+        .collect(Collectors.groupingBy(countryOf::get, Collectors.counting()));   // USA=4, India=1
+
+// 3. winner
+String winner = votesPerCountry.entrySet().stream()
+        .max(Map.Entry.comparingByValue())
+        .map(Map.Entry::getKey)
+        .orElse("no votes");                                          // USA
+```
+- **Your loop version, finished.** You found the max count but not the country: track both together.
+```java
+Map<String, Integer> count = new HashMap<>();
+for (String v : votes) count.merge(countryOf.get(v), 1, Integer::sum);   // replaces the containsKey/put if-else
+
+String best = null; int max = 0;
+for (Map.Entry<String, Integer> e : count.entrySet()) {
+    if (e.getValue() > max) { max = e.getValue(); best = e.getKey(); }
+}
+System.out.println(best + " " + max);                                    // USA 4
+```
+- Complexity: O(c + v), one pass over the candidates and one over the votes.
+! Map it, group it, count it, max it.
+
+## Count Unique Characters
+> **Problem:** how many distinct letters in `"abcdabcdz"`? Answer: 5. **Logic:** a `Set` keeps one copy of each, so its size is the answer.
+```java
+String str = "abcdabcdz";
+long unique = str.chars().distinct().count();                       // 5
+
+Set<Character> seen = new HashSet<>();                              // loop version
+for (char c : str.toCharArray()) seen.add(c);
+System.out.println(seen.size());                                    // 5
+```
+- `list.contains(x)` inside a loop is **O(n²)** (it scans the list each time). `HashSet.add` is O(1), so the set version is **O(n)**. Say this in the interview.
+! Need "unique"? Reach for a Set.
+
+## Character Frequency & First Non-Repeated
+```java
+String s = "programming";
+Map<Character, Long> freq = s.chars().mapToObj(c -> (char) c)
+        .collect(Collectors.groupingBy(c -> c, LinkedHashMap::new, Collectors.counting()));
+// {p=1, r=2, o=1, g=2, a=1, m=2, i=1, n=1}   (LinkedHashMap keeps the order of first appearance)
+
+Character firstUnique = freq.entrySet().stream()
+        .filter(e -> e.getValue() == 1).map(Map.Entry::getKey).findFirst().orElse(null);   // p
+```
+- `chars()` gives an `IntStream`; `mapToObj(c -> (char) c)` turns it into `Character`s.
+
+## Second Highest, Duplicates, Sort a Map
+```java
+List<Integer> nums = List.of(5, 9, 3, 9, 7, 5);
+
+nums.stream().distinct().sorted(Comparator.reverseOrder()).skip(1).findFirst();   // Optional[7]
+
+Set<Integer> seen = new HashSet<>();
+nums.stream().filter(n -> !seen.add(n)).collect(Collectors.toSet());             // duplicates: [5, 9]
+
+Map<String, Integer> marks = Map.of("Ajay", 70, "Joe", 90, "Anu", 80);
+marks.entrySet().stream()
+     .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+     .forEach(e -> System.out.println(e.getKey() + " " + e.getValue()));       // Joe 90, Anu 80, Ajay 70
+```
+- More: **Java Streams & Lambdas → Stream Coding Questions** (30 of them).
+
+### Asked: SQL
+
+## Second Highest & Nth Highest Salary
+```sql
+-- second highest
+SELECT MAX(salary) FROM employee
+WHERE salary < (SELECT MAX(salary) FROM employee);
+
+-- Nth highest (here N = 3), handles ties
+SELECT DISTINCT salary FROM (
+  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk FROM employee
+) t
+WHERE rnk = 3;
+```
+- **DENSE_RANK** gives ties the same rank with no gaps (100, 90, 90, 80 → 1, 2, 2, 3). **RANK** leaves gaps (1, 2, 2, 4). **ROW_NUMBER** never ties.
+! Say "DENSE_RANK so ties don't skip a rank" before you write it.
+
+## Duplicates: Find and Delete
+```sql
+-- find duplicate emails
+SELECT email, COUNT(*) AS cnt
+FROM employee
+GROUP BY email
+HAVING COUNT(*) > 1;
+
+-- delete duplicates, keep the row with the lowest id (MySQL)
+DELETE e1 FROM employee e1
+JOIN employee e2 ON e1.email = e2.email AND e1.id > e2.id;
+
+-- same in PostgreSQL
+DELETE FROM employee e1 USING employee e2
+WHERE e1.email = e2.email AND e1.id > e2.id;
+```
+! GROUP BY the column, HAVING COUNT(*) > 1.
+
+## Per Department: Count, Highest Paid, Empty Departments
+```sql
+-- employees per department
+SELECT d.name, COUNT(e.id) AS employees
+FROM department d LEFT JOIN employee e ON e.dept_id = d.id
+GROUP BY d.name;
+
+-- highest paid employee in each department
+SELECT name, dept_id, salary FROM (
+  SELECT name, dept_id, salary,
+         DENSE_RANK() OVER (PARTITION BY dept_id ORDER BY salary DESC) AS rnk
+  FROM employee
+) t
+WHERE rnk = 1;
+
+-- departments with no employees
+SELECT d.name FROM department d
+LEFT JOIN employee e ON e.dept_id = d.id
+WHERE e.id IS NULL;
+
+-- employees who earn more than their manager (self join)
+SELECT e.name FROM employee e
+JOIN employee m ON e.manager_id = m.id
+WHERE e.salary > m.salary;
+```
+- `COUNT(e.id)` not `COUNT(*)` with a LEFT JOIN, so empty departments show 0, not 1.
+
+## SQL Basics They Ask First
+- **WHERE vs HAVING:** `WHERE` filters **rows** before grouping; `HAVING` filters **groups** after `GROUP BY` (and can use `COUNT`, `SUM`).
+- **Joins:** `INNER` = only matching rows; `LEFT` = all left rows + matches (NULLs where none); `RIGHT` = the reverse; `FULL` = everything; `CROSS` = every combination; **self join** = a table joined to itself.
+- **DELETE vs TRUNCATE vs DROP:** `DELETE` removes chosen rows (WHERE, can roll back, fires triggers); `TRUNCATE` empties the table fast (no WHERE, resets identity); `DROP` removes the table itself.
+- **Primary key vs unique key:** both unique; primary key is **one per table** and **never NULL**; unique keys can be many and allow NULL.
+- **UNION vs UNION ALL:** `UNION` removes duplicates (slower); `UNION ALL` keeps all rows.
+- **Order a query runs:** `FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT`. That is why `WHERE` cannot use a `SELECT` alias.
+- **Index:** a sorted lookup structure (B-tree) that makes reads fast and writes a little slower. Put it on columns you filter and join on.
+- **Normalization:** split data so each fact lives once (1NF atomic values, 2NF no partial dependency, 3NF no transitive dependency).
+- **ACID:** Atomicity (all or nothing), Consistency (rules hold), Isolation (transactions don't see each other's half-done work), Durability (committed = saved).
+! WHERE before groups, HAVING after.
+
+### Asked: Spring Boot
+
+## What is Spring Boot? Spring vs Spring Boot
+> **Spring** is a framework for building Java apps around **dependency injection**. **Spring Boot** is Spring with the setup done for you: **auto-configuration**, **starter** dependencies, an **embedded server** (Tomcat) and production features (Actuator), so you run a `main` method and get a working app.
+- **Spring alone:** you configure beans, a DispatcherServlet, a server and versions yourself.
+- **Spring Boot adds:** `spring-boot-starter-web` (one dependency brings Spring MVC + Jackson + Tomcat), sensible defaults in `application.properties`, a runnable JAR.
+! Spring is the engine; Spring Boot is the car with the engine already fitted.
+
+## @SpringBootApplication & Auto-Configuration
+> `@SpringBootApplication` = **`@Configuration`** (this class can define beans) + **`@EnableAutoConfiguration`** (configure beans from what is on the classpath) + **`@ComponentScan`** (find `@Component` classes in this package and below).
+```java
+@SpringBootApplication
+public class OrderApp {
+    public static void main(String[] args) { SpringApplication.run(OrderApp.class, args); }
+}
+```
+- **Auto-configuration:** Boot sees `spring-boot-starter-data-jpa` + a DataSource URL on the classpath, so it creates the `DataSource`, `EntityManagerFactory` and transaction manager for you. It uses `@ConditionalOnClass` / `@ConditionalOnMissingBean`, so **your own bean always wins**.
+- Put the main class in the **root package**, or component scan misses your classes.
+
+## IoC, Dependency Injection & @Autowired
+> **IoC (Inversion of Control):** the Spring container creates and wires your objects, not your code. **DI** is how: a class **declares** what it needs and Spring **passes it in**.
+```java
+@Service
+public class OrderService {
+    private final PaymentClient payments;               // dependency
+    public OrderService(PaymentClient payments) {       // constructor injection: no @Autowired needed (one constructor)
+        this.payments = payments;
+    }
+}
+```
+- **Constructor injection** (preferred): fields can be `final`, easy to test with mocks, fails fast if a bean is missing. Field `@Autowired` hides dependencies.
+- Two beans of one type → use `@Primary` or `@Qualifier("name")`.
+! You don't build the car parts yourself; the factory hands them to you.
+
+## Annotations They Always Ask
+- **`@Component`** = generic bean. **`@Service`** = business logic. **`@Repository`** = data access (also translates DB exceptions). **`@Controller`** = web MVC returning views.
+- **`@RestController`** = `@Controller` + `@ResponseBody`: return values are written as JSON.
+- **`@Component` vs `@Bean`:** `@Component` goes on **your own class** (found by scanning); `@Bean` goes on a **method** in a `@Configuration` class, for third-party objects you cannot annotate.
+- **`@PathVariable`** = `/orders/{id}`; **`@RequestParam`** = `/orders?status=NEW`; **`@RequestBody`** = JSON body to an object.
+- **`@Value("${app.name}")`** = one property; **`@ConfigurationProperties(prefix = "app")`** = a typed group of properties.
+- **`@Transactional`** = the method runs in one DB transaction; a `RuntimeException` rolls it back.
+- **Bean scopes:** `singleton` (default, one per container), `prototype` (new each time), `request`, `session`.
+
+## Exception Handling & Profiles
+```java
+@RestControllerAdvice                                   // one place for all controller errors
+public class GlobalErrors {
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<String> notFound(OrderNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());   // 404
+    }
+}
+```
+- **Profiles:** `application-dev.properties`, `application-prod.properties`; activate with `spring.profiles.active=prod`. Different DB URLs per environment without code changes.
+- **Request flow:** request → `DispatcherServlet` → handler mapping finds the controller method → arguments bound and validated (`@Valid`) → method returns an object → Jackson writes JSON → response.
+- **Actuator:** `/actuator/health`, `/actuator/metrics` for monitoring.
+! @RestControllerAdvice = the one help desk every error is sent to.
