@@ -3,11 +3,11 @@ export type Topic = { id: string; name: string; poster?: boolean; hidden?: boole
 // (the "Cheat sheet" link) instead of its own sidebar row.
 
 export type Track = 'java' | 'angular' | 'ai';
-export const TRACKS: { id: Track | 'all'; name: string }[] = [
-  { id: 'java', name: 'Java Full Stack' },
-  { id: 'angular', name: 'Angular' },
-  { id: 'ai', name: 'AI Engineer' },
-  { id: 'all', name: 'All' },
+export const TRACKS: { id: Track | 'all'; name: string; covers: string }[] = [
+  { id: 'java', name: 'Java Full Stack', covers: 'Java, Spring Boot, SQL, Angular' },
+  { id: 'angular', name: 'Angular Frontend', covers: 'Angular, TypeScript, JavaScript, CSS' },
+  { id: 'ai', name: 'AI Engineer', covers: 'LLMs, RAG, agents, Python, FastAPI' },
+  { id: 'all', name: 'All topics', covers: 'Every topic in one list' },
 ];
 
 // How to study a topic: 1. its "Interview Basics" sheet (say every answer out loud), 2. its one-page

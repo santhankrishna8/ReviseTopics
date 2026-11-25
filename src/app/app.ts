@@ -90,17 +90,53 @@ function byLevel(list: Sheet[]) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
           Close topic list
         </button>
+        <!-- Role: chosen once, so it reads as a sentence; the list opens only to change it. -->
+        <div class="role">
+          <div class="role-pick" (focusout)="onRoleBlur($event)" (keydown.escape)="closeRoles(true)">
+          <p class="role-line">
+            <span id="role-prefix">Preparing for</span>
+            <button #roleBtn type="button" class="role-btn" aria-labelledby="role-prefix role-name"
+                    aria-controls="role-options" [attr.aria-expanded]="rolesOpen()" (click)="rolesOpen.set(!rolesOpen())">
+              <span id="role-name" class="role-name">{{ trackInfo().name }}</span>
+              <svg class="role-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </p>
+          <fieldset id="role-options" class="role-options" [hidden]="!rolesOpen()" (mousedown)="$event.preventDefault()">
+            <legend class="sr-only">Role you are preparing for</legend>
+            @for (tr of tracks; track tr.id) {
+              <label class="role-opt">
+                <input type="radio" name="track" [value]="tr.id" [checked]="track() === tr.id"
+                       (change)="setTrack(tr.id)" (click)="onRolePick($event)" />
+                <span class="role-opt-text">
+                  <span class="role-opt-name">{{ tr.name }}</span>
+                  <span class="role-opt-covers">{{ tr.covers }}</span>
+                </span>
+              </label>
+            }
+          </fieldset>
+          </div>
+          @if (basics(); as b) {
+            <p class="role-progress"><span class="role-count">{{ b.done }} of {{ b.total }}</span> Interview Basics revised</p>
+            @if (b.next; as n) {
+              <a class="role-next" [href]="'#/' + n.id + '/b'">
+                <span class="role-next-hint">Up next</span>
+                <span class="role-next-name">{{ n.name }}<span class="sr-only">, Interview Basics</span></span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </a>
+            } @else {
+              <p class="role-done">Every Basics sheet in this role is revised. Rate the shaky ones and they come back when due.</p>
+            }
+          } @else {
+            <!-- holds the space while the role's topics load, so the topic list does not jump -->
+            <div class="role-skeleton" aria-hidden="true"><span></span><span></span></div>
+          }
+        </div>
         @if (due().length) {
           <p class="label">Due for revision ({{ due().length }})</p>
           <ul class="sheets due">
             @for (d of due(); track d.href) { <li><a [href]="d.href" [class.shaky]="d.lvl === 1">{{ d.label }}</a></li> }
           </ul>
         }
-        <div class="tracks" role="group" aria-label="Role you are preparing for">
-          @for (tr of tracks; track tr.id) {
-            <button type="button" [attr.aria-pressed]="track() === tr.id" (click)="setTrack(tr.id)">{{ tr.name }}</button>
-          }
-        </div>
         @for (g of groups(); track g.name) {
           <p class="label">{{ g.name }}</p>
           <ul class="topics">
@@ -180,11 +216,45 @@ function byLevel(list: Sheet[]) {
 export class App {
   protected readonly tracks = TRACKS;
   protected readonly track = signal<Track | 'all'>((TRACKS.find(t => t.id === store.get('track'))?.id) ?? 'java');
-  protected readonly groups = computed(() => GROUPS.filter(g => g.tracks.length && (this.track() === 'all' || g.tracks.includes(this.track() as Track)))
-    .map(g => ({ ...g, topics: g.topics.filter(t => !t.hidden) })));
+  // The role's own groups come straight after "Start Here", shared groups after them, so "Up next" points at the role's core.
+  protected readonly groups = computed(() => {
+    const tr = this.track();
+    const own = (g: (typeof GROUPS)[number]) => tr !== 'all' && g.tracks.length === 1 && g.tracks[0] === tr;
+    return GROUPS.filter(g => g.tracks.length && (tr === 'all' || g.tracks.includes(tr)))
+      .map((g, i) => ({ g, rank: i === 0 ? 0 : own(g) ? 1 : 2, i }))
+      .sort((a, b) => a.rank - b.rank || a.i - b.i)
+      .map(({ g }) => ({ ...g, topics: g.topics.filter(t => !t.hidden) }));
+  });
   private readonly visible = computed(() => this.groups().flatMap(g => g.topics));
   protected readonly cheats = CHEATS;
   protected setTrack(id: Track | 'all') { this.track.set(id); store.set('track', id); }
+  protected readonly trackInfo = computed(() => TRACKS.find(t => t.id === this.track())!);
+  protected readonly rolesOpen = signal(false);
+  private readonly roleBtn = viewChild.required<ElementRef<HTMLButtonElement>>('roleBtn');
+  protected closeRoles(refocus = false) {
+    if (!this.rolesOpen()) return;
+    this.rolesOpen.set(false);
+    // next frame: a label click focuses its (now hidden) radio after this handler runs, which would drop focus on <body>
+    if (refocus) requestAnimationFrame(() => this.roleBtn().nativeElement.focus());
+  }
+  // A mouse or touch pick closes the list. Arrow keys also fire click, but with detail 0: they keep it open
+  // so keyboard users can move through the options; Escape or Tab closes it. (mousedown is prevented on the
+  // options, so pressing one does not blur the button and close the list before the click lands.)
+  protected onRolePick(e: MouseEvent) { if (e.detail > 0) this.closeRoles(true); }
+  protected onRoleBlur(e: FocusEvent) {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) this.closeRoles();
+  }
+  // Progress through the role's Interview Basics sheets (id "b"), and the first one not yet revised.
+  // Hidden until every topic in the role has loaded, so the count never jumps.
+  protected readonly basics = computed(() => {
+    const topics = this.visible().filter(t => !t.poster);
+    const loaded = this.sheets();
+    if (!topics.length || topics.some(t => !loaded[t.id])) return null;
+    const withBasics = topics.filter(t => loaded[t.id]!.some(s => s.n === 'b'));
+    if (!withBasics.length) return null;
+    const open = withBasics.filter(t => !this.isDone(t.id, 'b'));
+    return { done: withBasics.length - open.length, total: withBasics.length, next: open[0] };
+  });
   protected readonly home = HOME;
   protected readonly shortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 

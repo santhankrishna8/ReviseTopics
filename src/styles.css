@@ -180,14 +180,51 @@ body.resizing { cursor: col-resize; user-select: none; }
   scrollbar-width: thin; scrollbar-color: var(--line-2) transparent;
 }
 .label { margin: 22px 0 6px; padding: 0 12px; font-size: .8rem; font-weight: 650; color: var(--muted); }
-/* Role picker: which track's topics the sidebar lists */
-.tracks { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 0; padding: 4px; border-radius: 12px; background: var(--hover); }
-.tracks button {
-  flex: 1 1 auto; min-height: 32px; padding: 4px 10px; border: 0; border-radius: 9px; background: none; cursor: pointer;
-  color: var(--ink-2); font: 550 .84rem/1.2 var(--font-sans); transition: background-color .15s var(--ease-out);
+/* Role: "Preparing for <role>", a progress line and the next Basics sheet. Reads like a label on a notebook. */
+.role { padding: 14px 12px 16px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.role-line { margin: 0; color: var(--muted); font-size: .84rem; font-weight: 550; }
+.role-btn {
+  display: flex; align-items: center; gap: 6px; width: calc(100% + 16px); min-height: 44px; margin: 2px -8px 0; padding: 4px 8px;
+  border: 0; border-radius: 10px; background: none; color: var(--ink); cursor: pointer; text-align: left;
+  font: 560 1.4rem/1.15 var(--font-display); letter-spacing: -.01em;
+  transition: background-color .15s var(--ease-out);
 }
-.tracks button:hover { color: var(--ink); }
-.tracks button[aria-pressed="true"] { background: var(--bg); color: var(--ink); font-weight: 650; box-shadow: 0 1px 2px oklch(0 0 0 / .08); }
+.role-btn:hover { background: var(--hover); }
+.role-name { min-width: 0; text-wrap: balance; }
+.role-chev { width: 18px; height: 18px; color: var(--muted); transition: rotate .2s var(--ease-out); }
+.role-btn[aria-expanded="true"] .role-chev { rotate: 180deg; color: var(--ink); }
+
+.role-options { margin: 8px 0 4px; padding: 4px; min-inline-size: 0; border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg); }
+.role-options[hidden] { display: none; }
+.role-opt {
+  display: flex; align-items: flex-start; gap: 10px; min-height: 44px; padding: 8px 10px; border-radius: 9px; cursor: pointer;
+  transition: background-color .15s var(--ease-out);
+}
+.role-opt:hover { background: var(--hover); }
+.role-opt input { flex: none; width: 16px; height: 16px; margin: 3px 0 0; accent-color: var(--accent); cursor: pointer; }
+.role-opt:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.role-opt input:focus-visible { outline: none; }
+.role-opt-text { display: grid; gap: 1px; min-width: 0; }
+.role-opt-name { color: var(--ink); font-size: .95rem; font-weight: 600; line-height: 1.3; }
+.role-opt:has(input:checked) .role-opt-name { font-weight: 700; }
+.role-opt-covers { color: var(--muted); font-size: .82rem; line-height: 1.35; }
+
+.role-progress { margin: 10px 0 0; color: var(--ink-2); font-size: .86rem; line-height: 1.4; }
+.role-count { padding: 0 2px; color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; background: linear-gradient(transparent 55%, var(--hl) 55%); }
+.role-next {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 8px; margin: 10px 0 0; padding: 10px 12px;
+  border-radius: 10px; background: var(--bg); color: var(--ink); text-decoration: none; box-shadow: 0 1px 2px oklch(0 0 0 / .08);
+  transition: background-color .15s var(--ease-out);
+}
+.role-next:hover { background: var(--hover); }
+.role-next-hint { grid-column: 1; color: var(--muted); font-size: .76rem; font-weight: 600; }
+.role-next-name { grid-column: 1; font-size: .93rem; font-weight: 650; line-height: 1.3; }
+.role-next svg { grid-column: 2; grid-row: 1 / span 2; color: var(--accent-ink); transition: translate .2s var(--ease-out); }
+.role-next:hover svg { translate: 2px 0; }
+.role-skeleton { display: grid; gap: 10px; margin-top: 10px; }
+.role-skeleton span { height: 20px; width: 75%; border-radius: 6px; background: linear-gradient(90deg, var(--rail), var(--hover), var(--rail)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+.role-skeleton span + span { height: 58px; width: 100%; border-radius: 10px; }
+.role-done { margin: 8px 0 0; color: var(--muted); font-size: .84rem; line-height: 1.45; }
 .cheat-link a { font-style: italic; }
 .topics, .sheets { list-style: none; margin: 0; padding: 0; }
 .topic {
