@@ -1,8 +1,61 @@
-# 10 | Lambdas, Functional Interfaces & Optional | Java 8 functional style | Lambdas & Optional
+@ Must-Know
+# b | Interview Basics: Streams & Lambdas | The streams questions every Java interview opens with. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
 
-## Lambdas | rose
-- A **lambda** is an anonymous function: `(params) -> expression` or `(params) -> { statements; }`.
-- It can be used anywhere a **functional interface** is expected (an interface with **exactly one abstract method**).
+## Lambdas & Functional Interfaces
+Q*: What is a lambda expression?
+A: An anonymous function you can pass around like a value: `(params) -> body`. Example: `(a, b) -> a + b`. It implements a functional interface, which lets you pass behaviour (a filter rule, a comparator) instead of writing an anonymous class.
+Q*: What is a functional interface? Name some.
+A: An interface with exactly one abstract method, so a lambda can implement it. `@FunctionalInterface` makes the compiler check that. Built-in ones: `Predicate<T>` (test, returns boolean), `Function<T,R>` (apply), `Consumer<T>` (accept, returns nothing), `Supplier<T>` (get, takes nothing), plus `Runnable` and `Comparator`.
+Q*: What is a method reference?
+A: A shorter lambda that only calls an existing method: `String::toUpperCase` means `s -> s.toUpperCase()`. Four kinds: static (`Integer::parseInt`), bound instance (`System.out::println`), unbound instance (`String::length`), constructor (`ArrayList::new`).
+Q: Why must variables used inside a lambda be effectively final?
+A: The lambda captures the value, and it may run later or on another thread. If the variable could change, the result would be confusing and unsafe, so Java forbids it.
+
+## Streams
+Q*: What is a Stream?
+A: A pipeline that processes a collection's elements declaratively: a source, then intermediate operations like `filter` and `map`, then one terminal operation like `collect`. It stores no data, never changes the source, runs lazily, and can be used only once. Example: `names.stream().filter(n -> n.startsWith("A")).toList()`.
+Q*: Intermediate vs terminal operations?
+A: Intermediate operations (`filter`, `map`, `sorted`, `distinct`, `limit`) return a new stream and are lazy: they do nothing on their own. A terminal operation (`collect`, `toList`, `forEach`, `count`, `reduce`, `findFirst`) starts the processing and produces the result. Without a terminal operation, nothing runs.
+Q*: map vs flatMap?
+A: `map` turns each element into exactly one element (1 to 1): `map(String::length)`. `flatMap` turns each element into a stream and flattens them into one stream (1 to many): `listOfLists.stream().flatMap(List::stream)` turns `[[1,2],[3]]` into `[1,2,3]`.
+Q*: What does "streams are lazy" mean?
+A: Intermediate operations only build the pipeline. When the terminal operation runs, each element goes through the whole chain one at a time, and short-circuit operations like `findFirst` stop early. With `findFirst`, only the first element is filtered and mapped.
+Q*: Collection vs Stream?
+A: A collection stores data and can be iterated many times. A stream stores nothing; it is a one-time computation over a source. Collections are about data, streams are about processing it.
+Q: Can you reuse a stream?
+A: No. After a terminal operation it is closed, and using it again throws `IllegalStateException: stream has already been operated upon or closed`. Create a new one from the source.
+Q: filter vs map?
+A: `filter` keeps or drops elements using a `Predicate` (count can shrink, type stays). `map` transforms every element using a `Function` (count stays, type can change).
+Q: findFirst vs findAny?
+A: `findFirst` returns the first element in order. `findAny` may return any element; it is faster in parallel streams. Both return an `Optional`.
+Q: What is reduce?
+A: It combines all elements into one value: `nums.stream().reduce(0, Integer::sum)` adds them up. The first argument is the starting value (identity), the second the combining function.
+
+## Collectors
+Q*: What is the Collectors class?
+A: A utility class (`java.util.stream.Collectors`) of ready-made recipes for `collect()`: `toList`, `toSet`, `toMap`, `joining`, `counting`, `groupingBy`, `partitioningBy`, `averagingInt`, `summingInt`, `mapping`. They turn a stream into a collection, a map, a string or a number.
+Q*: groupingBy vs partitioningBy?
+A: `groupingBy(classifier)` makes a `Map` with one group per key: employees by department. `partitioningBy(predicate)` always makes exactly two groups, `true` and `false`: passed vs failed.
+Q*: How do you count items per group?
+A: `groupingBy` with a downstream collector: `emps.stream().collect(Collectors.groupingBy(Employee::dept, Collectors.counting()))` gives `{Finance=1, HR=2, IT=3}`.
+Q: What happens when toMap meets a duplicate key?
+A: It throws `IllegalStateException: Duplicate key`. Pass a merge function as the third argument: `toMap(k, v, (a, b) -> a)` keeps the first value, `Integer::sum` adds them.
+Q: Stream.toList() vs collect(Collectors.toList())?
+A: `toList()` (Java 16) returns an unmodifiable list. `Collectors.toList()` returns a modifiable `ArrayList` in practice. Use `toList()` unless you must change the list later.
+
+## Optional & Parallel
+Q*: What is Optional?
+A: A container that may or may not hold a value, used as a return type so "no result" is explicit instead of `null`. `findById(id).map(User::name).orElse("Guest")`. Get the value with `orElse`, `orElseGet`, `orElseThrow`; avoid a bare `get()`.
+Q: orElse vs orElseGet?
+A: `orElse(x)` always computes `x`, even if a value is present. `orElseGet(() -> x)` computes it only when the Optional is empty. Use `orElseGet` when the default is expensive (a DB call).
+Q: What is a parallel stream? When not to use it?
+A: `parallelStream()` splits the work across CPU cores using the common ForkJoinPool. Avoid it for small data, I/O or blocking calls, code that changes shared variables, and when order matters. It is often slower than a plain stream for normal-sized lists.
+
+@ Beginner
+# 01 | Lambdas, Functional Interfaces & Method References | The Java 8 building blocks every stream uses | Lambdas
+
+## Lambdas
+> A **lambda** is an anonymous function: `(params) -> expression` or `(params) -> { statements; }`. It can be used anywhere a **functional interface** is expected.
 - Lambdas can capture local variables only if they are **effectively final** (captured by value, avoids data races).
 - In a lambda, **`this`** refers to the **enclosing instance** (unlike anonymous classes).
 - Compiled with **`invokedynamic`** (via `LambdaMetafactory`), not as separate anonymous class files.
@@ -15,29 +68,52 @@ int base = 10;
 Function<Integer, Integer> plusBase = x -> x + base;   // base must be effectively final
 // base++;                                             // would make the lambda not compile
 ```
+! A lambda is a sticky note with instructions you hand to someone else to run later.
 
-## Built-in Functional Interfaces | blue
-- **`Function<T, R>`**: `R apply(T)`. Compose with `andThen`, `compose`.
-- **`Predicate<T>`**: `boolean test(T)`. Combine with `and`, `or`, `negate`, `Predicate.not`.
-- **`Consumer<T>`**: `void accept(T)`. **`Supplier<T>`**: `T get()`.
-- **`UnaryOperator<T>`** (T to T), **`BinaryOperator<T>`** ((T, T) to T), **`BiFunction<T, U, R>`**, **`BiConsumer`**, **`BiPredicate`**.
-- **Primitive specialisations** avoid boxing: `IntPredicate`, `ToIntFunction`, `IntUnaryOperator`, `IntSupplier`...
-- Older ones: `Runnable`, `Callable<V>`, `Comparator<T>`.
-- **`@FunctionalInterface`** makes the compiler verify there is exactly one abstract method (default and static methods do not count).
+## Lambda vs Anonymous Class
+```java
+// before Java 8: anonymous class
+Comparator<String> c1 = new Comparator<String>() {
+    @Override public int compare(String a, String b) { return a.length() - b.length(); }
+};
+// Java 8: lambda
+Comparator<String> c2 = (a, b) -> a.length() - b.length();
+// method reference + Comparator factory
+Comparator<String> c3 = Comparator.comparingInt(String::length);
+```
+- A lambda implements **only functional interfaces** and has no own `this` or state. An anonymous class can implement any interface or extend a class, and has its own `this` and fields.
+
+## Built-in Functional Interfaces
+```text
+Interface            Method              Takes -> Returns     Used in
+-------------------  ------------------  -------------------  ------------------------------
+Predicate<T>         boolean test(T)     T -> boolean         filter, anyMatch, removeIf
+Function<T, R>       R apply(T)          T -> R               map, groupingBy, comparing
+Consumer<T>          void accept(T)      T -> nothing         forEach, ifPresent
+Supplier<T>          T get()             nothing -> T         orElseGet, generate, toCollection
+UnaryOperator<T>     T apply(T)          T -> T               replaceAll, iterate
+BinaryOperator<T>    T apply(T, T)       (T, T) -> T          reduce, toMap merge
+BiFunction<T, U, R>  R apply(T, U)       (T, U) -> R          Map.merge, Map.compute
+```
+- **Primitive versions** avoid boxing: `IntPredicate`, `IntFunction`, `ToIntFunction`, `IntUnaryOperator`, `IntBinaryOperator`.
+- **Combine them:** `Predicate.and / or / negate / not`, `Function.andThen / compose`, `Comparator.thenComparing / reversed`.
+- **`@FunctionalInterface`** makes the compiler verify there is exactly one abstract method. Default and static methods do not count.
 ```java
 Predicate<String> notBlank = Predicate.not(String::isBlank);
-Function<String, String> trim = String::trim;
-Function<String, Integer> lenAfterTrim = trim.andThen(String::length);
+Predicate<Integer> evenAndBig = ((Predicate<Integer>) n -> n % 2 == 0).and(n -> n > 10);
+Function<String, Integer> lenAfterTrim = ((Function<String, String>) String::trim).andThen(String::length);
 
 @FunctionalInterface
 interface Validator<T> { boolean validate(T t); }
+Validator<String> email = s -> s.contains("@");
 ```
+! Predicate asks, Function changes, Consumer uses, Supplier gives.
 
-## Method References | green
+## Method References
 - Shorthand for a lambda that just calls an existing method. Four kinds:
 - **Static**: `Integer::parseInt` = `s -> Integer.parseInt(s)`.
-- **Bound instance** (specific object): `System.out::println` = `x -> System.out.println(x)`.
-- **Unbound instance** (arbitrary object of a type): `String::toUpperCase` = `s -> s.toUpperCase()`.
+- **Bound instance** (a specific object): `System.out::println` = `x -> System.out.println(x)`.
+- **Unbound instance** (any object of the type, the first argument): `String::toUpperCase` = `s -> s.toUpperCase()`.
 - **Constructor**: `ArrayList::new` = `() -> new ArrayList<>()`, `User::new`.
 ```java
 List<Integer> ids = strings.stream().map(Integer::parseInt).toList();
@@ -46,12 +122,373 @@ Supplier<List<String>> make = ArrayList::new;
 Function<String, User> toUser = User::new;     // calls User(String)
 ```
 
-## Optional | amber
-- **`Optional<T>`** is a container that may or may not hold a value. It makes "**might be absent**" explicit in return types.
+## Default & Static Interface Methods
+> Since Java 8, interfaces can have **default methods** (with a body, inherited by implementers) and **static methods**. That is how `Collection.stream()` and `List.forEach` were added without breaking every existing class.
+```java
+interface Vehicle {
+    void drive();                                            // the one abstract method
+    default void honk() { System.out.println("Beep"); }      // every Vehicle gets this
+    static Vehicle bike() { return () -> System.out.println("pedal"); }
+}
+```
+- **Diamond:** if a class inherits the same default method from two interfaces, it must override it and can call `A.super.honk()`.
+
+## Interview Q&A
+Q*: What is a functional interface?
+A: An interface with exactly one abstract method, so it can be implemented by a lambda or method reference. Examples: `Runnable`, `Comparator`, `Function`, `Predicate`.
+Q*: Why must captured variables be effectively final?
+A: Lambdas capture the value, not the variable. Allowing changes would create confusing behaviour and data races when the lambda runs later or on another thread.
+Q: Lambda vs anonymous class?
+A: A lambda only implements functional interfaces, has no own `this` (uses the enclosing one), and is compiled via `invokedynamic`. An anonymous class can implement any interface or extend a class and has its own `this` and state.
+Q: Can a functional interface have default methods?
+A: Yes, any number of default and static methods. Only one abstract method is allowed.
+Q: Is `Comparator` a functional interface? It has `equals` too.
+A: Yes. `equals` is a public method of `Object`, so it does not count as an abstract method. `compare` is its only abstract one.
+Q: Name the four kinds of method references.
+A: Static (`Math::abs`), bound instance (`obj::method`), unbound instance (`String::length`), constructor (`User::new`).
+
+# 02 | Stream Basics: How a Pipeline Runs | Creating streams, intermediate vs terminal, laziness, primitive streams | Stream Basics
+
+## What a Stream Is
+> A **stream** is a **pipeline of operations over a data source**. It does **not store** data and **does not modify** the source. Pipeline: **source → intermediate operations (lazy) → one terminal operation (runs it all)**.
+```java
+List<String> result = employees.stream()
+    .filter(e -> e.salary() > 50_000)              // intermediate
+    .sorted(Comparator.comparing(Employee::name))  // intermediate (stateful)
+    .map(Employee::name)                           // intermediate
+    .limit(5)                                      // intermediate, short-circuit
+    .toList();                                     // terminal: now everything runs
+```
+- **Single use:** a stream cannot be reused after a terminal operation (`IllegalStateException`).
+- **vs a for loop:** less code and clearer intent ("filter, map, collect"), easy to make parallel. Not always faster.
+! An assembly line: nothing moves until the last station switches the belt on.
+
+## Creating Streams
+```java
+List.of(1, 2, 3).stream();                         // from any Collection
+Arrays.stream(new int[]{1, 2, 3});                 // from an array (IntStream for int[])
+Stream.of("a", "b", "c");                          // from values
+IntStream.range(0, 5);                             // 0,1,2,3,4      (rangeClosed(1, 5) = 1..5)
+Stream.iterate(1, n -> n * 2).limit(5);            // 1,2,4,8,16  infinite, so limit it
+Stream.iterate(1, n -> n <= 20, n -> n * 2);       // [1, 2, 4, 8, 16]  (Java 9: with a stop condition)
+Stream.generate(Math::random).limit(3);            // 3 random numbers
+"hey".chars();                                     // IntStream of char codes
+map.entrySet().stream();                           // a Map is not a Collection: stream its entries
+Files.lines(Path.of("app.log"));                   // lines of a file (close it: try-with-resources)
+```
+
+## Intermediate vs Terminal
+- **Intermediate** (return a Stream, lazy): `filter`, `map`, **`flatMap`**, `distinct`, `sorted`, `peek`, `limit`, `skip`, `takeWhile`, `dropWhile`, `mapToInt`, `boxed`, `mapMulti`.
+- **Stateless** (`filter`, `map`: look at one element) vs **stateful** (`sorted`, `distinct`: must see many elements first).
+- **Terminal** (produce a result): `collect`, `toList`, `forEach`, `reduce`, `count`, `min`, `max`, **`anyMatch` / `allMatch` / `noneMatch`**, `findFirst`, `findAny`, `toArray`.
+- **Short-circuiting:** `limit`, `findFirst`, `anyMatch`, `takeWhile` can stop early, so they work on infinite streams.
+
+## Laziness: Watch It Run
+> Elements go through the pipeline **one at a time**, not stage by stage. With `findFirst`, the stream stops after the first match, so `b` and `c` are never touched.
+```java
+Stream.of("a", "b", "c")
+      .filter(x -> { System.out.println("filter " + x); return true; })
+      .map(x -> { System.out.println("map " + x); return x.toUpperCase(); })
+      .findFirst()
+      .ifPresent(x -> System.out.println("got " + x));
+// filter a
+// map a
+// got A
+```
+- Without the terminal `findFirst`, this prints **nothing**.
+! Lazy = the chef cooks only when an order (terminal operation) comes in, one plate at a time.
+
+## Primitive Streams
+> `IntStream`, `LongStream`, `DoubleStream` hold primitives, so no boxing, and they add `sum()`, `average()`, `summaryStatistics()`.
+```java
+List<Integer> nums = List.of(5, 3, 8, 1, 9, 3, 7, 8, 2);
+int sum = nums.stream().mapToInt(Integer::intValue).sum();                          // 46
+OptionalDouble avg = nums.stream().mapToInt(Integer::intValue).average();          // OptionalDouble[5.111111111111111]
+IntSummaryStatistics st = nums.stream().mapToInt(Integer::intValue).summaryStatistics();
+st.getMax(); st.getMin(); st.getAverage(); st.getSum(); st.getCount();             // 9, 1, 5.11, 46, 9
+List<Integer> back = IntStream.range(0, 4).boxed().toList();                       // [0, 1, 2, 3]
+```
+- `mapToInt` / `mapToObj` / `boxed` move between object and primitive streams.
+
+## Interview Q&A
+Q*: Intermediate vs terminal operations?
+A: Intermediate operations return a new stream and are lazy. Terminal operations produce a result or side effect and trigger processing of the whole pipeline.
+Q*: Why are streams lazy?
+A: So operations can be fused into a single pass and short-circuited, which avoids unneeded work and allows infinite streams.
+Q: Collection vs Stream?
+A: A collection stores data and can be iterated many times. A stream is a one-shot computation pipeline over a source that stores nothing.
+Q: How do you stream a Map?
+A: A Map is not a Collection, so stream one of its views: `map.entrySet().stream()`, `map.keySet().stream()` or `map.values().stream()`.
+Q: Stateless vs stateful operations?
+A: Stateless ones (`filter`, `map`) handle each element alone. Stateful ones (`sorted`, `distinct`) need to see other elements, so they buffer data and are costlier, especially in parallel.
+
+@ Intermediate
+# 03 | Stream Operations: Every Method With an Example | filter to mapMulti, collect to toArray, Comparator recipes | Operations
+
+## Filtering & Slicing
+```java
+List<Integer> nums = List.of(5, 3, 8, 1, 9, 3, 7, 8, 2);
+nums.stream().filter(n -> n % 2 == 0).toList();                 // [8, 8, 2]
+nums.stream().distinct().toList();                              // [5, 3, 8, 1, 9, 7, 2]  (keeps first-seen order)
+IntStream.rangeClosed(1, 10).skip(2).limit(3).boxed().toList(); // [3, 4, 5]
+Stream.of(1, 2, 3, 10, 4).takeWhile(n -> n < 5).toList();       // [1, 2, 3]   stops at the first failure
+Stream.of(1, 2, 3, 10, 4).dropWhile(n -> n < 5).toList();       // [10, 4]     drops until the first failure
+```
+- `takeWhile` is **not** `filter`: it stops at the first element that fails (`4` is never seen).
+
+## Transforming: map, flatMap, mapMulti
+```java
+Stream.of("a", "b").map(String::toUpperCase).toList();                          // [A, B]
+List.of(List.of(1, 2), List.of(3, 4), List.of(5)).stream().flatMap(List::stream).toList();   // [1, 2, 3, 4, 5]
+
+List<String> words = sentences.stream()                                         // all distinct words
+    .flatMap(s -> Arrays.stream(s.split("\\s+")))
+    .map(String::toLowerCase)
+    .distinct()
+    .toList();
+
+Stream.of(1, 2, 3).<Integer>mapMulti((n, sink) -> { sink.accept(n); sink.accept(n * 10); }).toList();   // [1, 10, 2, 20, 3, 30]
+```
+! map = translate each word; flatMap = open every box and pour everything onto one table.
+
+## Sorting & Comparator Recipes
+```java
+nums.stream().sorted().toList();                                 // ascending
+nums.stream().sorted(Comparator.reverseOrder()).toList();        // [9, 8, 8, 7, 5, 3, 3, 2, 1]
+Stream.of("pear", "fig", "banana")
+      .sorted(Comparator.comparingInt(String::length).thenComparing(Comparator.naturalOrder()))
+      .toList();                                                 // [fig, pear, banana]
+
+emps.stream().sorted(Comparator.comparing(Employee::name));                        // by name
+emps.stream().sorted(Comparator.comparingDouble(Employee::salary).reversed());     // salary high to low
+emps.stream().sorted(Comparator.comparing(Employee::dept).thenComparing(Employee::age));   // dept, then age
+Comparator.comparing(Employee::manager, Comparator.nullsLast(Comparator.naturalOrder()));  // nulls at the end
+```
+- **Trap:** `Comparator.comparing(Employee::salary).reversed()` works, but `comparing(e -> e.salary()).reversed()` may not compile: the lambda loses its type. Use a method reference or `Comparator.<Employee>comparing(...)`.
+
+## Matching, Finding, Counting
+```java
+nums.stream().anyMatch(n -> n > 8);      // true   at least one
+nums.stream().allMatch(n -> n > 0);      // true   every one (true on an empty stream)
+nums.stream().noneMatch(n -> n > 100);   // true   not one
+nums.stream().findFirst();               // Optional[5]
+nums.stream().count();                   // 9
+nums.stream().max(Integer::compare);     // Optional[9]
+nums.stream().min(Comparator.naturalOrder());   // Optional[1]
+```
+
+## reduce
+> `reduce` folds all elements into one value. With an **identity** it returns a plain value; without, it returns an `Optional` (the stream may be empty).
+```java
+nums.stream().reduce(0, Integer::sum);                     // 46
+nums.stream().reduce(Integer::max);                        // Optional[9]
+LongStream.rangeClosed(1, 5).reduce(1, (a, b) -> a * b);   // 120   (5!)
+Stream.of("java".split("")).reduce("", (acc, ch) -> ch + acc);   // "avaj"
+```
+- The identity must be neutral: `0` for sum, `1` for product, `""` for string join.
+
+## forEach, peek, toArray, collect
+```java
+names.forEach(System.out::println);                                // terminal, returns nothing
+Stream.of(1, 2).peek(x -> System.out.print("[" + x + "]")).map(x -> x * 2).toList();   // prints [1][2], returns [2, 4]
+Integer[] big = nums.stream().filter(n -> n > 6).toArray(Integer[]::new);              // [8, 9, 7, 8]
+List<Integer> list = nums.stream().toList();                       // unmodifiable (Java 16)
+List<Integer> mutable = nums.stream().collect(Collectors.toList());
+```
+- **`peek`** is for debugging. Do not put real work in it: it may be skipped (for example `count()` on a sized source).
+- **`forEach` vs `forEachOrdered`:** in parallel streams `forEach` runs in any order.
+
+## Interview Q&A
+Q*: filter vs map vs flatMap?
+A: `filter` keeps or drops elements by a condition. `map` transforms each element into one new element. `flatMap` transforms each element into a stream and joins them all into one.
+Q*: How do you sort in descending order with streams?
+A: `sorted(Comparator.reverseOrder())` for natural order, or `sorted(Comparator.comparing(Employee::salary).reversed())` for a field.
+Q: takeWhile vs filter?
+A: `filter` checks every element. `takeWhile` keeps elements only until the first one fails, then stops the stream.
+Q: Why does reduce without an identity return Optional?
+A: The stream might be empty, and then there is no value to return.
+
+# 04 | The Collectors Class | Every Collector with an example: toList to teeing, groupingBy in depth | Collectors
+
+## What Collectors Are
+> `collect(collector)` is the terminal operation that **builds a result container** from a stream. **`java.util.stream.Collectors`** is the utility class of ready-made collectors. Import it once: `import static java.util.stream.Collectors.*;`.
+```text
+Goal                         Collector
+---------------------------  -------------------------------------------------------
+List / Set / chosen type     toList(), toSet(), toCollection(TreeSet::new)
+Map                          toMap(keyFn, valueFn [, merge [, mapSupplier]])
+String                       joining(", ", "[", "]")
+Number                       counting(), summingInt, averagingDouble, summarizingInt
+Smallest / largest           minBy(comparator), maxBy(comparator)
+Groups                       groupingBy(classifier [, mapSupplier] [, downstream])
+Two groups (true/false)      partitioningBy(predicate [, downstream])
+Change inside a group        mapping, filtering, flatMapping (downstream helpers)
+Post-process the result      collectingAndThen(collector, finisher)
+Two results at once          teeing(c1, c2, merger)   (Java 12)
+```
+! Collectors = the packing station at the end of the assembly line: box, bag, label or count.
+
+## The Data Used Below
+```java
+record Employee(int id, String name, String dept, double salary, int age, String gender) {}
+
+List<Employee> emps = List.of(
+    new Employee(1, "Ajay",  "IT",      70000, 28, "M"),
+    new Employee(2, "Priya", "HR",      50000, 32, "F"),
+    new Employee(3, "Ravi",  "IT",      90000, 35, "M"),
+    new Employee(4, "Sneha", "Finance", 65000, 26, "F"),
+    new Employee(5, "Kiran", "HR",      55000, 41, "M"),
+    new Employee(6, "Meena", "IT",      90000, 30, "F"));
+
+List<String> names = List.of("Ajay", "Joe", "Michael", "Anu");
+```
+
+## toList, toSet, toCollection, joining
+```java
+names.stream().collect(Collectors.toList());                     // [Ajay, Joe, Michael, Anu]   modifiable
+names.stream().collect(Collectors.toSet());                      // HashSet: no duplicates, no order
+names.stream().collect(Collectors.toCollection(TreeSet::new));   // [Ajay, Anu, Joe, Michael]   sorted set
+names.stream().collect(Collectors.toUnmodifiableList());         // throws on add()
+names.stream().collect(Collectors.joining());                    // "AjayJoeMichaelAnu"
+names.stream().collect(Collectors.joining("|"));                 // "Ajay|Joe|Michael|Anu"
+names.stream().map(String::toUpperCase).collect(Collectors.joining(", ", "[", "]"));   // "[AJAY, JOE, MICHAEL, ANU]"
+```
+- `joining` works only on a stream of `CharSequence`: `map(String::valueOf)` first for numbers.
+
+## toMap
+```java
+emps.stream().collect(Collectors.toMap(Employee::id, Employee::name));
+// {1=Ajay, 2=Priya, 3=Ravi, 4=Sneha, 5=Kiran, 6=Meena}
+
+emps.stream().collect(Collectors.toMap(Employee::id, Function.identity()));   // id -> whole Employee
+
+Stream.of("ab", "ac").collect(Collectors.toMap(w -> w.charAt(0), w -> w));
+// IllegalStateException: Duplicate key a (attempted merging values ab and ac)
+
+List.of("apple", "avocado", "banana", "blueberry", "cherry").stream()
+    .collect(Collectors.toMap(f -> f.charAt(0), f -> 1, Integer::sum));       // {a=2, b=2, c=1}   merge = add
+
+emps.stream().collect(Collectors.toMap(Employee::dept, Function.identity(),
+        BinaryOperator.minBy(Comparator.comparingInt(Employee::age)), TreeMap::new));   // youngest per dept, sorted keys
+```
+- **Arguments:** key mapper, value mapper, **merge function** (on duplicate keys), **map supplier** (`LinkedHashMap::new` to keep order, `TreeMap::new` to sort).
+- `toMap` also throws `NullPointerException` if a **value** is null.
+! toMap without a merge function bets that keys never repeat. Interviewers love to break that bet.
+
+## counting, summing, averaging, summarizing, minBy, maxBy
+```java
+names.stream().collect(Collectors.counting());                              // 4
+names.stream().collect(Collectors.summingInt(String::length));              // 17
+emps.stream().collect(Collectors.averagingDouble(Employee::salary));        // 70000.0
+names.stream().collect(Collectors.minBy(Comparator.comparingInt(String::length)));   // Optional[Joe]
+emps.stream().collect(Collectors.summarizingDouble(Employee::salary));
+// DoubleSummaryStatistics{count=6, sum=420000.000000, min=50000.000000, average=70000.000000, max=90000.000000}
+```
+- On their own these have shorter stream forms (`count()`, `mapToInt(...).sum()`, `max(...)`). They matter most as **downstream collectors inside `groupingBy`**.
+
+## groupingBy: The Three Forms
+```java
+// 1. groupingBy(classifier): a HashMap of key -> List
+names.stream().collect(Collectors.groupingBy(n -> n.charAt(0)));
+// {A=[Ajay, Anu], J=[Joe], M=[Michael]}
+
+// 2. groupingBy(classifier, downstream): what to do with each group
+emps.stream().collect(Collectors.groupingBy(Employee::dept, Collectors.counting()));
+// {Finance=1, HR=2, IT=3}   (HashMap: any order)
+
+// 3. groupingBy(classifier, mapFactory, downstream): choose the map type too
+emps.stream().collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
+        Collectors.averagingDouble(Employee::salary)));
+// {Finance=65000.0, HR=52500.0, IT=83333.33333333333}   (TreeMap: sorted by key)
+```
+! groupingBy = sort mail into labelled bins; the downstream collector decides what you do with each bin.
+
+## groupingBy With Downstream Collectors
+```java
+// names per dept
+emps.stream().collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
+        Collectors.mapping(Employee::name, Collectors.toList())));
+// {Finance=[Sneha], HR=[Priya, Kiran], IT=[Ajay, Ravi, Meena]}
+
+// total salary per dept
+emps.stream().collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
+        Collectors.summingDouble(Employee::salary)));
+// {Finance=65000.0, HR=105000.0, IT=250000.0}
+
+// highest paid name per dept (maxBy gives Optional, collectingAndThen unwraps it)
+emps.stream().collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
+        Collectors.collectingAndThen(
+            Collectors.maxBy(Comparator.comparingDouble(Employee::salary)),
+            o -> o.get().name())));
+// {Finance=Sneha, HR=Kiran, IT=Ravi}
+
+// only well-paid names per dept: filtering keeps empty groups (Java 9)
+emps.stream().collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
+        Collectors.filtering(e -> e.salary() > 60000,
+            Collectors.mapping(Employee::name, Collectors.toList()))));
+// {Finance=[Sneha], HR=[], IT=[Ajay, Ravi, Meena]}
+
+// set of names per first letter
+names.stream().collect(Collectors.groupingBy(n -> n.charAt(0), Collectors.toSet()));
+// {A=[Anu, Ajay], J=[Joe], M=[Michael]}
+```
+- **`filtering` vs `filter` first:** `filter(...)` before `groupingBy` drops the HR key entirely; `filtering(...)` inside keeps `HR=[]`.
+- **`flatMapping`** (Java 9) flattens inside a group, e.g. all skills per department from `List<String> skills()`.
+
+## partitioningBy
+```java
+names.stream().collect(Collectors.partitioningBy(n -> n.length() > 3));
+// {false=[Joe, Anu], true=[Ajay, Michael]}
+
+List.of(5, 3, 8, 1, 9, 3, 7, 8, 2).stream().collect(Collectors.partitioningBy(n -> n % 2 == 0));
+// {false=[5, 3, 1, 9, 3, 7], true=[8, 8, 2]}
+
+emps.stream().collect(Collectors.partitioningBy(e -> e.salary() > 60000, Collectors.counting()));
+// {false=2, true=4}
+```
+- Always has **both** keys, even if one list is empty. `groupingBy` only has keys that occur.
+
+## collectingAndThen, reducing, teeing
+```java
+// make the result read-only
+names.stream().collect(Collectors.collectingAndThen(Collectors.toList(), Collections::unmodifiableList));
+
+// reducing: a reduce inside a group
+emps.stream().collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
+        Collectors.reducing(0.0, Employee::salary, Double::sum)));
+// {Finance=65000.0, HR=105000.0, IT=250000.0}
+
+// teeing (Java 12): two collectors over the same stream, then merge
+emps.stream().collect(Collectors.teeing(
+        Collectors.counting(),
+        Collectors.averagingDouble(Employee::salary),
+        (count, avg) -> count + " employees, avg " + avg));
+// "6 employees, avg 70000.0"
+```
+
+## Interview Q&A
+Q*: What is the Collectors class?
+A: A utility class in `java.util.stream` with static factory methods that return `Collector` objects, the recipes `collect()` uses to build a List, Set, Map, String, number or groups from a stream.
+Q*: groupingBy vs partitioningBy?
+A: `groupingBy` groups by any key and creates one entry per distinct key. `partitioningBy` groups by a boolean condition and always returns exactly two entries, `true` and `false`.
+Q*: How do you get the count of employees in each department?
+A: `emps.stream().collect(Collectors.groupingBy(Employee::dept, Collectors.counting()))`, which returns a `Map<String, Long>`.
+Q*: How do you handle duplicate keys in toMap?
+A: Pass a merge function as the third argument: `(a, b) -> a` keeps the first, `(a, b) -> b` the last, `Integer::sum` adds. Without it you get `IllegalStateException`.
+Q: How do you keep the order of groups?
+A: Use the three-argument `groupingBy` with `LinkedHashMap::new` (first-seen order) or `TreeMap::new` (sorted keys). The default is a `HashMap` with no order.
+Q: What does mapping() do inside groupingBy?
+A: It transforms each element before it goes into the group: `mapping(Employee::name, toList())` stores names instead of whole Employee objects.
+Q: What is collectingAndThen for?
+A: Running a final function on a collector's result, such as unwrapping the `Optional` from `maxBy` or making a list unmodifiable.
+
+# 05 | Optional | Creating, transforming and getting values safely, and where not to use it | Optional
+
+## What Optional Is
+> **`Optional<T>`** is a container that **may or may not hold a value**. It makes "might be absent" explicit in **return types**, so callers cannot forget the null case.
 - Create: `Optional.of(x)` (NPE if null), **`Optional.ofNullable(x)`**, `Optional.empty()`.
 - Use: `map`, `flatMap`, `filter`, `ifPresent`, `ifPresentOrElse`, `or`, `stream`.
 - Get out: **`orElse(default)`** (always evaluates the default), **`orElseGet(supplier)`** (lazy), **`orElseThrow()`**.
-- **Avoid** `get()` without checking, `Optional` as **fields**, **method parameters** or in **collections**, and `Optional` of collections (return an empty list).
 ```java
 public Optional<User> findByEmail(String email) { ... }
 
@@ -64,155 +501,326 @@ User u = repo.findById(id).orElseThrow(() -> new UserNotFoundException(id));
 
 repo.findById(id).orElse(createDefault());       // createDefault() ALWAYS runs
 repo.findById(id).orElseGet(this::createDefault); // runs only if empty
+
+Optional.of("ann").map(String::toUpperCase).orElse("Guest");     // "ANN"
+Optional.<String>empty().orElse("Guest");                        // "Guest"
 ```
+! A gift box that might be empty: check before you use what's inside.
 
-## Functional Style Tips | violet
-- Prefer **pure functions** (no side effects) inside lambdas, especially in streams.
-- Keep lambdas **short**. Extract a named method and use a method reference when it grows.
-- Checked exceptions do not fit standard functional interfaces. Wrap them or write a small helper interface.
-- **Higher-order functions**: methods that take or return functions (`Comparator.comparing`, `Function.andThen`).
-- **Currying / partial application** is possible: `Function<Integer, Function<Integer, Integer>> add = a -> b -> a + b;`
+## Where Not to Use It
+- **Avoid** `get()` without checking (it throws `NoSuchElementException`, the same bug as an NPE).
+- **Not** as fields, method parameters, in collections, or in serialisable DTOs. It is designed for **return values**.
+- **Not** `Optional<List<T>>`: return an empty list instead.
+- `isPresent()` + `get()` is just a null check with extra steps: prefer `map` / `orElse` / `ifPresent`.
 
-## Interview Q&A | sky | wide
-Q*: What is a functional interface?
-A: An interface with exactly one abstract method, so it can be implemented by a lambda or method reference. Examples: `Runnable`, `Comparator`, `Function`, `Predicate`.
-Q*: Why must captured variables be effectively final?
-A: Lambdas capture the value, not the variable. Allowing changes would create confusing behaviour and data races when the lambda runs later or on another thread.
+## Interview Q&A
 Q*: `orElse` vs `orElseGet`?
 A: `orElse` evaluates its argument every time, even when a value is present. `orElseGet` takes a supplier and calls it only when the Optional is empty.
 Q: `map` vs `flatMap` in Optional?
 A: `map` wraps the function result in an Optional. `flatMap` is for functions that already return an Optional, so you do not get `Optional<Optional<T>>`.
-Q: Lambda vs anonymous class?
-A: A lambda only implements functional interfaces, has no own `this` (uses the enclosing one), and is compiled via `invokedynamic`. An anonymous class can implement any interface or extend a class and has its own `this` and state.
-Q: Can a functional interface have default methods?
-A: Yes, any number of default and static methods. Only one abstract method is allowed.
+Q: `Optional.of` vs `Optional.ofNullable`?
+A: `of` throws `NullPointerException` for null; use it when the value cannot be null. `ofNullable` returns an empty Optional for null.
 Q: Where should you not use Optional?
 A: Fields, method parameters, collections, and serialisable DTOs. It is designed for return values.
-Q: Name the four kinds of method references.
-A: Static (`Math::abs`), bound instance (`obj::method`), unbound instance (`String::length`), constructor (`User::new`).
 
-# 11 | Streams API | Pipelines, collectors, parallel streams, coding questions | Streams
+@ Advanced
+# 06 | Parallel Streams, Pitfalls & Performance | ForkJoinPool, side effects, checked exceptions, when a loop is better | Parallel & Pitfalls
 
-## Stream Basics | rose
-- A **stream** is a **pipeline of operations over a data source**. It does **not store** data and **does not modify** the source.
-- Pipeline: **source → intermediate operations (lazy) → terminal operation (triggers execution)**.
-- **Lazy**: nothing happens until a terminal operation. Elements flow **one by one** through the whole pipeline (vertical processing).
-- **Single use**: a stream cannot be reused after a terminal operation (`IllegalStateException`).
-- Sources: `collection.stream()`, `Arrays.stream`, `Stream.of`, `IntStream.range`, `Stream.iterate`, `Stream.generate`, `Files.lines`.
-```java
-List<String> result = employees.stream()
-    .filter(e -> e.salary() > 50_000)              // intermediate
-    .sorted(Comparator.comparing(Employee::name))  // intermediate (stateful)
-    .map(Employee::name)                           // intermediate
-    .limit(5)                                      // short-circuit
-    .toList();                                     // terminal (Java 16, unmodifiable)
-```
-
-## Intermediate vs Terminal | blue
-- **Intermediate** (return a Stream): `filter`, `map`, **`flatMap`**, `distinct`, `sorted`, `peek`, `limit`, `skip`, `takeWhile`, `dropWhile` (9), `mapToInt`, `boxed`, `mapMulti` (16).
-- **Stateless** (`filter`, `map`) vs **stateful** (`sorted`, `distinct`: need to see more elements).
-- **Terminal**: `collect`, `toList`, `forEach`, `reduce`, `count`, `min`, `max`, **`anyMatch` / `allMatch` / `noneMatch`**, `findFirst`, `findAny`, `toArray`.
-- **Short-circuiting**: `limit`, `findFirst`, `anyMatch` can stop early (work on infinite streams).
-- **`map` vs `flatMap`**: map is one-to-one. flatMap is one-to-many and **flattens** nested streams.
-- **Primitive streams** (`IntStream`, `LongStream`, `DoubleStream`) avoid boxing and have `sum`, `average`, `summaryStatistics`.
-```java
-List<String> words = sentences.stream()
-    .flatMap(s -> Arrays.stream(s.split("\\s+")))
-    .map(String::toLowerCase)
-    .distinct()
-    .toList();
-
-int total = orders.stream().mapToInt(Order::qty).sum();
-Optional<Integer> product = nums.stream().reduce((a, b) -> a * b);
-int sum = nums.stream().reduce(0, Integer::sum);
-```
-
-## Collectors | green
-- `toList()`, `toSet()`, **`toMap(keyFn, valueFn, mergeFn)`**: without a merge function, duplicate keys throw `IllegalStateException`.
-- **`groupingBy(classifier, downstream)`**: `counting()`, `summingInt`, `averagingDouble`, `mapping`, `maxBy`, `toSet()`.
-- **`partitioningBy(predicate)`**: always two groups, `true` and `false`.
-- `joining(", ", "[", "]")`, `summarizingInt`, `collectingAndThen`, `teeing` (12), `reducing`.
-```java
-Map<String, Long> countByDept = emps.stream()
-    .collect(Collectors.groupingBy(Employee::dept, Collectors.counting()));
-
-Map<String, Double> avgSalary = emps.stream()
-    .collect(Collectors.groupingBy(Employee::dept, Collectors.averagingDouble(Employee::salary)));
-
-Map<String, List<String>> namesByDept = emps.stream()
-    .collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
-             Collectors.mapping(Employee::name, Collectors.toList())));
-
-Map<Boolean, List<Employee>> seniorSplit = emps.stream()
-    .collect(Collectors.partitioningBy(e -> e.years() >= 5));
-
-Map<Long, Employee> byId = emps.stream()
-    .collect(Collectors.toMap(Employee::id, Function.identity(), (a, b) -> a));
-```
-
-## Parallel Streams and Pitfalls | amber
+## Parallel Streams
 - `parallelStream()` / `.parallel()` splits work using the **common `ForkJoinPool`** (threads = CPU cores - 1).
 - Good for **large, CPU-bound, stateless** work on easily splittable sources (`ArrayList`, arrays, `IntStream.range`).
 - Bad for small data, I/O (blocks the shared pool for everyone), `LinkedList` or `Stream.iterate` sources, and **shared mutable state**.
-- **Order**: `forEach` in parallel is unordered. Use `forEachOrdered` if order matters (slower).
-- **Do not mutate external state** in lambdas: use `collect`, not `list.add` inside `forEach`.
-- **`peek`** is for debugging only. It may not run if the pipeline can skip elements.
-- Streams are not always faster than loops. Use them for **readability**.
+- **Order:** `forEach` in parallel is unordered. Use `forEachOrdered` if order matters (slower). `findAny` is faster than `findFirst` in parallel.
 ```java
 List<Integer> out = new ArrayList<>();
-nums.parallelStream().forEach(out::add);          // WRONG: race condition, lost elements
-List<Integer> safe = nums.parallelStream().toList();   // RIGHT
+nums.parallelStream().forEach(out::add);               // WRONG: race condition, lost elements or exceptions
+List<Integer> safe = nums.parallelStream().toList();   // RIGHT: let the stream build the list
 ```
+! Parallel streams are a team of cooks sharing one kitchen: great for chopping a mountain of onions, useless for boiling one egg.
 
-## Stream Coding Questions | violet
+## Common Pitfalls
+- **Side effects:** do not change outside variables in `map` / `filter` / `forEach`. Use `collect`, `reduce` or `count`.
+- **Reusing a stream:** throws `IllegalStateException: stream has already been operated upon or closed`.
+- **Infinite streams:** `Stream.iterate(1, n -> n + 1).sorted()` never ends: `sorted` needs every element. Add `limit` first.
+- **`toMap` duplicates and null values** throw. **`Collectors.toList()`** may be mutable; **`toList()`** is not.
+- **Boxing cost:** `Stream<Integer>` boxes every number. Use `mapToInt` for sums and averages.
+- **Modifying the source** while streaming it throws `ConcurrentModificationException`.
+
+## Checked Exceptions in Lambdas
+> Standard functional interfaces do not declare checked exceptions, so `map(path -> Files.readString(path))` does not compile. Wrap the exception.
 ```java
-// 1. Second highest salary
-Optional<Integer> second = salaries.stream().distinct()
-    .sorted(Comparator.reverseOrder()).skip(1).findFirst();
-
-// 2. Duplicates in a list
-Set<Integer> seen = new HashSet<>();
-Set<Integer> dups = nums.stream().filter(n -> !seen.add(n)).collect(Collectors.toSet());
-
-// 3. First non-repeated character
-Character first = s.chars().mapToObj(c -> (char) c)
-    .collect(Collectors.groupingBy(Function.identity(), LinkedHashMap::new, Collectors.counting()))
-    .entrySet().stream().filter(e -> e.getValue() == 1)
-    .map(Map.Entry::getKey).findFirst().orElse(null);
-
-// 4. Highest-paid employee per department
-Map<String, Optional<Employee>> top = emps.stream()
-    .collect(Collectors.groupingBy(Employee::dept,
-             Collectors.maxBy(Comparator.comparingDouble(Employee::salary))));
-
-// 5. Word frequency, sorted by count descending
-Map<String, Long> freq = Arrays.stream(text.toLowerCase().split("\\W+"))
-    .collect(Collectors.groupingBy(w -> w, Collectors.counting()));
-freq.entrySet().stream().sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-    .limit(3).forEach(System.out::println);
-
-// 6. Sum of squares of even numbers
-int sumSq = nums.stream().filter(n -> n % 2 == 0).mapToInt(n -> n * n).sum();
-
-// 7. Join names, comma separated
-String joined = emps.stream().map(Employee::name).collect(Collectors.joining(", "));
+List<String> contents = paths.stream()
+    .map(p -> {
+        try { return Files.readString(p); }
+        catch (IOException e) { throw new UncheckedIOException(e); }
+    })
+    .toList();
 ```
 
-## Interview Q&A | sky | wide
-Q*: Intermediate vs terminal operations?
-A: Intermediate operations return a new stream and are lazy. Terminal operations produce a result or side effect and trigger processing of the whole pipeline.
-Q*: `map` vs `flatMap`?
-A: `map` transforms each element into exactly one element. `flatMap` transforms each element into a stream and flattens all those streams into one.
-Q*: Why are streams lazy?
-A: So operations can be fused into a single pass and short-circuited, which avoids unneeded work and allows infinite streams.
-Q: Collection vs Stream?
-A: A collection stores data and can be iterated many times. A stream is a one-shot computation pipeline over a source that stores nothing.
-Q: When should you avoid parallel streams?
-A: Small data, I/O-bound or blocking work, order-sensitive work, shared mutable state, or sources that split poorly. They share the common ForkJoinPool with the whole JVM.
-Q: `findFirst` vs `findAny`?
-A: `findFirst` respects encounter order. `findAny` may return any element and is faster in parallel streams.
-Q: What happens on duplicate keys in `toMap`?
-A: It throws `IllegalStateException` unless you pass a merge function as the third argument.
-Q: `Stream.toList()` vs `collect(Collectors.toList())`?
-A: `toList()` (Java 16) returns an unmodifiable list. `Collectors.toList()` returns a mutable list in practice (no guarantee by spec).
+## Stream or Loop?
+- **Stream:** transform, filter, group, count. The code says *what* you want.
+- **Loop:** early `return` / `break` with complex conditions, changing several variables, checked exceptions, index-heavy algorithms (two pointers, DP).
+- In an interview, write the stream **and** say the complexity. Most pipelines are O(n); `sorted` makes them O(n log n).
 
+## Interview Q&A
+Q*: When should you avoid parallel streams?
+A: Small data, I/O-bound or blocking work, order-sensitive work, shared mutable state, or sources that split poorly. They share the common ForkJoinPool with the whole JVM.
+Q: Why is `forEach` with `list.add` wrong in a parallel stream?
+A: `ArrayList` is not thread-safe, so several threads adding at once lose elements or throw. Collect with `toList()` or `collect(...)` instead.
+Q: Are streams faster than loops?
+A: Not usually for small or simple work: they add some overhead. They win on readability, and parallel streams can win on large CPU-heavy data.
+Q: Does `peek` always run?
+A: No. It runs only for elements the pipeline actually processes, and some terminal operations can skip it (for example `count()` on a sized source). Use it for debugging only.
+
+@ Practice
+# 07 | Stream Coding Questions: Numbers & Strings | The most asked one-liners with their output. Cover the code, say the logic, write it, then check | Coding: Numbers & Strings
+
+## How to Answer a Stream Coding Question
+- **Say the logic first:** "Stream the list, filter the even ones, map to squares, sum."
+- **Name the collector:** "groupingBy with counting gives a frequency map."
+- **State the complexity:** O(n) for a pass, O(n log n) if you sort.
+- If you are stuck on the stream, **write the loop**, then convert it. A working loop beats a broken stream.
+
+## Numbers: Filter, Sum, Max, Count
+```java
+List<Integer> nums = List.of(5, 3, 8, 1, 9, 3, 7, 8, 2);
+
+// 1. even numbers
+nums.stream().filter(n -> n % 2 == 0).toList();                          // [8, 8, 2]
+// 2. sum, average, max, min in one pass
+IntSummaryStatistics st = nums.stream().mapToInt(Integer::intValue).summaryStatistics();
+// sum 46, average 5.111111111111111, max 9, min 1
+// 3. sum of squares of even numbers
+nums.stream().filter(n -> n % 2 == 0).mapToInt(n -> n * n).sum();       // 132
+// 4. how many are greater than 5
+nums.stream().filter(n -> n > 5).count();                                // 4
+// 5. max with reduce
+nums.stream().reduce(Integer::max);                                      // Optional[9]
+```
+
+## Numbers: Second Highest, Top N, Duplicates
+```java
+// 6. second highest (distinct first, so 8 and 8 count once)
+nums.stream().distinct().sorted(Comparator.reverseOrder()).skip(1).findFirst();   // Optional[8]
+// 7. top 3
+nums.stream().sorted(Comparator.reverseOrder()).limit(3).toList();      // [9, 8, 8]
+// 8. find duplicates (Set.add returns false if already there)
+Set<Integer> seen = new HashSet<>();
+nums.stream().filter(n -> !seen.add(n)).collect(Collectors.toSet());   // [3, 8]
+// 8b. duplicates without a side effect
+nums.stream().collect(Collectors.groupingBy(n -> n, Collectors.counting()))
+    .entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey).toList();   // [3, 8]
+// 9. remove duplicates, keep order
+nums.stream().distinct().toList();                                       // [5, 3, 8, 1, 9, 7, 2]
+// 10. even/odd split
+nums.stream().collect(Collectors.partitioningBy(n -> n % 2 == 0));
+// {false=[5, 3, 1, 9, 3, 7], true=[8, 8, 2]}
+```
+
+## Numbers: Classics
+```java
+// 11. numbers starting with 1
+List.of(10, 15, 8, 49, 25, 98, 32, 1).stream()
+    .map(String::valueOf).filter(s -> s.startsWith("1")).map(Integer::valueOf).toList();   // [10, 15, 1]
+// 12. factorial of 5
+LongStream.rangeClosed(1, 5).reduce(1, (a, b) -> a * b);               // 120
+// 13. sum of digits of 4729
+String.valueOf(4729).chars().map(c -> c - '0').sum();                   // 22
+// 14. primes up to 30
+IntPredicate isPrime = n -> n > 1 && IntStream.rangeClosed(2, (int) Math.sqrt(n)).noneMatch(d -> n % d == 0);
+IntStream.rangeClosed(1, 30).filter(isPrime).boxed().toList();          // [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+// 15. first 10 Fibonacci numbers
+Stream.iterate(new int[]{0, 1}, f -> new int[]{f[1], f[0] + f[1]}).limit(10).map(f -> f[0]).toList();
+// [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+// 16. missing number in 1..6
+IntStream.rangeClosed(1, 6).sum() - List.of(1, 2, 4, 5, 6).stream().mapToInt(Integer::intValue).sum();   // 3
+// 17. index of the max element
+IntStream.range(0, nums.size()).boxed().max(Comparator.comparing(nums::get)).get();   // 4  (nums[4] = 9)
+```
+
+## Strings: Frequency & Repeats
+```java
+String s = "programming";
+
+// 18. frequency of each character, in order of first appearance
+s.chars().mapToObj(c -> (char) c)
+ .collect(Collectors.groupingBy(Function.identity(), LinkedHashMap::new, Collectors.counting()));
+// {p=1, r=2, o=1, g=2, a=1, m=2, i=1, n=1}
+
+// 19. first non-repeated character: frequency map, then the first with count 1
+s.chars().mapToObj(c -> (char) c)
+ .collect(Collectors.groupingBy(Function.identity(), LinkedHashMap::new, Collectors.counting()))
+ .entrySet().stream().filter(e -> e.getValue() == 1).map(Map.Entry::getKey).findFirst().orElse(null);   // p
+
+// 20. first repeated character
+Set<Character> seen = new HashSet<>();
+s.chars().mapToObj(c -> (char) c).filter(c -> !seen.add(c)).findFirst().orElse(null);   // r
+
+// 21. count unique characters
+"abcdabcdz".chars().distinct().count();                                 // 5
+
+// 22. count vowels
+"Interview".toLowerCase().chars().filter(c -> "aeiou".indexOf(c) >= 0).count();   // 4
+```
+- `LinkedHashMap::new` is the key to "first" questions: a plain `HashMap` loses the order.
+
+## Strings: Reverse, Palindrome, Words
+```java
+// 23. reverse a string
+Stream.of("java".split("")).reduce("", (acc, ch) -> ch + acc);          // "avaj"   (in real code: new StringBuilder(s).reverse())
+
+// 24. palindrome check
+String w = "madam";
+IntStream.range(0, w.length() / 2).allMatch(i -> w.charAt(i) == w.charAt(w.length() - 1 - i));   // true
+
+// 25. word frequency
+Arrays.stream("the cat and the hat and the bat".split("\\s+"))
+      .collect(Collectors.groupingBy(x -> x, LinkedHashMap::new, Collectors.counting()));
+// {the=3, cat=1, and=2, hat=1, bat=1}
+
+// 26. longest word
+Arrays.stream("Java streams are powerful".split(" ")).max(Comparator.comparingInt(String::length));   // Optional[powerful]
+
+// 27. reverse each word, keep word order
+Arrays.stream("Java is fun".split(" "))
+      .map(x -> new StringBuilder(x).reverse().toString()).collect(Collectors.joining(" "));   // "avaJ si nuf"
+
+// 28. uppercase and join with brackets
+Stream.of("ajay", "joe", "anu").map(String::toUpperCase).collect(Collectors.joining(", ", "[", "]"));   // "[AJAY, JOE, ANU]"
+```
+
+## Strings: Anagrams
+```java
+Function<String, String> sortChars = x -> x.chars().sorted()
+        .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+
+// 29. are two words anagrams?
+sortChars.apply("listen").equals(sortChars.apply("silent"));            // true
+
+// 30. group anagrams
+Stream.of("eat", "tea", "tan", "ate", "nat", "bat")
+      .collect(Collectors.groupingBy(sortChars, LinkedHashMap::new, Collectors.toList())).values();
+// [[eat, tea, ate], [tan, nat], [bat]]
+
+// 31. distinct letters, sorted
+"banana".chars().distinct().sorted().mapToObj(c -> String.valueOf((char) c)).collect(Collectors.joining());   // "abn"
+```
+! Anagram = same letters sorted. Sort the letters and it becomes a map key.
+
+# 08 | Stream Coding Questions: Employees & Collections | The Employee-list questions every Java interview asks, plus maps and lists | Coding: Employees
+
+## The Employee Data
+```java
+record Employee(int id, String name, String dept, double salary, int age, String gender) {}
+
+List<Employee> emps = List.of(
+    new Employee(1, "Ajay",  "IT",      70000, 28, "M"),
+    new Employee(2, "Priya", "HR",      50000, 32, "F"),
+    new Employee(3, "Ravi",  "IT",      90000, 35, "M"),
+    new Employee(4, "Sneha", "Finance", 65000, 26, "F"),
+    new Employee(5, "Kiran", "HR",      55000, 41, "M"),
+    new Employee(6, "Meena", "IT",      90000, 30, "F"));
+```
+- With a normal class instead of a record, the accessors are `getDept()`, `getSalary()`: write `Employee::getDept`.
+
+## Group & Count
+```java
+// 32. employee names per department
+emps.stream().collect(Collectors.groupingBy(Employee::dept, TreeMap::new,
+        Collectors.mapping(Employee::name, Collectors.toList())));
+// {Finance=[Sneha], HR=[Priya, Kiran], IT=[Ajay, Ravi, Meena]}
+
+// 33. count per department
+emps.stream().collect(Collectors.groupingBy(Employee::dept, Collectors.counting()));
+// {Finance=1, HR=2, IT=3}
+
+// 34. average salary per department
+emps.stream().collect(Collectors.groupingBy(Employee::dept, Collectors.averagingDouble(Employee::salary)));
+// {Finance=65000.0, HR=52500.0, IT=83333.33333333333}
+
+// 35. count by gender
+emps.stream().collect(Collectors.groupingBy(Employee::gender, Collectors.counting()));   // {F=3, M=3}
+
+// 36. department with the most employees
+emps.stream().collect(Collectors.groupingBy(Employee::dept, Collectors.counting()))
+    .entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey);      // Optional[IT]
+```
+
+## Highest, Second Highest, Oldest
+```java
+// 37. highest paid employee
+emps.stream().max(Comparator.comparingDouble(Employee::salary)).map(Employee::name);    // Optional[Ravi]
+
+// 38. second highest salary (distinct, so the two 90000s count once)
+emps.stream().map(Employee::salary).distinct().sorted(Comparator.reverseOrder()).skip(1).findFirst();   // Optional[70000.0]
+
+// 39. highest paid in each department
+emps.stream().collect(Collectors.groupingBy(Employee::dept,
+        Collectors.collectingAndThen(Collectors.maxBy(Comparator.comparingDouble(Employee::salary)),
+                                     o -> o.get().name())));
+// {Finance=Sneha, HR=Kiran, IT=Ravi}
+
+// 40. oldest employee
+emps.stream().max(Comparator.comparingInt(Employee::age)).map(Employee::name);          // Optional[Kiran]
+
+// 41. youngest in each department
+emps.stream().collect(Collectors.toMap(Employee::dept, Function.identity(),
+        BinaryOperator.minBy(Comparator.comparingInt(Employee::age)), TreeMap::new))
+    .values().stream().map(Employee::name).toList();                                   // [Sneha, Priya, Ajay]
+```
+- **Ties:** `max` on salary returns one of the 90000 earners (Ravi here). If they ask for *all* top earners, find the max salary first, then `filter(e -> e.salary() == max)`.
+
+## Filter, Sort, Sum, Transform
+```java
+// 42. names of employees earning more than 60000
+emps.stream().filter(e -> e.salary() > 60000).map(Employee::name).toList();   // [Ajay, Ravi, Sneha, Meena]
+
+// 43. sort by salary high to low, then by name
+emps.stream().sorted(Comparator.comparingDouble(Employee::salary).reversed()
+        .thenComparing(Employee::name)).map(Employee::name).toList();
+// [Meena, Ravi, Ajay, Sneha, Kiran, Priya]
+
+// 44. total salary
+emps.stream().mapToDouble(Employee::salary).sum();                            // 420000.0
+
+// 45. id -> name map
+emps.stream().collect(Collectors.toMap(Employee::id, Employee::name));
+// {1=Ajay, 2=Priya, 3=Ravi, 4=Sneha, 5=Kiran, 6=Meena}
+
+// 46. give HR a 10% raise (records are immutable: build new ones)
+emps.stream().filter(e -> e.dept().equals("HR"))
+    .map(e -> new Employee(e.id(), e.name(), e.dept(), e.salary() * 1.10, e.age(), e.gender()))
+    .toList();                                                                // Priya 55000, Kiran 60500
+
+// 47. count and average in one pass
+emps.stream().collect(Collectors.teeing(Collectors.counting(),
+        Collectors.averagingDouble(Employee::salary), (c, a) -> c + " employees, avg " + a));
+// "6 employees, avg 70000.0"
+```
+
+## Lists & Maps
+```java
+// 48. flatten a list of lists
+List.of(List.of(1, 2), List.of(3, 4), List.of(5)).stream().flatMap(List::stream).toList();   // [1, 2, 3, 4, 5]
+
+// 49. merge two lists, no duplicates, sorted
+List<Integer> a = List.of(1, 3, 5, 7), b = List.of(3, 4, 5, 6);
+Stream.concat(a.stream(), b.stream()).distinct().sorted().toList();     // [1, 3, 4, 5, 6, 7]
+
+// 50. common elements, and elements only in a
+Set<Integer> inB = new HashSet<>(b);
+a.stream().filter(inB::contains).toList();                              // [3, 5]
+a.stream().filter(Predicate.not(inB::contains)).toList();               // [1, 7]
+
+// 51. sort a map by value, high to low, keep that order
+Map<String, Integer> marks = Map.of("Ajay", 70, "Joe", 90, "Anu", 80);
+marks.entrySet().stream()
+     .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> x, LinkedHashMap::new));
+// {Joe=90, Anu=80, Ajay=70}
+
+// 52. votes per country, winner: see Missed in Interviews
+```
+- **Why `new HashSet<>(b)` in 50:** `list.contains` is O(n), so `filter(b::contains)` is O(n·m). A set makes it O(n + m).
+- **Why `LinkedHashMap::new` in 51:** collecting a sorted stream into a plain `HashMap` throws the order away.
+! Sorted map by value = sort the entries, then collect into a LinkedHashMap.
