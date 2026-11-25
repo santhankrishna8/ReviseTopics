@@ -1,0 +1,30 @@
+{
+  "task": "triage",
+  "model": "gpt-4o-mini",
+  "created": "2026-11-25T19:21:35",
+  "pass_rate": 1.0,
+  "by_case": {
+    "t01": true,
+    "t02": true,
+    "t03": true,
+    "t04": true,
+    "t05": true,
+    "t06": true,
+    "t07": true,
+    "t08": true,
+    "t09": true,
+    "t10": true,
+    "t11": true,
+    "t12": true,
+    "t13": true,
+    "t14": true,
+    "t15": true,
+    "t16": true,
+    "t17": true,
+    "t18": true,
+    "t19": true,
+    "t20": true,
+    "t21": true,
+    "t22": true
+  }
+}

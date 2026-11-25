@@ -1,0 +1,20 @@
+{
+  "task": "grounded_qa",
+  "model": "gpt-4o-mini",
+  "created": "2026-11-25T19:21:41",
+  "pass_rate": 1.0,
+  "by_case": {
+    "q01": true,
+    "q02": true,
+    "q03": true,
+    "q04": true,
+    "q05": true,
+    "q06": true,
+    "q07": true,
+    "q08": true,
+    "q09": true,
+    "q10": true,
+    "q11": true,
+    "q12": true
+  }
+}

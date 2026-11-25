@@ -1,4 +1,4 @@
-# 01 | Missed in Interviews | The questions you could not answer in a real interview, with the answer to say out loud. Read this first before every interview. Turn on Self-test, say each answer, then reveal it. After each interview, add the new ones here. | Read this first
+# 01 | Most Asked Questions | The interview questions people most often get stuck on, with the answer to say out loud. Read this first before every interview. Turn on Self-test, say each answer, then reveal it. | Read this first
 
 ### How to Answer a Basic Question
 
@@ -113,7 +113,7 @@ names.stream().collect(Collectors.toMap(n -> n, String::length));          // Aj
 
 ### Asked: Streams Coding
 
-## Votes Per Country (your interview question)
+## Votes Per Country
 > **Problem:** candidates map to countries (`"Ajay-India"`). Given the votes, find the votes per country and the winning country. **Logic:** build `candidate → country`, map each vote to its country, count per country, take the max.
 ```java
 String[] candidates = {"Ajay-India", "Michael-USA", "Joe-USA"};

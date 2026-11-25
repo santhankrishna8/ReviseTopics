@@ -1,7 +1,7 @@
 # ReviseNotes
 
-Interview revision notes for three roles (Java Full Stack, Angular Frontend, AI Engineer), as an Angular app.
-Pick your role at the top of the sidebar to see only its topics.
+Interview revision notes for Java Full Stack, Angular Frontend and AI Engineer roles, as an Angular app.
+Every topic is always listed in the sidebar.
 
 ```bash
 npm install
@@ -16,8 +16,13 @@ npm run build      # output in dist/revise-notes/browser
 2. **Cheat sheet**: the one-page version, linked under the topic in the sidebar.
 3. **Detailed sheets**: only for what an interviewer digs into.
 
-Do step 1 for every topic in your track before going deeper. After each interview, add what you could not
-answer to `public/notes/missed.txt` and read it first next time.
+Do step 1 for every topic before going deeper. Start each session with **Most Asked Questions**
+(`public/notes/missed.txt`); add new tricky questions there as they come up.
+
+## Eval harness
+
+`examples/eval-harness/` is a runnable Python LLM eval (OpenAI SDK) that the **LLM Evals** topic walks through:
+tagged datasets, code graders, an LLM judge, baselines and a CI gate. See its README; `--mock` runs it with no API key.
 
 ## Adding a topic
 

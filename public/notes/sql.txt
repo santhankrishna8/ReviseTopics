@@ -1,5 +1,5 @@
 @ Must-Know
-# b | Interview Basics: SQL | The SQL theory questions every interview opens with. The query questions are in SQL Query Questions and Missed in Interviews. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+# b | Interview Basics: SQL | The SQL theory questions every interview opens with. The query questions are in SQL Query Questions and Most Asked Questions. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
 
 ## Keys & Commands
 Q*: DDL vs DML vs DQL vs DCL vs TCL?
