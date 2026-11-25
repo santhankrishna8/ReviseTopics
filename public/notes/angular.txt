@@ -1,3 +1,62 @@
+@ Must-Know
+# b | Interview Basics: Angular | The Angular questions every frontend and full-stack interview asks. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Core Concepts
+Q*: What is Angular? Angular vs AngularJS?
+A: Angular is Google's TypeScript framework for building single-page applications, with components, dependency injection, routing, forms and HttpClient built in. AngularJS (1.x, 2010) was a JavaScript MVC framework with scopes and two-way watchers; Angular (2016 onwards) is a full rewrite with components, TypeScript and much faster change detection. AngularJS is end-of-life.
+Q*: What is a SPA?
+A: A Single-Page Application loads one HTML page once; after that the framework swaps views in the browser and fetches only data (JSON) from the server. Navigation feels instant because the page never fully reloads.
+Q*: What is a component?
+A: The building block of an Angular UI: a TypeScript class with `@Component` metadata, a template (HTML) and styles. `selector` is the tag used to place it (`<app-cart>`). The class holds the data and methods the template binds to.
+Q*: NgModule vs standalone components?
+A: NgModules grouped components and declared what each one can use. Standalone components (the default since Angular 17–19) import what they need directly with `imports: [...]`, so no module is needed. New apps bootstrap with `bootstrapApplication(App, appConfig)`.
+Q*: What are the types of data binding?
+A: Interpolation `{{ name }}` (class to view, text), property binding `[src]="url"` (class to view, DOM property), event binding `(click)="save()"` (view to class), and two-way binding `[(ngModel)]="name"` (both ways: property plus event).
+Q*: What are directives? Structural vs attribute?
+A: Directives add behaviour to elements. Structural directives change the DOM layout by adding or removing elements: `*ngIf`, `*ngFor`, now the built-in `@if`, `@for` and `@switch` blocks. Attribute directives change the look or behaviour of an existing element: `ngClass`, `ngStyle`, or a custom `appHighlight`. Components are directives with a template.
+Q*: What are pipes? Pure vs impure?
+A: Pipes transform values in templates: `{{ price | currency:'INR' }}`, `date`, `uppercase`, `async`. A pure pipe (the default) re-runs only when its input reference changes, so it is fast. An impure pipe runs on every change detection cycle (like `async`); use it rarely.
+
+## Communication & DI
+Q*: How do parent and child components communicate?
+A: Parent to child: an input, `@Input()` or the signal `input()`. Child to parent: an output, `@Output() saved = new EventEmitter()` or `output()`, which the parent listens to with `(saved)="onSaved($event)"`. Unrelated components share a service (with a signal or a BehaviorSubject). The parent can also reach a child with `@ViewChild` or `viewChild()`.
+Q*: What is a service and dependency injection in Angular?
+A: A service is a class for logic and data shared across components (API calls, state). `@Injectable({ providedIn: 'root' })` registers one app-wide singleton. Components get it through the constructor or `inject(UserService)`. Angular's hierarchical injectors can also provide a fresh instance per component.
+Q*: Which lifecycle hooks do you know? Constructor vs ngOnInit?
+A: `ngOnChanges` (an input changed), `ngOnInit` (once, after the first inputs are set), `ngDoCheck`, `ngAfterContentInit` and `ngAfterViewInit` (projected content and the view are ready), `ngOnDestroy` (cleanup). The constructor is for injecting dependencies; inputs are not set yet. Put initialisation logic, like loading data, in `ngOnInit`.
+Q: What is content projection?
+A: Passing HTML from the parent into a child's template with `<ng-content>`, like a card component that shows whatever is placed between its tags. `select` allows several named slots.
+
+## Routing, Forms, HTTP
+Q*: How does routing work? What is lazy loading?
+A: You define `Routes` (path to component), provide them with `provideRouter(routes)`, place `<router-outlet>` where views appear, and link with `routerLink`. Lazy loading splits a feature into its own bundle downloaded only when its route is visited: `loadComponent: () => import('./admin').then(m => m.Admin)` or `loadChildren`. It makes the first load faster.
+Q*: What are route guards?
+A: Functions that decide whether navigation may happen: `canActivate` (may I enter this route, e.g. logged in?), `canActivateChild`, `canDeactivate` (may I leave, e.g. unsaved changes?), `canMatch` (should this route even match). Resolvers pre-load data before the route activates.
+Q*: Template-driven vs reactive forms?
+A: Template-driven forms are built in the HTML with `ngModel`: quick for simple forms. Reactive forms are built in the class with `FormGroup`, `FormControl` and `FormBuilder`: explicit, typed, easy to test and better for dynamic or complex validation. Most real apps use reactive forms.
+Q*: What is HttpClient? What is an interceptor?
+A: HttpClient makes HTTP calls and returns Observables: `this.http.get<User[]>('/api/users')`. An interceptor sits in the middle of every request and response: add the JWT header, show a loader, handle 401 errors globally, retry. Register it with `provideHttpClient(withInterceptors([authInterceptor]))`.
+
+## RxJS, Signals, Change Detection
+Q*: Observable vs Promise?
+A: A Promise gives one value, starts immediately and cannot be cancelled. An Observable can emit many values over time, is lazy (nothing happens until you subscribe), can be cancelled by unsubscribing, and has operators (`map`, `filter`, `switchMap`). HttpClient returns Observables.
+Q*: Subject vs BehaviorSubject vs ReplaySubject?
+A: A Subject is both an Observable and an emitter, with no stored value: late subscribers miss past values. A BehaviorSubject needs an initial value and gives the current value to every new subscriber (good for state such as the current user). A ReplaySubject replays the last N values.
+Q*: switchMap vs mergeMap vs concatMap vs exhaustMap?
+A: All map each value to an inner Observable. switchMap cancels the previous inner one (search as you type). mergeMap runs them all in parallel. concatMap queues them one after another in order (saving in sequence). exhaustMap ignores new values while one is running (a login button clicked twice).
+Q*: How do you avoid memory leaks from subscriptions?
+A: Use the `async` pipe in templates (it subscribes and unsubscribes for you), `takeUntilDestroyed()`, `toSignal()`, or unsubscribe in `ngOnDestroy`. HttpClient calls complete by themselves, but intervals, Subjects and form value changes do not.
+Q*: What are signals?
+A: Reactive values: `count = signal(0)`, read with `count()`, change with `set` or `update`. `computed()` derives a value that updates automatically; `effect()` runs side effects when signals change. Angular knows exactly which views depend on which signals, so it updates less, which enables zoneless change detection.
+Q*: What is change detection? What does OnPush do?
+A: Change detection checks components and updates the DOM when data changes. Classically zone.js triggered it after every event, timer or HTTP call. With `ChangeDetectionStrategy.OnPush`, a component is checked only when an input reference changes, an event fires inside it, an `async` pipe or signal it reads updates, or you mark it. It makes apps faster; newer Angular versions are zoneless and signal-driven.
+Q: AOT vs JIT compilation?
+A: JIT compiles templates in the browser at runtime. AOT (Ahead-of-Time, the default) compiles them at build time: smaller bundles, faster start-up, and template errors found during the build.
+Q: Why use track in @for (trackBy)?
+A: It gives each item a stable identity (`@for (u of users; track u.id)`), so when the list changes Angular updates only the changed rows instead of re-creating every DOM element.
+Q: What is ViewEncapsulation?
+A: How a component's styles are scoped. `Emulated` (default) adds unique attributes so styles affect only that component; `ShadowDom` uses the browser's Shadow DOM; `None` makes styles global.
+
 @ Beginner
 # 00 | Angular Basics: Start Here | History, AngularJS vs Angular, SPA, features, installing the CLI, creating and running a project, project structure, first component, Angular vs React vs Vue | Start Here
 

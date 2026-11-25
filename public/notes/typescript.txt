@@ -1,3 +1,58 @@
+@ Must-Know
+# b | Interview Basics: TypeScript | The TypeScript questions asked in every Angular and frontend interview. Turn on Quiz mode, answer each one out loud, then open it. The sheets below cover the whole language. | ★ Interview Basics
+
+## Basics
+Q*: What is TypeScript? Why use it over JavaScript?
+A: A superset of JavaScript by Microsoft that adds static types. It compiles (transpiles) to plain JavaScript, and the types are removed at runtime. It catches errors at compile time, gives autocomplete and safe refactoring, and documents the code. Every JavaScript program is valid TypeScript.
+Q*: What are the basic types?
+A: `string`, `number`, `boolean`, `bigint`, `symbol`, `null`, `undefined`, arrays (`number[]` or `Array<number>`), tuples (`[string, number]`), `object`, enums, and the special types `any`, `unknown`, `never` and `void`.
+Q*: any vs unknown vs never vs void?
+A: `any` turns type checking off: anything goes, avoid it. `unknown` also accepts anything, but you must narrow it (`typeof x === 'string'`) before using it: the safe `any`. `void` means a function returns nothing useful. `never` means a value that can never happen: a function that always throws, or the leftover case after exhaustive checks.
+Q*: interface vs type?
+A: Both describe object shapes. An interface can be extended with `extends` and reopened (declaration merging), and is preferred for object contracts and classes to implement. A `type` alias can also name unions, intersections, tuples, primitives and mapped or conditional types: `type Status = 'open' | 'closed'`. Either is fine for plain objects; be consistent.
+Q*: Union vs intersection types?
+A: A union `A | B` is either A or B: `string | number`. An intersection `A & B` has everything from both: `User & Timestamps`.
+Q*: What are optional and readonly properties?
+A: `email?: string` may be missing (its type includes `undefined`). `readonly id: number` cannot be reassigned after creation. `Readonly<T>` makes every property readonly.
+Q*: What are generics?
+A: Type parameters that make code reusable while keeping types: `function first<T>(items: T[]): T { return items[0]; }` returns a `number` for `number[]`. Angular uses them everywhere: `http.get<User[]>(url)`, `signal<string>('')`. Constraints limit them: `<T extends { id: number }>`.
+Q*: What are utility types? Name some.
+A: Built-in type transformers. `Partial<T>` (all optional, e.g. for update payloads), `Required<T>`, `Readonly<T>`, `Pick<T, 'id' | 'name'>`, `Omit<T, 'password'>`, `Record<string, number>` (a dictionary), `ReturnType<typeof fn>`, `Parameters<typeof fn>`, `NonNullable<T>`, `Awaited<T>`.
+
+## Narrowing & Safety
+Q*: What is type narrowing? What are type guards?
+A: TypeScript narrows a broad type to a specific one inside a check. Built-in guards: `typeof x === 'string'`, `x instanceof Date`, `'email' in user`, equality and truthiness checks. A custom guard returns a type predicate: `function isAdmin(u: User): u is Admin { return u.role === 'admin'; }`.
+Q*: What is a discriminated union?
+A: A union whose members share a literal field: `type Shape = { kind: 'circle'; r: number } | { kind: 'square'; side: number }`. A `switch (s.kind)` narrows each case, and a `never` check in `default` makes the compiler warn you when a new case is added.
+Q*: What is type assertion? Is it safe?
+A: `value as User` (or `<User>value`) tells the compiler "trust me, it is a User". It does not check or convert anything at runtime, so a wrong assertion causes runtime bugs. The non-null assertion `user!.name` is equally unchecked. Prefer narrowing.
+Q: What do ?. and ?? do?
+A: Optional chaining `user?.address?.city` stops and gives `undefined` if any part is null or undefined. Nullish coalescing `value ?? 'default'` uses the default only for null or undefined, unlike `||`, which also replaces `0`, `''` and `false`.
+Q: What does strict mode turn on?
+A: `"strict": true` in tsconfig enables `strictNullChecks` (null must be handled), `noImplicitAny`, `strictPropertyInitialization`, `strictFunctionTypes` and others. Angular projects turn it on by default; always use it.
+Q: What does satisfies do?
+A: `const config = { port: 8080 } satisfies Config` checks the value against the type but keeps the more precise inferred type, unlike `: Config`, which widens it.
+
+## Classes, Enums, Advanced
+Q*: What access modifiers does TypeScript have?
+A: `public` (default), `private` (only inside the class, checked at compile time), `protected` (the class and its subclasses), and `readonly`. JavaScript's `#field` is truly private at runtime. Constructor shorthand: `constructor(private http: HttpClient) {}` declares and assigns the field.
+Q*: What are enums? Enum vs union of literals?
+A: `enum Role { Admin, User }` creates a named set of constants, numeric by default or string enums (`Admin = 'ADMIN'`). Enums generate runtime code. A union of string literals (`type Role = 'ADMIN' | 'USER'`) is lighter, needs no runtime object, and is often preferred.
+Q*: What is an abstract class?
+A: A class that cannot be created with `new` and may contain abstract methods without a body that subclasses must implement, plus shared concrete code. Unlike an interface, it exists at runtime and can hold implementation.
+Q*: What are decorators?
+A: Functions applied with `@` to classes, methods, properties or parameters that add metadata or behaviour. Angular is built on them: `@Component`, `@Injectable`, `@Input`, `@HostListener`.
+Q: What are keyof and typeof in types?
+A: `keyof User` is the union of User's property names (`'id' | 'name'`). `typeof config` takes the type of an existing value. Together: `keyof typeof config`.
+Q: What are mapped and conditional types?
+A: Mapped types transform every property: `type Optional<T> = { [K in keyof T]?: T[K] }` (how `Partial` is built). Conditional types choose a type by a condition: `T extends string ? 'text' : 'other'`, with `infer` to extract parts, as in `ReturnType`.
+Q: What is a tuple?
+A: A fixed-length array with a type per position: `let pair: [string, number] = ['age', 30]`. React's `useState` and Angular's `forkJoin` results are typical tuples.
+Q: What is a .d.ts file?
+A: A declaration file with only types and no code. It describes a JavaScript library to TypeScript, as the `@types/*` packages do, or publishes the types of a compiled library.
+Q: How does TypeScript compare types: structurally or by name?
+A: Structurally ("duck typing"): any object with the required properties fits, whatever it is called. A class instance fits an interface it never names in `implements`, as long as the shapes match.
+
 @ Beginner
 # 00 | TypeScript Basics: Start Here | History, why TypeScript exists, installing it, the first program and its compiled output, ways to run TypeScript, file types, TypeScript vs JavaScript | Start Here
 

@@ -1,3 +1,52 @@
+@ Must-Know
+# b | Interview Basics: Python | The Python questions asked in AI Engineer interviews. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Types & Data Structures
+Q*: List vs tuple vs set vs dict?
+A: A list is ordered and mutable, allows duplicates: `[1, 2, 2]`. A tuple is ordered and immutable, so it can be a dict key: `(1, 2)`. A set is unordered with unique items and O(1) membership: `{1, 2}`. A dict maps keys to values with O(1) average lookup and keeps insertion order (Python 3.7+).
+Q*: Mutable vs immutable types?
+A: Immutable: int, float, str, tuple, frozenset, bool, bytes; changing them creates a new object. Mutable: list, dict, set and most class instances; they change in place. Only immutable (hashable) objects can be dict keys or set items.
+Q*: == vs is?
+A: `==` compares values; `is` compares identity (the same object in memory). `[1] == [1]` is True, `[1] is [1]` is False. Use `is` only for `None`: `if x is None`.
+Q*: Shallow vs deep copy?
+A: A shallow copy (`list(a)`, `a.copy()`, `copy.copy`) makes a new outer object that shares the inner objects. A deep copy (`copy.deepcopy`) copies everything recursively, so nested changes do not leak.
+Q*: What are list comprehensions?
+A: A compact way to build a list: `[x * x for x in nums if x % 2 == 0]`. There are dict `{k: v for ...}` and set comprehensions too, and generator expressions `(x for x in nums)`, which are lazy and save memory.
+Q: What is the mutable default argument trap?
+A: Defaults are evaluated once, when the function is defined. `def add(item, items=[])` shares one list across calls, so it keeps growing. Use `items=None` and create the list inside.
+
+## Functions & OOP
+Q*: What are *args and **kwargs?
+A: `*args` collects extra positional arguments into a tuple; `**kwargs` collects extra keyword arguments into a dict. `def log(*args, **kwargs)`. The same syntax unpacks when calling: `f(*items, **options)`.
+Q*: What is a decorator?
+A: A function that takes a function and returns a wrapped version adding behaviour (logging, timing, caching, auth), applied with `@decorator` above the definition. Use `functools.wraps` to keep the name and docstring. Built-in examples: `@staticmethod`, `@classmethod`, `@property`, `@functools.lru_cache`.
+Q*: What is a generator? What does yield do?
+A: A function with `yield` returns a generator that produces values one at a time, pausing between them, instead of building the whole list in memory. Ideal for large files and streams, including streaming LLM tokens.
+Q*: @staticmethod vs @classmethod vs instance method?
+A: An instance method gets `self` (the object). A class method gets `cls` (the class) and is used for alternative constructors such as `from_json`. A static method gets neither; it is a plain function grouped in the class.
+Q: What is __init__ and self?
+A: `__init__` initialises a new object (it is not the constructor that allocates; that is `__new__`). `self` is the instance, passed explicitly as the first parameter of instance methods.
+Q: What are dunder methods?
+A: Special methods that hook into Python's syntax: `__str__` and `__repr__` (printing), `__len__`, `__eq__`, `__lt__`, `__getitem__`, `__iter__`, `__enter__` and `__exit__` (with statements). Dataclasses generate several of them for you.
+Q: What is a context manager?
+A: An object used with `with` that sets up and always cleans up a resource, even on errors: `with open("f.txt") as f:` closes the file. Build one with `__enter__` and `__exit__`, or `@contextlib.contextmanager`.
+
+## Concurrency & Ecosystem
+Q*: What is the GIL?
+A: The Global Interpreter Lock in CPython lets only one thread run Python bytecode at a time. Threads still help for I/O-bound work (network calls, LLM APIs) because the lock is released while waiting; for CPU-bound work use multiprocessing or C-backed libraries (NumPy). Python 3.13 added an optional free-threaded build without the GIL.
+Q*: Threading vs multiprocessing vs asyncio?
+A: Threading: several threads, good for I/O-bound work. Multiprocessing: several processes with their own interpreter, for CPU-bound work. asyncio: one thread, an event loop and `async`/`await`, which handles thousands of concurrent I/O tasks cheaply, as in FastAPI and async LLM clients.
+Q: How do you run several API calls at once with asyncio?
+A: `results = await asyncio.gather(fetch(a), fetch(b), fetch(c))`, or `asyncio.TaskGroup` (3.11+), with an `asyncio.Semaphore` to limit concurrency and respect rate limits.
+Q: How do exceptions work?
+A: `try` / `except SpecificError as e` / `else` (runs if no error) / `finally` (always runs). Raise with `raise ValueError("bad")`, chain with `raise NewError() from e`, and catch specific exceptions, not a bare `except`.
+Q: What are virtual environments?
+A: An isolated folder of packages per project (`python -m venv .venv`), so projects do not conflict. Dependencies are listed in `requirements.txt` or `pyproject.toml`; modern tools are `uv` and Poetry.
+Q: What are type hints and Pydantic?
+A: Type hints (`def f(x: int) -> str`) document types and enable mypy checks but are not enforced at runtime. Pydantic models use them to validate and parse data at runtime (`User(**data)` raises if a field is wrong), which is why FastAPI and LLM structured-output code rely on Pydantic.
+Q: How is memory managed?
+A: Reference counting frees an object when nothing refers to it, and a cyclic garbage collector cleans up reference cycles.
+
 @ Beginner
 # 00 | Python Basics: Start Here | History, philosophy, features and limits, installing and running, first script, operators, keywords, Python vs Java, Python 2 vs 3 | Start Here
 

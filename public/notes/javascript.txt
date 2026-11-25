@@ -1,3 +1,62 @@
+@ Must-Know
+# b | Interview Basics: JavaScript | The JavaScript questions Angular and full-stack interviews ask before any framework question. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Variables & Types
+Q*: var vs let vs const?
+A: `var` is function-scoped, hoisted and initialised as `undefined`, and can be redeclared. `let` and `const` are block-scoped and hoisted but unusable before their declaration (the temporal dead zone). `const` cannot be reassigned, though a const object's contents can still change. Use `const` by default, `let` when you must reassign, never `var`.
+Q*: What is hoisting?
+A: Declarations are processed before the code runs, as if moved to the top of their scope. Function declarations are fully hoisted (callable before they appear); `var` is hoisted as `undefined`; `let`, `const` and classes are hoisted but throw a ReferenceError before the declaration line.
+Q*: == vs ===?
+A: `===` compares value and type with no conversion: `1 === '1'` is false. `==` converts types first: `1 == '1'` is true, `0 == ''` is true, `null == undefined` is true. Always use `===`.
+Q*: null vs undefined?
+A: `undefined` means a variable was declared but not assigned, a missing property, or a function with no return value. `null` is an intentional "no value" you assign. `typeof undefined` is `'undefined'`, while `typeof null` is `'object'` (a famous old bug).
+Q: What are the primitive types?
+A: string, number, bigint, boolean, undefined, null and symbol. Everything else (objects, arrays, functions) is an object, passed by reference.
+Q: Which values are falsy?
+A: `false`, `0`, `-0`, `0n`, `''`, `null`, `undefined` and `NaN`. Everything else is truthy, including `'0'`, `[]` and `{}`.
+
+## Functions & Scope
+Q*: What is a closure?
+A: A function that remembers the variables of the scope where it was created, even after that scope has finished. `function counter() { let c = 0; return () => ++c; }`: each returned function keeps its own `c`. Used for private state, factories, debounce and memoize.
+Q*: How does this work?
+A: It depends on how the function is called. As a method `obj.fn()` it is `obj`; as a plain call it is `undefined` in strict mode (the global object otherwise); with `new` it is the new object; `call`, `apply` and `bind` set it explicitly. Arrow functions have no own `this`: they use the surrounding one.
+Q*: Arrow function vs normal function?
+A: Arrow functions are shorter, have no own `this`, `arguments` or `prototype`, and cannot be used with `new`. That makes them ideal for callbacks inside classes, but wrong for object methods that need `this`.
+Q: call vs apply vs bind?
+A: All set `this`. `call(obj, a, b)` invokes now with separate arguments; `apply(obj, [a, b])` invokes now with an array; `bind(obj)` returns a new function with `this` fixed, to call later.
+Q: What are higher-order functions?
+A: Functions that take or return functions: `map`, `filter`, `reduce`, `setTimeout`, and any function factory.
+Q*: map vs filter vs reduce vs forEach?
+A: `map` returns a new array with each element transformed. `filter` returns a new array of the elements that pass a test. `reduce` folds the array into one value (a sum, an object). `forEach` just runs a function for each element and returns `undefined`.
+
+## Async
+Q*: What is the event loop?
+A: JavaScript runs on one thread with a call stack. Slow work (timers, HTTP, events) is handed to the browser or Node; when it finishes, its callback waits in a queue. Whenever the stack is empty, the event loop first runs all microtasks (promise callbacks, `queueMicrotask`), then one macrotask (`setTimeout`, events), then lets the browser render, and repeats.
+Q*: What is a Promise? What are its states?
+A: An object for a value that will arrive later. States: pending, fulfilled (resolved with a value) or rejected (with an error). Chain with `.then`, `.catch` and `.finally`. Combinators: `Promise.all` (all succeed, or the first failure), `allSettled` (wait for all), `race` (first to settle), `any` (first success).
+Q*: What is async/await?
+A: Syntax over promises that reads like synchronous code. An `async` function always returns a promise; `await` pauses that function until the promise settles, without blocking the thread. Handle errors with try/catch. Run independent calls in parallel with `await Promise.all([a(), b()])`.
+Q: setTimeout(fn, 0) vs Promise.resolve().then(fn): which runs first?
+A: The promise callback. It is a microtask, and all microtasks run before the next macrotask such as a timer.
+Q: What is callback hell?
+A: Deeply nested callbacks for sequential async steps, hard to read and handle errors in. Promises and async/await flatten it.
+
+## Objects, DOM, Browser
+Q*: Shallow copy vs deep copy?
+A: A shallow copy (`{...obj}`, `Object.assign`, `[...arr]`) copies only the top level; nested objects are still shared. A deep copy duplicates everything: `structuredClone(obj)` (modern), or `JSON.parse(JSON.stringify(obj))`, which loses dates, functions and undefined.
+Q*: Spread vs rest?
+A: Same `...` syntax. Spread expands: `[...a, ...b]`, `{...user, name: 'x'}`, `fn(...args)`. Rest collects: `function sum(...nums)` and `const [first, ...others] = list`.
+Q*: What is the prototype chain?
+A: Every object has a hidden link (`[[Prototype]]`) to another object. Looking up a missing property walks up that chain to `Object.prototype`. Classes are syntax over this: methods live on the class's prototype and are shared by all instances.
+Q*: Event bubbling, capturing and delegation?
+A: An event travels down from the window to the target (capturing), then back up (bubbling); listeners run in the bubbling phase by default. `stopPropagation()` stops it. Delegation means one listener on a parent handles events for many children by checking `event.target`, which suits long or dynamic lists.
+Q*: Debounce vs throttle?
+A: Debounce waits until calls stop for N ms, then runs once: search-as-you-type. Throttle runs at most once every N ms during continuous calls: scroll or resize handlers. In Angular, RxJS has `debounceTime` and `throttleTime`.
+Q: localStorage vs sessionStorage vs cookies?
+A: localStorage holds about 5 MB of strings per origin and survives browser restarts. sessionStorage is the same but per tab, cleared when the tab closes. Cookies are small (about 4 KB), sent to the server with every request, can expire, and can be `HttpOnly` (unreadable by JavaScript), which makes them the safer place for auth tokens.
+Q: What are ES6 (ES2015) features?
+A: let and const, arrow functions, classes, template literals, destructuring, spread and rest, default parameters, modules (import/export), promises, Map and Set, Symbol, iterators and generators. Later versions added async/await, optional chaining `?.` and nullish coalescing `??`.
+
 @ Beginner
 # 00 | JavaScript Basics: Start Here | History, ECMAScript and its versions, where JavaScript runs, adding it to a page, output and input, everyday built-ins, JavaScript vs Java and TypeScript | Start Here
 

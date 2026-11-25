@@ -1,3 +1,44 @@
+@ Must-Know
+# b | Interview Basics: JUnit & Mockito | The testing questions asked in Java full-stack interviews. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Testing Basics
+Q*: Unit vs integration vs end-to-end tests?
+A: A unit test checks one class or method in isolation, with its dependencies mocked: fast and many. An integration test checks pieces working together (controller, database, Kafka) with real or containerised infrastructure. An end-to-end test drives the whole system like a user (Cypress, Playwright): slow and few. That shape is the test pyramid.
+Q*: What are the main JUnit 5 annotations?
+A: `@Test`, `@BeforeEach` and `@AfterEach` (around every test), `@BeforeAll` and `@AfterAll` (once per class, static), `@DisplayName`, `@Disabled`, `@Nested`, `@ParameterizedTest` with `@ValueSource` or `@CsvSource`, and `@ExtendWith` to plug in extensions like Mockito.
+Q*: Which assertions do you use?
+A: `assertEquals(expected, actual)`, `assertTrue`, `assertNull` and `assertNotNull`, `assertThrows(Exception.class, () -> ...)` for exceptions, `assertAll` to report several failures together, and `assertTimeout`. Many teams use AssertJ: `assertThat(list).hasSize(3).contains("a")`.
+Q: How do you test that a method throws an exception?
+A: `var ex = assertThrows(OrderNotFoundException.class, () -> service.find(99));` and then assert on `ex.getMessage()`.
+Q: What is TDD?
+A: Test-Driven Development: write a failing test (red), write the simplest code to pass it (green), then clean the code up (refactor), and repeat. It drives a design that is easy to test.
+
+## Mockito
+Q*: What is Mockito and why mock?
+A: A library that creates fake versions of dependencies, so a unit test checks only the class under test, without a real database or remote service. You stub what the fake returns and verify how it was called.
+Q*: @Mock vs @InjectMocks?
+A: `@Mock` creates a mock of a dependency. `@InjectMocks` creates the real class under test and injects the mocks into it (through the constructor, setters or fields). Enable them with `@ExtendWith(MockitoExtension.class)`.
+Q*: when().thenReturn() vs verify()?
+A: `when(repo.findById(1L)).thenReturn(Optional.of(user))` stubs: it decides what the mock returns. `verify(repo).save(any())` checks afterwards that a call happened (`times(2)`, `never()`). Stub inputs, verify important outputs and side effects.
+Q*: Mock vs spy?
+A: A mock is fully fake: every method returns a default (null, 0, empty) unless stubbed. A spy wraps a real object and calls the real methods unless you stub them; use `doReturn(x).when(spy).method()` for spies.
+Q: What is ArgumentCaptor?
+A: It captures the argument passed to a mock so you can assert on it: `verify(repo).save(captor.capture()); assertEquals("NEW", captor.getValue().getStatus());`.
+Q: Can Mockito mock static or final methods?
+A: Yes, with the inline mock maker (the default since Mockito 5): `try (var m = mockStatic(UUID.class)) { ... }`. Needing it often points to a design that is hard to test.
+
+## Spring Boot Testing
+Q*: @SpringBootTest vs @WebMvcTest vs @DataJpaTest?
+A: `@SpringBootTest` starts the whole application context: for integration tests, slow. `@WebMvcTest(OrderController.class)` starts only the web layer, with MockMvc to call endpoints; services are mocked. `@DataJpaTest` starts only JPA and repositories with a test database and rolls back after each test.
+Q*: @Mock vs @MockBean (@MockitoBean)?
+A: `@Mock` is plain Mockito for unit tests without Spring. `@MockBean` replaces a bean inside the Spring context in `@WebMvcTest` or `@SpringBootTest`; since Spring Boot 3.4 it is replaced by `@MockitoBean`.
+Q: How do you test a REST controller?
+A: `@WebMvcTest` plus MockMvc: `mockMvc.perform(get("/orders/1")).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(1))`, with the service mocked by `@MockitoBean`.
+Q: What is code coverage? Is 100% the goal?
+A: The share of lines or branches run by tests, measured with JaCoCo. It shows untested code but not test quality: 100% coverage with no assertions proves nothing. Aim for well-tested business logic, often 70–80% overall.
+Q: What is Testcontainers?
+A: A library that starts real dependencies (PostgreSQL, Kafka, Redis) in Docker for integration tests, so tests run against the same database as production instead of H2.
+
 @ Beginner
 # 00 | Testing Basics: Start Here | What testing is and why, error vs defect vs failure, verification vs validation, QA vs QC, testing types and levels, black-box techniques, test cases, TDD and BDD, FIRST principles, history of JUnit and the xUnit family | Start Here
 

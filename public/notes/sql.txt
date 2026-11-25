@@ -1,3 +1,52 @@
+@ Must-Know
+# b | Interview Basics: SQL | The SQL theory questions every interview opens with. The query questions are in SQL Query Questions and Missed in Interviews. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Keys & Commands
+Q*: DDL vs DML vs DQL vs DCL vs TCL?
+A: DDL defines structure: CREATE, ALTER, DROP, TRUNCATE. DML changes data: INSERT, UPDATE, DELETE. DQL reads: SELECT. DCL controls access: GRANT, REVOKE. TCL controls transactions: COMMIT, ROLLBACK, SAVEPOINT.
+Q*: Primary key vs foreign key vs unique key?
+A: A primary key uniquely identifies each row: one per table, never NULL. A foreign key is a column that references another table's primary key, enforcing that the related row exists. A unique key also forbids duplicates, but a table can have many and they allow NULL.
+Q*: DELETE vs TRUNCATE vs DROP?
+A: DELETE removes chosen rows with WHERE, logs each row, can be rolled back and fires triggers. TRUNCATE removes all rows quickly, resets identity counters, has no WHERE, and cannot be rolled back in MySQL or Oracle (PostgreSQL and SQL Server can roll it back inside a transaction). DROP removes the whole table, structure included.
+Q: What are constraints?
+A: Rules on columns: NOT NULL, UNIQUE, PRIMARY KEY, FOREIGN KEY, CHECK (`salary > 0`), DEFAULT.
+Q: CHAR vs VARCHAR?
+A: CHAR(n) always stores n characters, padded with spaces: good for fixed codes like country codes. VARCHAR(n) stores only what you put, up to n: for names and emails.
+
+## Querying
+Q*: What are the types of joins?
+A: INNER JOIN returns only matching rows from both tables. LEFT JOIN returns all left rows plus matches (NULLs where none). RIGHT JOIN is the reverse. FULL OUTER JOIN returns all rows from both. CROSS JOIN returns every combination. A self join joins a table to itself (employee to manager).
+Q*: WHERE vs HAVING?
+A: WHERE filters rows before grouping and cannot use aggregates. HAVING filters groups after GROUP BY and can use aggregates: `GROUP BY dept HAVING COUNT(*) > 5`.
+Q*: In what order is a SELECT executed?
+A: FROM and JOIN, then WHERE, GROUP BY, HAVING, SELECT, DISTINCT, ORDER BY, and finally LIMIT/OFFSET. That is why WHERE cannot use a column alias defined in SELECT, but ORDER BY can.
+Q*: UNION vs UNION ALL?
+A: Both stack the results of two queries with the same columns. UNION removes duplicates (extra sort, slower); UNION ALL keeps every row and is faster.
+Q*: What is a subquery? Correlated vs non-correlated?
+A: A query inside another query. A non-correlated subquery runs once on its own: `WHERE salary > (SELECT AVG(salary) FROM employee)`. A correlated one refers to the outer row and runs per row: employees earning more than their own department's average.
+Q: Subquery vs JOIN?
+A: Many can be written either way. Joins are often faster and combine columns from both tables; subqueries read clearly for "exists" and "compare with an aggregate". EXISTS is usually better than IN for large subqueries.
+Q*: RANK vs DENSE_RANK vs ROW_NUMBER?
+A: All are window functions numbering rows in order. ROW_NUMBER gives 1, 2, 3, 4 with no ties. RANK gives ties the same number and skips: 1, 2, 2, 4. DENSE_RANK gives ties the same number without gaps: 1, 2, 2, 3, which is why it is used for Nth-highest salary.
+Q: What are window functions?
+A: Functions that calculate across related rows without collapsing them like GROUP BY: `SUM(salary) OVER (PARTITION BY dept)` adds each department's total to every row. Includes ROW_NUMBER, RANK, LAG, LEAD and running totals.
+Q: How does NULL behave?
+A: NULL means unknown. `NULL = NULL` is not true, so use `IS NULL` / `IS NOT NULL`. `COUNT(column)` skips NULLs, `COUNT(*)` does not. `COALESCE(col, 0)` replaces NULL with a default.
+
+## Design & Performance
+Q*: What is an index? Clustered vs non-clustered?
+A: A sorted structure (usually a B+ tree) that finds rows without scanning the whole table: like a book's index. A clustered index decides the physical order of the rows (one per table, usually the primary key). A non-clustered index is a separate structure pointing to the rows (many allowed). Indexes speed up reads but slow down writes and use space.
+Q*: What is normalization? 1NF, 2NF, 3NF?
+A: Organising tables so each fact is stored once, which avoids update anomalies. 1NF: atomic values, no repeating groups. 2NF: 1NF and every column depends on the whole primary key. 3NF: 2NF and no column depends on another non-key column. Denormalization adds controlled duplication back for read speed.
+Q*: What is ACID?
+A: The guarantees of a transaction. Atomicity: all or nothing. Consistency: constraints always hold. Isolation: concurrent transactions do not see each other's unfinished work. Durability: once committed, it survives a crash.
+Q: What are the isolation levels?
+A: READ UNCOMMITTED (dirty reads possible), READ COMMITTED (no dirty reads; default in PostgreSQL, Oracle, SQL Server), REPEATABLE READ (same rows read twice stay the same; MySQL InnoDB default), SERIALIZABLE (as if one at a time; safest and slowest). Higher levels prevent dirty reads, non-repeatable reads and phantom reads.
+Q: What is a view? A stored procedure?
+A: A view is a saved query you can select from like a table, used to simplify queries and hide columns. A stored procedure is precompiled SQL logic stored in the database and called with parameters; it can contain several statements and control flow.
+Q: How do you speed up a slow query?
+A: Run EXPLAIN to see the plan; add indexes on the WHERE, JOIN and ORDER BY columns; select only the columns you need instead of `*`; avoid functions on indexed columns in WHERE; paginate; and check for N+1 queries coming from the application.
+
 @ Beginner
 # 00 | SQL Basics: Start Here | Database servers and clients, installing MySQL, PostgreSQL or SQL Server, connecting, creating a database and user, your first session, client commands in each database, running SQL files, GUI tools, users and permissions | Start Here
 

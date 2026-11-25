@@ -1,3 +1,44 @@
+@ Must-Know
+# b | Interview Basics: Agents & MCP | The agent and tool questions asked in AI Engineer interviews. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Agents
+Q*: What is an AI agent?
+A: An LLM that works in a loop to reach a goal: it decides the next step, calls a tool (search, code, an API, a database), looks at the result, and repeats until done. The parts: the model (reasoning), tools (actions), memory (context and state), and instructions or guardrails.
+Q*: Chatbot vs workflow vs agent?
+A: A chatbot answers messages. A workflow is a fixed pipeline where code decides the steps and the LLM fills them (classify, then extract, then summarise). An agent lets the LLM choose the steps and tools dynamically. Use the simplest that works: workflows are more predictable and cheaper.
+Q*: What is ReAct?
+A: Reason plus Act: the model alternates Thought (what to do next), Action (a tool call) and Observation (the tool result) until it can answer. Modern tool-calling APIs implement this loop natively.
+Q*: How does the tool-calling loop work in code?
+A: Send the messages and tool definitions; if the model returns tool calls, run each one, append the results as tool messages, and call the model again; stop when it returns a final answer or a step limit is hit. Validate arguments and handle tool errors by returning them to the model.
+Q*: What memory does an agent have?
+A: Short-term: the conversation and scratchpad in the context window. Long-term: facts and past interactions in a database or vector store, retrieved when relevant. Plus state: the task's progress, saved in checkpoints so it can resume.
+Q: Single agent vs multi-agent?
+A: One agent with good tools is simpler and usually enough. Multi-agent systems split work between specialised agents (researcher, writer, reviewer) under a supervisor or as a pipeline: useful for complex tasks with separable roles, but harder to debug and more expensive.
+Q: What frameworks do you know?
+A: LangGraph (agents as state graphs with checkpoints and human-in-the-loop), CrewAI (role-based crews), AutoGen (conversational multi-agent), LlamaIndex (data and RAG agents), the OpenAI Agents SDK, and the Claude Agent SDK. Many teams also write the loop directly against the API.
+Q*: How do you make agents safe and reliable?
+A: Least-privilege tools, input validation, step and cost limits, timeouts, human approval for risky actions (payments, deletes, emails), sandboxed code execution, logging and tracing every step, prompt-injection defences, and evaluation on real tasks.
+Q: How do you evaluate an agent?
+A: Test it on a set of realistic tasks and measure task success rate, number of steps, tool errors, cost and latency; review the traces (LangSmith, Langfuse, OpenTelemetry) to see where it goes wrong.
+
+## MCP
+Q*: What is MCP (Model Context Protocol)?
+A: An open standard from Anthropic for connecting AI applications to tools and data. Instead of writing a custom integration for every app and service, a service exposes one MCP server, and any MCP client (Claude, IDEs, agent frameworks) can use it. "USB-C for AI tools."
+Q*: What are the MCP roles and primitives?
+A: The host is the AI app, which runs an MCP client per server it connects to; the server exposes capabilities. Primitives: tools (functions the model can call; model-controlled), resources (read-only data such as files or records; application-controlled), and prompts (reusable templates; user-controlled).
+Q: What transports does MCP use?
+A: stdio for local servers started as a subprocess, and Streamable HTTP for remote servers (it replaced the older HTTP plus SSE transport). Messages are JSON-RPC 2.0.
+Q: How is a remote MCP server secured?
+A: OAuth 2.1 authorization with tokens issued for that server (audience checks, no token passthrough), plus input validation, least-privilege scopes, and user consent for tool actions.
+Q: Function calling vs MCP?
+A: Function calling is how one model API lets the model request a tool call. MCP is a protocol for packaging and discovering tools and data across many apps. MCP tools end up as function calls to the model.
+
+## AI Coding Tools
+Q: What are agentic coding tools like Claude Code?
+A: CLI or IDE agents that read the codebase, run commands and tests, and edit files in a loop: gather context, act, verify. They are steered with project instruction files (CLAUDE.md), permission settings, MCP servers and clear specs with acceptance criteria.
+Q: How do you prompt a coding agent well?
+A: Give the goal and constraints, point to the relevant files, state acceptance criteria (tests that must pass), ask for a plan before large changes, and review the diff. Small, verifiable steps beat one huge request.
+
 @ Beginner
 
 # 00 | AI Agents Basics: Start Here | History from chatbots to agents, what an agent is, chatbot vs workflow vs agent, where Claude Code and MCP fit, installing Claude Code and a first session, core vocabulary, comparisons | Start Here

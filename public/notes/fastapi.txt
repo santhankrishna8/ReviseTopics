@@ -1,3 +1,42 @@
+@ Must-Know
+# b | Interview Basics: FastAPI | The FastAPI questions asked when AI Engineer roles expect you to serve models and LLM features as APIs. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Basics
+Q*: What is FastAPI and why is it popular?
+A: A modern Python web framework for APIs, built on Starlette (ASGI, async) and Pydantic (validation). You declare endpoints with type hints, and it validates requests, serialises responses and generates interactive OpenAPI docs at `/docs` automatically. It is fast, async-first and very little code, which made it the default for ML and LLM backends.
+Q*: ASGI vs WSGI?
+A: WSGI (Flask, classic Django) is synchronous: one request per worker at a time. ASGI is the async standard: one worker can handle many concurrent requests while waiting on I/O, and it supports WebSockets and streaming. FastAPI runs on an ASGI server such as Uvicorn.
+Q*: Path vs query vs body parameters?
+A: Path: part of the URL, declared in the route: `@app.get("/items/{item_id}")` with `item_id: int`. Query: function parameters not in the path, such as `q: str | None = None` for `?q=pen`. Body: a parameter typed as a Pydantic model, read from the JSON body.
+Q*: What does Pydantic do in FastAPI?
+A: It defines request and response schemas as classes (`class User(BaseModel): name: str; age: int = Field(gt=0)`), validates incoming JSON against them, converts types, and documents them in OpenAPI. Invalid input automatically returns 422 with details of which field failed.
+Q*: What is dependency injection with Depends?
+A: `Depends(get_db)` tells FastAPI to call a function and pass its result into the endpoint: database sessions, the current user, settings, pagination. Dependencies can depend on others, are cached per request, and `yield` dependencies run cleanup afterwards (closing the session).
+Q*: async def vs def endpoints?
+A: Use `async def` when the body awaits async I/O (httpx, async DB drivers, async LLM clients). Use plain `def` for blocking code: FastAPI runs it in a thread pool so it does not block the event loop. Never call blocking functions (`requests`, `time.sleep`) inside `async def`.
+Q: What does response_model do?
+A: It declares the output schema: FastAPI filters the returned data to those fields (so a password hash is never leaked), validates it, and documents it. Return types work the same way in recent versions.
+
+## Production
+Q*: How do you handle errors?
+A: Raise `HTTPException(status_code=404, detail="Item not found")` in endpoints. For custom exceptions, register `@app.exception_handler(MyError)` to return a consistent JSON error. Validation errors are 422 by default and can be customised.
+Q*: How do you add authentication?
+A: `OAuth2PasswordBearer(tokenUrl="token")` reads the Bearer token; a `get_current_user` dependency decodes and verifies the JWT (PyJWT), loads the user, and raises 401 if invalid. Endpoints add `user = Depends(get_current_user)`; scopes or role checks give authorization. Hash passwords with bcrypt or argon2.
+Q*: How do you stream an LLM response from FastAPI?
+A: Return a `StreamingResponse` wrapping an async generator that yields chunks as the LLM SDK streams them, with `media_type="text/event-stream"` for Server-Sent Events, so the frontend can show tokens as they arrive.
+Q: What are middleware and CORS?
+A: Middleware runs around every request (logging, timing, request ids). CORS is configured with `CORSMiddleware`, listing allowed origins (such as `http://localhost:4200`), methods and headers, so a browser app on another origin can call the API.
+Q: What are BackgroundTasks?
+A: Work that runs after the response is sent (send an email, write a log): `background_tasks.add_task(send_email, user.email)`. For heavy or reliable jobs use a real queue (Celery, RQ, Arq).
+Q: What is the lifespan event?
+A: An async context manager passed to `FastAPI(lifespan=...)` that runs code at start-up (load an ML model, open connection pools) and shutdown (close them), replacing the old `on_event` hooks.
+Q: How do you run FastAPI in production?
+A: `fastapi run` or `uvicorn main:app --host 0.0.0.0 --workers 4` (or Gunicorn with Uvicorn workers), in a Docker container behind a reverse proxy or load balancer, with environment-based settings (`pydantic-settings`), health endpoints and logging.
+Q: How do you test FastAPI?
+A: `TestClient(app)` (built on httpx) sends requests in tests with pytest; `app.dependency_overrides[get_db] = fake_db` swaps dependencies for test doubles.
+Q: FastAPI vs Flask vs Django?
+A: FastAPI: async, type-hint driven validation and docs, best for APIs and ML serving. Flask: minimal and synchronous, extensions for everything. Django: batteries included (ORM, admin, auth, templates), best for full web apps; Django REST Framework for APIs.
+
 @ Beginner
 
 # 00 | FastAPI Basics: Start Here | History and the libraries it builds on, versions, installing in a virtual environment, a first app, running it, interactive docs, project structure, core vocabulary, FastAPI vs Spring Boot and Express | Start Here

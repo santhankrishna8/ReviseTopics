@@ -1,3 +1,46 @@
+@ Must-Know
+# b | Interview Basics: HTML & CSS | The HTML and CSS questions asked in frontend interviews. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## HTML
+Q*: What is semantic HTML? Why does it matter?
+A: Using elements that describe their meaning: `<header>`, `<nav>`, `<main>`, `<article>`, `<section>`, `<footer>`, `<button>`, instead of `<div>` everywhere. It helps screen readers, SEO and keyboard users, and makes code easier to read.
+Q*: Block vs inline vs inline-block?
+A: Block elements (`div`, `p`, `h1`) start on a new line and take the full width. Inline elements (`span`, `a`, `strong`) flow within text and ignore width, height and vertical margins. Inline-block flows inline but accepts width, height and margins.
+Q: What does <!DOCTYPE html> do?
+A: It tells the browser to use standards mode with modern HTML5 rules. Without it the browser falls into quirks mode with old, inconsistent layout behaviour.
+Q: What is the viewport meta tag for?
+A: `<meta name="viewport" content="width=device-width, initial-scale=1">` makes mobile browsers use the device width instead of pretending to be a desktop screen. Responsive CSS needs it.
+Q: How do you make a page accessible?
+A: Semantic elements, `alt` text on images, a `<label>` for every input, keyboard access for everything with a visible focus, enough colour contrast, headings in order, and ARIA attributes only where native HTML is not enough.
+
+## CSS Layout
+Q*: Explain the CSS box model.
+A: Every element is a box: content, then padding, then border, then margin. With the default `box-sizing: content-box`, `width` sets only the content, so padding and border add to it. With `box-sizing: border-box`, `width` includes padding and border, which is far easier: most projects set it globally.
+Q*: Flexbox vs Grid?
+A: Flexbox is one-dimensional: it lays items out in a row or a column and is great for navbars, aligning items and distributing space. Grid is two-dimensional: rows and columns together, for page layouts and card grids. They are often combined: grid for the page, flex inside components.
+Q*: How do you center a div?
+A: Horizontally and vertically with flexbox: `display: flex; justify-content: center; align-items: center;` on the parent. With grid: `display: grid; place-items: center;`. Horizontally only, a block with a width: `margin: 0 auto`.
+Q*: What are the position values?
+A: `static` (default, normal flow), `relative` (offset from its normal place; becomes the reference for absolute children), `absolute` (taken out of the flow, positioned against the nearest positioned ancestor), `fixed` (against the viewport, stays put on scroll), `sticky` (normal until a scroll threshold, then sticks).
+Q*: What is specificity?
+A: How the browser picks the winning rule when several match. Inline styles beat IDs, IDs beat classes, attributes and pseudo-classes, which beat elements and pseudo-elements. On a tie, the later rule wins. `!important` overrides all; avoid it.
+Q: What is z-index and why does it sometimes not work?
+A: It sets stacking order for positioned elements (not `static`). It only competes within the same stacking context; a parent with `transform`, `opacity` below 1 or its own z-index creates a new context that traps its children.
+
+## Responsive & Modern CSS
+Q*: How do you make a site responsive?
+A: Mobile-first CSS, fluid layouts with flex, grid and percentages, relative units (rem, %, vw), `max-width: 100%` on images, and media queries at breakpoints (`@media (min-width: 768px)`), plus container queries for components.
+Q*: px vs em vs rem vs % vs vh/vw?
+A: `px` is fixed. `em` is relative to the element's own font size, which compounds when nested. `rem` is relative to the root (html) font size, consistent and accessible. `%` is relative to the parent. `vh` and `vw` are 1% of the viewport height and width.
+Q: Pseudo-class vs pseudo-element?
+A: A pseudo-class selects an element in a state: `:hover`, `:focus`, `:nth-child(2)`, `:disabled`. A pseudo-element styles part of an element or adds content: `::before`, `::after`, `::placeholder`, `::first-line`.
+Q: display: none vs visibility: hidden vs opacity: 0?
+A: `display: none` removes the element from the layout entirely. `visibility: hidden` hides it but keeps its space. `opacity: 0` keeps its space and it can still receive clicks.
+Q: What are CSS variables?
+A: Custom properties: `--brand: #2563eb;` used as `color: var(--brand)`. They cascade, can change at runtime and in media queries, and power theming such as dark mode.
+Q: id vs class?
+A: An id must be unique per page and has high specificity; a class can be reused on many elements. Style with classes; keep ids for anchors, labels and JavaScript hooks.
+
 @ Beginner
 # 00 | HTML & CSS Basics: Start Here | History and versions, how HTML, CSS and JS fit together, tags, elements and attributes, links and paths, images, tables, entities, the three ways to add CSS, CSS syntax, colours and text, HTML5 and CSS3 | Start Here
 

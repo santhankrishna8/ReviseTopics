@@ -1,3 +1,44 @@
+@ Must-Know
+# b | Interview Basics: Embeddings & RAG | The retrieval questions asked in every AI Engineer interview. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Embeddings & Search
+Q*: What is an embedding?
+A: A list of numbers (a vector, e.g. 1536 dimensions) that represents the meaning of a text. Texts with similar meaning get vectors close together, so "reset my password" and "forgot login" end up near each other even with no shared words. Made by embedding models (OpenAI text-embedding-3, BGE, Cohere, sentence-transformers).
+Q*: How do you measure similarity between embeddings?
+A: Cosine similarity (the angle between vectors, -1 to 1) is the most common. Dot product is the same as cosine for normalised vectors. Euclidean (L2) distance is also used. Use the metric the embedding model was trained for.
+Q*: What is a vector database? Name some.
+A: A store that indexes vectors for fast nearest-neighbour search, with metadata filtering. Examples: Pinecone, Qdrant, Weaviate, Milvus, Chroma, and PostgreSQL with pgvector (good when you already run Postgres).
+Q*: Exact vs approximate nearest neighbour? What is HNSW?
+A: Exact search compares the query with every vector: perfect but slow at scale. ANN trades a little recall for big speed. HNSW is the most used ANN index: a layered graph you walk from coarse to fine levels to reach the nearest vectors quickly.
+Q*: Keyword vs semantic vs hybrid search?
+A: Keyword search (BM25) matches exact words: great for names, codes and ids. Semantic search matches meaning through embeddings: great for paraphrases. Hybrid runs both and merges the results (Reciprocal Rank Fusion), and is usually the best default.
+
+## RAG Pipeline
+Q*: What is RAG and why use it?
+A: Retrieval-Augmented Generation: retrieve relevant chunks from your own data and put them in the prompt so the LLM answers from them. It gives up-to-date and private knowledge, fewer hallucinations, citations, and no retraining.
+Q*: Walk me through a RAG pipeline.
+A: Ingestion (offline): load documents, clean them, split into chunks, embed each chunk, and store the vectors with metadata (source, page, date). Query (online): embed the question, retrieve the top-k similar chunks (optionally hybrid plus re-ranking), build a prompt with those chunks and instructions to answer only from them with citations, and generate the answer.
+Q*: What is chunking? How do you choose the size?
+A: Splitting documents into pieces small enough to retrieve precisely but big enough to keep meaning: often 300–800 tokens with 10–20% overlap so ideas are not cut in half. Split on structure (headings, paragraphs) with recursive splitting; tune by evaluating retrieval.
+Q*: What is re-ranking?
+A: After fast retrieval of, say, the top 50 chunks, a cross-encoder model (Cohere Rerank, BGE reranker) scores each chunk together with the question more accurately and keeps the best 5. It is slower per item but much more precise.
+Q: What is top-k?
+A: How many chunks you retrieve and pass to the model. Too few misses the answer; too many adds noise and cost. Typical: retrieve 20–50, re-rank, send 3–8.
+Q: How do you improve the query itself?
+A: Rewrite follow-ups into standalone questions using the chat history, generate several query variants (multi-query), or have the model write a hypothetical answer and embed that (HyDE). Add metadata filters (date, product, user permissions).
+
+## Quality & Trade-offs
+Q*: How do you evaluate a RAG system?
+A: Separately for retrieval and generation. Retrieval: context precision and recall, hit rate, MRR (is the right chunk found and ranked high?). Generation: faithfulness (is the answer supported by the context?), answer relevance and correctness. Tools: Ragas, TruLens, LLM-as-judge, on a labelled question set.
+Q*: RAG vs fine-tuning?
+A: RAG adds knowledge at query time: easy to update, gives citations, good for facts that change. Fine-tuning changes the model's behaviour, style or format and is poor at adding facts. They combine well: fine-tune for format, RAG for knowledge.
+Q: Why does RAG give wrong answers?
+A: The right chunk was never retrieved (bad chunking, embeddings, or a missing keyword search), it was retrieved but ranked too low, the context was too noisy, the document is outdated, or the model ignored the context. Debug retrieval first.
+Q: How do you handle permissions in RAG?
+A: Store access metadata (tenant, roles) on every chunk and filter in the vector search by the current user's rights, so the model never sees documents the user cannot open.
+Q: What is GraphRAG?
+A: Building a knowledge graph of entities and relationships from the documents and retrieving through it. It helps with questions that connect many documents or ask for global summaries, where plain chunk retrieval struggles.
+
 @ Beginner
 
 # 00 | Embeddings & RAG Basics: Start Here | History from keyword search to embeddings and RAG, why LLMs need retrieval, the idea in one picture, a tiny semantic search, core vocabulary, keyword vs semantic search, RAG vs fine-tuning | Start Here

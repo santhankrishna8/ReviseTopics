@@ -1,3 +1,76 @@
+@ Must-Know
+# b | Interview Basics: Spring Boot & Microservices | The Spring Boot questions every Java full-stack interview asks. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Spring Core
+Q*: Spring vs Spring Boot?
+A: Spring is the framework: dependency injection, MVC, data access, transactions. Spring Boot sits on top and removes the setup: auto-configuration, starter dependencies, an embedded Tomcat, production features (Actuator) and a runnable JAR. You write business code, not configuration.
+Q*: What is IoC and dependency injection?
+A: Inversion of Control: the Spring container, not your code, creates objects and wires them together. Dependency Injection is how: a class declares what it needs (in its constructor) and Spring passes in the matching beans. It gives loose coupling and easy testing with mocks.
+Q*: Constructor vs setter vs field injection?
+A: Constructor injection (preferred): dependencies are required, fields can be `final`, easy to unit test. Setter injection: for optional dependencies. Field injection (`@Autowired` on a field): short but hides dependencies and is hard to test. With one constructor, `@Autowired` is not needed.
+Q*: What is a bean? Bean scopes?
+A: A bean is an object created and managed by the Spring container. Scopes: `singleton` (default, one per container), `prototype` (a new one every time it is requested), and for web apps `request`, `session` and `application`.
+Q*: @Component vs @Bean?
+A: `@Component` (and `@Service`, `@Repository`, `@Controller`) goes on your own class, which component scanning finds. `@Bean` goes on a method inside a `@Configuration` class that returns the object; use it for third-party classes you cannot annotate, or when creation needs logic.
+Q*: @Component vs @Service vs @Repository vs @Controller?
+A: All four make a class a bean. `@Service` marks business logic, `@Repository` marks data access and translates database exceptions into Spring's `DataAccessException`, `@Controller` handles web requests. They document intent and enable layer-specific features.
+Q: Two beans of the same type: how does Spring choose?
+A: It fails with `NoUniqueBeanDefinitionException` unless you mark one `@Primary` or name the one you want with `@Qualifier("name")` at the injection point.
+Q: What is the bean lifecycle?
+A: Instantiate, inject dependencies, run `@PostConstruct` (initialisation), use the bean, then `@PreDestroy` when the context shuts down. BeanPostProcessors run around initialisation; that is where proxies for `@Transactional` and `@Cacheable` are made.
+
+## Spring Boot
+Q*: What does @SpringBootApplication do?
+A: It combines `@Configuration` (the class can define beans), `@EnableAutoConfiguration` (configure beans from the classpath), and `@ComponentScan` (find components in this package and its subpackages).
+Q*: How does auto-configuration work?
+A: Boot ships configuration classes guarded by conditions like `@ConditionalOnClass` and `@ConditionalOnMissingBean`. If a library is on the classpath and you have not defined that bean yourself, Boot creates it. Example: with `spring-boot-starter-data-jpa` and a datasource URL it creates the DataSource and EntityManagerFactory. Your own beans always win.
+Q*: What are starters?
+A: Curated dependency bundles with compatible versions: `spring-boot-starter-web` brings Spring MVC, Jackson and embedded Tomcat; `-data-jpa` brings Hibernate and Spring Data; `-security`, `-test`, `-actuator`.
+Q*: application.properties vs application.yml, and profiles?
+A: Both hold configuration; YAML is hierarchical, properties is flat. Profiles hold per-environment settings in `application-dev.yml` and `application-prod.yml`, activated with `spring.profiles.active=prod` or an environment variable. Read values with `@Value("${key}")` or a typed `@ConfigurationProperties` class.
+Q: How do you change the port or the server?
+A: `server.port=8081` in application properties. To switch Tomcat for Jetty or Undertow, exclude `spring-boot-starter-tomcat` and add the other starter.
+Q: What is Spring Boot Actuator?
+A: Production endpoints for monitoring: `/actuator/health` (liveness, readiness), `/actuator/metrics`, `/actuator/info`, `/actuator/prometheus`. Expose only what you need with `management.endpoints.web.exposure.include`.
+Q: What is CommandLineRunner?
+A: An interface whose `run` method executes once after the application starts. Use it for start-up tasks like seeding data.
+
+## REST Layer
+Q*: @Controller vs @RestController?
+A: `@Controller` returns view names (server-rendered pages). `@RestController` = `@Controller` + `@ResponseBody`, so return values are written straight to the response as JSON by Jackson.
+Q*: @PathVariable vs @RequestParam vs @RequestBody?
+A: `@PathVariable` reads part of the URL path: `/users/{id}`. `@RequestParam` reads a query parameter: `/users?role=admin`. `@RequestBody` converts the JSON body into a Java object.
+Q*: How do you handle exceptions globally?
+A: A `@RestControllerAdvice` class with `@ExceptionHandler` methods for each exception type, returning a `ResponseEntity` or a `ProblemDetail` with the right status (404, 400, 409). One place for all errors, a consistent error format.
+Q*: How do you validate a request?
+A: Put Bean Validation annotations on the DTO (`@NotBlank`, `@Email`, `@Size`, `@Min`) and `@Valid` on the `@RequestBody` parameter. Failures throw `MethodArgumentNotValidException`, which you turn into a 400 with field errors in the advice.
+Q: What is ResponseEntity?
+A: A wrapper for the whole HTTP response: status, headers and body. `ResponseEntity.status(HttpStatus.CREATED).body(dto)` or `ResponseEntity.notFound().build()`.
+Q: How does a request flow through Spring MVC?
+A: The request hits the servlet filters, then the DispatcherServlet, which asks HandlerMapping for the controller method, runs interceptors, binds and validates the arguments, calls the method, converts the return value to JSON with an HttpMessageConverter, and writes the response.
+Q: Filter vs interceptor?
+A: A filter is a servlet-level component that sees every request before Spring MVC (security, logging, CORS). An interceptor is Spring MVC-level, runs around controller methods, and knows which handler is called (auth checks, timing).
+
+## Data & Transactions
+Q*: What does @Transactional do?
+A: Spring wraps the method in a proxy that starts a transaction before it and commits after, or rolls back if a `RuntimeException` (unchecked) is thrown. Checked exceptions do not roll back unless you set `rollbackFor`. Self-invocation from the same class skips the proxy.
+Q*: What is Spring Data JPA?
+A: Interfaces like `JpaRepository<User, Long>` give CRUD, paging and sorting with no implementation. Method names become queries (`findByEmailAndActiveTrue`), and `@Query` handles custom JPQL or native SQL.
+Q: What are transaction propagation levels?
+A: `REQUIRED` (default: join the current transaction or start one), `REQUIRES_NEW` (always a new one, suspending the outer), `MANDATORY`, `SUPPORTS`, `NOT_SUPPORTED`, `NEVER`, `NESTED`. Use `REQUIRES_NEW` for audit logs that must be saved even if the main work rolls back.
+
+## Microservices
+Q*: What are microservices? Monolith vs microservices?
+A: A monolith is one deployable application with all features. Microservices split it into small services per business area (orders, payments, users), each with its own database, deployed and scaled independently and talking over HTTP or messaging. You gain independent deployment and scaling, and pay with network calls, distributed data and more operations work.
+Q*: Name the common microservice components.
+A: API Gateway (one entry point: routing, auth, rate limiting: Spring Cloud Gateway), service discovery (Eureka or Kubernetes DNS), centralised config (Config Server), circuit breaker (Resilience4j), distributed tracing (Micrometer Tracing with Zipkin), and a message broker (Kafka or RabbitMQ) for async events.
+Q*: How do microservices communicate?
+A: Synchronously over REST (RestClient, WebClient, OpenFeign) or gRPC, when you need an answer now. Asynchronously through events on Kafka or RabbitMQ, when the caller does not need to wait; this decouples the services and survives one being down.
+Q*: What is a circuit breaker?
+A: It wraps calls to another service. After too many failures it "opens" and fails fast (or returns a fallback) instead of waiting on a broken service; after a while it lets a few test calls through (half-open) and closes again if they succeed. It stops one failure from cascading through the system.
+Q: How do you handle a transaction across services?
+A: Not with one ACID transaction. Use the Saga pattern: a sequence of local transactions with compensating actions (refund if shipping fails), coordinated by events (choreography) or a central orchestrator. The Outbox pattern makes "save and publish an event" reliable.
+
 @ Beginner
 
 # 00 | Spring Boot Basics: Start Here | History and versions, Spring vs Spring Boot vs Spring Cloud, creating, running and packaging a project, project structure, a first REST endpoint, core vocabulary, Spring Boot vs Jakarta EE, Quarkus, Micronaut, Node.js and FastAPI | Start Here

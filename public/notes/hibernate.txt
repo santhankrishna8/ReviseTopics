@@ -1,3 +1,48 @@
+@ Must-Know
+# b | Interview Basics: JPA & Hibernate | The ORM questions asked in every Java full-stack interview. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## ORM Basics
+Q*: What is ORM? JPA vs Hibernate vs Spring Data JPA?
+A: ORM (Object-Relational Mapping) maps Java classes to tables and objects to rows, so you work with objects instead of writing SQL by hand. JPA is the specification (the interfaces and annotations). Hibernate is the most used implementation of JPA. Spring Data JPA sits on top and generates repositories, so you write only interfaces.
+Q*: What is an entity? Which annotations are required?
+A: A Java class mapped to a table. It needs `@Entity`, an `@Id` field and a no-argument constructor. Common extras: `@Table(name = ...)`, `@Column`, `@GeneratedValue`, `@Enumerated(EnumType.STRING)`, `@Transient` (not stored).
+Q*: What are the @GeneratedValue strategies?
+A: `IDENTITY` uses the database auto-increment column (MySQL); it disables JDBC insert batching. `SEQUENCE` uses a database sequence (PostgreSQL, Oracle) and batches well. `TABLE` emulates a sequence with a table (slow). `AUTO` lets the provider choose. `UUID` generates UUIDs.
+Q*: CrudRepository vs JpaRepository?
+A: `CrudRepository` gives basic save, find, delete and count. `PagingAndSortingRepository` adds paging and sorting. `JpaRepository` extends both and adds JPA extras: `flush`, `saveAndFlush`, batch deletes, `findAll` returning a List.
+Q: What does spring.jpa.hibernate.ddl-auto do?
+A: It controls schema generation: `none`, `validate` (check the tables match the entities), `update` (alter tables, never in production), `create`, `create-drop` (for tests). In production use `validate` with Flyway or Liquibase migrations.
+
+## Relationships & Fetching
+Q*: What are the relationship annotations?
+A: `@OneToOne`, `@OneToMany`, `@ManyToOne`, `@ManyToMany`. Example: one Department has many Employees (`@OneToMany(mappedBy = "department")`), and each Employee has one Department (`@ManyToOne` with `@JoinColumn(name = "dept_id")`).
+Q*: What is the owning side and mappedBy?
+A: The owning side holds the foreign key and controls the relationship in the database: in one-to-many it is the `@ManyToOne` side. The other side uses `mappedBy` to say "this is mapped by the field on the other entity"; changes made only on the mappedBy side are not saved.
+Q*: Lazy vs eager loading?
+A: Lazy loads the related data only when you first access it (through a proxy); eager loads it immediately with the parent. Defaults: `@OneToMany` and `@ManyToMany` are LAZY; `@ManyToOne` and `@OneToOne` are EAGER. Best practice: make everything lazy and fetch what you need per query.
+Q*: What is the N+1 problem and how do you fix it?
+A: Loading N parents with one query, then lazily loading each parent's children with one more query each: 1 + N queries. Fix with `JOIN FETCH` in JPQL, `@EntityGraph` on the repository method, batch fetching (`@BatchSize` or `hibernate.default_batch_fetch_size`), or a DTO projection. Detect it by logging SQL.
+Q*: What is LazyInitializationException?
+A: Accessing a lazy association after the session or transaction has closed, so Hibernate cannot load it any more. Fix by fetching it inside the transaction (`JOIN FETCH`, `@EntityGraph`) or mapping to a DTO in the service layer. Do not "fix" it with EAGER everywhere or open-in-view.
+Q: What are cascade types?
+A: Operations passed from parent to child: `PERSIST`, `MERGE`, `REMOVE`, `REFRESH`, `DETACH`, or `ALL`. `orphanRemoval = true` deletes a child removed from the parent's collection. Use cascades on true parent-child (composition) links, never on `@ManyToOne`.
+
+## Persistence Context & Transactions
+Q*: What are the entity lifecycle states?
+A: Transient (new, not known to Hibernate), managed or persistent (in the persistence context, changes tracked), detached (was managed, the session closed), and removed (scheduled for deletion).
+Q*: What is the first-level cache and dirty checking?
+A: The persistence context caches every entity loaded in the current transaction, so finding the same id twice runs one query and returns the same object. It also snapshots them: at commit Hibernate compares and issues UPDATEs for changed entities automatically, without calling `save()`. That is dirty checking.
+Q: persist vs merge, and save vs saveAndFlush?
+A: `persist` makes a new entity managed. `merge` copies a detached entity's state onto a managed copy and returns that copy. Spring's `save` calls persist for new entities and merge for existing ones; `saveAndFlush` also sends the SQL to the database immediately instead of at commit.
+Q: findById vs getReferenceById?
+A: `findById` queries now and returns an `Optional` (empty if missing). `getReferenceById` (the old `getOne`, Hibernate's `load`) returns a lazy proxy without a query; it throws `EntityNotFoundException` only when you touch it. Use the reference to set a foreign key cheaply.
+Q: JPQL vs native query?
+A: JPQL queries entities and fields (`SELECT e FROM Employee e WHERE e.salary > :min`) and is database independent. A native query is plain SQL (`nativeQuery = true`) for database-specific features. Both use `@Query` in Spring Data.
+Q: Optimistic vs pessimistic locking?
+A: Optimistic: a `@Version` column; an update fails with `OptimisticLockException` if someone else changed the row first. No database locks; good for low contention. Pessimistic: `SELECT ... FOR UPDATE` locks the row until commit; for high contention such as stock counts.
+Q: First-level vs second-level cache?
+A: First-level: per transaction, always on. Second-level: shared across sessions, off by default, needs a provider (Ehcache, Hazelcast) and `@Cache` on entities; good for read-mostly reference data.
+
 @ Beginner
 
 # 00 | ORM & Hibernate Basics: Start Here | History of Hibernate and JPA, versions and licences, JDBC vs JPA vs Hibernate vs Spring Data JPA, setting up a project, a first entity and repository and the SQL they generate, core vocabulary, Hibernate vs MyBatis, jOOQ and ORMs in other languages | Start Here

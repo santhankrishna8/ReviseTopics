@@ -1,3 +1,100 @@
+@ Must-Know
+# b | Interview Basics: Java Core | The basic Java questions every interview opens with. Turn on Quiz mode, answer each one out loud in 30 seconds (definition, example, one detail), then open it. Streams are in their own topic. | ★ Interview Basics
+
+## Platform & Basics
+Q*: JDK vs JRE vs JVM?
+A: The JVM runs bytecode and makes Java platform independent. The JRE is the JVM plus the core libraries, enough to run Java programs. The JDK is the JRE plus development tools (javac, jar, debugger), needed to write and compile Java.
+Q*: Why is Java platform independent?
+A: `javac` compiles source code into bytecode (.class files), not machine code. Each operating system has its own JVM that runs the same bytecode: "write once, run anywhere".
+Q*: What are the main features of Java?
+A: Object-oriented, platform independent, automatic memory management (garbage collection), strongly typed, multithreaded, secure (no pointers, bytecode verification), and a huge standard library.
+Q*: Is Java pass-by-value or pass-by-reference?
+A: Always pass-by-value. For objects, the value passed is a copy of the reference, so a method can change the object's fields but cannot make the caller's variable point to a new object.
+Q*: Stack vs heap memory?
+A: The stack holds method calls, local variables and references, one stack per thread, freed automatically when a method returns. The heap holds all objects, is shared by threads, and is cleaned by the garbage collector.
+Q: What is garbage collection?
+A: The JVM automatically frees memory of objects no longer reachable from any live reference. You cannot force it (`System.gc()` is only a request). Modern JVMs use G1 by default, with ZGC for very low pause times.
+
+## OOP
+Q*: What are the four pillars of OOP?
+A: Encapsulation: private fields behind getters and setters. Inheritance: a class reuses another with `extends`. Polymorphism: one interface, many forms (overloading at compile time, overriding at runtime). Abstraction: show what an object does and hide how (abstract classes and interfaces).
+Q*: Abstract class vs interface?
+A: An abstract class can have state (fields), constructors, and both abstract and concrete methods, and a class extends only one. An interface defines a contract; since Java 8 it can have default and static methods, but no instance state, and a class can implement many. Use an interface for a capability ("can be compared"), an abstract class for a shared base with common code.
+Q*: Method overloading vs overriding?
+A: Overloading: same method name, different parameter list, in the same class, decided at compile time. Overriding: a subclass redefines a parent method with the same signature, decided at runtime by the actual object type. Overriding cannot reduce visibility or throw broader checked exceptions.
+Q: Can we override static or private methods?
+A: No. Static methods are hidden, not overridden (the call depends on the reference type). Private methods are not inherited, so they cannot be overridden.
+Q: Why does Java not support multiple inheritance of classes?
+A: To avoid the diamond problem: two parents with the same method would make it unclear which one to inherit. Java allows multiple interfaces; if two default methods clash, the class must override and choose.
+Q: Composition vs inheritance?
+A: Inheritance is "is-a" (a Car is a Vehicle); composition is "has-a" (a Car has an Engine). Prefer composition: it is more flexible and does not tie a class to its parent's internals.
+
+## Keywords & Strings
+Q*: == vs equals()?
+A: `==` compares references (are these the same object?) for objects, and values for primitives. `equals()` compares content when the class overrides it, as String does. `new String("a") == new String("a")` is false; `.equals` is true.
+Q*: Why is String immutable?
+A: For the String pool (literals are shared, so one change would affect everyone), security (file paths, URLs and class names cannot be altered after checks), thread safety, and cached hash codes, which makes Strings fast HashMap keys.
+Q*: String vs StringBuilder vs StringBuffer?
+A: String is immutable: every change creates a new object. StringBuilder is mutable and fast but not thread-safe: use it for building strings in loops. StringBuffer is mutable and synchronized (thread-safe but slower, legacy).
+Q*: final vs finally vs finalize?
+A: `final` makes a variable constant, a method non-overridable, or a class non-extendable. `finally` is the block after try/catch that always runs (for cleanup). `finalize()` was a method the GC called before collecting an object; it is deprecated, so use try-with-resources instead.
+Q*: What does static mean?
+A: The member belongs to the class, not to an object: one copy shared by all instances, used without creating an object (`Math.max`). Static methods cannot use `this` or instance fields directly. A static block runs once when the class loads.
+Q: How do you make a class immutable?
+A: Make the class `final`, all fields `private final`, set them only in the constructor, add no setters, and return copies of mutable fields (lists, dates). Or use a `record`.
+Q: What is a record?
+A: A compact, immutable data class (Java 16): `record Point(int x, int y) {}` generates the constructor, accessors `x()` and `y()`, and `equals`, `hashCode` and `toString`. Use it for DTOs.
+
+## Exceptions
+Q*: Checked vs unchecked exceptions?
+A: Checked exceptions (`IOException`, `SQLException`) are checked at compile time: you must catch or declare them with `throws`. Unchecked exceptions are subclasses of `RuntimeException` (`NullPointerException`, `IllegalArgumentException`) and usually mean programming errors. Errors like `OutOfMemoryError` are not meant to be caught.
+Q*: throw vs throws?
+A: `throw` actually throws an exception object inside a method: `throw new IllegalArgumentException("bad id")`. `throws` in a method signature declares which checked exceptions the method may pass to its caller.
+Q: What is try-with-resources?
+A: `try (var in = new FileInputStream(f)) { ... }` closes any `AutoCloseable` resource automatically at the end, even on an exception, replacing manual `finally` blocks.
+Q: Does finally always run?
+A: Almost always, even after a `return` in try. It does not run if the JVM exits (`System.exit`) or crashes, or the thread is killed.
+
+## Collections
+Q*: ArrayList vs LinkedList?
+A: ArrayList is backed by a resizable array: fast random access `get(i)` in O(1), slow inserts in the middle. LinkedList is a doubly linked list: O(1) insert and remove at the ends, but O(n) access by index. Use ArrayList by default.
+Q*: How does HashMap work internally?
+A: An array of buckets. `put` computes `hashCode()`, picks a bucket with `(n - 1) & hash`, and stores the entry; on a collision entries chain in a list, which becomes a red-black tree past 8. `get` finds the bucket the same way and uses `equals()` to find the key. It resizes (doubles) at 75% full. Average O(1).
+Q*: What is the equals and hashCode contract?
+A: If two objects are equal by `equals()`, they must have the same `hashCode()`. If you override one, override both, or HashMap and HashSet will look in the wrong bucket and fail to find equal keys.
+Q*: HashMap vs Hashtable vs ConcurrentHashMap?
+A: HashMap is not thread-safe and allows one null key. Hashtable is legacy, synchronized on every method (slow) and allows no nulls. ConcurrentHashMap is thread-safe with fine-grained locking (CAS and per-bin locks), allows no nulls, and is the one to use with threads.
+Q*: List vs Set vs Map?
+A: List: ordered, allows duplicates, index access (ArrayList). Set: no duplicates (HashSet, LinkedHashSet for insertion order, TreeSet for sorted). Map: key to value pairs with unique keys (HashMap, LinkedHashMap, TreeMap).
+Q: How does HashSet work?
+A: It is backed by a HashMap: each element is stored as a key with a dummy constant value, which is why elements must have correct `equals` and `hashCode`.
+Q*: Comparable vs Comparator?
+A: Comparable is implemented by the class itself (`compareTo`) and gives one natural order, like String alphabetically. Comparator is a separate object (`compare`) for any number of custom orders: `Comparator.comparing(Employee::salary).reversed()`.
+Q: Fail-fast vs fail-safe iterators?
+A: Fail-fast iterators (ArrayList, HashMap) throw `ConcurrentModificationException` if the collection is changed during iteration, except through the iterator's own `remove`. Fail-safe ones (ConcurrentHashMap, CopyOnWriteArrayList) work on a snapshot or concurrent view and do not throw.
+
+## Multithreading
+Q*: Process vs thread?
+A: A process is a running program with its own memory. A thread is a lightweight unit of execution inside a process; threads share the process's heap, which makes them fast to create but needs synchronization.
+Q*: How do you create a thread?
+A: Extend `Thread` and override `run()`, or better, implement `Runnable` (or `Callable` to return a value) and give it to a thread or an `ExecutorService`. In practice, use an executor: `Executors.newFixedThreadPool(4).submit(task)`. Java 21 adds virtual threads: `Executors.newVirtualThreadPerTaskExecutor()`.
+Q*: synchronized vs volatile?
+A: `synchronized` gives mutual exclusion (one thread at a time in the block) and visibility. `volatile` gives only visibility: every read sees the latest write, but `count++` is still not atomic. For counters use `AtomicInteger`.
+Q: Runnable vs Callable?
+A: `Runnable.run()` returns nothing and cannot throw checked exceptions. `Callable.call()` returns a value and can throw; submitting it gives a `Future`.
+Q: What is a deadlock and how do you avoid it?
+A: Two threads each hold a lock the other needs, so both wait forever. Avoid it by always taking locks in the same order, using `tryLock` with a timeout, and keeping locked sections small.
+Q: wait() vs sleep()?
+A: `wait()` (on an object, inside synchronized) releases the lock and waits for `notify`. `Thread.sleep()` pauses the thread but keeps any locks it holds.
+
+## Java 8+ & Design
+Q*: What are the main Java 8 features?
+A: Lambdas, functional interfaces, the Stream API, Optional, default and static interface methods, method references, and the new date and time API (`LocalDate`, `LocalDateTime`). Later versions added `var` (10), records (16), sealed classes and pattern matching for switch (17 to 21), and virtual threads (21).
+Q*: How do you write a thread-safe Singleton?
+A: The simplest: `enum Singleton { INSTANCE; }`. Or a private constructor with a static holder class (`private static class Holder { static final Singleton I = new Singleton(); }`), which is lazy and thread-safe without locks. Double-checked locking needs a `volatile` field.
+Q: What is the Integer cache?
+A: `Integer.valueOf` (used by autoboxing) returns cached objects for -128 to 127. So `Integer a = 127, b = 127; a == b` is true, but with 128 it is false. Always compare wrappers with `equals`.
+
 @ Beginner
 # 00 | Java Basics: Start Here | History, features, editions, first program, input and output, arrays, methods and loops, packages, Java vs C++ and Python | Start Here
 

@@ -1,3 +1,48 @@
+@ Must-Know
+# b | Interview Basics: DSA | The data structure and algorithm questions asked before or alongside the coding round. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Complexity
+Q*: What is Big-O notation?
+A: A way to describe how the time or memory of an algorithm grows as the input size n grows, ignoring constants. O(1) constant, O(log n) binary search, O(n) one loop, O(n log n) good sorting, O(n²) nested loops, O(2ⁿ) all subsets.
+Q*: What are the time complexities of common operations?
+A: Array index O(1), search O(n). HashMap and HashSet get, put and contains O(1) average. Binary search O(log n). TreeMap operations O(log n). Heap insert and remove O(log n), peek O(1). Sorting O(n log n). Linked list insert at head O(1), search O(n).
+Q: Time vs space complexity?
+A: Time complexity counts the steps; space complexity counts the extra memory used. You often trade one for the other: a HashMap uses O(n) space to turn an O(n²) search into O(n).
+
+## Data Structures
+Q*: Array vs linked list?
+A: An array is contiguous memory with O(1) access by index, but inserting in the middle shifts elements (O(n)), and growing means copying. A linked list has nodes with pointers: O(1) insert or delete once you are at the node, but O(n) to reach an index and worse cache use.
+Q*: Stack vs queue?
+A: A stack is LIFO (last in, first out): push and pop at the top; used for undo, function calls, matching brackets and DFS. A queue is FIFO (first in, first out): add at the back, remove at the front; used for BFS, scheduling and buffers. In Java use `ArrayDeque` for both.
+Q*: How does a hash table work?
+A: A hash function turns the key into an array index (bucket). Collisions are handled by chaining (a list or tree per bucket) or open addressing. With a good hash and resizing at a load factor, operations are O(1) on average.
+Q*: What is a binary search tree?
+A: A binary tree where every left subtree has smaller keys and every right subtree larger ones, so an in-order traversal is sorted. Search, insert and delete take O(log n) if balanced and O(n) if it degrades into a line; balanced versions (red-black, AVL) guarantee O(log n). Java's TreeMap is a red-black tree.
+Q*: What is a heap?
+A: A complete binary tree stored in an array where each parent is smaller (min-heap) or larger (max-heap) than its children. Peek at the min or max in O(1), insert and remove in O(log n). Java's `PriorityQueue`. Used for top-K, scheduling and Dijkstra.
+Q: Tree vs graph?
+A: A tree is a connected graph with no cycles and one path between any two nodes (n nodes, n - 1 edges). A graph can have cycles, can be directed or undirected, weighted, and disconnected. Store graphs as adjacency lists.
+Q: What is a trie?
+A: A prefix tree where each node is a character, so words sharing a prefix share a path. Insert and search take O(length of the word); used for autocomplete and spell checking.
+
+## Algorithms
+Q*: BFS vs DFS?
+A: BFS explores level by level with a queue and finds the shortest path in unweighted graphs. DFS goes deep first with recursion or a stack and suits cycle detection, topological sort, path finding and backtracking. Both are O(V + E).
+Q*: How does binary search work?
+A: On a sorted array, compare the middle element with the target and discard the half that cannot contain it; repeat. O(log n). Compute the middle as `lo + (hi - lo) / 2` to avoid overflow, and be careful with the loop bounds.
+Q*: Compare the sorting algorithms.
+A: Bubble, selection and insertion sort are O(n²) (insertion sort is fast on nearly sorted data). Merge sort is O(n log n) always, stable, and needs O(n) extra space. Quick sort is O(n log n) on average, O(n²) worst case, in place. Heap sort is O(n log n) in place but not stable. Java sorts objects with TimSort (stable) and primitives with dual-pivot quicksort.
+Q*: What is recursion? What do you need for it?
+A: A function that calls itself on a smaller input. It needs a base case that stops it and a step that moves toward the base case. Each call uses stack space, so very deep recursion causes StackOverflowError.
+Q*: What is dynamic programming?
+A: Solving a problem by combining solutions of overlapping subproblems and storing them so each is solved once: memoization (top-down recursion plus a cache) or tabulation (bottom-up table). Examples: Fibonacci, climbing stairs, knapsack, longest common subsequence.
+Q*: Two pointers vs sliding window?
+A: Two pointers move two indexes through the data, often from both ends of a sorted array (pair sum, reverse, remove duplicates). Sliding window keeps a range [left, right] that grows and shrinks to find the best subarray or substring (longest substring without repeats, max sum of size k). Both turn O(n²) into O(n).
+Q: Greedy vs dynamic programming?
+A: Greedy takes the locally best choice at each step and never revisits it: fast, but only correct when the problem allows it (activity selection, coin change with standard coins). DP explores combinations of subproblems and is correct when greedy fails.
+Q: What is a stable sort?
+A: One that keeps equal elements in their original relative order, which matters when sorting by several keys one after another. Merge sort and TimSort are stable; quick sort and heap sort are not.
+
 @ Beginner
 # 00 | DSA Basics: Start Here | What data structures and algorithms are, why interviews test them, the study order, a 7-step method for solving any problem, reading constraints to pick a complexity, how to practise on LeetCode so it sticks | Start Here
 
