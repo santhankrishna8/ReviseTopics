@@ -48,148 +48,6 @@ Q: How do you speed up a slow query?
 A: Run EXPLAIN to see the plan; add indexes on the WHERE, JOIN and ORDER BY columns; select only the columns you need instead of `*`; avoid functions on indexed columns in WHERE; paginate; and check for N+1 queries coming from the application.
 
 @ Beginner
-# 00 | SQL Basics: Start Here | Database servers and clients, installing MySQL, PostgreSQL or SQL Server, connecting, creating a database and user, your first session, client commands in each database, running SQL files, GUI tools, users and permissions | Start Here
-
-## Servers, Clients and Connections | rose
-- Most relational databases run as a **server** process that listens on a network port: **MySQL 3306**, **PostgreSQL 5432**, **SQL Server 1433**, **Oracle 1521**. **SQLite** is the exception: a library inside your application that reads and writes one file, with no server.
-- You talk to the server through a **client**: a command-line tool (`mysql`, `psql`, `sqlcmd`, `sqlplus`, `sqlite3`), a GUI (MySQL Workbench, pgAdmin, SSMS, DBeaver), or application code using a **driver** (JDBC for Java, psycopg for Python, `pg` / `mysql2` for Node.js).
-- The client sends SQL text over the connection; the server parses, plans and runs it, then streams the result rows back (sheet 01).
-- **Hierarchy**: server (also called instance or cluster) → **databases** → **schemas** → tables, views, functions. In MySQL, "database" and "schema" mean the same thing.
-- A **connection string** holds everything needed to connect:
-```text
-postgresql://app_user:secret@localhost:5432/shop                  (PostgreSQL URL, used by psql and most drivers)
-jdbc:postgresql://localhost:5432/shop                              (Java JDBC)
-jdbc:mysql://localhost:3306/shop                                   (Java JDBC, MySQL)
-jdbc:sqlserver://localhost:1433;databaseName=shop;encrypt=true     (Java JDBC, SQL Server)
-```
-- Never hard-code passwords in code: read them from environment variables or a secrets manager.
-
-## Installing a Database | blue
-- **Official installers**: MySQL Community Server (MySQL Installer on Windows), PostgreSQL (EDB installer on Windows, Postgres.app on macOS), SQL Server **Developer** edition (free for development) or **Express** (free, limited), Oracle Database **Free**.
-- **Package managers**: `brew install postgresql@18`, `sudo apt install postgresql` or `mysql-server`.
-- **Docker** (quickest and disposable; one command per database):
-```bash
-docker run --name pg -e POSTGRES_PASSWORD=secret -p 5432:5432 -d postgres:18
-docker run --name mysql -e MYSQL_ROOT_PASSWORD=secret -p 3306:3306 -d mysql:8.4
-docker run --name mssql -e ACCEPT_EULA=Y -e "MSSQL_SA_PASSWORD=Str0ng!Passw0rd" -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest
-docker exec -it pg psql -U postgres          # open a client inside the container
-```
-- **Managed cloud databases**: Amazon RDS / Aurora, Azure SQL Database, Google Cloud SQL, Neon or Supabase (PostgreSQL).
-- **No install at all**: browser playgrounds such as DB Fiddle let you practise queries against MySQL, PostgreSQL or SQLite.
-- Default administrator accounts: PostgreSQL **`postgres`**, MySQL **`root`**, SQL Server **`sa`**, Oracle **`SYS`** / **`SYSTEM`**. Use them only for administration and create a separate application user.
-
-## Connect and Create Your First Database | green
-```bash psql
-psql -h localhost -U postgres             # PostgreSQL: connect as the admin user (prompts for the password)
-mysql -h localhost -u root -p             # MySQL
-sqlcmd -S localhost -U sa                 # SQL Server
-```
-```sql PostgreSQL
-CREATE USER app_user WITH PASSWORD 'secret';
-CREATE DATABASE shop OWNER app_user;      -- the owner can create tables in its public schema
--- then reconnect to it:  \c shop app_user
-```
-```sql MySQL
-CREATE DATABASE shop;
-CREATE USER 'app_user'@'%' IDENTIFIED BY 'secret';     -- '%' = may connect from any host
-GRANT ALL PRIVILEGES ON shop.* TO 'app_user'@'%';
-USE shop;                                               -- make shop the current database
-```
-```sql SQL-Server
-CREATE DATABASE shop;
-GO
-CREATE LOGIN app_user WITH PASSWORD = 'Str0ng!Passw0rd';    -- server-level login
-GO
-USE shop;
-CREATE USER app_user FOR LOGIN app_user;                     -- database-level user mapped to the login
-ALTER ROLE db_owner ADD MEMBER app_user;
-GO
-```
-- PostgreSQL 15+ no longer lets every user create tables in the `public` schema. Making the application user the **owner** of the database (as above), or granting `CREATE ON SCHEMA public`, avoids "permission denied for schema public".
-- SQL Server separates a **login** (authenticates to the server) from a **user** (has permissions inside one database). `GO` is a batch separator understood by `sqlcmd` and SSMS.
-
-## Your First Session | amber
-```sql
-CREATE TABLE students (
-  id     INT PRIMARY KEY,
-  name   VARCHAR(50) NOT NULL,
-  city   VARCHAR(50),
-  marks  INT CHECK (marks BETWEEN 0 AND 100)
-);
-
-INSERT INTO students (id, name, city, marks) VALUES
-  (1, 'Ann', 'Chennai', 91),
-  (2, 'Bala', 'Pune', 78),
-  (3, 'Chitra', 'Chennai', 85);
-
-SELECT * FROM students;                                                  -- 3 rows
-SELECT name, marks FROM students WHERE city = 'Chennai' ORDER BY marks DESC;   -- Ann 91 | Chitra 85
-UPDATE students SET marks = 80 WHERE id = 2;                             -- Bala now has 80
-DELETE FROM students WHERE id = 3;                                       -- Chitra removed
-SELECT COUNT(*) AS total, AVG(marks) AS average FROM students;           -- 2 | 85.5
-```
-- That is the whole cycle: **create** a table (DDL), **insert**, **read**, **update** and **delete** rows (DML). `DROP TABLE students;` removes the table when you no longer need it (keep it for the permissions example below). The remaining sheets go deep on each step; sheet 01 sets up the sample database used everywhere else.
-
-## Client Commands in Each Database | violet
-- These are **client commands**, not SQL: each tool has its own.
-- **psql (PostgreSQL)**: `\l` list databases, `\c shop` connect to a database, `\dt` list tables, `\d students` describe a table, `\dn` schemas, `\du` roles, `\i setup.sql` run a file, `\x` expanded display, `\timing` show query times, `\?` help, `\q` quit.
-- **mysql (MySQL)**: `SHOW DATABASES;`, `USE shop;`, `SHOW TABLES;`, `DESCRIBE students;`, `SHOW CREATE TABLE students;`, `SELECT DATABASE();` (current database), `SOURCE setup.sql;`, `exit`.
-- **sqlcmd / SSMS (SQL Server)**: `SELECT name FROM sys.databases;`, `USE shop;`, `SELECT * FROM INFORMATION_SCHEMA.TABLES;`, `EXEC sp_help 'students';`, end each batch with `GO`; run a file with `sqlcmd -S localhost -U sa -i setup.sql`.
-- **SQL\*Plus (Oracle)**: `SELECT table_name FROM user_tables;`, `DESC students`, `@setup.sql`, `exit`.
-- **sqlite3 (SQLite)**: `sqlite3 shop.db` opens or creates the file; `.tables`, `.schema students`, `.headers on`, `.mode column`, `.read setup.sql`, `.quit`.
-- **Running a SQL file from the shell**: `psql -U postgres -d shop -f setup.sql`, `mysql -u root -p shop < setup.sql`, `sqlcmd -S localhost -U sa -i setup.sql`.
-- **The portable way** to list tables and columns is the standard **`INFORMATION_SCHEMA`** (PostgreSQL, MySQL, SQL Server; Oracle uses its own `USER_TABLES` and `ALL_TAB_COLUMNS` views):
-```sql
-SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
--- customers, departments, employees, logins, logs, orders, person, weather  (with the practice tables loaded)
-SELECT column_name, data_type, is_nullable
-FROM information_schema.columns
-WHERE table_name = 'customers'
-ORDER BY ordinal_position;
--- id integer NO | name character varying NO | city character varying YES
-```
-
-## GUI Tools | rose
-- **MySQL Workbench** (MySQL), **pgAdmin** (PostgreSQL), **SSMS**, SQL Server Management Studio (SQL Server), **Oracle SQL Developer** (Oracle).
-- **DBeaver** (free, works with almost every database) and **DataGrip** (JetBrains, paid): handy when you use several databases.
-- **VS Code** extensions for running queries next to your code.
-- GUIs help you explore schemas, edit data, read execution plans visually and build ER diagrams; the command-line clients are what you'll use on servers and in scripts.
-
-## Users, Roles and Permissions (DCL) | blue
-```sql
-CREATE ROLE reporting;                                       -- a group of permissions
-GRANT SELECT ON students TO reporting;                       -- read-only access to one table
-CREATE USER analyst WITH PASSWORD 'secret';                  -- PostgreSQL: a role that can log in
-GRANT reporting TO analyst;                                  -- analyst inherits reporting's permissions
-REVOKE SELECT ON students FROM reporting;                    -- take the permission back
-```
-- **DCL (Data Control Language)** manages access: `GRANT` gives privileges (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `EXECUTE`, `CREATE`...), `REVOKE` removes them.
-- Grant privileges to **roles** and put users into roles, rather than granting to each user individually.
-- **Principle of least privilege**: the application connects as a user that can only do what the app needs (never as `root`, `postgres` or `sa`); reports use a read-only account; schema migrations use a separate account with DDL rights.
-- MySQL users are identified by name **and host** (`'app_user'@'localhost'` and `'app_user'@'%'` are different accounts).
-
-## Interview Q&A | sky | wide
-Q*: What is the difference between a database server and a client?
-A: The server stores the data and executes queries; a client (CLI, GUI or application driver) connects to it over the network, sends SQL and receives the results. SQLite is embedded, so there is no separate server.
-Q*: What are the default ports of MySQL, PostgreSQL, SQL Server and Oracle?
-A: 3306, 5432, 1433 and 1521.
-Q*: How do you list all tables in MySQL, PostgreSQL and SQL Server?
-A: MySQL `SHOW TABLES;`, PostgreSQL `\dt` in psql, SQL Server `SELECT * FROM INFORMATION_SCHEMA.TABLES;`. The INFORMATION_SCHEMA query works in all three.
-Q: How do you see the structure of a table?
-A: MySQL `DESCRIBE t;`, PostgreSQL `\d t`, SQL Server `EXEC sp_help 't';`, Oracle `DESC t`, or query information_schema.columns.
-Q: What is the difference between a database and a schema?
-A: A database is a separate container with its own schemas, users and settings; a schema is a namespace inside a database that groups tables and other objects. In MySQL the two terms are synonyms.
-Q: What is the difference between a login and a user in SQL Server?
-A: A login authenticates to the whole server; a user is mapped to a login inside one database and holds that database's permissions.
-Q: What is a connection string?
-A: A string with the driver or protocol, host, port, database name, credentials and options needed to open a connection, for example `postgresql://user:pass@localhost:5432/shop`.
-Q: How do you run a .sql file?
-A: `psql -f file.sql` (or `\i file.sql` inside psql), `mysql db < file.sql` (or `SOURCE file.sql`), `sqlcmd -i file.sql`, `@file.sql` in SQL*Plus.
-Q: What is DCL? Give examples.
-A: Data Control Language manages permissions: GRANT and REVOKE, usually applied to roles that users belong to.
-Q: What is the principle of least privilege for database accounts?
-A: Each account gets only the permissions it needs: the application can't drop tables, reporting users can only read, and admin accounts aren't used by applications.
-
 # 01 | SQL & Relational Database Basics | Databases, DBMS vs RDBMS, the relational model, SQL sub-languages, keys, relationships, SQL vs NoSQL, the 7-day plan and sample schema | SQL Basics
 
 ## What a Database Is | rose
@@ -353,143 +211,6 @@ Q: Surrogate vs natural key?
 A: A natural key comes from the data (email); a surrogate key is generated (identity or UUID). Surrogates are stable and compact, so they are the usual PK, with a unique constraint on the natural key.
 Q: When would you choose SQL over NoSQL?
 A: When data is structured and related, needs joins, constraints and multi-row ACID transactions, such as payments, orders or inventory. NoSQL suits flexible schemas, huge scale with simple access patterns, or special models such as graphs.
-
-# 02 | SQL Dialects: MySQL vs PostgreSQL vs SQL Server vs Oracle vs SQLite | The major products, their procedural languages, syntax differences, behaviour differences and when to pick each | Dialects Compared
-
-## The Main Products | rose
-- **MySQL**: open source (GPL) with a commercial edition, owned by **Oracle** (MySQL AB released it in 1995; Sun bought it in 2008; Oracle bought Sun in 2010). Default storage engine **InnoDB**. Huge in web apps (LAMP stack, WordPress). Default port **3306**. **MariaDB** is a community fork (2009) by MySQL's original author, Michael "Monty" Widenius.
-- **PostgreSQL ("Postgres")**: community-developed, liberal **PostgreSQL License**. Grew out of the **POSTGRES** project at UC Berkeley (1986, Michael Stonebraker); SQL was added in 1995 (Postgres95) and it was renamed in 1996. An **object-relational** database known for standards compliance and extensions (**PostGIS**, **pgvector**, Citus, TimescaleDB). Port **5432**. One major release a year.
-- **Microsoft SQL Server**: commercial, with free **Express** and **Developer** editions. Started in 1989 with Sybase; runs on **Windows and Linux** (since 2017); cloud version **Azure SQL**. Dialect **T-SQL**. Tools: **SSMS**, `sqlcmd`. Port **1433**.
-- **Oracle Database**: commercial, the first commercially available SQL RDBMS (**1979**). Dialect **PL/SQL**. Strong in banks and large enterprises (RAC clustering, Data Guard). Port **1521**.
-- **SQLite**: public domain (2000, D. Richard Hipp). **Embedded and serverless**: the whole database is **one file** inside your app. Ships in every phone and browser. No users, no network server, **dynamic typing** (type affinity) unless you use `STRICT` tables.
-
-## Procedural Extensions | blue
-- **T-SQL (Transact-SQL)**, SQL Server: variables `DECLARE @total INT`, `IF`/`WHILE`, `TRY...CATCH`, temp tables `#temp`, `TOP`, `OUTPUT`, `MERGE`, `CROSS APPLY`.
-- **PL/SQL**, Oracle: block-structured `DECLARE ... BEGIN ... EXCEPTION ... END;`, packages, cursors, `%TYPE`, `BULK COLLECT`.
-- **PL/pgSQL**, PostgreSQL: functions, procedures and anonymous `DO` blocks. PostgreSQL can also run PL/Python, PL/Perl and others.
-- **MySQL**: stored procedures, functions and triggers in SQL/PSM-style syntax (`BEGIN ... END`, `DECLARE`, handlers), written with the client's `DELIMITER` command. There is no separate brand name.
-- **SQLite**: no stored procedures. Logic lives in the application; triggers and views are supported.
-> "SQL vs PL/SQL vs T-SQL": SQL is the standard declarative language. PL/SQL (Oracle) and T-SQL (Microsoft) are vendor procedural extensions that add variables, loops, error handling and stored programs.
-
-## Syntax Differences You Get Asked About | green
-- **Limit rows**: MySQL, PostgreSQL, SQLite `LIMIT 10 OFFSET 20`. SQL Server `SELECT TOP (10)` or `ORDER BY ... OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY` (2012+). Oracle 12c+ `OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY` (older code uses `ROWNUM`). The standard `FETCH` form also works in PostgreSQL.
-- **Auto-increment id**: MySQL `AUTO_INCREMENT`. PostgreSQL `GENERATED ALWAYS AS IDENTITY` (10+; older code uses `SERIAL`). SQL Server `IDENTITY(1,1)`. Oracle `GENERATED AS IDENTITY` (12c+) or a sequence. SQLite `INTEGER PRIMARY KEY`.
-- **String concatenation**: standard `||` in PostgreSQL, Oracle and SQLite. MySQL uses `CONCAT()` (by default `||` means logical OR there). SQL Server uses `+` or `CONCAT()`. `CONCAT()` exists in all of them (Oracle's takes only two arguments).
-- **Quoting identifiers**: standard `"double quotes"` (PostgreSQL, Oracle, SQLite, and SQL Server by default). MySQL uses backticks. SQL Server also uses `[brackets]`. String literals are always `'single quotes'` (MySQL also accepts double-quoted strings by default).
-- **Booleans**: PostgreSQL has a real `BOOLEAN`. MySQL's `BOOLEAN` is an alias for `TINYINT(1)`. SQL Server uses `BIT`. Oracle added `BOOLEAN` only in 23ai (before that `NUMBER(1)` or `CHAR(1)`). SQLite stores 0 and 1.
-- **Replace NULL**: standard `COALESCE` works everywhere. Two-argument shortcuts: MySQL `IFNULL`, SQL Server `ISNULL`, Oracle `NVL`.
-- **Current date and time**: `CURRENT_TIMESTAMP` everywhere. MySQL and PostgreSQL `NOW()`. SQL Server `GETDATE()` / `SYSDATETIME()`. Oracle `SYSDATE` / `SYSTIMESTAMP`.
-- **Date arithmetic**: MySQL `DATE_ADD(d, INTERVAL 7 DAY)` and `DATEDIFF(a, b)` (a minus b, in days). PostgreSQL `d + INTERVAL '7 days'` and `a - b` (days, for DATE values). SQL Server `DATEADD(day, 7, d)` and `DATEDIFF(day, start, end)` (end minus start: note the order). Oracle `d + 7`.
-- **String aggregation**: MySQL `GROUP_CONCAT(name SEPARATOR ', ')`. PostgreSQL and SQL Server 2017+ `STRING_AGG(name, ', ')`. Oracle `LISTAGG(name, ', ') WITHIN GROUP (ORDER BY name)`.
-- **Upsert**: PostgreSQL and SQLite `INSERT ... ON CONFLICT (key) DO UPDATE`. MySQL `INSERT ... ON DUPLICATE KEY UPDATE`. SQL Server and Oracle `MERGE` (PostgreSQL 15+ also has MERGE).
-- **Return changed rows**: PostgreSQL and SQLite `RETURNING`. SQL Server `OUTPUT inserted.*`. MySQL has none (use `LAST_INSERT_ID()`). Oracle `RETURNING ... INTO` inside PL/SQL.
-- **FULL OUTER JOIN**: missing in MySQL (emulate with LEFT JOIN UNION RIGHT JOIN). **EXCEPT**: Oracle traditionally writes `MINUS` (21c also accepts EXCEPT); MySQL supports INTERSECT and EXCEPT from 8.0.31.
-- **Recursive CTE**: PostgreSQL, MySQL and SQLite write `WITH RECURSIVE`; SQL Server and Oracle write plain `WITH`.
-- **Integer division**: `7 / 2` is `3` in PostgreSQL, SQL Server and SQLite, but `3.5000` in MySQL (which has `DIV` for integer division) and `3.5` in Oracle.
-- **Case-sensitive comparison**: MySQL and SQL Server default collations are **case-insensitive** (`'abc' = 'ABC'` is true). PostgreSQL and Oracle are **case-sensitive** (PostgreSQL offers `ILIKE`, `LOWER()` or the `citext` type).
-- **Unquoted identifiers**: PostgreSQL folds them to lowercase, Oracle to UPPERCASE. MySQL table-name case sensitivity follows the file system (case-sensitive on Linux, not on Windows).
-- **NULL sort order**: PostgreSQL and Oracle put NULLs **last** in ascending order; MySQL, SQL Server and SQLite put them **first**. PostgreSQL, Oracle and SQLite support `NULLS FIRST` / `NULLS LAST`.
-- **Empty string**: **Oracle treats `''` as NULL**. In every other database `''` is a real, non-NULL value.
-- **SELECT without FROM**: `SELECT 1;` works in MySQL, PostgreSQL, SQL Server and SQLite. Oracle needed `FROM dual` (optional from 23ai).
-- **Namespaces**: in MySQL a "database" and a "schema" are the same thing. PostgreSQL and SQL Server have database → schema (`public`, `dbo`) → table. In Oracle a schema is a user.
-
-## Same Task in Each Dialect | amber
-- Task: the 5 most recently hired employees as "name (city)", showing `n/a` when the city is NULL.
-```sql PostgreSQL
-SELECT name || ' (' || COALESCE(city, 'n/a') || ')' AS label, hire_date
-FROM employees
-ORDER BY hire_date DESC
-LIMIT 5;
--- Neha (Pune) | Sara (Delhi) | John (n/a) | Karan (Mumbai) | Vikram (Delhi)
-```
-```sql MySQL
-SELECT CONCAT(name, ' (', IFNULL(city, 'n/a'), ')') AS label, hire_date
-FROM employees
-ORDER BY hire_date DESC
-LIMIT 5;
-```
-```sql SQL-Server
-SELECT TOP (5) name + ' (' + ISNULL(city, 'n/a') + ')' AS label, hire_date
-FROM employees
-ORDER BY hire_date DESC;
-```
-```sql Oracle
-SELECT name || ' (' || NVL(city, 'n/a') || ')' AS label, hire_date
-FROM employees
-ORDER BY hire_date DESC
-FETCH FIRST 5 ROWS ONLY;
-```
-- The same table definition in four dialects:
-```sql MySQL
-CREATE TABLE users (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  email       VARCHAR(255) NOT NULL UNIQUE,
-  active      BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-```
-```sql PostgreSQL
-CREATE TABLE users (
-  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  email       VARCHAR(255) NOT NULL UNIQUE,
-  active      BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
-```sql SQL-Server
-CREATE TABLE users (
-  id          INT IDENTITY(1,1) PRIMARY KEY,
-  email       NVARCHAR(255) NOT NULL UNIQUE,
-  active      BIT NOT NULL DEFAULT 1,
-  created_at  DATETIME2 NOT NULL DEFAULT SYSDATETIME()
-);
-```
-```sql Oracle
-CREATE TABLE users (
-  id          NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  email       VARCHAR2(255) NOT NULL UNIQUE,
-  active      NUMBER(1) DEFAULT 1 NOT NULL,
-  created_at  TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL
-);
-```
-
-## Behaviour and Architecture Differences | violet
-- **Concurrency (MVCC)**: PostgreSQL keeps old row versions inside the table, so **VACUUM** (autovacuum) must clean dead rows. MySQL InnoDB and Oracle keep old versions in **undo logs**. SQL Server uses **locks** by default under READ COMMITTED and keeps row versions in tempdb only when snapshot isolation or RCSI is turned on (Azure SQL Database turns RCSI on by default).
-- **Default isolation level**: MySQL InnoDB **REPEATABLE READ**; PostgreSQL, SQL Server and Oracle **READ COMMITTED** (sheet 15).
-- **Table storage**: InnoDB tables are **clustered on the primary key**. SQL Server tables are clustered when they have a clustered index (a PK creates one by default), otherwise they are heaps. PostgreSQL tables are always **heaps** and every index is secondary. Oracle uses heaps by default, with optional index-organised tables (sheet 16).
-- **Connections**: PostgreSQL starts a **process per connection** (so pools such as PgBouncer matter); MySQL and SQL Server use **threads**.
-- **Transactional DDL**: PostgreSQL (and mostly SQL Server) can roll back `CREATE`, `ALTER` and `DROP` inside a transaction. MySQL and Oracle **commit implicitly** before and after DDL.
-- **Extras**: PostgreSQL has JSONB, arrays, ranges, enums, a `uuid` type, full-text search and extensions. MySQL has a JSON type, full-text and spatial indexes, and pluggable storage engines. SQL Server has columnstore indexes, temporal tables, In-Memory OLTP and the Microsoft BI stack (SSIS, SSRS, SSAS). Oracle has RAC, advanced partitioning and Data Guard.
-- **MySQL storage engines**: **InnoDB** (default since 5.5: transactions, row-level locking, foreign keys, crash recovery) vs **MyISAM** (legacy: table-level locks, no transactions, no foreign keys).
-
-## Which One When? | sky
-- **PostgreSQL**: the default pick for a new backend: rich SQL, JSONB, strong integrity, extensions such as pgvector for AI search.
-- **MySQL / MariaDB**: read-heavy web applications, cheap hosting everywhere, LAMP and WordPress, mature replication (Vitess for sharding).
-- **SQL Server**: Microsoft and .NET shops, Windows or Azure, heavy reporting and BI.
-- **Oracle**: large enterprises that need RAC, advanced partitioning and vendor support, and can pay for licences.
-- **SQLite**: mobile, desktop and embedded apps, tests, small sites. It allows **one writer at a time**, so it is not for many concurrent writers.
-
-## Interview Q&A | sky | wide
-Q*: MySQL vs PostgreSQL?
-A: Both are open-source RDBMSs. PostgreSQL is more standards-compliant and extensible (JSONB, arrays, custom types, extensions, transactional DDL, many index types) and uses a process per connection with VACUUM-based MVCC. MySQL is simpler to run, very common for read-heavy web apps, clusters InnoDB tables on the primary key and uses threads and undo-log MVCC.
-Q*: What are T-SQL and PL/SQL?
-A: Procedural extensions of SQL: T-SQL for Microsoft SQL Server and PL/SQL for Oracle. They add variables, control flow, error handling, cursors and stored programs.
-Q*: How do you return only the first 10 rows in MySQL, SQL Server and Oracle?
-A: MySQL and PostgreSQL: `ORDER BY ... LIMIT 10`. SQL Server: `SELECT TOP (10) ... ORDER BY ...` or `OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY`. Oracle 12c+: `FETCH FIRST 10 ROWS ONLY`.
-Q: Why can `'a' = 'A'` be true in one database and false in another?
-A: Comparison follows the collation. MySQL and SQL Server default to case-insensitive collations; PostgreSQL and Oracle compare case-sensitively.
-Q: Can you roll back a TRUNCATE?
-A: It depends on the database. PostgreSQL and SQL Server can roll it back inside an explicit transaction. MySQL and Oracle treat it as DDL with an implicit commit, so no.
-Q: How is auto-increment written in each database?
-A: MySQL `AUTO_INCREMENT`, PostgreSQL `GENERATED ... AS IDENTITY` (or legacy `SERIAL`), SQL Server `IDENTITY(1,1)`, Oracle identity columns or sequences, SQLite `INTEGER PRIMARY KEY`.
-Q: What is MariaDB?
-A: A community fork of MySQL started in 2009 by MySQL's creator. It is largely compatible but has diverged (for example it has RETURNING on INSERT and DELETE).
-Q: InnoDB vs MyISAM?
-A: InnoDB supports transactions, row-level locking, foreign keys and crash recovery and is the default. MyISAM has only table-level locks, no transactions and no foreign keys.
-Q: Which databases lack FULL OUTER JOIN?
-A: MySQL (and MariaDB). Emulate it with a LEFT JOIN combined with a RIGHT JOIN through UNION. SQLite added RIGHT and FULL joins in 3.39.
-Q: What is special about SQLite?
-A: It is an embedded library, not a server: the whole database is a single file, there is no user management and only one writer at a time. Ideal for mobile, desktop, tests and edge devices.
 
 # 03 | Data Types, DDL & Constraints | Choosing data types, CREATE, ALTER, DROP, TRUNCATE, all constraint types, foreign key actions, DELETE vs TRUNCATE vs DROP | DDL & Constraints
 
@@ -718,7 +439,7 @@ A: A hard delete removes the row. A soft delete marks it (deleted_at) to keep hi
 Q: INSERT INTO ... SELECT vs SELECT ... INTO?
 A: INSERT INTO ... SELECT appends query results into an existing table. SELECT ... INTO (SQL Server) creates a new table from the results.
 
-# 05 | Day 1 · Basics: SELECT, FROM, WHERE, ORDER BY, LIMIT | Choosing columns, aliases, DISTINCT, filtering rows, sorting, NULL ordering, LIMIT/TOP/FETCH, pagination, logical order of execution | Day 1: Basics
+# 05 | Basics: SELECT, FROM, WHERE, ORDER BY, LIMIT | Choosing columns, aliases, DISTINCT, filtering rows, sorting, NULL ordering, LIMIT/TOP/FETCH, pagination, logical order of execution | Day 1: Basics
 
 ## SELECT and FROM | rose
 ```sql
@@ -820,7 +541,7 @@ A: Yes. All NULLs collapse into a single row in DISTINCT, GROUP BY and set opera
 Q: What is the difference between WHERE and ORDER BY on performance?
 A: WHERE reduces rows early and can use indexes to avoid reading the table. ORDER BY needs a sort unless an index already provides the order, which is why `ORDER BY ... LIMIT` queries benefit from an index on the sort column.
 
-# 06 | Day 2 · Filtering: AND, OR, NOT, IN, BETWEEN, LIKE, NULL | Combining conditions, precedence, lists, ranges, pattern matching, NULL and three-valued logic | Day 2: Filtering
+# 06 | Filtering: AND, OR, NOT, IN, BETWEEN, LIKE, NULL | Combining conditions, precedence, lists, ranges, pattern matching, NULL and three-valued logic | Day 2: Filtering
 
 ## AND, OR, NOT and Precedence | rose
 ```sql
@@ -1022,7 +743,7 @@ Q: How do you format a date as text?
 A: `TO_CHAR` in PostgreSQL and Oracle, `DATE_FORMAT` in MySQL, `FORMAT` or `CONVERT` with a style in SQL Server. Do formatting in the application when possible.
 
 @ Intermediate
-# 08 | Day 3 · Aggregations: COUNT, SUM, AVG, MIN, MAX, GROUP BY, HAVING | Aggregate functions and NULLs, grouping rules, HAVING vs WHERE, conditional aggregation, string aggregation | Day 3: Aggregations
+# 08 | Aggregations: COUNT, SUM, AVG, MIN, MAX, GROUP BY, HAVING | Aggregate functions and NULLs, grouping rules, HAVING vs WHERE, conditional aggregation, string aggregation | Day 3: Aggregations
 
 ## Aggregate Functions | rose
 ```sql
@@ -1150,7 +871,7 @@ A: Conditional aggregation: `SUM(CASE WHEN cond THEN 1 ELSE 0 END)` or `COUNT(*)
 Q: Why does my department with no employees show a count of 1?
 A: COUNT(*) after a LEFT JOIN counts the NULL-extended row. Count a column from the right table, such as COUNT(e.id), which ignores NULL.
 
-# 09 | Day 4 · Joins: INNER, LEFT, RIGHT, FULL & More | How joins match rows, outer joins, anti-joins, ON vs WHERE, FULL JOIN in MySQL, CROSS and SELF joins, set operations | Day 4: Joins
+# 09 | Joins: INNER, LEFT, RIGHT, FULL & More | How joins match rows, outer joins, anti-joins, ON vs WHERE, FULL JOIN in MySQL, CROSS and SELF joins, set operations | Day 4: Joins
 
 ## How Joins Work | rose
 - A join combines rows from two tables wherever the **ON condition** is true. Conceptually: build every pair of rows (the cartesian product) and keep the pairs that pass ON.
@@ -1302,7 +1023,7 @@ A: Yes. ON accepts any boolean condition: ranges (BETWEEN), inequalities and eve
 Q: Join vs subquery: which is faster?
 A: Modern optimisers often produce the same plan for both. Use a join when you need columns from both tables and EXISTS when you only test for a match; check the plan with EXPLAIN when it matters.
 
-# 10 | Day 5 · Subqueries | Nested queries, WHERE subqueries with IN, EXISTS, ANY and ALL, FROM subqueries (derived tables), scalar subqueries, correlated subqueries, LATERAL | Day 5: Subqueries
+# 10 | Subqueries | Nested queries, WHERE subqueries with IN, EXISTS, ANY and ALL, FROM subqueries (derived tables), scalar subqueries, correlated subqueries, LATERAL | Day 5: Subqueries
 
 ## What a Subquery Is | rose
 - A **subquery** (inner or nested query) is a SELECT inside another statement, written in parentheses. The outer query uses its result.
@@ -1446,7 +1167,7 @@ A: The value must be greater than every value returned, which equals "greater th
 Q: What is LATERAL or CROSS APPLY?
 A: A FROM subquery that can reference earlier tables in the same FROM, evaluated per row. It is the clean way to get, say, the latest two orders for each customer.
 
-# 11 | Day 6 · CASE WHEN & CTEs | Searched and simple CASE, CASE in ORDER BY, GROUP BY, aggregates and UPDATE, common table expressions, multiple CTEs, recursive CTEs | Day 6: CASE & CTEs
+# 11 | CASE WHEN & CTEs | Searched and simple CASE, CASE in ORDER BY, GROUP BY, aggregates and UPDATE, common table expressions, multiple CTEs, recursive CTEs | Day 6: CASE & CTEs
 
 ## CASE Expressions | rose
 ```sql
@@ -1595,7 +1316,7 @@ A: Add a termination condition (depth limit or WHERE), detect cycles by tracking
 Q: Can you use CASE in WHERE and ORDER BY?
 A: Yes. It is just an expression: it can drive custom sort orders and conditional filters, though plain AND and OR conditions are often clearer in WHERE.
 
-# 12 | Day 6 · Window Functions: ROW_NUMBER, RANK & PARTITION BY | OVER, PARTITION BY, ORDER BY, ranking functions, top N per group, LAG and LEAD, running totals, frames | Day 6: Window Functions
+# 12 | Window Functions: ROW_NUMBER, RANK & PARTITION BY | OVER, PARTITION BY, ORDER BY, ranking functions, top N per group, LAG and LEAD, running totals, frames | Day 6: Window Functions
 
 ## What Window Functions Are | rose
 - A window function computes a value **over a set of rows related to the current row** (its "window") **without collapsing the rows**. GROUP BY returns one row per group; a window function keeps every row and adds the group-level value beside it.
@@ -2348,93 +2069,8 @@ A: Session, transaction and statement pooling. Transaction mode gives the best r
 Q: How large should a connection pool be?
 A: Small: roughly CPU cores times two plus disks as a starting point, then tune by measuring. Too many connections cause contention and context switching, and the sum across all app instances must fit within max_connections.
 
-# 18 | Partitioning, Sharding & Replication | Range, list and hash partitioning, partition pruning, sharding strategies and shard keys, read replicas, synchronous vs asynchronous replication, failover | Scaling
-
-## Partitioning | rose
-- **Partitioning** splits one large logical table into smaller physical pieces **inside one database server**. Queries still use the parent table name.
-- **Range**: by value ranges, typically one partition per month or year. Old data can be archived by **dropping or detaching a partition** instead of a huge DELETE.
-- **List**: by discrete values, such as region or country.
-- **Hash**: by hash of a key modulo N, spreading rows evenly when there's no natural range.
-- Benefits: **partition pruning** (a query that filters on the partition key reads only the matching partitions), smaller indexes, faster maintenance per partition, cheap data retention.
-- Costs: queries **without** the partition key must visit every partition; primary keys and unique constraints must include the partition key (PostgreSQL); thousands of partitions slow down planning.
-```sql PostgreSQL
-CREATE TABLE events (
-  id          BIGINT GENERATED ALWAYS AS IDENTITY,
-  user_id     BIGINT NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL,
-  payload     JSONB,
-  PRIMARY KEY (id, created_at)                 -- must include the partition key
-) PARTITION BY RANGE (created_at);
-
-CREATE TABLE events_2026_01 PARTITION OF events FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
-CREATE TABLE events_2026_02 PARTITION OF events FOR VALUES FROM ('2026-02-01') TO ('2026-03-01');
-CREATE TABLE events_default PARTITION OF events DEFAULT;
-
-CREATE TABLE customers_by_region (id BIGINT, region TEXT NOT NULL) PARTITION BY LIST (region);
-CREATE TABLE customers_in PARTITION OF customers_by_region FOR VALUES IN ('IN');
-CREATE TABLE customers_us PARTITION OF customers_by_region FOR VALUES IN ('US');
-
-CREATE TABLE sessions (id BIGINT, user_id BIGINT NOT NULL) PARTITION BY HASH (user_id);
-CREATE TABLE sessions_p0 PARTITION OF sessions FOR VALUES WITH (MODULUS 2, REMAINDER 0);
-CREATE TABLE sessions_p1 PARTITION OF sessions FOR VALUES WITH (MODULUS 2, REMAINDER 1);
-
-ALTER TABLE events DETACH PARTITION events_2026_01;   -- archive January without a DELETE
-```
-- MySQL declares partitions inside CREATE TABLE (`PARTITION BY RANGE / LIST / HASH / KEY`). SQL Server uses a **partition function** plus a **partition scheme** (range only).
-- **Vertical partitioning** splits **columns** instead of rows, for example moving rarely used large columns into a separate table.
-
-## Sharding | blue
-- **Sharding** is horizontal partitioning **across several database servers**. Each shard holds a subset of the rows with the same schema. It scales **writes and storage** beyond one machine.
-- **Range-based**: user ids 1 to 1M on shard 1, and so on. Simple, but new or popular ranges create hotspots.
-- **Hash-based**: `hash(user_id) % N`. Even spread, but changing N moves most data, which is why **consistent hashing** is used.
-- **Directory / lookup-based**: a mapping service says which shard holds each key. Flexible, at the cost of an extra lookup and another component.
-- **Geo or tenant-based**: by region or customer, which also helps data-residency rules.
-- **Choosing a shard key**: high cardinality, even distribution, and present in most queries so each query hits a single shard (for example `tenant_id` or `user_id`).
-- Pain points: **cross-shard joins and transactions**, globally unique ids (UUIDs, Snowflake-style ids), rebalancing, hotspots, operational overhead. Exhaust query tuning, vertical scaling, caching, read replicas and partitioning first.
-- Tools: **Vitess** (MySQL, built at YouTube), **Citus** (PostgreSQL extension), application-level routing; distributed SQL databases (CockroachDB, YugabyteDB, Google Spanner, TiDB) shard automatically.
-
-## Replication | green
-- **Replication** copies data from a **primary** (master) to one or more **replicas** (standbys, formerly "slaves"). Purposes: **read scaling**, **high availability** (failover) and offloading backups or reports.
-- **Read replicas**: send writes to the primary and reads to replicas. Watch **replication lag**: a user who just saved something may not see it on a replica (**read-your-own-writes**). Route that user's reads to the primary for a short time, or read critical data from the primary.
-- **Asynchronous** replication: the primary commits without waiting for replicas. Fast, but if the primary dies, the most recent commits can be lost. The default in MySQL and PostgreSQL.
-- **Synchronous** replication: COMMIT waits until a replica confirms. No data loss on failover, but higher write latency, and writes stall if the synchronous replica is unavailable. **Semi-synchronous** (MySQL): the primary waits until at least one replica has **received** the transaction (not necessarily applied it).
-- Mechanisms: PostgreSQL **streaming replication** ships the WAL (physical copy of the whole cluster) and **logical replication** sends row changes per table (publications and subscriptions). MySQL replicates through the **binary log** (row-based or statement-based), with GTIDs and **Group Replication** / InnoDB Cluster. SQL Server has **Always On availability groups** and log shipping. Oracle has **Data Guard**.
-- **Failover**: promote a replica to primary, automatically with tools like Patroni (PostgreSQL), MySQL InnoDB Cluster, or managed services such as Amazon RDS Multi-AZ.
-- **Multi-primary** (multi-master): several nodes accept writes (Galera, Group Replication multi-primary mode). Conflicts must be detected and resolved.
-- **Replication is not a backup**: an accidental `DELETE` replicates within milliseconds. Keep point-in-time backups too.
-
-## A Typical Scaling Path | amber
-```text
-1. Fix queries and indexes (most performance problems end here)
-2. Scale up: more CPU, RAM and faster disks
-3. Connection pooling and application caching (Redis)
-4. Read replicas for read-heavy traffic
-5. Partition the biggest tables (time-based data, archiving)
-6. Shard, or move to distributed SQL, when writes or storage outgrow one primary
-```
-
-## Interview Q&A | sky | wide
-Q*: Partitioning vs sharding?
-A: Partitioning splits a table into pieces within one database server. Sharding spreads rows across multiple servers, each holding part of the data.
-Q*: What types of partitioning are there?
-A: Range (date ranges), list (discrete values such as region) and hash (even spread by hashed key). Vertical partitioning splits columns rather than rows.
-Q*: What is partition pruning?
-A: The planner skipping partitions that can't contain matching rows because the query filters on the partition key.
-Q: How do you choose a shard key?
-A: Pick a column with many distinct, evenly distributed values that appears in most queries, so that each query goes to a single shard and no shard becomes a hotspot.
-Q: Synchronous vs asynchronous replication?
-A: Synchronous waits for a replica to confirm before COMMIT returns: no data loss on failover but slower writes. Asynchronous returns immediately: faster but can lose the last transactions and lets replicas lag.
-Q: What is replication lag, and how do you deal with it?
-A: The delay before a replica reflects the primary's changes. Route reads that must be fresh (right after a user's write) to the primary, monitor lag, and keep replicas sized for the write load.
-Q: Master-slave vs master-master?
-A: Primary-replica has one writable node and read-only copies, which is simple and conflict-free. Multi-primary allows writes on several nodes for availability, but needs conflict detection and resolution.
-Q: Vertical vs horizontal scaling for databases?
-A: Vertical means a bigger machine: simple, no code changes, but limited. Horizontal means more machines: read replicas for reads, sharding for writes, at the cost of complexity.
-Q: Is replication a backup?
-A: No. Replication copies mistakes instantly. You still need backups with point-in-time recovery.
-
 @ Practice
-# 19 | Day 7 · Practice: 10 Real Interview Questions | Classic LeetCode and HackerRank style problems with solutions, alternatives, traps and dialect notes, plus how to approach any SQL question | Day 7: Practice
+# 19 | Practice: 10 Real Interview Questions | Classic LeetCode and HackerRank style problems with solutions, alternatives, traps and dialect notes, plus how to approach any SQL question | Day 7: Practice
 
 ## How to Attack Any SQL Question | rose
 - **1. Clarify**: duplicates? ties? NULLs? What should an empty result look like (NULL or no row)? Which database?
@@ -2656,107 +2292,3 @@ ORDER BY user_id, streak_start;
 - **LeetCode**: the "SQL 50" study plan; Combine Two Tables (175), Rank Scores (178), Game Play Analysis I to IV, Managers with at Least 5 Direct Reports, Trips and Users, Product Price at a Given Date, Restaurant Growth (moving average), Friend Requests II.
 - **HackerRank SQL**: Revising the Select Query, Weather Observation Station series, The PADS, Occupations (pivot with ROW_NUMBER), Binary Tree Nodes (CASE), New Companies, Top Competitors, Contest Leaderboard, SQL Project Planning (gaps and islands), Placements, Symmetric Pairs, 15 Days of Learning SQL.
 - Also common in interviews: running totals and month-over-month growth (sheet 12), median salary, users who bought A but not B, percentage of total per group, pivot reports, finding gaps in an id sequence.
-
-@ Review
-# 20 | Rapid-Fire & Tricky Questions | NULL and join gotchas, dialect one-liners, cheat sheet, how to answer, big Q&A | Rapid-fire
-
-## Gotchas That Catch People | rose
-- `NULL = NULL` is NULL (unknown), not TRUE: use `IS NULL` or `IS NOT DISTINCT FROM`.
-- `NOT IN (subquery)` returns **no rows** if the subquery contains a NULL: use NOT EXISTS.
-- `COUNT(col)` skips NULLs; `COUNT(*)` doesn't. `AVG` divides by the non-NULL count.
-- `SUM` over zero rows is NULL, not 0: wrap it in COALESCE.
-- A WHERE condition on the right table of a LEFT JOIN turns it into an INNER JOIN.
-- `BETWEEN` on timestamps misses most of the last day: use `>= start AND < next_day`.
-- `LIMIT` without `ORDER BY` returns arbitrary rows.
-- `7 / 2 = 3` in PostgreSQL and SQL Server; `3.5000` in MySQL.
-- `UNION` silently removes duplicates; `UNION ALL` doesn't.
-- `DISTINCT` applies to the whole row, not the first column.
-- A SELECT alias can't be used in WHERE; window functions can't be filtered in WHERE.
-- `ROW_NUMBER` assigns ties in arbitrary order unless you add a tie-breaker.
-- `LAST_VALUE` with ORDER BY returns the current row (default frame).
-- Oracle treats `''` as NULL; MySQL and SQL Server compare strings case-insensitively by default.
-- SQL Server allows only one NULL in a UNIQUE column; PostgreSQL and MySQL allow many.
-- TRUNCATE can be rolled back in PostgreSQL and SQL Server, not in MySQL or Oracle.
-- A CHECK constraint passes when its expression is NULL (only FALSE is rejected).
-- `AVG(int_column)` truncates to an integer in SQL Server.
-
-## Output Puzzles | blue
-```sql
-SELECT COUNT(*), COUNT(city), COUNT(DISTINCT city) FROM employees;     -- 9 | 8 | 5
-SELECT NULL + 1, COALESCE(NULL, NULL, 'x'), NULLIF('a', 'a');           -- NULL | x | NULL
-SELECT 'a' || NULL, CONCAT('a', NULL);                                 -- PostgreSQL: NULL | a
-SELECT COUNT(*) FROM employees WHERE dept_id <> 1;                      -- 4 (Neha's NULL is not "not 1")
-SELECT COUNT(*) FROM employees WHERE dept_id NOT IN (2, NULL);          -- 0
-SELECT name FROM employees ORDER BY city LIMIT 1;                       -- PostgreSQL: Asha or Ravi (Bengaluru); MySQL: John (NULL sorts first)
-```
-
-## One-Line Cheat Sheet | green
-- **Order**: FROM → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT.
-- **Sub-languages**: DDL (CREATE, ALTER, DROP, TRUNCATE), DML (INSERT, UPDATE, DELETE), DQL (SELECT), DCL (GRANT, REVOKE), TCL (COMMIT, ROLLBACK).
-- **Keys**: PK = unique + not null, one per table; FK = referential integrity; UNIQUE allows NULLs.
-- **Joins**: INNER = matches; LEFT/RIGHT = all of one side; FULL = all of both (not in MySQL); CROSS = product; SELF = same table twice.
-- **Ranking**: ROW_NUMBER 1234, RANK 1224, DENSE_RANK 1223.
-- **Top N per group**: rank with PARTITION BY in a CTE, filter outside.
-- **Dialects**: LIMIT (MySQL/PG) vs TOP (SQL Server) vs FETCH FIRST (Oracle, standard); AUTO_INCREMENT vs IDENTITY vs GENERATED AS IDENTITY; IFNULL vs ISNULL vs NVL vs COALESCE; `||` vs `+` vs CONCAT.
-- **ACID**: atomicity, consistency, isolation, durability. **Defaults**: MySQL REPEATABLE READ, others READ COMMITTED.
-- **Indexes**: B+tree default; one clustered index; leftmost prefix; covering = no table access; sargable predicates.
-- **Normal forms**: 1NF atomic, 2NF no partial dependency, 3NF no transitive dependency, BCNF every determinant is a key.
-- **Scaling**: indexes → bigger box → cache and pool → read replicas → partitions → shards.
-
-## How to Answer Well | amber
-- **Definition → small example → when you'd use it → trade-off**, then stop.
-- For query questions, **say the grain and edge cases first** ("one row per department; ties included; NULL departments excluded"), then write the query step by step with CTEs.
-- Name the **dialect** you're writing and mention the equivalent in the interviewer's database if it differs (LIMIT vs TOP).
-- Tie answers to experience: "A report query took 40 s because of `WHERE DATE(created_at) = ...`; rewriting it as a range let it use the index and it dropped to 30 ms."
-
-## Big Interview Q&A | sky | wide
-Q*: What is the difference between DELETE, TRUNCATE and DROP?
-A: DELETE removes chosen rows with full logging and triggers. TRUNCATE quickly removes all rows and resets identity. DROP removes the table itself.
-Q*: WHERE vs HAVING?
-A: WHERE filters rows before grouping; HAVING filters groups after aggregation and can use aggregate functions.
-Q*: What is a primary key vs a unique key?
-A: Both enforce uniqueness. The primary key is one per table and never NULL; unique keys can be many and accept NULLs.
-Q: What is a foreign key?
-A: A column referencing another table's key; the database rejects values without a matching parent and applies ON DELETE / ON UPDATE actions.
-Q: Explain the different joins.
-A: INNER keeps matches, LEFT and RIGHT keep all rows from one side, FULL keeps all from both, CROSS forms every combination, and a self join joins a table to itself.
-Q: UNION vs UNION ALL?
-A: UNION removes duplicate rows; UNION ALL keeps all rows and is faster.
-Q: What is a subquery and a correlated subquery?
-A: A subquery is a query nested in another. A correlated subquery references the outer query's columns, so it is evaluated per outer row.
-Q: What is a CTE?
-A: A named temporary result set defined with WITH for one statement, used for readability, reuse and recursion.
-Q: ROW_NUMBER vs RANK vs DENSE_RANK?
-A: ROW_NUMBER is unique per row; RANK shares ranks for ties and leaves gaps; DENSE_RANK shares ranks without gaps.
-Q: How do you find the second highest salary?
-A: `SELECT MAX(salary) FROM t WHERE salary < (SELECT MAX(salary) FROM t)`, or DENSE_RANK = 2, or DISTINCT with LIMIT 1 OFFSET 1 wrapped to return NULL.
-Q: How do you find and delete duplicate rows?
-A: Find with GROUP BY ... HAVING COUNT(*) > 1. Delete with ROW_NUMBER() OVER (PARTITION BY the duplicate columns ORDER BY id) and remove rows numbered above 1, or a self join on the duplicate columns with a lower id.
-Q: What is normalisation? Name the normal forms.
-A: Structuring tables to remove redundancy and anomalies: 1NF (atomic values), 2NF (no partial dependency), 3NF (no transitive dependency), BCNF (every determinant is a candidate key).
-Q: What is an index? Clustered vs non-clustered?
-A: A structure that speeds up lookups at the cost of slower writes. A clustered index stores the table rows in key order (one per table); a non-clustered index is separate and points to rows (many per table).
-Q: What are ACID properties?
-A: Atomicity, Consistency, Isolation and Durability: the guarantees a transaction gives.
-Q: What are the transaction isolation levels?
-A: READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ and SERIALIZABLE, which progressively prevent dirty reads, non-repeatable reads and phantoms.
-Q: What is a view? A stored procedure? A trigger?
-A: A view is a saved query used like a table. A stored procedure is named server-side logic called with CALL or EXEC. A trigger is logic that runs automatically on INSERT, UPDATE or DELETE.
-Q: SQL vs MySQL vs SQL Server?
-A: SQL is the language. MySQL (Oracle, open source) and SQL Server (Microsoft, T-SQL) are database products that implement it with their own dialects.
-Q: MySQL vs PostgreSQL in one sentence?
-A: MySQL is simpler and very common for read-heavy web apps; PostgreSQL is more standards-compliant and extensible, with richer types, indexes and transactional DDL.
-Q: How do you optimise a slow query?
-A: Measure with EXPLAIN ANALYZE, add the right (composite or covering) indexes, make predicates sargable, fetch fewer rows and columns, fix N+1 patterns and keep statistics fresh.
-Q: What is SQL injection and how do you prevent it?
-A: Attacker input concatenated into SQL changes the query (for example `' OR '1'='1`). Prevent it with parameterised queries / prepared statements (or an ORM that uses them), input validation and least-privilege database accounts. Never build SQL by string concatenation.
-Q: What is the difference between CHAR and VARCHAR?
-A: CHAR is fixed length and padded; VARCHAR stores only the actual characters up to the limit.
-Q: Can you use an aggregate without GROUP BY?
-A: Yes. The whole table (after WHERE) becomes one group and the query returns one row.
-Q: What is a self-referencing foreign key used for?
-A: Hierarchies such as employee → manager or category → parent category, usually queried with self joins or recursive CTEs.
-Q: What is a composite key?
-A: A key made of two or more columns, such as (order_id, product_id) in an order-items table.
-Q: Partitioning vs sharding vs replication?
-A: Partitioning splits a table within one server, sharding splits data across servers, and replication copies the same data to several servers.
