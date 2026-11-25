@@ -36,18 +36,20 @@ export class ScrollRegion {
           <span class="here" aria-current="page">{{ sheet().short }}</span>
         </nav>
         <div class="bar-actions">
-          @if (cheat(); as c) { <a class="btn btn-outline" [href]="c">Cheat sheet</a> }
+          @if (cheat(); as c) { <a class="btn btn-ghost" [href]="c">Cheat sheet</a> }
           @if (poster()) {
             <button type="button" class="btn btn-outline" [attr.aria-pressed]="selfTest()" (click)="setSelfTest(!selfTest())"
                     title="Hide each card's answer so you can test yourself, then reveal it">Self-test</button>
-          }
-          @if (!poster()) {
+          } @else {
             <button type="button" class="btn btn-outline" [attr.aria-pressed]="quick()" (click)="setQuick(!quick())"
                     title="Show only definitions, tips and questions">Quick revise</button>
           }
-          <button type="button" class="btn btn-outline" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()">
+          <!-- the one primary action; label swaps like Kokonut UI's Save button (y 14px + fade, 200ms) -->
+          <button type="button" class="btn btn-complete top-complete" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()"
+                  [title]="done() ? 'Completed' : 'Mark complete'">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-            {{ done() ? 'Completed' : 'Mark complete' }}
+            @if (done()) { <span class="swap" animate.enter="swap-in">Completed</span> }
+            @else { <span class="swap" animate.enter="swap-in">Mark complete</span> }
           </button>
         </div>
       </div>
@@ -56,7 +58,7 @@ export class ScrollRegion {
         <h1>{{ sheet().title }}</h1>
         @if (sheet().sub) { <p class="lede">{{ sheet().sub }}</p> }
         <p class="meta">
-          @if (sheet().level) { <span>{{ sheet().level }}</span> }
+          @if (sheet().level) { <span class="meta-level">{{ sheet().level }}</span> }
           <span>{{ sheet().minutes }} min read</span>
           @if (!poster()) { <span>{{ sheet().sections.length }} sections</span> }
         </p>
@@ -71,12 +73,13 @@ export class ScrollRegion {
           <div class="sec-head">
             <h2 [id]="'h-' + i">@if (poster()) { <span class="num">{{ sec.num }}</span> }{{ sec.title }}</h2>
             @if (sec.isQa) {
-              <button type="button" class="quiz" [attr.aria-pressed]="mustOnly()" (click)="setMust(!mustOnly())"
-                      title="Show only the most commonly asked questions"><span class="switch" aria-hidden="true"></span>Must-know only</button>
-              <button type="button" class="quiz" [attr.aria-pressed]="quiz()" (click)="setQuiz(!quiz())"
-                      title="Hide answers so you can test yourself">
-                <span class="switch" aria-hidden="true"></span>Quiz mode
-              </button>
+              <!-- one connected group, like coss ui's ToggleGroup: the two filters read as one control and fit one row on a phone -->
+              <div class="qa-tools" role="group" aria-label="Question filters">
+                <button type="button" class="quiz" [attr.aria-pressed]="mustOnly()" (click)="setMust(!mustOnly())"
+                        title="Show only the most commonly asked questions"><span class="switch" aria-hidden="true"></span>Must-know only</button>
+                <button type="button" class="quiz" [attr.aria-pressed]="quiz()" (click)="setQuiz(!quiz())"
+                        title="Hide answers so you can test yourself"><span class="switch" aria-hidden="true"></span>Quiz mode</button>
+              </div>
             }
           </div>
           @if (poster() && selfTest() && !revealed().has(i)) {
@@ -124,16 +127,21 @@ export class ScrollRegion {
       </div>
 
       <footer class="doc-foot">
-        <div class="rate" role="group" aria-label="How well do you know this?">
-          <span>How well do you know it?</span>
-          @for (r of rates; track r.lvl) {
-            <button type="button" class="btn btn-outline" [attr.aria-pressed]="rating()?.lvl === r.lvl" (click)="rate.emit(r.lvl)">{{ r.name }}</button>
-          }
-          @if (rating(); as r) { <small>last rated {{ r.date }}</small> }
+        <div class="rate" role="group" aria-labelledby="rate-label">
+          <span id="rate-label">How well do you know it?</span>
+          <!-- segmented control: the highlighter slides to the chosen level (Motion Primitives AnimatedBackground, ported to CSS) -->
+          <div class="seg" [class.has]="!!rating()" [style.--i]="(rating()?.lvl ?? 1) - 1">
+            <span class="seg-thumb" aria-hidden="true"></span>
+            @for (r of rates; track r.lvl) {
+              <button type="button" class="seg-btn" [attr.aria-pressed]="rating()?.lvl === r.lvl" (click)="rate.emit(r.lvl)">{{ r.name }}</button>
+            }
+          </div>
+          @if (rating(); as r) { <small>Last rated <time [attr.datetime]="r.date">{{ r.date }}</time></small> }
         </div>
-        <button type="button" class="btn btn-outline btn-lg" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()">
+        <button type="button" class="btn btn-complete btn-lg" [class.is-done]="done()" [attr.aria-pressed]="done()" (click)="toggleDone.emit()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-          {{ done() ? 'Completed' : 'Mark this sheet complete' }}
+          @if (done()) { <span class="swap" animate.enter="swap-in">Completed</span> }
+          @else { <span class="swap" animate.enter="swap-in">Mark this sheet complete</span> }
         </button>
         @if (!poster()) {
         <nav class="foot-nav" aria-label="Sheet navigation">

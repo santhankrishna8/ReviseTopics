@@ -1,13 +1,14 @@
 import { Component, ElementRef, afterNextRender, computed, effect, signal, untracked, viewChild } from '@angular/core';
 import { Sheet, loadTopic, store } from './notes';
-import { CHEATS, GROUPS, READY, TRACKS, Topic, Track } from './topics';
+import { CHEATS, GROUPS, READY, Topic } from './topics';
 import { PageLink, SheetView } from './sheet';
 import { ThemeToggle } from './theme-toggle';
+import { CountUp } from './count-up';
 
 type Route = { topic: string; sheet: string; section?: number };
 type Hit = { kind: 'Sheet' | 'Section' | 'Question'; title: string; where: string; href: string; hay: string };
 
-const HOME: Route = { topic: 'missed', sheet: '01' };   // read what you missed last time first
+const HOME: Route = { topic: 'missed', sheet: '01' };   // the most asked questions first
 const label = (t: Topic) => (t.hidden ? `${t.name} Cheat Sheet` : t.name);   // sidebar shows the short name
 const start = (t: Topic) => `#/${t.id}/${t.poster ? '01' : 'b'}`;   // 'b' = the Interview Basics sheet; falls back to the first sheet
 const doneKey = (topic: string, n: string) => `rev:${topic}:${n}`;
@@ -38,7 +39,7 @@ function byLevel(list: Sheet[]) {
 
 @Component({
   selector: 'app-root',
-  imports: [SheetView, ThemeToggle],
+  imports: [SheetView, ThemeToggle, CountUp],
   host: { '(window:hashchange)': 'onHash()', '(window:keydown)': 'onKey($event)' },
   template: `
     <a class="skip" href="#main" (click)="skipToMain($event)">Skip to content</a>
@@ -62,16 +63,19 @@ function byLevel(list: Sheet[]) {
         <span class="sr-only" role="status">{{ searchStatus() }}</span>
         @if (showResults()) {
           @if (hits().length) {
-            <ul id="search-results" class="results" role="listbox" aria-label="Search results">
+            <div class="results">
+            <ul id="search-results" class="results-list" role="listbox" aria-label="Search results">
               @for (h of hits(); track h.href + h.title; let i = $index) {
                 <li [id]="'hit-' + i" role="option" [attr.aria-selected]="i === activeHit()"
                     (mousedown)="$event.preventDefault()" (click)="go(h.href)" (mousemove)="activeHit.set(i)">
                   <span class="hit-kind">{{ h.kind }}</span>
-                  <span class="hit-title">{{ h.title }}</span>
+                  <span class="hit-title">@for (p of marked(h.title); track $index) {@if (p.hit) {<mark>{{ p.t }}</mark>} @else {<span>{{ p.t }}</span>}}</span>
                   <span class="hit-where">{{ h.where }}</span>
                 </li>
               }
             </ul>
+            <p class="results-foot" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>Esc</kbd> close</span></p>
+            </div>
           } @else {
             <div class="results"><p class="no-hits">No matches for "{{ query().trim() }}"</p></div>
           }
@@ -90,45 +94,26 @@ function byLevel(list: Sheet[]) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
           Close topic list
         </button>
-        <!-- Role: chosen once, so it reads as a sentence; the list opens only to change it. -->
-        <div class="role">
-          <div class="role-pick" (focusout)="onRoleBlur($event)" (keydown.escape)="onRoleEscape($event)">
-          <p class="role-line">
-            <span id="role-prefix">Preparing for</span>
-            <button #roleBtn type="button" class="role-btn" aria-labelledby="role-prefix role-name"
-                    aria-controls="role-options" [attr.aria-expanded]="rolesOpen()" (click)="rolesOpen.set(!rolesOpen())">
-              <span id="role-name" class="role-name">{{ trackInfo().name }}</span>
-              <svg class="role-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-          </p>
-          <fieldset id="role-options" class="role-options" [hidden]="!rolesOpen()" (mousedown)="$event.preventDefault()">
-            <legend class="sr-only">Role you are preparing for</legend>
-            @for (tr of tracks; track tr.id) {
-              <label class="role-opt">
-                <input type="radio" name="track" [value]="tr.id" [checked]="track() === tr.id"
-                       (change)="setTrack(tr.id)" (click)="onRolePick($event)" />
-                <span class="role-opt-text">
-                  <span class="role-opt-name">{{ tr.name }}</span>
-                  <span class="role-opt-covers">{{ tr.covers }}</span>
-                </span>
-              </label>
-            }
-          </fieldset>
-          </div>
+        <!-- Progress through every topic's Interview Basics sheet, and the next one to revise. -->
+        <div class="basics">
           @if (basics(); as b) {
-            <p class="role-progress"><span class="role-count">{{ b.done }} of {{ b.total }}</span> Interview Basics revised</p>
+            <p class="basics-progress"><span class="basics-count"><span [countUp]="b.done"></span> of {{ b.total }}</span> Interview Basics revised</p>
+            <!-- one cell per topic's Basics sheet, filled with the highlighter once revised -->
+            <ol class="strip" aria-hidden="true">
+              @for (c of b.cells; track c.id; let i = $index) { <li [class.on]="c.done" [style.--n]="i" [title]="c.name"></li> }
+            </ol>
             @if (b.next; as n) {
-              <a class="role-next" [href]="'#/' + n.id + '/b'">
-                <span class="role-next-hint">Up next</span>
-                <span class="role-next-name">{{ n.name }}<span class="sr-only">, Interview Basics</span></span>
+              <a class="basics-next" [href]="'#/' + n.id + '/b'">
+                <span class="basics-next-hint">Up next</span>
+                <span class="basics-next-name">{{ n.name }}<span class="sr-only">, Interview Basics</span></span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
               </a>
             } @else {
-              <p class="role-done">Every Basics sheet in this role is revised. Rate the shaky ones and they come back when due.</p>
+              <p class="basics-done">Every Basics sheet is revised. Rate the shaky ones and they come back when due.</p>
             }
           } @else {
-            <!-- holds the space while the role's topics load, so the topic list does not jump -->
-            <div class="role-skeleton" aria-hidden="true"><span></span><span></span></div>
+            <!-- holds the space while the topics load, so the topic list does not jump -->
+            <div class="basics-skeleton" aria-hidden="true"><span></span><span></span></div>
           }
         </div>
         @if (due().length) {
@@ -137,7 +122,7 @@ function byLevel(list: Sheet[]) {
             @for (d of due(); track d.href) { <li><a [href]="d.href" [class.shaky]="d.lvl === 1">{{ d.label }}</a></li> }
           </ul>
         }
-        @for (g of groups(); track g.name) {
+        @for (g of groups; track g.name) {
           <p class="label">{{ g.name }}</p>
           <ul class="topics">
             @for (t of g.topics; track t.id) {
@@ -214,41 +199,13 @@ function byLevel(list: Sheet[]) {
   `,
 })
 export class App {
-  protected readonly tracks = TRACKS;
-  protected readonly track = signal<Track | 'all'>((TRACKS.find(t => t.id === store.get('track'))?.id) ?? 'java');
-  // The role's own groups come straight after "Start Here", shared groups after them, so "Up next" points at the role's core.
-  protected readonly groups = computed(() => {
-    const tr = this.track();
-    const own = (g: (typeof GROUPS)[number]) => tr !== 'all' && g.tracks.length === 1 && g.tracks[0] === tr;
-    return GROUPS.filter(g => g.tracks.length && (tr === 'all' || g.tracks.includes(tr)))
-      .map((g, i) => ({ g, rank: i === 0 ? 0 : own(g) ? 1 : 2, i }))
-      .sort((a, b) => a.rank - b.rank || a.i - b.i)
-      .map(({ g }) => ({ ...g, topics: g.topics.filter(t => !t.hidden) }));
-  });
-  private readonly visible = computed(() => this.groups().flatMap(g => g.topics));
+  // Every topic, in GROUPS order. Cheat sheets are reached from their topic, so groups with only hidden topics are dropped.
+  protected readonly groups = GROUPS.map(g => ({ ...g, topics: g.topics.filter(t => !t.hidden) })).filter(g => g.topics.length);
+  private readonly visible = computed(() => this.groups.flatMap(g => g.topics));
   protected readonly cheats = CHEATS;
-  protected setTrack(id: Track | 'all') { this.track.set(id); store.set('track', id); }
-  protected readonly trackInfo = computed(() => TRACKS.find(t => t.id === this.track())!);
-  protected readonly rolesOpen = signal(false);
   private readonly failed = signal(new Set<string>());
-  private readonly roleBtn = viewChild.required<ElementRef<HTMLButtonElement>>('roleBtn');
-  protected closeRoles(refocus = false) {
-    if (!this.rolesOpen()) return;
-    this.rolesOpen.set(false);
-    // next frame: a label click focuses its (now hidden) radio after this handler runs, which would drop focus on <body>
-    if (refocus) requestAnimationFrame(() => this.roleBtn().nativeElement.focus());
-  }
-  // A mouse or touch pick closes the list. Arrow keys also fire click, but with detail 0: they keep it open
-  // so keyboard users can move through the options; Escape or Tab closes it. (mousedown is prevented on the
-  // options, so pressing one does not blur the button and close the list before the click lands.)
-  // While the list is open, Escape closes only the list: cancelling the keydown stops the phone drawer (a popover) closing too.
-  protected onRoleEscape(e: Event) { if (this.rolesOpen()) { e.preventDefault(); this.closeRoles(true); } }
-  protected onRolePick(e: MouseEvent) { if (e.detail > 0) this.closeRoles(true); }
-  protected onRoleBlur(e: FocusEvent) {
-    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) this.closeRoles();
-  }
-  // Progress through the role's Interview Basics sheets (id "b"), and the first one not yet revised.
-  // Hidden until every topic in the role has loaded, so the count never jumps.
+  // Progress through every topic's Interview Basics sheet (id "b"), and the first one not yet revised.
+  // Hidden until every topic has loaded, so the count never jumps.
   protected readonly basics = computed(() => {
     const failed = this.failed();
     const topics = this.visible().filter(t => !t.poster && !failed.has(t.id));   // a topic that failed to load is left out, not waited on
@@ -256,8 +213,9 @@ export class App {
     if (!topics.length || topics.some(t => !loaded[t.id])) return null;
     const withBasics = topics.filter(t => loaded[t.id]!.some(s => s.n === 'b'));
     if (!withBasics.length) return null;
-    const open = withBasics.filter(t => !this.isDone(t.id, 'b'));
-    return { done: withBasics.length - open.length, total: withBasics.length, next: open[0] };
+    const cells = withBasics.map(t => ({ id: t.id, name: t.name, done: this.isDone(t.id, 'b') }));
+    const open = withBasics.filter((_, i) => !cells[i].done);
+    return { done: withBasics.length - open.length, total: withBasics.length, next: open[0], cells };
   });
   protected readonly home = HOME;
   protected readonly shortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
@@ -331,6 +289,19 @@ export class App {
       .map(x => x.h)
       .slice(0, 8);
   });
+  // A result title split into plain and matched parts, so each search term gets the highlighter
+  // (pattern: matched letters marked in 21st.dev command palettes). Text only: no innerHTML.
+  protected marked(title: string) {
+    const terms = this.query().trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const lower = title.toLowerCase(), hit = new Array<boolean>(title.length).fill(false);
+    for (const term of terms) for (let i = lower.indexOf(term); i !== -1; i = lower.indexOf(term, i + term.length)) hit.fill(true, i, i + term.length);
+    const parts: { t: string; hit: boolean }[] = [];
+    for (let i = 0; i < title.length; i++) {
+      if (parts.at(-1)?.hit === hit[i]) parts.at(-1)!.t += title[i];
+      else parts.push({ t: title[i], hit: hit[i] });
+    }
+    return parts;
+  }
   protected readonly showResults = computed(() => this.searchOpen() && this.query().trim().length > 0);
   protected readonly searchStatus = computed(() => {
     if (!this.showResults()) return '';
@@ -357,7 +328,7 @@ export class App {
       const r = this.route();
       untracked(() => {
         this.ensure(r.topic);
-        this.expanded.update(s => s.has(r.topic) ? s : new Set(s).add(r.topic));
+        this.expanded.set(new Set([r.topic]));   // one topic open at a time keeps the sidebar short
       });
       store.set('last', `${r.topic}/${r.sheet}`);
     });
@@ -452,7 +423,7 @@ export class App {
 
   protected toggle(id: string) {
     this.ensure(id);
-    this.expanded.update(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    this.expanded.update(s => s.has(id) ? new Set<string>() : new Set([id]));   // accordion: opening one closes the rest
   }
 
   protected isDone(topic: string, n: string) { this.progressTick(); return store.get(doneKey(topic, n)) === '1'; }
