@@ -1,18 +1,19 @@
 import { Component, ElementRef, afterNextRender, computed, effect, signal, untracked, viewChild } from '@angular/core';
 import { Sheet, loadTopic, store } from './notes';
-import { CHEATS, GROUPS, READY, Topic } from './topics';
+import { CHEATS, GROUPS, READY, TRACKS, Topic, Track } from './topics';
 import { PageLink, SheetView } from './sheet';
 import { ThemeToggle } from './theme-toggle';
 
 type Route = { topic: string; sheet: string; section?: number };
 type Hit = { kind: 'Sheet' | 'Section' | 'Question'; title: string; where: string; href: string; hay: string };
 
-const HOME: Route = { topic: 'java', sheet: '01' };   // cheat sheets lead the sidebar, but the app opens on Java
-const label = (t: Topic) => (t.poster ? `${t.name} Cheat Sheet` : t.name);   // sidebar shows the short name
+const HOME: Route = { topic: 'missed', sheet: '01' };   // read what you missed last time first
+const label = (t: Topic) => (t.hidden ? `${t.name} Cheat Sheet` : t.name);   // sidebar shows the short name
+const start = (t: Topic) => `#/${t.id}/${t.poster ? '01' : 'b'}`;   // 'b' = the Interview Basics sheet; falls back to the first sheet
 const doneKey = (topic: string, n: string) => `rev:${topic}:${n}`;
 
 function parseHash(hash: string): Route | null {
-  const m = hash.match(/^#\/([\w-]+)\/(\d{2})(?:\/(\d+))?$/);
+  const m = hash.match(/^#\/([\w-]+)\/(\w+?)(?:\/(\d+))?$/);
   if (!m || !READY.some(t => t.id === m[1])) return null;
   return { topic: m[1], sheet: m[2], section: m[3] === undefined ? undefined : +m[3] };
 }
@@ -95,7 +96,12 @@ function byLevel(list: Sheet[]) {
             @for (d of due(); track d.href) { <li><a [href]="d.href" [class.shaky]="d.lvl === 1">{{ d.label }}</a></li> }
           </ul>
         }
-        @for (g of groups; track g.name) {
+        <div class="tracks" role="group" aria-label="Role you are preparing for">
+          @for (tr of tracks; track tr.id) {
+            <button type="button" [attr.aria-pressed]="track() === tr.id" (click)="setTrack(tr.id)">{{ tr.name }}</button>
+          }
+        </div>
+        @for (g of groups(); track g.name) {
           <p class="label">{{ g.name }}</p>
           <ul class="topics">
             @for (t of g.topics; track t.id) {
@@ -106,13 +112,13 @@ function byLevel(list: Sheet[]) {
                     <span class="topic-name">{{ t.name }}</span>
                     @if (isDone(t.id, '01')) { <svg class="tick" viewBox="0 0 24 24" role="img" aria-label="revised"><path d="M20 6 9 17l-5-5"/></svg> }
                   </a>
-                } @else if (t.ready) {
+                } @else {
                   <button type="button" class="topic" [attr.aria-expanded]="expanded().has(t.id)" (click)="toggle(t.id)">
                     <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
                     <span class="topic-name">{{ t.name }}</span>
                   </button>
                   @if (expanded().has(t.id) && levels()[t.id]; as lv) {
-                    @for (l of lv; track l.level) {
+                    @for (l of lv; track l.level; let first = $first) {
                       @if (l.level) { <p class="level">{{ l.level }}</p> }
                       <ul class="sheets">
                         @for (s of l.sheets; track s.n) {
@@ -126,10 +132,13 @@ function byLevel(list: Sheet[]) {
                           </li>
                         }
                       </ul>
+                      @if (first && cheats[t.id]; as c) {
+                        <ul class="sheets cheat-link"><li><a [href]="'#/' + c + '/01'" [class.done]="isDone(c, '01')">
+                          <span>Cheat sheet · one page</span>
+                        </a></li></ul>
+                      }
                     }
                   }
-                } @else {
-                  <span class="topic soon"><span class="topic-name">{{ t.name }}</span><span class="tag">Soon</span></span>
                 }
               </li>
             }
@@ -169,7 +178,13 @@ function byLevel(list: Sheet[]) {
   `,
 })
 export class App {
-  protected readonly groups = GROUPS;
+  protected readonly tracks = TRACKS;
+  protected readonly track = signal<Track | 'all'>((TRACKS.find(t => t.id === store.get('track'))?.id) ?? 'java');
+  protected readonly groups = computed(() => GROUPS.filter(g => g.tracks.length && (this.track() === 'all' || g.tracks.includes(this.track() as Track)))
+    .map(g => ({ ...g, topics: g.topics.filter(t => !t.hidden) })));
+  private readonly visible = computed(() => this.groups().flatMap(g => g.topics));
+  protected readonly cheats = CHEATS;
+  protected setTrack(id: Track | 'all') { this.track.set(id); store.set('track', id); }
   protected readonly home = HOME;
   protected readonly shortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
@@ -206,8 +221,8 @@ export class App {
     if (!p) return undefined;
     const s = p.list[p.i + 1];
     if (s) return { href: `#/${this.route().topic}/${s.n}`, label: s.short, hint: 'Next' };
-    const t = READY[READY.findIndex(r => r.id === this.route().topic) + 1];
-    return t && { href: `#/${t.id}/01`, label: t.name, hint: 'Next topic' };
+    const t = this.visible().find((_, i, a) => a[i - 1]?.id === this.route().topic);
+    return t && { href: start(t), label: t.name, hint: 'Next topic' };
   });
 
   // Search over every written topic: sheet titles, section titles and interview questions.
@@ -401,7 +416,7 @@ export class App {
     READY.forEach(t => this.ensure(t.id));
     const qs = this.index().filter(h => h.kind === 'Question');
     if (!qs.length) return;
-    const weak = qs.filter(h => { const m = h.href.match(/#\/([\w-]+)\/(\d{2})/)!; return this.rating(m[1], m[2])?.lvl === 1; });
+    const weak = qs.filter(h => { const m = h.href.match(/#\/([\w-]+)\/(\w+)/)!; return this.rating(m[1], m[2])?.lvl === 1; });
     const pool = weak.length && Math.random() < 0.6 ? weak : qs;
     this.go(pool[Math.floor(Math.random() * pool.length)].href);
   }

@@ -1,0 +1,615 @@
+# 01 | DevOps Essentials | Git, Maven, Docker, CI/CD, Kubernetes and AWS on one page: what each is for, the commands you run, and the questions a full-stack interview asks. Use Self-test to check yourself. | DevOps on one page
+
+### Git: Basics
+
+## How Git Works
+> Git is a **distributed version control system**: every clone holds the full history. Data flows **working directory -> staging area -> local repo -> remote**.
+```text
+git add  ->  staging      git commit  ->  local repo      git push  ->  remote (origin)
+git fetch / git pull  <-  remote       git checkout/switch/restore  ->  working directory
+```
+- A commit is a snapshot with a hash and a parent pointer; **branches and tags are just pointers** to commits; **HEAD** is where you are.
+! Three areas: working, staged, committed.
+
+## Everyday Commands
+```bash
+git clone <url>        git status         git diff / git diff --staged
+git add -p             git commit -m "msg"        git log --oneline --graph --all
+git switch -c feature  git switch main    git branch -d feature
+git fetch              git pull --rebase  git push -u origin feature
+```
+! `git add -p` stages chunks deliberately.
+
+## Merge vs Rebase
+> **Merge** joins histories with a merge commit (keeps true history). **Rebase** replays your commits on top of another branch (linear history, rewrites commits).
+```bash
+git switch feature && git rebase main     # tidy before a PR
+git switch main && git merge --no-ff feature
+git rebase -i HEAD~3                      # squash, reword, reorder
+```
+- **Golden rule:** never rebase commits already pushed to a shared branch.
+! Rebase your private branch; merge shared ones.
+
+## Resolving Conflicts
+- Git marks conflicts with `<<<<<<<`, `=======`, `>>>>>>>`. Edit the file, `git add` it, then `git merge --continue` or `git rebase --continue`. Abort with `--abort`.
+- Prevent: small PRs, frequent `pull --rebase`.
+! Conflicts are normal; keep changes small.
+
+### Git: Undoing Things
+
+## Undo Recipes
+```bash
+git restore file                 # discard working changes        git restore --staged file   # unstage
+git commit --amend               # fix last commit (not if pushed)
+git revert <hash>                # new commit that undoes it (safe on shared branches)
+git reset --soft HEAD~1          # undo commit, keep changes staged
+git reset --hard HEAD~1          # undo commit AND discard changes (dangerous)
+git reflog                       # find "lost" commits, then git reset --hard <hash>
+```
+! Shared branch: `revert`. Local mess: `reset`. Panic: `reflog`.
+
+## Stash, Cherry-pick, Bisect
+```bash
+git stash -u && git stash pop        # park changes        git cherry-pick <hash>   # copy one commit
+git bisect start; git bisect bad; git bisect good <hash>     # binary search for the bug-causing commit
+```
+! Stash to switch tasks, cherry-pick for hotfixes, bisect for regressions.
+
+## Reset vs Revert vs Checkout
+- `reset` moves the branch pointer (rewrites history). `revert` adds an inverse commit. `restore/checkout` change files or HEAD.
+! Reset rewrites; revert records.
+
+### Git: Collaboration
+
+## Branching Strategies
+- **GitHub Flow:** short feature branches + PR into `main`. **Git Flow:** `main`, `develop`, release/hotfix branches. **Trunk-based:** tiny commits to main with feature flags (best for CI/CD).
+! Pick the simplest strategy the team can follow.
+
+## .gitignore, Tags, Hooks
+- `.gitignore` for build output and secrets (does not untrack files already committed: `git rm --cached`). **Tags** mark releases (`git tag -a v1.2.0 -m ""`). **Hooks** (pre-commit) lint and test.
+! Never commit secrets; if you do, rotate them.
+
+## Fork, Pull Request, Code Review
+- Fork -> branch -> push -> PR -> review -> squash/merge. Good PR: small, described, tests included, linked issue.
+! A PR is a conversation, not a dump.
+
+### Git: More
+
+## Internals, Submodules & Worktrees
+- Objects: **blob** (file), **tree** (directory), **commit**, **tag**, stored by SHA. `git cat-file -p <hash>`. `git worktree add ../hotfix main` checks out another branch in a new folder; **submodules** pin another repo at a commit; `git clean -fd` removes untracked files; `git blame` / `git log -S"text"` find history.
+! Branches are 41-byte files pointing at a commit.
+
+## Signed Commits & Large Repos
+- Sign with `git commit -S` (GPG/SSH) for verified badges; **Git LFS** stores large binaries; shallow clone `--depth 1`; sparse checkout for monorepos; `.gitattributes` for line endings.
+! Use LFS for assets, not git history.
+
+### Git: Must-Know Questions
+
+## Git Questions
+Q*: `git pull` vs `git fetch`?
+A: `fetch` downloads remote changes without touching your branch; `pull` is fetch plus merge (or rebase).
+Q*: Merge vs rebase?
+A: Merge preserves history with a merge commit; rebase rewrites commits for a linear history; don't rebase shared branches.
+Q*: How do you undo a pushed commit?
+A: `git revert <hash>` and push, which adds an inverse commit without rewriting shared history.
+Q*: How do you resolve a merge conflict?
+A: Open the conflicted files, choose the right content, remove markers, `git add`, then continue the merge or rebase.
+Q: What is `git stash`?
+A: It saves uncommitted changes temporarily so you can switch branches and restore them later with `stash pop`.
+Q: Reset --soft vs --mixed vs --hard?
+A: Soft keeps changes staged, mixed (default) keeps them unstaged, hard discards them.
+
+
+### Maven: Basics
+
+## What is Maven?
+> A **build and dependency management tool** for Java. A `pom.xml` (Project Object Model) describes the project; Maven follows **convention over configuration** and downloads libraries from **Maven Central**.
+```text
+src/main/java      src/main/resources      src/test/java      src/test/resources      pom.xml      target/
+```
+! Standard layout, one pom, everything else is automatic.
+
+## Minimal pom.xml
+```xml
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.acme</groupId>
+  <artifactId>orders</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+  <properties><java.version>21</java.version></properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId>
+      <version>5.11.0</version><scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
+```
+- Coordinates: **groupId : artifactId : version** (GAV) identify any artifact.
+! GAV is the address of every library.
+
+### Maven: Build
+
+## Lifecycle & Phases
+```text
+validate -> compile -> test -> package -> verify -> install -> deploy      (clean lifecycle: clean)
+```
+- Running a phase runs all phases before it: `mvn package` compiles and tests first.
+- `install` copies the artifact to `~/.m2` (local repo); `deploy` uploads to a remote repo.
+! `mvn clean install` is the daily driver.
+
+## Commands
+```bash
+mvn clean install            mvn test            mvn package -DskipTests      mvn -q verify
+mvn -pl service -am install  # build one module and what it needs      mvn dependency:tree      mvn -o ... # offline
+mvn test -Dtest=OrderServiceTest#create       mvn versions:display-dependency-updates
+```
+! `dependency:tree` solves most "which version?" mysteries.
+
+## Dependency Scopes
+- **compile** (default, everywhere), **provided** (compile only, runtime supplied: servlet API), **runtime** (not needed to compile: JDBC driver), **test** (tests only), **import** (BOM in dependencyManagement).
+! Pick the narrowest scope.
+
+## Transitive Dependencies & Conflicts
+- Dependencies pull in their own dependencies. On version conflicts Maven picks the **nearest** definition (shortest path), then first declared.
+- Fix with `dependencyManagement`, `<exclusions>`, or a **BOM** (e.g. `spring-boot-dependencies`).
+```xml
+<dependency><groupId>x</groupId><artifactId>y</artifactId>
+  <exclusions><exclusion><groupId>bad</groupId><artifactId>lib</artifactId></exclusion></exclusions></dependency>
+```
+! Nearest wins, not newest.
+
+### Maven: Structure
+
+## Plugins & Goals
+- Plugins do the work; **goals** are tasks (`compiler:compile`). Common: `maven-compiler-plugin`, `surefire` (unit tests), `failsafe` (integration tests), `spring-boot-maven-plugin` (executable jar), `jacoco` (coverage).
+```xml
+<plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
+```
+! Phases are when; plugin goals are what.
+
+## Parent POM, Modules & Profiles
+- **Inheritance:** child `<parent>` inherits dependencies, plugins, properties. **Multi-module:** parent with `<modules>` builds in dependency order. **Profiles** switch config (`-Pprod`).
+- **SNAPSHOT** = moving development version; releases are immutable.
+! Parent for sharing, modules for splitting, profiles for environments.
+
+## Maven vs Gradle
+- Maven: XML, strict conventions, predictable. Gradle: Groovy/Kotlin DSL, faster incremental builds, more flexible. Both are fine; know one deeply.
+! Maven is declarative, Gradle is programmable.
+
+### Maven: More
+
+## Settings, Repositories & Releases
+- `~/.m2/settings.xml` holds mirrors, server credentials and proxies. Repositories: local `~/.m2`, central, private (Nexus/Artifactory). Release: `maven-release-plugin` or CI bumping versions; `mvn versions:set -DnewVersion=1.2.0`. `mvn -T 4 package` builds in parallel. **Effective POM:** `mvn help:effective-pom`.
+! `help:effective-pom` shows what Maven really uses.
+
+### Maven: Must-Know Questions
+
+## Maven Questions
+Q*: Explain the Maven build lifecycle.
+A: Phases run in order: validate, compile, test, package, verify, install, deploy; invoking a phase executes all earlier ones.
+Q*: `install` vs `package` vs `deploy`?
+A: `package` builds the jar/war; `install` also puts it in the local `~/.m2`; `deploy` publishes it to a remote repository.
+Q*: How are dependency version conflicts resolved?
+A: The nearest definition in the dependency tree wins; override with `dependencyManagement` or exclusions.
+Q*: What is a SNAPSHOT version?
+A: An in-development version that can change; Maven re-fetches it, unlike immutable release versions.
+Q: What is a BOM?
+A: A POM of managed dependency versions imported to keep related libraries consistent.
+Q: Where are dependencies stored?
+A: In the local repository `~/.m2/repository`, downloaded from Maven Central or configured remote repositories.
+
+
+### Docker: Core
+
+## Container vs VM
+> A **container** packages an app with its dependencies and shares the host **kernel**; a **VM** runs a full guest OS on a hypervisor. Containers start in seconds and are lightweight.
+- Isolation uses Linux **namespaces** (what a process sees) and **cgroups** (how much it can use).
+! Containers virtualize the OS, VMs virtualize the hardware.
+
+## Image, Container, Registry
+- **Image:** read-only, layered template. **Container:** running (or stopped) instance of an image with a writable layer. **Registry:** Docker Hub, ECR, GHCR.
+- Layers are cached; unchanged layers are reused.
+! Image = class, container = object.
+
+## Essential Commands
+```bash
+docker build -t app:1.0 .             docker run -d --name web -p 8080:80 -e ENV=prod app:1.0
+docker ps -a        docker logs -f web        docker exec -it web sh        docker stop web && docker rm web
+docker images       docker pull nginx         docker push user/app:1.0      docker system prune
+docker run --rm -v "$PWD":/app app:1.0      # remove container on exit, bind mount
+```
+! `-p host:container` maps a port; `-d` runs in the background.
+
+### Docker: Dockerfile
+
+## Writing a Dockerfile
+```dockerfile
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY target/app.jar app.jar
+EXPOSE 8080
+USER 1001
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+- `RUN` executes at build time; `CMD` is the default command (overridable); `ENTRYPOINT` is the fixed executable; `COPY` over `ADD`.
+- Order layers from **least to most frequently changing** (copy dependency files first) for cache hits. Use `.dockerignore`.
+! Rarely changing layers first.
+
+## Multi-stage Builds
+```dockerfile
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /src
+COPY pom.xml .
+RUN mvn -q dependency:go-offline
+COPY src ./src
+RUN mvn -q package -DskipTests
+
+FROM eclipse-temurin:21-jre
+COPY --from=build /src/target/app.jar /app.jar
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+```
+- Build tools stay in the build stage, so the final image is small and safer.
+! Build fat, ship thin.
+
+## Image Best Practices
+- Small base (`alpine`, `distroless`, `-slim`), pin versions (no `latest` in prod), run as **non-root**, no secrets in layers, one process per container, add a `HEALTHCHECK`, scan images (Trivy).
+! Small, pinned, non-root.
+
+### Docker: Runtime
+
+## Volumes & Data
+- Container filesystems are **ephemeral**. **Volume** (managed by Docker, best for data), **bind mount** (host path, dev), **tmpfs** (memory).
+```bash
+docker volume create pgdata && docker run -v pgdata:/var/lib/postgresql/data postgres:16
+```
+! Data you care about lives in a volume.
+
+## Networking
+- **bridge** (default, containers talk by name on user-defined networks), **host** (shares host network), **none**. Publish ports with `-p`.
+- Containers on the same user-defined network resolve each other by **service name**.
+! `localhost` inside a container is the container itself.
+
+## Docker Compose
+```yaml
+services:
+  api:
+    build: .
+    ports: ["8080:8080"]
+    environment: [SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/app]
+    depends_on: { db: { condition: service_healthy } }
+  db:
+    image: postgres:16
+    environment: { POSTGRES_PASSWORD: secret }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "postgres"], interval: 5s }
+volumes: { pgdata: {} }
+```
+- `docker compose up -d`, `down -v`, `logs -f`, `ps`.
+! One YAML for your whole local stack.
+
+## Debugging & Cleanup
+- `docker logs`, `docker inspect`, `docker stats`, `docker exec -it <c> sh`. Exit code 137 = killed (often OOM). Clean with `docker system prune -a`.
+! Read logs first, then exec in.
+
+### Docker: More
+
+## Security, Limits & Registries
+```bash
+docker run --memory=512m --cpus=1 --read-only --cap-drop=ALL --user 1001 app
+docker login ghcr.io && docker tag app ghcr.io/me/app:1.0 && docker push ghcr.io/me/app:1.0
+docker buildx build --platform linux/amd64,linux/arm64 -t me/app --push .
+```
+- Never mount `docker.sock` into containers, scan images, use secrets (BuildKit `--mount=type=secret`) not `ENV`, set resource limits, pin by digest.
+! Least privilege: non-root, read-only, no extra capabilities.
+
+### Docker: Must-Know Questions
+
+## Docker Questions
+Q*: Image vs container?
+A: An image is an immutable layered template; a container is a running instance with a writable layer.
+Q*: CMD vs ENTRYPOINT?
+A: ENTRYPOINT sets the executable that always runs; CMD supplies default arguments that `docker run` can override. Together they compose the final command.
+Q*: How do you keep data after a container is removed?
+A: Use named volumes or bind mounts.
+Q*: Why multi-stage builds?
+A: They keep compilers and build tools out of the final image, making it smaller and more secure.
+Q: How do containers talk to each other?
+A: Through a user-defined network using service names as DNS, or via published ports from the host.
+Q: How do you reduce image size?
+A: Slim base images, multi-stage builds, combine and clean layers, `.dockerignore`.
+
+
+
+
+### CI/CD: Concepts
+
+## CI vs Continuous Delivery vs Deployment
+> **CI:** merge small changes often; every push is built and tested automatically. **Continuous Delivery:** every passing build is *releasable*, deploy is a manual click. **Continuous Deployment:** every passing build goes to production automatically.
+- Goals: fast feedback, fewer integration surprises, repeatable releases.
+! Delivery = ready to ship; Deployment = shipped.
+
+## Typical Pipeline
+```text
+commit -> build -> unit tests -> static analysis / security scan -> package (jar/image)
+       -> publish artifact -> deploy to staging -> integration/e2e tests -> approve -> deploy to prod -> monitor
+```
+- Fail fast: cheap checks first. Build **once**, promote the same artifact through environments.
+! Build once, deploy many.
+
+### CI/CD: Tools
+
+## GitHub Actions
+```yaml
+name: ci
+on: { push: { branches: [main] }, pull_request: {} }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21, cache: maven }
+      - run: mvn -B verify
+      - uses: docker/build-push-action@v6
+        if: github.ref == 'refs/heads/main'
+        with: { push: true, tags: ghcr.io/${{ github.repository }}:${{ github.sha }} }
+```
+- Concepts: **workflow** (YAML in `.github/workflows`), **event**, **job** (runs on a runner), **step**, **action**, **matrix**, **secrets**, **environments** with approvals, caching.
+! Event triggers a workflow; workflow has jobs; jobs have steps.
+
+## Jenkins
+```groovy
+pipeline {
+  agent any
+  stages {
+    stage('Build') { steps { sh 'mvn -B clean package' } }
+    stage('Test')  { steps { sh 'mvn test' } post { always { junit 'target/surefire-reports/*.xml' } } }
+    stage('Deploy'){ when { branch 'main' } steps { sh './deploy.sh' } }
+  }
+}
+```
+- **Jenkinsfile** (pipeline as code), controller + agents, plugins, credentials store. Declarative vs scripted pipelines.
+! Keep the pipeline in the repo, not in the UI.
+
+## Vercel / Render / Cloud Deploys
+- **Vercel:** Git push gives preview deploys per PR and production on main (great for Next.js). **Render:** web services, workers, cron, managed Postgres from a repo. Environment variables set per environment.
+! Preview deploys per PR speed up reviews.
+
+### CI/CD: Delivery
+
+## Deployment Strategies
+- **Rolling:** replace instances gradually. **Blue/green:** two environments, switch traffic instantly, instant rollback. **Canary:** send a small % to the new version first. **Feature flags:** deploy code dark, release by toggle.
+- Always have a **rollback** plan and **health checks**.
+! Canary limits blast radius; blue/green limits downtime.
+
+## Secrets & Security in Pipelines
+- Store secrets in the CI secret store or a vault, never in the repo; least-privilege tokens; prefer short-lived **OIDC** credentials to cloud. Scan dependencies (Dependabot, Snyk), images (Trivy), code (SAST), secrets (gitleaks). Pin action versions.
+! A leaked CI secret is a production breach.
+
+## Pipeline Best Practices
+- Fast (under ~10 min), deterministic, cache dependencies, run tests in parallel, **branch protection** requiring green checks and reviews, version artifacts with the commit SHA, notify on failure, infrastructure as code (Terraform).
+! A flaky test is a bug in the pipeline; fix or quarantine it.
+
+### CI/CD: More
+
+## Matrix, Caching, Reusable Workflows & IaC
+```yaml
+strategy: { matrix: { java: [17, 21], os: [ubuntu-latest, windows-latest] } }
+- uses: actions/cache@v4
+  with: { path: ~/.m2, key: m2-${{ hashFiles('**/pom.xml') }} }
+```
+- **Reusable workflows** (`workflow_call`), **environments** with required reviewers, **Terraform** `plan` in PRs and `apply` on merge, DORA metrics (deploy frequency, lead time, change-failure rate, recovery time), **GitOps** (Argo CD syncs the cluster from git).
+! Cache by the lock-file hash.
+
+### CI/CD: Must-Know Questions
+
+## CI/CD Questions
+Q*: Difference between Continuous Delivery and Continuous Deployment?
+A: Delivery keeps every build ready to release with a manual approval; Deployment releases every passing build automatically.
+Q*: How do you do zero-downtime deployment?
+A: Rolling updates with readiness checks, or blue/green with a traffic switch, plus backward-compatible DB migrations.
+Q*: How do you handle secrets in a pipeline?
+A: Use the CI secret store or a vault, inject at runtime, never commit them, rotate regularly and prefer OIDC.
+Q*: How do you roll back a bad release?
+A: Redeploy the previous artifact version (immutable, tagged), switch blue/green back, or turn off the feature flag.
+Q: What is a pipeline as code?
+A: Defining the pipeline in a versioned file (Jenkinsfile, workflow YAML) alongside the application code.
+Q: Why build the artifact once?
+A: So the exact thing tested in staging is what runs in production.
+
+### Kubernetes: Architecture
+
+## What is Kubernetes?
+> An open-source **container orchestrator**: it schedules containers onto machines, keeps the **desired state** (self-healing), scales, rolls out updates and load-balances.
+- **Control plane:** `kube-apiserver` (front door), `etcd` (cluster state), `scheduler` (picks a node), `controller-manager` (reconciles state).
+- **Worker node:** `kubelet` (runs pods), `kube-proxy` (networking), a container runtime (containerd).
+! You declare what you want; controllers make it true.
+
+## Core Objects
+- **Pod:** smallest unit, one or more containers sharing network and storage; ephemeral. **ReplicaSet:** keeps N pods alive. **Deployment:** manages ReplicaSets, rolling updates and rollback.
+- **Service:** stable IP/DNS in front of pods. **Ingress:** HTTP routing into the cluster. **ConfigMap/Secret:** configuration. **Namespace:** logical isolation.
+- **StatefulSet** (stable identity, storage), **DaemonSet** (one per node), **Job/CronJob** (batch).
+! You almost never create bare pods; you create Deployments.
+
+### Kubernetes: YAML & kubectl
+
+## Deployment + Service YAML
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api }
+spec:
+  replicas: 3
+  selector: { matchLabels: { app: api } }
+  template:
+    metadata: { labels: { app: api } }
+    spec:
+      containers:
+        - name: api
+          image: myrepo/api:1.0
+          ports: [{ containerPort: 8080 }]
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } }
+          readinessProbe: { httpGet: { path: /actuator/health, port: 8080 } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api }
+spec: { selector: { app: api }, ports: [{ port: 80, targetPort: 8080 }], type: ClusterIP }
+```
+! Labels and selectors are how everything finds everything.
+
+## kubectl Cheat Sheet
+```bash
+kubectl apply -f app.yaml          kubectl get pods -o wide        kubectl describe pod <p>
+kubectl logs -f <pod>              kubectl exec -it <pod> -- sh    kubectl port-forward svc/api 8080:80
+kubectl scale deploy api --replicas=5     kubectl rollout status deploy/api
+kubectl rollout undo deploy/api    kubectl delete -f app.yaml      kubectl config use-context <ctx>
+```
+! `describe` tells you why a pod is stuck.
+
+### Kubernetes: Running Apps
+
+## Services & Networking
+- **ClusterIP** (internal, default), **NodePort** (port on every node), **LoadBalancer** (cloud LB). **Ingress** routes by host/path to services.
+- Pods get their own IP; inside the cluster use the **service DNS name** (`api.default.svc.cluster.local`).
+! Pods die and change IPs; Services don't.
+
+## Config, Secrets, Storage
+```yaml
+envFrom: [{ configMapRef: { name: app-config } }, { secretRef: { name: app-secret } }]
+```
+- Secrets are base64, **not encrypted by default**; enable encryption at rest or use an external vault. Storage: **PV/PVC** with a StorageClass.
+! Never bake config or secrets into the image.
+
+## Probes, Resources, Autoscaling
+- **Liveness:** restart if dead. **Readiness:** receive traffic only when ready. **Startup:** for slow starts.
+- **requests** (scheduling) vs **limits** (cap; exceeding memory = OOMKilled). **HPA** scales pods on CPU/custom metrics.
+! Readiness gates traffic, liveness restarts.
+
+## Rolling Updates & Rollback
+- Default strategy is **RollingUpdate** (`maxSurge`, `maxUnavailable`) giving zero downtime; `kubectl rollout undo` reverts. Advanced: blue/green, canary.
+! Good readiness probes make rolling updates safe.
+
+## Troubleshooting
+```text
+Pending           -> no node fits (resources, taints, PVC)       ImagePullBackOff -> wrong image/credentials
+CrashLoopBackOff -> app crashes: kubectl logs --previous         OOMKilled        -> raise memory limit or fix leak
+```
+! describe, logs, events, in that order.
+
+### Kubernetes: More
+
+## Helm, RBAC, Ingress & Scheduling
+- **Helm:** package manager (charts, `values.yaml`, `helm install/upgrade/rollback`). **RBAC:** `Role`/`ClusterRole` + `RoleBinding`; ServiceAccounts for pods. **Ingress controller** (nginx) terminates TLS and routes by host/path. **Scheduling:** nodeSelector, affinity, taints and tolerations, `PodDisruptionBudget`, `NetworkPolicy` to restrict traffic.
+```bash
+helm upgrade --install api ./chart -f values-prod.yaml      kubectl auth can-i delete pods
+```
+! Helm packages YAML; RBAC limits who does what.
+
+### Kubernetes: Must-Know Questions
+
+## Kubernetes Questions
+Q*: Pod vs Deployment?
+A: A pod runs containers; a Deployment declaratively manages replicated pods with rolling updates and rollback.
+Q*: How does a Service route traffic?
+A: It selects pods by label and load-balances across their IPs behind a stable virtual IP/DNS name.
+Q*: ClusterIP vs NodePort vs LoadBalancer?
+A: Internal only; exposed on each node's port; a cloud load balancer in front, respectively.
+Q*: What happens when a pod crashes?
+A: The kubelet restarts the container; if the pod is gone the ReplicaSet creates a new one to match the desired replica count.
+Q: Liveness vs readiness probe?
+A: Liveness restarts an unhealthy container; readiness removes it from Service endpoints until it can serve.
+Q: What is etcd?
+A: The consistent key-value store holding all cluster state.
+
+
+### AWS: Foundations
+
+## Regions, AZs & the Shared Responsibility Model
+> A **Region** is a geographic area; each has several isolated **Availability Zones (AZs)**. Deploy across 2+ AZs for high availability. **Edge locations** serve CloudFront.
+- **Shared responsibility:** AWS secures the cloud (hardware, facilities); you secure what's in it (data, IAM, config, patching your OS).
+! Multi-AZ for availability; multi-region for disaster recovery.
+
+## IAM (Identity & Access Management)
+> Controls **who** can do **what** on **which** resources. **Users**, **groups**, **roles** (assumed temporarily, used by services), **policies** (JSON).
+```json
+{ "Effect": "Allow", "Action": ["s3:GetObject"], "Resource": "arn:aws:s3:::my-bucket/*" }
+```
+- **Least privilege**, MFA on root, no root for daily work, prefer **roles** over long-lived keys. Explicit **Deny** beats Allow.
+! Give an EC2/Lambda a role, never hard-code access keys.
+
+### AWS: Compute
+
+## EC2, Auto Scaling, ELB
+- **EC2:** virtual servers (instance types, AMIs, key pairs, security groups, EBS volumes). Pricing: on-demand, reserved/savings plans, **spot** (cheap, interruptible).
+- **Auto Scaling Group** adds/removes instances by load; **ELB** (ALB for HTTP L7, NLB for TCP L4) distributes traffic and health-checks.
+! ALB + ASG across AZs is the classic scalable web tier.
+
+## Lambda & Serverless
+> **Lambda** runs code on events with no servers to manage; pay per request and duration; auto-scales. Limits: 15 min max, cold starts.
+- Triggers: API Gateway, S3, SQS, SNS, EventBridge, DynamoDB streams.
+! Short, event-driven, spiky workloads fit Lambda.
+
+## Containers: ECS, EKS, Fargate
+- **ECS** (AWS-native orchestration), **EKS** (managed Kubernetes), **Fargate** (serverless containers, no nodes to manage), **ECR** (image registry).
+! Fargate = containers without servers.
+
+### AWS: Storage & Data
+
+## S3 & Storage Types
+> **S3** is object storage (buckets and keys), 11 nines durability. Classes: Standard, Infrequent Access, Glacier. Features: versioning, lifecycle rules, encryption, **presigned URLs**, static website hosting, events.
+- **EBS** block disk for one EC2; **EFS** shared NFS file system.
+! S3 for objects, EBS for a disk, EFS for shared files.
+
+## Databases
+- **RDS** (managed MySQL/Postgres/etc., Multi-AZ for failover, read replicas for scale), **Aurora** (faster cloud-native), **DynamoDB** (serverless key-value/document, single-digit ms), **ElastiCache** (Redis/Memcached), **Redshift** (data warehouse).
+! RDS for relational, DynamoDB for massive key-value scale.
+
+## Messaging: SQS, SNS, EventBridge
+- **SQS:** queue (decouple, buffer; standard vs FIFO; dead-letter queue). **SNS:** pub/sub fan-out to many subscribers. **EventBridge:** event bus with rules. Common: **SNS -> multiple SQS** fan-out.
+! Queue for work, topic for broadcast.
+
+### AWS: Network & Ops
+
+## VPC & Networking
+- **VPC:** your private network with **subnets** (public: route to Internet Gateway; private: via **NAT gateway**), route tables, **security groups** (stateful, instance level, allow rules) and **NACLs** (stateless, subnet level).
+- **Route 53** (DNS), **CloudFront** (CDN), **API Gateway**.
+! Web tier public, app and DB tiers private.
+
+## Monitoring & IaC
+- **CloudWatch** (metrics, logs, alarms), **CloudTrail** (API audit log), **X-Ray** (tracing). **CloudFormation / CDK / Terraform** for infrastructure as code. **Secrets Manager / Parameter Store** for secrets.
+! CloudWatch = what's happening; CloudTrail = who did it.
+
+## Typical Architecture
+```text
+Route 53 -> CloudFront -> ALB (public subnets, 2 AZs) -> ASG/ECS (private subnets) -> RDS Multi-AZ + ElastiCache
+                                   S3 for static files/uploads   SQS + Lambda for async work   CloudWatch alarms
+```
+! Redundant at every layer, private by default.
+
+### AWS: More
+
+## Cost, Reliability & Other Services
+- **Well-Architected pillars:** operational excellence, security, reliability, performance, cost, sustainability. Cost: right-size, savings plans/spot, S3 lifecycle, turn off idle resources, budgets and alerts. **DR strategies:** backup/restore, pilot light, warm standby, multi-site (RTO/RPO). Others: **Cognito** (auth), **KMS** (keys), **Step Functions** (workflows), **Kinesis** (streams), **Athena** (SQL on S3), **ECR**, **Systems Manager**.
+! Design for failure; tag everything for cost.
+
+### AWS: Must-Know Questions
+
+## AWS Questions
+Q*: Security group vs NACL?
+A: Security groups are stateful, instance-level and allow-only; NACLs are stateless, subnet-level and support allow and deny.
+Q*: How do you make a web app highly available on AWS?
+A: Multiple AZs, an ALB with health checks, an Auto Scaling Group, Multi-AZ RDS and stateless instances.
+Q*: SQS vs SNS?
+A: SQS is a queue where one consumer processes each message; SNS is pub/sub pushing to many subscribers. They are often combined.
+Q*: IAM role vs user?
+A: A user has long-lived credentials for a person; a role is assumed temporarily by services or users and is preferred for workloads.
+Q*: When to use Lambda vs EC2?
+A: Lambda for short event-driven tasks with variable load; EC2 for long-running, steady or custom-environment workloads.
+Q: What is S3 durability vs availability?
+A: 99.999999999% durability (data won't be lost), with availability around 99.99% for Standard.
+Q: How do you serve static content fast globally?
+A: Store in S3 and front with CloudFront.
+

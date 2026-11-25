@@ -1,93 +1,82 @@
-export type Topic = { id: string; name: string; ready?: boolean; poster?: boolean };   // poster: one sheet rendered as a card grid
+export type Topic = { id: string; name: string; poster?: boolean; hidden?: boolean };
+// poster: one sheet rendered as a card grid. hidden: routable and searchable, but reached through its topic
+// (the "Cheat sheet" link) instead of its own sidebar row.
 
-// Groups and order follow TOPICS.md. To add a topic: write public/notes/<id>.txt in the
-// notes format (see notes.ts), then set ready: true here.
-export const GROUPS: { name: string; topics: Topic[] }[] = [
-  { name: 'Cheat Sheets', topics: [
-    { id: 'cheat-plan', name: '14-Day Revision Plan', ready: true, poster: true },
-    { id: 'cheat-java', name: 'Java', ready: true, poster: true },
-    { id: 'cheat-angular', name: 'Angular', ready: true, poster: true },
-    { id: 'cheat-typescript', name: 'TypeScript', ready: true, poster: true },
-    { id: 'cheat-sql', name: 'SQL', ready: true, poster: true },
-    { id: 'cheat-spring-boot', name: 'Spring Boot', ready: true, poster: true },
-    { id: 'cheat-hibernate', name: 'Hibernate & JPA', ready: true, poster: true },
-    { id: 'cheat-spring-security', name: 'Spring Security', ready: true, poster: true },
-    { id: 'cheat-java-coding', name: 'Java Coding Questions', ready: true, poster: true },
-    { id: 'cheat-java-output', name: 'Java Output Questions', ready: true, poster: true },
-    { id: 'cheat-lld', name: 'Low-Level Design', ready: true, poster: true },
-    { id: 'cheat-junit-mockito', name: 'JUnit & Mockito', ready: true, poster: true },
-    { id: 'cheat-sql-queries', name: 'SQL Query Questions', ready: true, poster: true },
-    { id: 'cheat-scenarios', name: 'Scenario & Project Answers', ready: true, poster: true },
-    { id: 'cheat-dsa', name: 'DSA', ready: true, poster: true },
-    { id: 'cheat-system-design', name: 'System Design', ready: true, poster: true },
-    { id: 'cheat-javascript', name: 'JavaScript', ready: true, poster: true },
-    { id: 'cheat-python', name: 'Python', ready: true, poster: true },
-    { id: 'cheat-react', name: 'React', ready: true, poster: true },
-    { id: 'cheat-kafka', name: 'Kafka', ready: true, poster: true },
-    { id: 'cheat-git', name: 'Git', ready: true, poster: true },
-    { id: 'cheat-docker', name: 'Docker', ready: true, poster: true },
-    { id: 'cheat-kubernetes', name: 'Kubernetes', ready: true, poster: true },
-    { id: 'cheat-maven', name: 'Maven', ready: true, poster: true },
-    { id: 'cheat-cicd', name: 'CI/CD', ready: true, poster: true },
-    { id: 'cheat-aws', name: 'AWS', ready: true, poster: true },
+export type Track = 'java' | 'angular' | 'ai';
+export const TRACKS: { id: Track | 'all'; name: string }[] = [
+  { id: 'java', name: 'Java Full Stack' },
+  { id: 'angular', name: 'Angular' },
+  { id: 'ai', name: 'AI Engineer' },
+  { id: 'all', name: 'All' },
+];
+
+// How to study a topic: 1. its "Interview Basics" sheet (say every answer out loud), 2. its one-page
+// cheat sheet, 3. the detailed sheets, only for what an interviewer digs into.
+// To add a topic: write public/notes/<id>.txt in the notes format (see notes.ts) and list it here.
+export const GROUPS: { name: string; tracks: Track[]; topics: Topic[] }[] = [
+  { name: 'Start Here', tracks: ['java', 'angular', 'ai'], topics: [
+    { id: 'missed', name: 'Missed in Interviews', poster: true },
+    { id: 'cheat-scenarios', name: 'Project & Scenario Answers', poster: true },
   ] },
-  { name: 'Collections & Strings', topics: [
-    { id: 'cheat-collections', name: 'Java Collections', ready: true, poster: true },
+  { name: 'Java', tracks: ['java'], topics: [
+    { id: 'java', name: 'Java Core' },
+    { id: 'java-streams', name: 'Java Streams & Lambdas' },
+    { id: 'cheat-collections', name: 'Collections & HashMap', poster: true },
+    { id: 'cheat-java-coding', name: 'Java Coding Questions', poster: true },
+    { id: 'cheat-java-output', name: 'Java Output Questions', poster: true },
   ] },
-  { name: 'Languages', topics: [
-    { id: 'java', name: 'Java', ready: true },
-    { id: 'python', name: 'Python', ready: true },
-    { id: 'javascript', name: 'JavaScript', ready: true },
-    { id: 'typescript', name: 'TypeScript', ready: true },
-    { id: 'regex', name: 'Regex', ready: true },
+  { name: 'Spring Boot & Backend', tracks: ['java'], topics: [
+    { id: 'spring-boot', name: 'Spring Boot & Microservices' },
+    { id: 'rest', name: 'REST APIs & JSON' },
+    { id: 'hibernate', name: 'JPA & Hibernate' },
+    { id: 'testing', name: 'JUnit & Mockito' },
+    { id: 'cheat-kafka', name: 'Kafka', poster: true },
   ] },
-  { name: 'DSA', topics: [
-    { id: 'dsa', name: 'DSA 1: Foundations (Arrays to Sorting)', ready: true },
-    { id: 'dsa-2', name: 'DSA 2: Trees, Heaps, Graphs, Backtracking', ready: true },
-    { id: 'dsa-3', name: 'DSA 3: DP, Advanced & Review', ready: true },
+  { name: 'SQL', tracks: ['java', 'ai'], topics: [
+    { id: 'sql', name: 'SQL' },
+    { id: 'cheat-sql-queries', name: 'SQL Query Questions', poster: true },
   ] },
-  { name: 'Frontend', topics: [
-    { id: 'html-css', name: 'HTML & CSS', ready: true },
-    { id: 'angular', name: 'Angular', ready: true },
-    { id: 'react', name: 'React', ready: true },
-    { id: 'nextjs', name: 'Next.js', ready: true },
-    { id: 'nodejs', name: 'Node.js', ready: true },
+  { name: 'Frontend', tracks: ['java', 'angular'], topics: [
+    { id: 'angular', name: 'Angular' },
+    { id: 'typescript', name: 'TypeScript' },
+    { id: 'javascript', name: 'JavaScript' },
+    { id: 'html-css', name: 'HTML & CSS' },
   ] },
-  { name: 'Backend & APIs', topics: [
-    { id: 'spring-boot', name: 'Spring Boot & Microservices', ready: true },
-    { id: 'rest', name: 'REST & JSON', ready: true },
-    { id: 'fastapi', name: 'FastAPI', ready: true },
-    { id: 'security', name: 'Spring Security, OAuth & JWT', ready: true },
-    { id: 'hibernate', name: 'ORM & Hibernate', ready: true },
-    { id: 'postman', name: 'Postman', ready: true },
+  { name: 'AI Engineering', tracks: ['ai'], topics: [
+    { id: 'llm-apis', name: 'LLMs, Prompting & APIs' },
+    { id: 'rag', name: 'Embeddings & RAG' },
+    { id: 'agents', name: 'Agents & MCP' },
+    { id: 'python', name: 'Python' },
+    { id: 'fastapi', name: 'FastAPI' },
   ] },
-  { name: 'GenAI & LLMs', topics: [
-    { id: 'llm-apis', name: 'Prompting & LLM APIs', ready: true },
-    { id: 'rag', name: 'Embeddings & RAG', ready: true },
-    { id: 'agents', name: 'Claude Code, MCP & Agents', ready: true },
+  { name: 'Security, Caching & Design', tracks: ['java', 'angular', 'ai'], topics: [
+    { id: 'security', name: 'Authentication, Authorization & JWT' },
+    { id: 'caching', name: 'Caching' },
+    { id: 'cheat-system-design', name: 'System Design', poster: true },
+    { id: 'cheat-lld', name: 'Low-Level Design', poster: true },
+    { id: 'devops', name: 'DevOps Essentials', poster: true },
   ] },
-  { name: 'Databases', topics: [
-    { id: 'sql', name: 'SQL & RDBMS', ready: true },
-    { id: 'mongodb', name: 'MongoDB', ready: true },
-    { id: 'firestore', name: 'Firestore', ready: true },
+  { name: 'DSA', tracks: ['java', 'angular', 'ai'], topics: [
+    { id: 'dsa', name: 'DSA 1: Arrays to Sorting' },
+    { id: 'dsa-2', name: 'DSA 2: Trees, Heaps, Graphs' },
+    { id: 'dsa-3', name: 'DSA 3: DP & Advanced' },
   ] },
-  { name: 'DevOps & Practices', topics: [
-    { id: 'git', name: 'Git' },
-    { id: 'github', name: 'GitHub', ready: true },
-    { id: 'maven', name: 'Maven' },
-    { id: 'docker', name: 'Docker' },
-    { id: 'kubernetes', name: 'Kubernetes' },
-    { id: 'cicd', name: 'CI/CD' },
-    { id: 'aws', name: 'AWS' },
-    { id: 'kafka', name: 'Kafka', ready: true },
-    { id: 'n8n', name: 'n8n', ready: true },
-    { id: 'testing', name: 'Testing & JUnit', ready: true },
-    { id: 'agile', name: 'Agile & SDLC', ready: true },
-    { id: 'system-design', name: 'System Design', ready: true },
-    { id: 'buzzwords', name: 'Engineering Buzzwords', ready: true },
+  // One-page cheat sheets, opened from their topic (see CHEATS).
+  { name: 'Cheat Sheets', tracks: [], topics: [
+    { id: 'cheat-java', name: 'Java', poster: true, hidden: true },
+    { id: 'cheat-spring-boot', name: 'Spring Boot', poster: true, hidden: true },
+    { id: 'cheat-hibernate', name: 'Hibernate & JPA', poster: true, hidden: true },
+    { id: 'cheat-junit-mockito', name: 'JUnit & Mockito', poster: true, hidden: true },
+    { id: 'cheat-sql', name: 'SQL', poster: true, hidden: true },
+    { id: 'cheat-angular', name: 'Angular', poster: true, hidden: true },
+    { id: 'cheat-typescript', name: 'TypeScript', poster: true, hidden: true },
+    { id: 'cheat-javascript', name: 'JavaScript', poster: true, hidden: true },
+    { id: 'cheat-python', name: 'Python', poster: true, hidden: true },
+    { id: 'cheat-spring-security', name: 'Spring Security & JWT', poster: true, hidden: true },
+    { id: 'cheat-dsa', name: 'DSA', poster: true, hidden: true },
   ] },
 ];
-export const READY = GROUPS.flatMap(g => g.topics).filter(t => t.ready);
+export const READY = GROUPS.flatMap(g => g.topics);
 
-// topic id -> its cheat sheet topic id
-export const CHEATS: Record<string, string> = { java: 'cheat-java', angular: 'cheat-angular', typescript: 'cheat-typescript', sql: 'cheat-sql', 'spring-boot': 'cheat-spring-boot', hibernate: 'cheat-hibernate', testing: 'cheat-junit-mockito', security: 'cheat-spring-security', javascript: 'cheat-javascript', python: 'cheat-python', react: 'cheat-react', kafka: 'cheat-kafka', 'system-design': 'cheat-system-design', dsa: 'cheat-dsa', 'dsa-2': 'cheat-dsa', 'dsa-3': 'cheat-dsa' };
+// topic id -> its one-page cheat sheet
+export const CHEATS: Record<string, string> = { java: 'cheat-java', 'spring-boot': 'cheat-spring-boot', hibernate: 'cheat-hibernate', testing: 'cheat-junit-mockito', sql: 'cheat-sql', angular: 'cheat-angular', typescript: 'cheat-typescript', javascript: 'cheat-javascript', python: 'cheat-python', security: 'cheat-spring-security', dsa: 'cheat-dsa', 'dsa-2': 'cheat-dsa', 'dsa-3': 'cheat-dsa' };
