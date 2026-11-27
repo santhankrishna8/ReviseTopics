@@ -1,5 +1,5 @@
 // Stale-while-revalidate for the app shell and notes: works offline after the first visit.
-const CACHE = 'revise-v3';   // bump when the topic list changes so old notes are dropped
+const CACHE = 'revise-v4';   // bump when the topic list changes so old notes are dropped
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(
   caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));

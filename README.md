@@ -13,7 +13,8 @@ npm run build      # output in dist/revise-notes/browser
 
 1. **Interview Basics** (the first sheet, marked with a star): the questions every interview opens with. Turn on
    Quiz mode and answer each one out loud before you reveal it.
-2. **Cheat sheet**: the one-page version, linked under the topic in the sidebar.
+2. **Cheat sheet**: the one-page version, linked under the topic. All cheat sheets are also listed together in
+   the **Cheat Sheets** group at the bottom of the sidebar.
 3. **Detailed sheets**: only for what an interviewer digs into.
 
 Do step 1 for every topic before going deeper. Start each session with **Most Asked Questions**

@@ -9,7 +9,7 @@ type Route = { topic: string; sheet: string; section?: number };
 type Hit = { kind: 'Sheet' | 'Section' | 'Question'; title: string; where: string; href: string; hay: string };
 
 const HOME: Route = { topic: 'missed', sheet: '01' };   // the most asked questions first
-const label = (t: Topic) => (t.hidden ? `${t.name} Cheat Sheet` : t.name);   // sidebar shows the short name
+const label = (t: Topic) => (t.cheat ? `${t.name} Cheat Sheet` : t.name);   // sidebar shows the short name
 const start = (t: Topic) => `#/${t.id}/${t.poster ? '01' : 'b'}`;   // 'b' = the Interview Basics sheet; falls back to the first sheet
 const doneKey = (topic: string, n: string) => `rev:${topic}:${n}`;
 
@@ -199,8 +199,8 @@ function byLevel(list: Sheet[]) {
   `,
 })
 export class App {
-  // Every topic, in GROUPS order. Cheat sheets are reached from their topic, so groups with only hidden topics are dropped.
-  protected readonly groups = GROUPS.map(g => ({ ...g, topics: g.topics.filter(t => !t.hidden) })).filter(g => g.topics.length);
+  // Every topic, in GROUPS order; the one-page cheat sheets are listed together in their own group.
+  protected readonly groups = GROUPS;
   private readonly visible = computed(() => this.groups.flatMap(g => g.topics));
   protected readonly cheats = CHEATS;
   private readonly failed = signal(new Set<string>());
