@@ -1,0 +1,77 @@
+# 01 | ML Basics & Metrics Cheat Sheet | The classic ML essentials and every evaluation formula on one page. | ML on one page
+
+### Foundations
+
+## Types of Learning
+- **Supervised**: regression (numbers), classification (classes). **Unsupervised**: clustering, dimensionality reduction.
+- **Self-supervised**: labels from the data (LLM pre-training). **RL**: actions + rewards (RLHF).
+
+## Fit Diagnosis
+```text
+train ↓↓  val ↑     overfit (variance)  → more data, simpler model, L1/L2, dropout, early stop
+train ↑   val ↑     underfit (bias)     → more features, more capacity, less regularisation
+train ↓   val ↓     good fit
+error = bias² + variance + noise
+```
+
+## Splits & Leakage
+- Train / validation / test (80/10/10). Stratify classes. Time series: past → future, no shuffle.
+- k-fold CV for small data. Fit scalers and encoders on **training data only** (pipelines).
+! A suspiciously great score usually means leakage.
+
+## Regularisation
+- **L2 Ridge** λΣw²: shrinks weights. **L1 Lasso** λΣ|w|: zeros some weights (feature selection). **Elastic Net**: both.
+
+### Models
+
+## Linear Regression
+```text
+ŷ = Xw + b        loss = MSE = (1/n)Σ(y − ŷ)²
+OLS: w = (XᵀX)⁻¹Xᵀy       GD: w ← w − η·∇MSE
+assumptions LINE: Linear, Independent errors, Normal residuals, Equal variance; check VIF
+```
+
+## Logistic Regression
+```text
+p = σ(w·x + b) = 1 / (1 + e^−z)
+log loss = −[y·log p + (1−y)·log(1−p)]
+e^w = odds ratio per unit of x; threshold tuned to cost (not always 0.5)
+```
+
+## Algorithms in One Line
+- k-NN (neighbours) · tree (if-else splits) · **random forest** (bagging) · **XGBoost / LightGBM** (boosting, tabular king) · SVM (max margin) · Naive Bayes · k-means · neural nets.
+
+### Metrics
+
+## Regression Metrics
+```text
+MAE  = mean|y − ŷ|            units, robust
+MSE  = mean(y − ŷ)²           punishes big errors
+RMSE = √MSE                   units; RMSE ≫ MAE → a few big misses
+R²   = 1 − SS_res/SS_tot      variance explained; < 0 = worse than the mean
+adj R² penalises extra features   MAPE breaks near 0 → use WAPE
+```
+
+## Confusion Matrix
+```text
+              pred +   pred −
+actual +      TP       FN
+actual −      FP       TN
+Precision = TP/(TP+FP)   Recall = TP/(TP+FN)   Specificity = TN/(TN+FP)
+F1 = 2PR/(P+R)           Accuracy = (TP+TN)/all   FPR = FP/(FP+TN)
+```
+
+## Which Classification Metric
+- False alarms costly → **precision**. Misses costly → **recall** (F2).
+- Imbalanced → **F1, PR-AUC**, not accuracy. Ranking quality across thresholds → **ROC-AUC**.
+- Probabilities used directly → **log loss**, calibration (Brier, reliability plot).
+- Multiclass → **macro-F1** (rare classes count) + a per-class report.
+
+## Ranking Metrics (retrieval)
+- Precision@k, Recall@k, **MRR** = mean 1/rank of the first hit, **nDCG** = DCG/IDCG with log2 discount, MAP.
+
+## Worked Example
+```text
+TP 40, FP 20, FN 10, TN 930
+P = 0.67   R = 0.80   F1 ≈ 0.73   Acc = 0.97 (the "always negative" model gets 0.95!)
+```

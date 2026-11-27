@@ -1,0 +1,272 @@
+@ Must-Know
+# b | Interview Basics: ML Basics & Metrics | The classic ML questions AI Engineer interviews still open with: types of learning, overfitting, linear and logistic regression, regression and classification metrics. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Core Ideas
+Q*: Supervised vs unsupervised vs reinforcement learning?
+A: Supervised learns from labelled examples (input → known answer): regression for numbers, classification for categories. Unsupervised finds structure without labels: clustering, dimensionality reduction. Reinforcement learning learns actions from rewards by trial and error. Self-supervised (how LLMs pre-train) creates labels from the data itself, e.g. the next token.
+Q*: What is overfitting and how do you prevent it?
+A: The model memorises noise in the training data, so it scores well on training data but badly on new data. Prevent it with more data, a simpler model, regularisation (L1/L2, dropout), early stopping, cross-validation and feature selection. Underfitting is the opposite: too simple to capture the pattern.
+Q*: Explain the bias-variance trade-off.
+A: Bias is error from wrong or over-simple assumptions (underfitting). Variance is error from sensitivity to the particular training sample (overfitting). Making a model more complex lowers bias but raises variance. You aim for the complexity that minimises total error on unseen data.
+Q*: Why train, validation and test splits?
+A: Train fits the parameters. Validation chooses hyper-parameters and the model and decides early stopping. Test is used once at the end for an unbiased estimate. Using the test set for decisions leaks information and inflates the score.
+Q: What is k-fold cross-validation?
+A: Split the data into k folds, train on k−1 and validate on the remaining one, rotate k times and average. It gives a more reliable estimate than one split on small datasets. Use stratified folds for imbalanced classes and time-based splits for time series.
+Q: What is data leakage?
+A: Information that would not be available at prediction time sneaking into training: future data, the target encoded in a feature, or scaling fitted on the whole dataset before the split. It gives great offline scores and poor production results.
+
+## Linear & Logistic Regression
+Q*: What is linear regression?
+A: It predicts a number as a weighted sum of features plus a bias: ŷ = w·x + b. It is fitted by minimising mean squared error, in closed form (ordinary least squares) or by gradient descent. Assumptions: a linear relationship, independent errors, constant error variance, roughly normal residuals, and little multicollinearity.
+Q*: What is logistic regression?
+A: A classifier that applies the sigmoid to a linear score to output a probability between 0 and 1: p = σ(w·x + b). It is trained with log loss (binary cross-entropy). A threshold (0.5 by default) turns the probability into a class. Despite the name, it is for classification.
+Q: What is gradient descent?
+A: An iterative method that moves parameters a small step (the learning rate) in the direction that reduces the loss fastest (the negative gradient). Batch uses all the data per step, stochastic uses one example, and mini-batch uses a small batch (the usual choice).
+Q: L1 vs L2 regularisation?
+A: Both add a penalty on weight size to the loss. L2 (Ridge) adds the sum of squares and shrinks weights smoothly. L1 (Lasso) adds the sum of absolute values and pushes some weights to exactly zero, which does feature selection.
+
+## Metrics
+Q*: Name the regression metrics and when to use each.
+A: MAE (mean absolute error): average size of error, in the target's units, robust to outliers. MSE: squares errors, so it punishes big errors, in squared units. RMSE: the square root of MSE, back in the target's units, still sensitive to big errors. R²: share of variance explained (1 is perfect, 0 is as good as predicting the mean). MAPE: percentage error, which breaks near zero.
+Q*: Precision vs recall?
+A: Precision = TP / (TP + FP): of the items flagged positive, how many were right. Recall = TP / (TP + FN): of the real positives, how many we caught. Favour precision when false alarms are costly (spam filter hiding real email). Favour recall when misses are costly (fraud, cancer screening).
+Q*: Why is accuracy misleading on imbalanced data?
+A: If 99% of transactions are legitimate, a model that always says "legitimate" is 99% accurate and catches zero fraud. Use precision, recall, F1, PR-AUC and the confusion matrix instead.
+Q*: What is the F1 score?
+A: The harmonic mean of precision and recall: 2PR / (P + R). It is high only when both are high, so it is a single number for imbalanced problems.
+Q*: ROC-AUC vs PR-AUC?
+A: ROC plots the true positive rate against the false positive rate across all thresholds, and AUC is the area under that curve: the chance a random positive scores higher than a random negative. PR-AUC plots precision against recall. It is more informative when positives are rare, because ROC can look good thanks to the many easy negatives.
+Q: What is a confusion matrix?
+A: A table of predicted vs actual classes. For binary classification it holds TP, FP, FN and TN, and every classification metric is computed from it.
+
+@ Beginner
+# 01 | ML Foundations | Types of learning, the ML workflow, features and labels, train / validation / test, overfitting and underfitting, bias-variance, regularisation, cross-validation, leakage, common algorithms in one line | Foundations
+
+## Types of Learning
+- **Supervised**: labelled data. **Regression** (predict a number: price, demand) and **classification** (predict a class: spam, churn).
+- **Unsupervised**: no labels. **Clustering** (k-means, DBSCAN), **dimensionality reduction** (PCA, t-SNE, UMAP), anomaly detection.
+- **Self-supervised**: labels come from the data (next-token prediction, masked words, contrastive learning). It is how LLMs and embedding models are pre-trained.
+- **Reinforcement learning**: an agent acts, receives rewards, and learns a policy. RLHF uses it to align LLMs.
+
+## The Workflow
+- Define the problem and the metric → collect and clean data → split → engineer features → train a **simple baseline** → train better models → tune hyper-parameters on validation → evaluate once on test → deploy → monitor drift.
+- **Features** are the inputs (scaled numbers, one-hot categories, text embeddings). The **label / target** is what you predict.
+- **Parameters** are learned (weights). **Hyper-parameters** are set by you (learning rate, tree depth, k).
+
+## Overfitting, Underfitting, Bias-Variance
+```text
+              Training error   Validation error   Diagnosis       Fix
+Underfitting  high             high               high bias       more features, a more complex model, less regularisation
+Good fit      low              low (close)        balanced        ship it
+Overfitting   very low         high               high variance   more data, a simpler model, regularisation, early stopping
+```
+- **Bias**: systematic error from too-simple assumptions. **Variance**: error from fitting the quirks of one sample.
+- Expected error = bias² + variance + irreducible noise.
+
+## Regularisation
+- **L2 (Ridge)**: loss + λ·Σw². Shrinks all weights and handles correlated features well.
+- **L1 (Lasso)**: loss + λ·Σ|w|. Drives some weights to zero (feature selection).
+- **Elastic Net**: both. **Dropout** (neural nets): randomly zero activations during training. **Early stopping**: stop when validation loss stops improving.
+- λ controls the strength. Too high underfits.
+
+## Splits and Cross-Validation
+- Typical split: **70 / 15 / 15** or **80 / 10 / 10**. **Stratify** by class for classification.
+- **k-fold CV** (k = 5 or 10): every example is validated once. Average the scores and report the spread.
+- **Time series**: never shuffle. Train on the past, validate on the future (walk-forward).
+- **Scale and encode** using statistics from the **training fold only** (use a pipeline) to avoid leakage.
+
+## Common Algorithms in One Line
+- **Linear / logistic regression**: fast, interpretable baselines.
+- **k-NN**: predicts from the nearest labelled neighbours. Simple, slow on big data.
+- **Decision tree**: if-else splits. Interpretable, overfits alone.
+- **Random forest**: many trees on bootstrap samples (bagging). Robust and a strong default for tabular data.
+- **Gradient boosting (XGBoost, LightGBM, CatBoost)**: trees added one by one to fix the previous errors. Usually the best for tabular data.
+- **SVM**: finds the maximum-margin boundary, with kernels for non-linear data.
+- **Naive Bayes**: probabilistic, fast, good for simple text classification.
+- **k-means**: groups points around k centroids.
+- **Neural networks**: layers of weighted sums plus non-linearities. Best for text, images, audio and huge data.
+
+## Interview Q&A
+Q*: Your model has 98% training accuracy and 70% validation accuracy. What is happening and what do you do?
+A: Overfitting, which means high variance. Get more data or augment it, simplify the model, add regularisation or dropout, use early stopping, remove leaky or noisy features, and confirm with cross-validation.
+Q*: Parameter vs hyper-parameter?
+A: Parameters are learned from data during training (weights, biases). Hyper-parameters are chosen before training and tuned on validation data (learning rate, regularisation strength, number of trees, k in k-NN).
+Q: Why scale features?
+A: Gradient descent converges faster, and distance-based models (k-NN, SVM, k-means) and regularisation behave fairly only when features are on comparable scales. Use standardisation (z-score) or min-max, fitted on training data only.
+Q: Bagging vs boosting?
+A: Bagging trains many models independently on bootstrap samples and averages them, which reduces variance (random forest). Boosting trains models sequentially, each fixing the errors of the previous ones, which reduces bias (XGBoost, LightGBM).
+
+# 02 | Linear & Logistic Regression | The linear model, least squares and MSE, the normal equation, gradient descent, assumptions and diagnostics, multicollinearity, logistic regression with the sigmoid and log loss, thresholds, coefficients as odds, scikit-learn code | Regression Models
+
+## Linear Regression
+- Model: **ŷ = w₁x₁ + w₂x₂ + … + wₙxₙ + b** (in vector form ŷ = Xw + b).
+- Loss: **MSE** = (1/n) Σ (yᵢ − ŷᵢ)². Squaring punishes big errors and gives a smooth, convex loss with one global minimum.
+- **Ordinary least squares, closed form**: w = (XᵀX)⁻¹Xᵀy (the normal equation). It is exact, but inverting the matrix gets slow with many features.
+- **Gradient descent**: w ← w − η · ∂MSE/∂w, where ∂MSE/∂w = −(2/n) Xᵀ(y − ŷ). It scales to big data.
+- **Interpretation**: wᵢ is the change in ŷ for a one-unit increase in xᵢ, holding the other features fixed.
+
+## Assumptions (LINE) and Diagnostics
+- **L**inearity: the relationship is linear. Check with a residuals-vs-fitted plot (no curve).
+- **I**ndependence of errors: no autocorrelation (an issue in time series).
+- **N**ormality of residuals: matters for confidence intervals (Q-Q plot).
+- **E**qual variance (homoscedasticity): the spread of residuals is constant. A funnel shape means heteroscedasticity.
+- **Multicollinearity**: highly correlated features make coefficients unstable. Check correlation and **VIF** (> 5–10 is a concern). Fix by dropping or combining features, or with Ridge.
+- **Outliers** pull the line strongly, because squared error amplifies them. Inspect them, or use robust losses (Huber, MAE).
+
+## Polynomial and Regularised Variants
+- **Polynomial regression**: add x², x³ or interaction features. It is still linear in the weights and fits curves.
+- **Ridge / Lasso / Elastic Net**: linear regression plus L2 / L1 / both penalties.
+
+## Logistic Regression
+- Linear score z = w·x + b, squashed by the **sigmoid** σ(z) = 1 / (1 + e⁻ᶻ) into a probability p ∈ (0, 1).
+- Loss: **log loss / binary cross-entropy** = −[y·log p + (1 − y)·log(1 − p)]. Confident wrong predictions are punished heavily. There is no closed form, so it is trained with gradient descent.
+- **Decision boundary**: p = 0.5 ⇔ z = 0, a straight line or plane in feature space.
+- **Coefficients**: wᵢ is the change in **log-odds** per unit of xᵢ, and e^wᵢ is the **odds ratio**.
+- **Multiclass**: one-vs-rest, or **softmax (multinomial) regression**, which is also the last layer of neural classifiers and LLMs.
+- **Threshold tuning**: 0.5 is arbitrary. Choose the threshold from the precision-recall trade-off and the business cost.
+
+## scikit-learn Code
+```python
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score, classification_report
+
+X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)
+reg = make_pipeline(StandardScaler(), LinearRegression()).fit(X_tr, y_tr)
+pred = reg.predict(X_te)
+print(mean_absolute_error(y_te, pred), root_mean_squared_error(y_te, pred), r2_score(y_te, pred))
+
+Xc_tr, Xc_te, yc_tr, yc_te = train_test_split(Xc, yc, test_size=0.2, stratify=yc, random_state=42)
+clf = make_pipeline(StandardScaler(), LogisticRegression(class_weight="balanced")).fit(Xc_tr, yc_tr)
+proba = clf.predict_proba(Xc_te)[:, 1]
+print(classification_report(yc_te, (proba >= 0.35).astype(int)))      # tuned threshold
+```
+
+## Interview Q&A
+Q*: Why is MSE used for linear regression?
+A: It is convex and differentiable, so it has a single minimum with a closed-form solution. It is the maximum-likelihood estimate when errors are Gaussian, and it penalises large errors more. The downside is sensitivity to outliers.
+Q*: How do you interpret a logistic regression coefficient?
+A: It is the change in the log-odds of the positive class for a one-unit increase in that feature, holding the others fixed. Exponentiating it gives the odds ratio: e.g. 1.5 means the odds rise 50% per unit.
+Q*: What is multicollinearity and why does it matter?
+A: Strong correlation between features. Predictions may stay fine, but coefficients become unstable and hard to interpret, with large standard errors and flipping signs. Detect it with VIF and fix it by removing or combining features or with Ridge regularisation.
+Q: Normal equation vs gradient descent?
+A: The normal equation solves least squares exactly in one step but needs a matrix inverse (about O(n³) in the number of features). Gradient descent is iterative, needs a learning rate, and scales to many features and very large datasets.
+Q: Why is logistic regression a linear model if it uses a sigmoid?
+A: Its decision boundary is linear: the sigmoid is applied to a linear combination of features, and the class switches where that linear score crosses zero.
+
+# 03 | Regression Metrics | MAE, MSE, RMSE, R² and adjusted R², MAPE and its problems, choosing a metric, a worked example, residual analysis, baselines | Regression Metrics
+
+## The Metrics
+- **MAE** = (1/n) Σ |y − ŷ|. Average absolute error in the target's units. Robust to outliers. Each error counts linearly.
+- **MSE** = (1/n) Σ (y − ŷ)². Squared units. Strongly punishes big errors. It is the usual training loss.
+- **RMSE** = √MSE. The target's units, and still emphasises big errors. RMSE ≥ MAE always, and a big gap means some large errors.
+- **R² (coefficient of determination)** = 1 − SS_res / SS_tot = 1 − Σ(y − ŷ)² / Σ(y − ȳ)². The share of variance explained. 1 is perfect, 0 equals predicting the mean, and it can go **negative** on test data for a model worse than the mean.
+- **Adjusted R²** = 1 − (1 − R²)(n − 1)/(n − p − 1). It penalises adding features that do not help (plain R² never falls when you add features).
+- **MAPE** = (100/n) Σ |(y − ŷ)/y|. Easy to explain as a percentage, but it **explodes near zero**, is asymmetric, and is undefined at y = 0. **sMAPE** or **WAPE** (Σ|error| / Σ|y|) are safer.
+- **RMSLE**: RMSE on log(1 + y). For targets spanning orders of magnitude where relative error matters.
+
+## Worked Example
+```text
+y     = [3, 5, 2, 8]
+ŷ     = [2, 5, 4, 7]
+error = [1, 0, -2, 1]
+
+MAE  = (1 + 0 + 2 + 1) / 4         = 1.0
+MSE  = (1 + 0 + 4 + 1) / 4         = 1.5
+RMSE = √1.5                        ≈ 1.22
+ȳ = 4.5;  SS_tot = 2.25 + 0.25 + 6.25 + 12.25 = 21
+SS_res = 6;  R² = 1 − 6/21         ≈ 0.71
+```
+
+## Choosing a Metric
+- Business cares about the **typical error in units** ("off by $12 on average"): **MAE**.
+- **Big misses are especially bad** (capacity planning, safety): **RMSE / MSE**.
+- **Comparing across differently scaled targets**: **R²**, or a percentage metric (WAPE).
+- **Explaining to non-technical stakeholders**: MAE or WAPE as a percentage.
+- Always compare with a **naive baseline** (predict the mean, or last value for time series). A model that cannot beat it is useless.
+
+## Residual Analysis
+- Plot **residuals vs predictions**: a random cloud is good. A curve means missing non-linearity. A funnel means variance changing with the level.
+- Plot residuals over **time** to spot drift and seasonality.
+- Look at the **largest errors** by hand. They often reveal data bugs.
+
+## Interview Q&A
+Q*: MAE vs RMSE: when do you prefer each?
+A: MAE when all errors should count in proportion and outliers shouldn't dominate. It reads as the average miss. RMSE when large errors are disproportionately costly, because squaring weights them more. Comparing the two tells you whether a few big errors exist.
+Q*: Can R² be negative?
+A: Yes, on validation or test data, when the model predicts worse than simply using the mean of the target. That means the model is useless or broken.
+Q: Why use adjusted R²?
+A: Plain R² never decreases when you add features, even useless ones. Adjusted R² subtracts a penalty for the number of features, so it only rises if a new feature improves the fit more than chance.
+Q: Why is MAPE risky?
+A: It divides by the actual value, so it explodes or is undefined when actuals are near or at zero. It also penalises over-forecasts and under-forecasts asymmetrically. WAPE or sMAPE are safer alternatives.
+
+# 04 | Classification Metrics | The confusion matrix, accuracy, precision, recall, specificity, F1 and F-beta, worked numbers, thresholds and the PR trade-off, ROC-AUC vs PR-AUC, log loss and calibration, multiclass averaging, imbalanced data, links to LLM evals | Classification Metrics
+
+## The Confusion Matrix
+```text
+                    Predicted +     Predicted −
+Actual +            TP              FN   (missed)
+Actual −            FP (false alarm) TN
+```
+- **Accuracy** = (TP + TN) / all.
+- **Precision (PPV)** = TP / (TP + FP). How trustworthy a positive prediction is.
+- **Recall (sensitivity, TPR)** = TP / (TP + FN). How many real positives we catch.
+- **Specificity (TNR)** = TN / (TN + FP). **False positive rate** = FP / (FP + TN) = 1 − specificity.
+- **F1** = 2·P·R / (P + R). **F-beta** weights recall β times as much as precision (F2 favours recall, F0.5 favours precision).
+
+## Worked Example
+```text
+1,000 transactions, 50 are fraud. The model flags 60; 40 of them are fraud.
+TP = 40, FP = 20, FN = 10, TN = 930
+
+Accuracy  = (40 + 930) / 1000 = 0.97
+Precision = 40 / 60          = 0.67
+Recall    = 40 / 50          = 0.80
+F1        = 2 × 0.67 × 0.80 / (0.67 + 0.80) ≈ 0.73
+"Always say not-fraud" model: accuracy 0.95, recall 0.00
+```
+
+## Thresholds and the Precision-Recall Trade-off
+- Most classifiers output a **score or probability**. Raising the threshold gives **higher precision and lower recall**. Lowering it does the opposite.
+- Pick the threshold from **business costs** (cost of an FP vs an FN), a required recall ("catch 95% of fraud"), or the threshold that maximises F1 on validation data.
+
+## ROC-AUC vs PR-AUC
+- **ROC curve**: TPR vs FPR at every threshold. **AUC** = the probability that a random positive is scored higher than a random negative. 0.5 is random, 1.0 is perfect. It is threshold-independent.
+- **PR curve**: precision vs recall. **PR-AUC / Average Precision** focuses on the positive class.
+- With **rare positives**, ROC-AUC can look excellent while precision is poor, because FPR stays small thanks to the huge number of negatives. **Prefer PR-AUC for imbalanced problems.**
+
+## Log Loss and Calibration
+- **Log loss** = −mean[y·log p + (1 − y)·log(1 − p)]. It rewards confident correct probabilities and harshly punishes confident wrong ones.
+- **Calibration**: does "0.8" really mean right 80% of the time? Check with a reliability diagram or the Brier score. Fix with Platt scaling or isotonic regression.
+- Matters when probabilities drive decisions (risk scores, LLM confidence for routing).
+
+## Multiclass Averaging
+- **Macro**: compute the metric per class, then take the plain average. Every class counts equally, so rare classes matter.
+- **Micro**: pool all TP, FP and FN, then compute. Dominated by frequent classes (equals accuracy for single-label problems).
+- **Weighted**: average per class weighted by class frequency.
+- Report **macro-F1** when small classes matter, plus a **per-class report** and the **confusion matrix**.
+
+## Imbalanced Data
+- Use **precision, recall, F1, PR-AUC**, not accuracy.
+- **Stratified** splits, **class weights** (`class_weight="balanced"`), **resampling** (undersample the majority, oversample the minority or use SMOTE) on training data only, and **threshold tuning**.
+- Collect more minority examples if possible.
+
+## Where This Shows Up in LLM Work
+- **LLM classifiers** (intent routing, moderation, ticket triage) are evaluated with exactly these metrics.
+- **LLM-as-judge calibration**: treat the judge as a classifier against human labels (precision, recall, Cohen's kappa).
+- **Retrieval**: Precision@k and Recall@k are the ranking versions (see "RAG 2" sheet 08).
+- **Guardrails**: a jailbreak detector's FP rate (blocking good users) vs FN rate (letting attacks through).
+
+## Interview Q&A
+Q*: Compute precision, recall and F1 for TP = 40, FP = 20, FN = 10.
+A: Precision = 40/60 ≈ 0.67, recall = 40/50 = 0.80, F1 = 2 × 0.67 × 0.80 / 1.47 ≈ 0.73.
+Q*: For cancer screening, which metric do you optimise?
+A: Recall (sensitivity), because missing a real case (FN) is far worse than a false alarm that gets a follow-up test. You lower the threshold and watch that precision stays workable.
+Q*: When is ROC-AUC misleading?
+A: With heavy class imbalance. The false positive rate stays tiny because there are so many negatives, so ROC-AUC looks high even when most positive predictions are wrong. PR-AUC shows the real precision problem.
+Q: Macro vs micro F1?
+A: Macro averages per-class F1 equally, so rare classes weigh as much as common ones. Micro pools the counts across classes, so it reflects overall performance dominated by frequent classes.
+Q: What is calibration and why care?
+A: Whether predicted probabilities match observed frequencies. You care when you act on the probability itself: thresholds, risk scores, or deciding when to escalate to a human. Fix it with Platt scaling or isotonic regression.

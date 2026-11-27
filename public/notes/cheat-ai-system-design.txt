@@ -1,0 +1,74 @@
+# 01 | AI System Design Cheat Sheet | The answer framework for AI system design rounds, plus worked scenarios: RAG assistants, support agents, cost cuts, RAG vs fine-tuning calls, and scaling. | AI design on one page
+
+### Framework
+
+## The Answer Framework
+```text
+1 Clarify     users, use case, corpus/data, quality bar, latency, QPS, languages, privacy, budget
+2 Estimate    docs → chunks → tokens → $ embed; vectors × dims × 4 B; QPS × tokens → $ LLM
+3 Architect   ingestion │ retrieval │ model(s) │ tools │ guardrails │ eval │ ops
+4 Deep-dive   chunking, embeddings, vector DB, retrieval, prompting, agent vs workflow
+5 Evaluate    golden set, metrics, CI gate, online signals
+6 Operate     tracing, cost and latency dashboards, freshness, security, rollback
+7 Trade-offs  quality vs latency vs cost; managed vs self-hosted; agent vs workflow
+```
+! Start simple (advanced RAG or a workflow), then add complexity only where the evals demand it.
+
+## Building Blocks
+- **Models**: frontier for hard reasoning, small for routing / grading / extraction, embeddings, re-ranker.
+- **Data**: vector DB + BM25, SQL, object storage, cache (Redis), memory store.
+- **Control**: workflow engine or agent graph, LLM gateway (routing, fallbacks, rate limits, keys).
+- **Safety**: auth + ACL filters, input/output guardrails, approvals, sandbox, audit.
+- **Quality**: eval harness, tracing, feedback loop.
+
+### Scenarios
+
+## Internal Knowledge Assistant
+- 2M docs (Confluence, SharePoint, PDFs), 5K employees, ACLs, citations.
+- Connectors + webhooks → Docling/OCR → structure-aware chunks + heading path → embed (3-small or self-hosted BGE-M3) → pgvector/Qdrant + BM25 with ACL metadata.
+- Query: rewrite → hybrid + ACL filter → RRF → re-rank → top 5 → cited answer, "I don't know" allowed.
+- Eval: Recall@10, MRR, faithfulness. Security: cross-tenant tests, injection defences.
+
+## Customer Support Agent
+- Answers, order lookups, refunds ≤ €50, escalation.
+- Tools: `search_kb`, `get_order` (scoped to the customer), `issue_refund` (limit in code + approval), `create_ticket`.
+- LangGraph loop with step budget, checkpoints, interrupt for approval. Memory: profile + past ticket summaries.
+- Eval: simulated conversations, resolution rate, policy compliance, CSAT.
+
+## Cut LLM Cost by 50%
+- Measure tokens per stage first. Then: fewer, better RAG chunks (re-rank), compress history, **prompt caching**, **route** easy traffic to a small model, semantic cache, Batch API offline, cap output.
+- Long term: **distil / fine-tune** a small model for the high-volume narrow task.
+
+## RAG vs Fine-Tune Calls
+```text
+HR policy bot, policies change           RAG
+classify 5M tickets/day                  fine-tune / distil a small model
+legal drafting: clauses + house style    RAG + fine-tune
+one fixed 80-page manual, low traffic    long context / CAG
+model weak in a rare language            continued pre-train + SFT + RAG
+```
+
+## Document Extraction at Scale
+- 1M invoices/month → OCR/layout parser → LLM with **Structured Outputs** (schema) → validators (totals add up, dates valid) → human review queue for low confidence.
+- Cheap model first, escalate failures to a strong model. Fine-tune once you have labelled volume.
+
+## Code Assistant over a Repo
+- Index with AST-aware chunks (functions, classes) + symbol and keyword search + file paths. Agentic search tools (`grep`, `read_file`) beat pure vectors for code.
+- Sandbox execution for tests. Changes as diffs for review. Eval on real issues (SWE-bench style).
+
+## Scale to 100M Documents
+- Partition/shard by tenant, distributed vector DB (Milvus, Qdrant cluster, Vespa) or object-storage search, quantize (int8 / binary + re-score), tiered hot/cold storage, horizontal ingestion workers, Batch embedding.
+
+### Talking Points
+
+## Latency Budget
+```text
+rewrite 150–500 ms · embed 10–100 · search 10–80 · re-rank 50–300 · TTFT 300–1500 · stream the rest
+```
+- Parallelise searches, cache prefixes, route to skip steps, stream everything.
+
+## Failure Modes to Mention
+- Bad parsing, wrong chunking, vocabulary mismatch (add BM25), poor ranking (re-rank), stale or conflicting docs, lost in the middle, prompt injection, permission leaks, agent loops, cost blow-ups.
+
+## What "Production-Ready" Means
+- Meets eval thresholds on a representative golden set, passes security tests, within latency and cost budgets, observable, has rollback and fallback models, and a feedback loop into the test set.

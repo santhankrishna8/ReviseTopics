@@ -25,6 +25,17 @@ A: Asking the model to reason step by step before answering ("think it through, 
 Q*: What makes a good prompt?
 A: A clear role and goal, specific instructions and constraints, the context and data clearly separated (XML tags or delimiters), examples of the desired output, the output format (JSON schema), and what to do when unsure. Then test it on real cases and iterate.
 
+Q*: What is self-consistency?
+A: Sample several chain-of-thought answers at a non-zero temperature and take the majority final answer. Independent mistakes rarely agree, so accuracy rises, and the agreement rate doubles as a confidence score. It costs N times the tokens.
+Q*: What is prompt chaining?
+A: Splitting a task into a sequence of small prompts (extract, then validate in code, then write, then check), passing structured output between them. Each step is simpler to test, cache and run on a cheaper model than one giant prompt.
+Q: Name some advanced prompting techniques.
+A: Self-consistency (majority vote over samples), Tree of Thoughts (branch, evaluate, backtrack), least-to-most (decompose, then solve in order), step-back (ask a general question first), prompt chaining, role prompting, XML-tagged structure, prefilling the answer, and meta-prompting (a model writes or improves the prompt).
+Q*: What is context engineering?
+A: Deciding everything the model sees on each call: instructions, tools, retrieved documents, memory, history and examples. The aim is the smallest set of high-signal tokens. For RAG and agents it matters more than prompt wording, because most failures come from missing, stale or noisy context.
+Q: How do you design prompts for prompt caching?
+A: Put stable content first (system prompt, tool definitions, long documents) and variable content last (history, the new question), keep the prefix byte-identical between calls, and mark cache breakpoints where the API needs them (Anthropic cache_control).
+
 ## APIs in Production
 Q*: What is function calling (tool use)?
 A: You describe functions to the model with a name, a description and a JSON Schema of the parameters. The model replies with a tool call (name plus arguments) instead of text; your code runs the function and sends the result back; the model then answers. It connects LLMs to databases, APIs and actions, and is the basis of agents.
@@ -381,6 +392,78 @@ Q: Should you use "think step by step" with o3-mini?
 A: No. Reasoning models already reason internally; OpenAI recommends simple, direct prompts for them.
 Q: Is the chain of thought a faithful explanation?
 A: Not necessarily. Studies show the stated reasoning can differ from the factors that actually drove the answer, so verify outputs rather than trusting the explanation.
+
+# 07 | Advanced Prompting Techniques | Self-consistency, Tree of Thoughts, least-to-most and decomposition, prompt chaining, step-back, role and persona prompting, XML tags and prefilling, meta-prompting, generated knowledge, reflection, which technique when | Advanced Prompting
+
+## Self-Consistency
+- Sample **several chain-of-thought answers** at temperature > 0 (e.g. 5–20) and take the **majority vote** on the final answer.
+- Errors in different reasoning paths rarely agree, so the most common answer is more often right. It improves maths and logic accuracy considerably.
+- Cost: N× tokens. Use it for high-value questions, or when a cheap model must be reliable.
+```python
+answers = [extract_final(llm(prompt, temperature=0.8)) for _ in range(7)]
+final = max(set(answers), key=answers.count)          # majority vote
+confidence = answers.count(final) / len(answers)      # agreement doubles as a confidence signal
+```
+
+## Tree of Thoughts (ToT)
+- Instead of one chain, the model **branches**: propose several next steps, **evaluate** each ("sure / maybe / impossible"), keep the best, and search (BFS or DFS) with backtracking.
+- Helps on puzzles and planning where early choices matter (Game of 24, crosswords, planning). Very token-hungry.
+- **Graph of Thoughts** generalises it (merge and refine branches). In production, a simple "generate 3 plans, critique, pick one" is the practical version.
+
+## Least-to-Most and Decomposition
+- **Least-to-most**: first ask the model to **break the problem into simpler sub-problems**, then solve them **in order**, feeding each answer into the next.
+- Generalises better than plain CoT to problems harder than the examples.
+- **Decomposed prompting**: route sub-tasks to specialised prompts or tools (a calculator, search, code).
+
+## Prompt Chaining
+- Split a workflow into **steps, each a separate, simple prompt**, passing structured output between them: extract → validate → transform → write.
+- Each step is easier to test, debug, cache and swap for a cheaper model. Code can run between steps (validation, lookups).
+- This is the backbone of most production "LLM workflows" (vs autonomous agents).
+```text
+email ──► [1 extract fields: JSON] ──► code validates ──► [2 draft reply using fields + policy] ──► [3 tone check] ──► send for review
+```
+
+## Step-Back Prompting
+- First ask a **more general question** ("What physics principle applies here?" / "What is our general refund policy?"), answer it, then answer the specific question with that background.
+- Improves reasoning on science and knowledge questions, and retrieval when used as a query transform.
+
+## Role, Persona and Audience
+- "You are a senior tax accountant…" sets vocabulary, depth and priorities. It is most useful combined with **who the audience is** and **what good looks like**.
+- Persona alone does not add knowledge or accuracy. Specific instructions matter more.
+
+## Structure: XML Tags, Prefill and Ordering
+- Wrap inputs in **XML-style tags**: `<document>`, `<instructions>`, `<examples>`, `<user_query>`. The model can then tell data from instructions, and you can refer to them by name ("using the policy in <policy>…").
+- **Long documents first, question last**: for long context, putting the documents at the top and the query at the end often improves quality.
+- **Prefill** (where the API allows it): start the assistant's reply yourself (e.g. `{` or `<answer>`) to force a format. Use Structured Outputs instead when available.
+- **Ask for output inside tags** (`<answer>…</answer>`) so code can extract it reliably.
+
+## Meta-Prompting and Prompt Generation
+- Ask a strong model to **write or improve the prompt**: give it the task, failure examples and the eval criteria. Many consoles have prompt generators and improvers.
+- **Automatic prompt optimisation**: frameworks like **DSPy** treat prompts as parameters and optimise instructions and few-shot examples against a metric on a dataset. See sheet 17.
+
+## Generated Knowledge and Reflection
+- **Generated knowledge**: ask the model to first list relevant facts, then answer using them. Cheap, and it sometimes helps commonsense tasks.
+- **Self-critique / reflection**: "Review your answer against these criteria, list problems, then output a corrected version." It works best with **external feedback** (test results, validator errors), and can make things worse when the model just second-guesses itself.
+
+## Which Technique When
+- Format or classification problems: **few-shot + structured output**.
+- Maths, logic, multi-step reasoning: **CoT** or a **reasoning model**. Add **self-consistency** for reliability.
+- Hard planning and search: **ToT-style branch and evaluate**, or an agent with tools.
+- Long multi-stage tasks: **prompt chaining** with code checks between steps.
+- Knowledge-heavy questions: **RAG**, possibly with **step-back** retrieval.
+- Reasoning models (o-series, extended thinking): keep prompts **simple and direct**, give the goal and constraints, and skip "think step by step".
+
+## Interview Q&A
+Q*: What is self-consistency?
+A: Sampling several chain-of-thought responses at non-zero temperature and returning the most common final answer. It improves accuracy on reasoning tasks because independent mistakes rarely agree, and the agreement rate also serves as a confidence score. It costs N times the tokens.
+Q*: Prompt chaining vs one big prompt?
+A: Chaining splits a task into smaller prompts with structured outputs passed between them. Each step is simpler, testable and cacheable, can use a cheaper model, and code can validate in between. One big prompt is simpler to build but harder to debug and less reliable on complex tasks.
+Q*: What is Tree of Thoughts?
+A: A prompting framework where the model explores several reasoning branches, evaluates partial solutions, and searches with backtracking instead of committing to one chain. It helps on puzzle and planning tasks but uses many more tokens.
+Q: Why use XML tags in prompts?
+A: They clearly separate instructions, documents, examples and user input, reduce the chance that the model treats data as instructions, let you refer to parts by name, and make outputs easy to parse when you ask for answers inside tags.
+Q: What is least-to-most prompting?
+A: First prompt the model to decompose the problem into simpler sub-problems, then solve them sequentially, each using the previous answers. It handles problems harder than those in the examples better than plain chain-of-thought.
 
 # 08 | ReAct: Reasoning + Acting | Thought, Action, Observation loop, prompt format, implementation with stop sequences, ReAct vs CoT, native tool calling, failure modes | ReAct
 
@@ -930,6 +1013,94 @@ Q: Prompt injection vs jailbreak?
 A: Injection overrides the application's intended instructions, often via untrusted data; a jailbreak bypasses the model's own safety policies. Both exploit the model following text it shouldn't.
 Q: Can a better system prompt stop prompt injection?
 A: It helps a little, but no prompt reliably prevents it; real protection comes from limiting what the model can access and do, and validating its outputs.
+
+# 17 | Context Engineering, Prompt Caching & Prompt Optimization | What context engineering is, what goes in the window, ordering and budgets, managing long conversations, prompt caching on OpenAI, Anthropic and Gemini, prompt versioning, DSPy-style optimisation | Context Engineering
+
+## From Prompt Engineering to Context Engineering
+- **Context engineering** = deciding **everything the model sees** on each call: system instructions, tool definitions, retrieved documents, memory, conversation history, examples, the user's message and the output format.
+- With agents and RAG, most failures are **context failures**: the right information was missing, buried, stale or drowned in noise. The model itself was fine.
+- Goal: the **smallest set of high-signal tokens** that lets the model succeed.
+
+## What Goes in the Window
+- **Instructions**: role, goal, rules, output format, what to do when unsure.
+- **Tools**: names, descriptions and schemas. Too many similar tools confuse selection, so load them dynamically by task.
+- **Knowledge**: retrieved chunks (RAG), files and database results.
+- **Memory**: user preferences and facts from earlier sessions, summarised.
+- **History**: recent turns verbatim, older turns summarised.
+- **Examples**: a few canonical few-shot examples, not every edge case.
+- **Scratch state** for agents: the plan, progress notes, results of earlier steps.
+
+## Failure Modes
+- **Context poisoning**: a hallucination or wrong tool result gets into the context and is repeated afterwards.
+- **Context distraction / dilution**: so much text that the model loses focus or copies old patterns.
+- **Context confusion**: irrelevant tools or documents lead to wrong choices.
+- **Context clash**: contradictory information (old and new policy) with no way to tell which wins.
+- **Lost in the middle**: key facts buried mid-context are ignored.
+
+## Techniques
+- **Budget tokens** per section (e.g. 2K instructions, 4K retrieval, 2K history) and enforce it in code.
+- **Order**: stable instructions first (cacheable), then documents, then the user question last. Repeat critical constraints near the end for long prompts.
+- **Summarise / compact** history when it nears the limit. Keep decisions, facts and open tasks, and drop chatter.
+- **Just-in-time retrieval**: give agents tools to fetch details (`read_file`, `search`) instead of preloading everything.
+- **Structured notes**: agents keep a running `notes.md` or todo list outside the window and re-read it.
+- **Sub-agents** with their own clean context for deep sub-tasks, returning only a short summary.
+- **Label sources and dates** so the model can resolve conflicts ("prefer the most recent policy").
+
+## Prompt Caching
+- Providers cache the **processed prefix** of a prompt (its KV cache). Repeat calls that start with the **identical prefix** are cheaper and faster.
+- **OpenAI**: automatic for prompts above ~1K tokens. Cached input tokens are billed at a large discount. Keep the prefix byte-identical.
+- **Anthropic**: mark cache breakpoints with `cache_control`. Cache reads are ~90% cheaper than normal input, writes cost a little extra, and there is a short default TTL (minutes) with a longer option.
+- **Gemini**: implicit caching plus explicit **context caching** with a TTL for big shared documents.
+- Design rules: **static first, dynamic last** (system prompt → tool definitions → long documents → history → new message). Don't put timestamps or user IDs at the top. Keep tool order stable.
+- Good wins: long system prompts, big tool lists, a document you ask many questions about, agent loops that resend the growing history.
+```python
+# Anthropic-style: cache the big static block, keep the user question uncached
+messages.create(
+    model=MODEL, max_tokens=800,
+    system=[
+        {"type": "text", "text": INSTRUCTIONS},
+        {"type": "text", "text": POLICY_HANDBOOK, "cache_control": {"type": "ephemeral"}},
+    ],
+    messages=[{"role": "user", "content": question}],
+)
+```
+
+## Prompts as Versioned Code
+- Store prompts in the repo or a prompt registry with **versions**, owners and change notes. Log the prompt version with every request.
+- Every prompt change runs the **eval suite** (see "LLM Evals"). Compare it with the baseline before shipping.
+- Use templates with named variables and keep logic out of the prompt where code can do it.
+
+## Automatic Prompt Optimisation (DSPy and Friends)
+- **DSPy** treats an LLM pipeline as a program of **modules with signatures** ("question, context → answer"). **Optimisers** (e.g. MIPROv2, BootstrapFewShot) search for better instructions and few-shot examples that maximise **your metric** on a training set.
+- Benefits: prompts are tuned to data and metrics instead of by intuition, and you can re-optimise for a new model in one command.
+- Others: TextGrad, OPRO-style "LLM as optimiser", and the prompt improvers built into vendor consoles.
+- They need a **dataset and a metric**, which you need anyway for evals.
+```python
+import dspy
+dspy.configure(lm=dspy.LM("openai/<model>"))
+
+class AnswerWithContext(dspy.Signature):
+    """Answer the question using only the context. Say 'unknown' if it is not there."""
+    context: str = dspy.InputField()
+    question: str = dspy.InputField()
+    answer: str = dspy.OutputField()
+
+program = dspy.ChainOfThought(AnswerWithContext)
+optimizer = dspy.MIPROv2(metric=exact_match, auto="light")
+tuned = optimizer.compile(program, trainset=train_examples)
+```
+
+## Interview Q&A
+Q*: What is context engineering?
+A: Designing and managing everything that goes into the model's context window on each call (instructions, tools, retrieved knowledge, memory, history, examples) so the model has exactly the high-signal information it needs, and nothing that distracts or contradicts it. For agents it is often more important than prompt wording.
+Q*: How does prompt caching work and how do you design for it?
+A: The provider reuses the computed state of an identical prompt prefix from a recent request, so those tokens are billed at a discount and skip prefill. Put stable content first (system prompt, tool definitions, long documents) and variable content last, keep the prefix byte-identical, and use explicit cache markers where the API requires them.
+Q*: A long-running agent gets worse over time. Why, and what do you do?
+A: Its context fills with old tool outputs, errors and stale plans (dilution, poisoning). Compact the history into summaries, keep structured notes outside the window, clear old tool results, delegate deep sub-tasks to sub-agents with fresh context, and retrieve details just in time.
+Q: What is DSPy?
+A: A framework that defines LLM pipelines as modules with input and output signatures and uses optimisers to automatically find instructions and few-shot examples that maximise a metric on your data, instead of hand-tuning prompts.
+Q: How do you manage prompts in production?
+A: Version them like code, log the version with each request, run them through an eval suite in CI before any change ships, and roll them out gradually with monitoring, so you can roll back if online metrics drop.
 
 @ Review
 

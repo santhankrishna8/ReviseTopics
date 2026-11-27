@@ -1,0 +1,108 @@
+# 01 | LLMs, Prompting & Fine-Tuning Cheat Sheet | How LLMs work, the numbers to remember, prompting techniques, APIs, inference and serving, and when to fine-tune, on one page. | LLMs on one page
+
+### How LLMs Work
+
+## The Generation Loop
+> Tokens → embeddings (+ RoPE positions) → N × [RMSNorm → causal self-attention → + residual → RMSNorm → SwiGLU FFN → + residual] → LM head → logits → softmax → sample → append → repeat.
+- **Prefill** (whole prompt, parallel, compute-bound) sets **TTFT**. **Decode** (one token per step, memory-bound) sets **tokens/s**.
+! An LLM is a next-token predictor. Everything else is training and scaffolding.
+
+## Attention
+```text
+Attention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V        causal mask: no peeking at future tokens
+Multi-head: h heads of d_model/h, concat, × W_O       cost O(n²) in sequence length
+MHA → GQA (groups share K/V) → MQA (one K/V)          smaller KV cache, nearly same quality
+```
+- **FlashAttention**: exact attention, tiled in SRAM, O(n) memory.
+
+## Model Families
+- **Encoder** (BERT): bidirectional. Classify, embed, re-rank.
+- **Decoder** (GPT, Llama, Claude): causal. Generate. This design won.
+- **Encoder-decoder** (T5, Whisper): seq2seq, translation.
+- **MoE**: router sends each token to the top-k experts. Total params ≫ active params, but **all must fit in memory**.
+
+## Training Stages
+- **Pre-train**: next-token cross-entropy on trillions of tokens. FLOPs ≈ 6·N·D. Chinchilla ≈ 20 tokens per parameter.
+- **SFT**: instruction → ideal-answer pairs (format, behaviour).
+- **RLHF** (reward model + PPO + KL penalty) or **DPO** (direct loss on chosen vs rejected).
+- **RL with verifiable rewards** (GRPO) → reasoning models with long chains of thought.
+- **Distillation**: a small student learns from a big teacher.
+
+## Numbers to Remember
+```text
+1 token ≈ 4 chars ≈ 0.75 words           output tokens ≈ 3–5× input price
+weights = params × bytes: 7B ≈ 14 GB FP16, 70B ≈ 140 GB FP16, ÷4 at INT4
+KV/token = 2 × layers × kv_heads × head_dim × bytes   (Llama 3 8B ≈ 128 KB)
+training FLOPs ≈ 6 × params × tokens      inference ≈ 2 × params FLOPs/token
+```
+
+### Prompting
+
+## Prompt Anatomy
+- Role + goal → instructions and constraints → context in **XML tags** → examples → output format (schema) → "if unsure, say so".
+- **Static first, dynamic last** (cacheable prefix). Long documents first, question last.
+! Write the eval cases before you tune the prompt.
+
+## Techniques: Which When
+```text
+format / classify / extract   few-shot + Structured Outputs (JSON Schema)
+maths / logic / multi-step    CoT or a reasoning model; + self-consistency (majority vote)
+planning / search             Tree of Thoughts: branch → evaluate → backtrack
+hard problem                  least-to-most: decompose → solve in order
+knowledge questions           RAG; step-back question for background
+multi-stage task              prompt chaining with code checks between steps
+needs tools                   function calling / ReAct loop
+```
+
+## Context Engineering
+- The smallest set of high-signal tokens: instructions, tools, retrieved knowledge, memory, history and examples, each with a **token budget**.
+- Failures: poisoning, distraction, confusion, clash, lost in the middle.
+- Fixes: compaction, just-in-time retrieval, structured notes, sub-agents, dated sources.
+
+## Sampling Knobs
+- **temperature** (0 for deterministic tasks, 0.7–1 for creative), **top_p** (change one of the two, not both), **max_tokens**, **stop**, presence and frequency penalties.
+- Reasoning models: use reasoning effort instead of temperature, and keep prompts simple.
+
+### APIs & Production
+
+## API Essentials
+- Messages: system / user / assistant / tool. The API is **stateless**, so resend the history each call.
+- **Structured Outputs** (strict JSON Schema) > JSON mode > "please reply in JSON".
+- **Tool calling loop**: model → tool_calls → run them → tool results → model … until it answers or hits the limit.
+- **Streaming** (SSE) for UX. **Batch API** for offline work (~50% cheaper).
+
+## Reliability & Cost
+- Retry 429 and 5xx with **exponential backoff + jitter**. Set timeouts. Fall back to another model.
+- Cost levers: smaller model, shorter prompts, **prompt caching**, caching responses, capping output, batching, routing easy tasks to cheap models.
+- Security: prompt injection (direct and indirect), jailbreaks, least-privilege tools, output validation.
+
+## Inference & Serving
+- **KV cache**, **continuous batching**, **PagedAttention** (vLLM), **prefix caching**, **speculative decoding** (draft + verify, same output).
+- **Quantization**: FP16 → FP8/INT8 (near-lossless) → INT4 (GPTQ, AWQ, GGUF). A bigger model at 4-bit often beats a smaller model at 16-bit.
+- Engines: vLLM, SGLang, TGI, TensorRT-LLM, llama.cpp / Ollama.
+
+### When to Train
+
+## The Decision Ladder
+```text
+1 prompt + examples + better model    hours
+2 RAG / tools          (doesn't KNOW)  days–weeks
+3 fine-tune LoRA/DPO   (doesn't DO)    data + $10s–$1000s
+4 continued pre-train  (whole domain/language missing)
+5 from scratch         (almost never)
+```
+! Climb only when the eval says the rung below can't reach the bar.
+
+## RAG vs Fine-Tuning
+```text
+RAG           facts, fresh/private data, citations, permissions, instant updates
+Fine-tune     format, tone, narrow task skill, small cheap model, shorter prompts
+Both          fine-tune behaviour + RAG knowledge (RAFT trains use of context)
+Neither       small static corpus → long context / CAG with prompt caching
+```
+
+## LoRA & QLoRA
+- **LoRA**: W = W₀ + (α/r)·B·A, base frozen, r 8–64, LR ~2e-4, all linear layers, ~0.1–1% of params trainable. Merge it or hot-swap adapters.
+- **QLoRA**: base in 4-bit NF4 + double quantization + paged optimisers → 70B on one 48–80 GB GPU.
+- Data: chat JSONL, the same system prompt as production, loss on assistant tokens, quality > quantity (start with 50–100, then double).
+- Watch: validation loss rising = overfitting. Forgetting → run general evals.

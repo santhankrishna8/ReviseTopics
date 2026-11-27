@@ -1,0 +1,94 @@
+# 01 | Agents & MCP Cheat Sheet | Agentic AI on one page: the layers, autonomy levels, the loop, patterns, memory, MCP and A2A, frameworks, guardrails, cost and evaluation. | Agents on one page
+
+### Foundations
+
+## The Agentic Stack
+```text
+1 Interface        chat, API, Slack, voice, jobs
+2 Orchestration    loop / graph, planning, routing, retries, budgets, HITL
+3 Model            frontier planner + small router/grader; structured output
+4 Context/memory   prompt, history, compaction, long-term memory
+5 Knowledge        RAG, SQL, search, graphs
+6 Tools            function calling, MCP, sandboxed code, browser
+7 Guardrails       input/output/action checks, permissions, approvals
+8 Eval/observe     traces, offline suites, online judging, feedback
+9 Infrastructure   gateway, queues, state store, caching, secrets, quotas
+```
+
+## Autonomy Levels
+- **L0** single call → **L1** workflow / chain (code decides) → **L2** router / single tool → **L3** agent loop → **L4** multi-agent / long-running.
+! Use the lowest level that works. Each step up adds cost, latency, variance and risk.
+
+## The Loop
+```python
+for step in range(MAX_STEPS):
+    r = llm(messages, tools=tools)
+    if not r.tool_calls:
+        return r.text                                  # final answer
+    for call in r.tool_calls:
+        result = run_tool(call, user=current_user)     # validate args, enforce permissions
+        messages.append(tool_result(call.id, result))
+return "Stopped: step budget reached"
+```
+
+### Patterns & Memory
+
+## Patterns
+- **ReAct**: Thought → Action → Observation, repeated.
+- **Plan-and-Execute**: plan up front, execute the steps, re-plan on failure.
+- **Reflection / Reflexion**: critique and retry. Best with external feedback (tests, validators).
+- **Multi-agent**: supervisor / router, hierarchical, pipeline, peer debate. Clear owner + termination condition.
+- **Workflows**: prompt chaining, routing, parallelisation, orchestrator-workers, evaluator-optimiser.
+
+## Memory
+```text
+short-term   thread messages + scratchpad, checkpointed; trim / summarise / clear old tool output
+semantic     facts & preferences ("prefers Python")
+episodic     past sessions and how tasks went (few-shot from experience)
+procedural   rules / instructions the agent follows and refines
+```
+- Write in the hot path (a tool) or in the background (extract after the session). Retrieve the profile + top-k by relevance and recency.
+- Users can view and delete. Watch for **memory poisoning**.
+
+### Protocols & Frameworks
+
+## MCP
+- Host (the app) → one **client** per server → **server** exposes **tools** (model-controlled), **resources** (app-controlled), **prompts** (user-controlled).
+- JSON-RPC 2.0 over **stdio** (local) or **Streamable HTTP** (remote). OAuth 2.1 for remote servers, no token passthrough.
+- Tool design: clear names and descriptions, typed schemas, compact results, read-only hints.
+
+## A2A
+- **Agent-to-agent**: Agent Card (skills, endpoint, auth) → send a task → status stream → artifacts. The remote agent stays opaque.
+- MCP = agent ↔ tools. A2A = agent ↔ agent.
+
+## Frameworks
+```text
+LangGraph            state graph, reducers, checkpointers, interrupt(), time travel
+OpenAI Agents SDK    agents, handoffs, guardrails, tracing
+Claude Agent SDK     the Claude Code harness as a library: tools, MCP, subagents
+CrewAI               role-based crews and tasks
+AutoGen / AG2        conversational multi-agent
+LlamaIndex Workflows event-driven, RAG-first
+Temporal / Inngest   durable execution for long tasks
+```
+
+### Safety & Production
+
+## Guardrails
+- **Lethal trifecta**: private data + untrusted content + external communication. Break at least one leg.
+- Input checks (abuse, injection), output checks (schema, PII, policy, groundedness), action checks (allow-lists, argument validation, act as the user).
+- **Human approval** for irreversible, costly or external actions. **Sandbox** code (container / micro-VM, no network, limits).
+- Budgets: steps, tokens, $, time. Loop detection and a kill switch.
+
+## Cost & Latency
+- Cost grows ~**quadratically** with steps (the history is resent), so use prompt caching, compaction, small models for routine steps, and budgets.
+- Fewer steps through better tools, parallel tool calls, streaming progress, async for long tasks.
+- Track **cost per successful task**.
+
+## Evaluating Agents
+- **Outcome**: check the final state (row exists, tests pass). **Trajectory**: right tools, steps, no loops.
+- **pass@k** (any of k succeeds) vs **pass^k** (all k succeed = reliability).
+- Simulated users for conversations. Trace every run (LangSmith, Langfuse, Phoenix, OTel).
+
+## When Not to Use an Agent
+- Known steps → workflow. Tight latency or high volume → a single call. No verifiable success → no autonomy. No good tools → no agent.

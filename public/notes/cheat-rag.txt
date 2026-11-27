@@ -1,0 +1,99 @@
+# 01 | RAG Cheat Sheet | The whole RAG stack on one page: pipeline, types of RAG, chunking, ingestion, embedding and vector DB choice with cost math, retrieval methods, metrics and production. | RAG on one page
+
+### Pipeline & Types
+
+## The Two Pipelines
+```text
+INGEST  sources → parse/OCR → clean/dedupe/PII → chunk → enrich (context, metadata, ACL) → embed → upsert (vector + BM25)
+QUERY   question → rewrite/route → hybrid search (ACL filter) → RRF → re-rank → top 3–8 → prompt + citations → LLM → guard
+```
+! Debug retrieval first: if the right chunk never reaches the prompt, no model can answer.
+
+## Types of RAG
+```text
+Naive        embed → top-k → stuff → generate
+Advanced     + rewrite / hybrid / re-rank / compress
+Modular      swappable modules: route, search, memory, fuse
+Agentic      agent decides when/where/how often to retrieve (multi-hop)
+Self-RAG     reflection tokens: retrieve? relevant? supported? useful?
+CRAG         grade docs: correct → refine, incorrect → web search, ambiguous → both
+Adaptive     classifier routes: no retrieval / single-step / multi-step
+RAG-Fusion   multi-query + RRF        Speculative: small drafts, big verifies
+GraphRAG     entities + communities: global / relationship questions
+Multimodal   OCR + captions, or ColPali page-image retrieval
+CAG          small static corpus preloaded + prompt cache, no retriever
+```
+
+### Chunking & Ingestion
+
+## Chunking Strategies
+- **Recursive** 300–800 tokens, 10–20% overlap: the baseline. **Structure-aware**: headings, functions, whole tables.
+- **Semantic**: cut where sentence similarity drops. **Parent-child / small-to-big**: search small, return the parent. **Sentence window**.
+- **Proposition**: an LLM rewrites text into atomic facts. **Agentic**: an LLM picks the boundaries.
+- **Late chunking**: embed the whole document, pool tokens per chunk. **Contextual retrieval**: an LLM prepends context per chunk (−49% failed retrievals, −67% with re-rank).
+! Prepend the title and heading path to every chunk.
+
+## Ingestion Rules
+- Layout-aware parsers: **Docling, Unstructured, LlamaParse, Azure DI / Textract**. OCR for scans. Tables → Markdown or SQL. Images → captions.
+- Stable chunk ID = doc_id + index. **content_hash** → upsert changed, delete removed. Delete by doc_id (GDPR).
+- New embedding model = **re-embed everything** into a blue/green index.
+
+### Embeddings & Vector DBs
+
+## Choosing an Embedding Model
+- Shortlist on the MTEB retrieval tab → **test on your own queries** (Recall@10, MRR).
+- Weigh: languages, domain, max input, dimensions, $ per 1M tokens, latency, data residency, query/passage prefixes.
+- Defaults: text-embedding-3-small (cheap), Cohere / Voyage / Gemini (strong), BGE-M3 / Qwen3-Embedding (open, self-host).
+
+## Cost Math (Nov 2026)
+```text
+embed cost   = chunks × tokens ÷ 1M × price
+10M × 500 tok = 5B tok → 3-small $0.02/M ≈ $100 · 3-large $0.13/M ≈ $650 · batch ≈ ½
+storage      = N × dims × 4 B → 10M × 1536 ≈ 61 GB (+20–50% HNSW)
+shrink       Matryoshka dims ↓ · int8 ÷4 · binary ÷32 + re-score
+per query    LLM input context dominates → send fewer, better chunks
+```
+
+## Choosing a Vector DB
+```text
+on Postgres, < ~50M, joins + ACLs   pgvector
+no ops, fast start                  Pinecone serverless
+heavy filters, open source          Qdrant
+hybrid built in                     Weaviate / Elasticsearch / OpenSearch
+billions, high QPS                  Milvus / Zilliz, Vespa
+huge + cold, multi-tenant           turbopuffer / LanceDB (object storage)
+cache / ultra-low latency           Redis        prototype: Chroma / FAISS
+```
+- Filter **during** the ANN search, not after. Namespaces per tenant for strong isolation.
+
+### Retrieval
+
+## Retrieval Methods
+- **BM25** (exact terms, IDs) + **dense** (meaning) → **hybrid** with **RRF**: Σ 1/(60 + rank).
+- **SPLADE**: learned sparse expansion. **ColBERT**: token vectors + MaxSim (bigger index).
+- **Cross-encoder re-rank** of the top 50 → keep 3–8. The biggest quality jump after hybrid.
+- **Query transforms**: rewrite, multi-query, HyDE, step-back, decomposition.
+- **Self-query**: an LLM writes the filters (validate them, add ACLs in code). **Routing** by source. **MMR** for diversity.
+
+### Metrics
+
+## Retrieval Metrics
+```text
+Hit@k      any relevant in top k                      Precision@k = rel in top k / k
+Recall@k   rel in top k / all rel                     MRR = mean(1 / rank of first rel)
+AP         mean of P@i at each relevant rank          MAP = mean AP over queries
+nDCG@k     Σ rel_i / log2(i+1) ÷ ideal DCG             graded relevance + position
+```
+- Low Recall@50 → a finding problem (parse, chunk, embed, add BM25). Good @50 but bad @5 → a ranking problem (re-rank).
+
+## Generation Metrics
+- **Faithfulness / groundedness**, **answer relevance**, **correctness** vs a reference, **context precision and recall** (Ragas, TruLens triad).
+- Golden set: 100–300 real + synthetic questions, including unanswerable, keyword and multi-hop ones.
+
+### Production
+
+## Production Checklist
+- **Latency**: stream, run searches in parallel, cache (embeddings, retrieval, semantic answers, prompt prefix), route to skip retrieval.
+- **Security**: ACL metadata + server-side filters, injection-safe prompts (documents are data), PII masking, audit log, deletion.
+- **Quality**: citations per claim, a score threshold → "I don't know", dates for freshness.
+- **Observe**: retrieved IDs and scores, per-stage latency, tokens and cost, no-answer rate, thumbs, judge-sampled faithfulness → new test cases.

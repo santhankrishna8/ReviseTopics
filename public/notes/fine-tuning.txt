@@ -1,0 +1,403 @@
+@ Must-Know
+# b | Interview Basics: Fine-Tuning & When to Train | When to prompt, retrieve, fine-tune or train, RAG vs fine-tuning, LoRA and QLoRA, training data, preference tuning, distillation, cost and evaluation. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## When to Train
+Q*: How do you decide between prompting, RAG, fine-tuning and training a model?
+A: Climb the ladder and stop at the first rung that meets the eval bar. 1. Better prompts and few-shot examples. 2. RAG or tools if the model lacks knowledge or fresh data. 3. Fine-tune if it knows enough but behaves wrong (format, style, a narrow task, latency or cost at scale). 4. Continued pre-training if a whole domain or language is missing. 5. Training from scratch almost never, only with huge data, budget and a special reason.
+Q*: When do you need RAG and when do you need fine-tuning?
+A: RAG fixes knowledge problems: private, changing or large data, plus the need for citations and permissions. Fine-tuning fixes behaviour problems: a consistent format or tone, a specialised task such as classification or extraction, following a complex house style, or making a small cheap model do what a big one does. If you need both, fine-tune for behaviour and use RAG for facts.
+Q*: Why is fine-tuning a poor way to add knowledge?
+A: The model absorbs facts unreliably from a few examples and can mix them up (hallucinating with more confidence). Updates mean retraining. It cannot cite sources or enforce permissions. RAG updates instantly by re-indexing.
+Q*: Give good reasons to fine-tune.
+A: Strict output format or schema that prompting can't hold. A narrow high-volume task (classification, extraction, routing) where a small fine-tuned model matches a big one at a fraction of the cost and latency. Tone or brand voice. Domain jargon understanding. Shorter prompts, because the instructions are baked in. Tool-calling reliability for your own tools.
+Q: When would you train a model from scratch?
+A: Almost never. Only for a new modality or an under-served language, strict sovereignty or licensing needs, or a tiny special-purpose model, and only with trillions of tokens or a narrow huge dataset, millions of dollars of compute and a research team.
+
+## Methods
+Q*: What is LoRA?
+A: Low-Rank Adaptation freezes the base weights and learns a small update ΔW = B·A for chosen layers, where B and A have a low rank r (e.g. 8–64). Only ~0.1–1% of parameters are trained, so memory and storage drop sharply. The adapter can be merged into the weights or swapped at serving time.
+Q*: What is QLoRA?
+A: LoRA on top of a base model loaded in 4-bit (NF4) precision, with double quantization and paged optimisers. It lets you fine-tune a 65–70B model on a single 48–80 GB GPU with quality close to 16-bit LoRA.
+Q*: Full fine-tuning vs PEFT?
+A: Full fine-tuning updates every weight. It has the highest ceiling but needs memory for weights, gradients and optimiser states (~16 bytes per parameter), plus a full copy per task, and it risks more forgetting. PEFT (LoRA, QLoRA, adapters, prompt tuning) trains a small add-on, so it is cheap, fast and swappable, and is usually enough.
+Q: What are the main fine-tuning objectives?
+A: SFT (learn from prompt → ideal response pairs), preference tuning (DPO, ORPO, KTO, RLHF from chosen vs rejected answers), reinforcement fine-tuning with a grader or verifiable reward, and distillation (learn from a larger teacher's outputs).
+
+## Data & Evaluation
+Q*: How much data do you need to fine-tune?
+A: For style or format on a capable model, a few hundred to a few thousand high-quality examples. For a narrow task like classification, 1K–10K labelled examples. For a new skill or domain, tens of thousands or more. Quality, consistency and coverage of edge cases matter more than raw count. Start small (50–100), evaluate, then grow.
+Q*: How do you evaluate a fine-tuned model?
+A: Hold out a test set from the same distribution (never trained on). Compare against the base model with the best prompt and against a bigger model, using task metrics (accuracy, F1, exact match, a judge rubric). Also run general-capability and safety checks to catch forgetting or regressions.
+Q: What is catastrophic forgetting and how do you limit it?
+A: Losing general abilities after training on a narrow dataset. Limit it with PEFT (LoRA), a low learning rate, few epochs, mixing in general instruction data, and evaluating general skills before and after.
+Q: What does fine-tuning cost?
+A: LoRA on a 7–8B model with a few thousand examples: a few GPU-hours (tens of dollars). QLoRA on 70B: a GPU-day or so. Hosted fine-tuning APIs charge per training token. Full fine-tuning large models needs multi-GPU clusters. The hidden costs are data creation, evaluation, serving a custom model, and retraining when the base model changes.
+
+@ Beginner
+# 01 | The Decision Ladder: Prompt, RAG, Fine-Tune or Train? | Diagnose the failure first, the five rungs, what each rung fixes and costs, decision questions, worked scenarios, anti-patterns | Decision Ladder
+
+## Diagnose Before You Choose
+- Write down the **failure** with real examples. Is it **"doesn't know"** (missing or outdated facts) or **"doesn't do"** (wrong format, tone, task skill, too slow or too costly)?
+- Build a small **eval set** first (50–200 cases). Every rung is judged by the same numbers.
+- "Doesn't know" → retrieval or tools. "Doesn't do" → prompting first, then fine-tuning.
+
+## The Five Rungs
+- **1. Prompt engineering**: clear instructions, examples (few-shot), structured output, chain-of-thought, a better model. Cost: hours. Fixes most problems.
+- **2. RAG / tools**: give the model your data or live systems at query time. Cost: days to weeks of engineering plus serving. Fixes knowledge and freshness.
+- **3. Fine-tuning (SFT / LoRA / DPO)**: change behaviour, format and task skill. Make a small model good at one job. Cost: data work plus training (tens to thousands of dollars) plus maintenance.
+- **4. Continued pre-training (domain-adaptive)**: train the base model on billions of domain tokens (medical, legal, a new language) before instruction tuning. Cost: thousands to hundreds of thousands of dollars.
+- **5. Pre-training from scratch**: your own foundation model. Cost: millions and a research team.
+! Each rung up costs ~10× more and is slower to change. Go up only when the eval says the rung below cannot reach the bar.
+
+## Decision Questions
+- Does the answer depend on **data that changes** or is private? → RAG.
+- Do we need **citations or per-user permissions**? → RAG.
+- Is the gap **format, tone or consistency** that few-shot prompting fails to hold? → fine-tune.
+- Is a **big model too slow or expensive** for a high-volume narrow task? → fine-tune or distil a small model.
+- Are prompts **huge** (pages of instructions and examples) on every call? → fine-tune to bake them in, or use prompt caching first.
+- Does the model **not understand the domain's language** at all (rare language, deep jargon)? → continued pre-training, then fine-tune.
+- Are we just **unsure**? → prompt + RAG, measure, then decide.
+
+## Worked Scenarios
+- **HR policy chatbot**: policies change, citations required. → **RAG**. No fine-tuning.
+- **Classify 5M support tickets/day into 40 categories**: big model works but is costly. → **fine-tune a small model** (or distil from the big one) on a few thousand labelled tickets.
+- **Generate SQL for our warehouse**: needs the schema (changing) plus the house SQL style. → **RAG over schema docs and examples**. Fine-tune later if the style is still wrong.
+- **Legal drafting in the firm's exact template and tone**: knowledge from clause libraries (RAG) plus a consistent voice and structure (**fine-tune**). → **both**.
+- **Medical assistant in a low-resource language**: the base model is weak in that language. → **continued pre-training** on that language's medical text, then SFT, plus RAG for guidelines.
+- **Extract 25 fields from invoices as strict JSON**: start with Structured Outputs plus few-shot. Fine-tune only if accuracy plateaus.
+
+## Anti-Patterns
+- Fine-tuning to "teach the model our docs". Use RAG.
+- Fine-tuning before trying a strong prompt and a stronger model.
+- No baseline eval, so you cannot tell whether fine-tuning helped.
+- Fine-tuning on a few hundred noisy, inconsistent examples.
+- Forgetting the **maintenance cost**: new base models arrive every few months, and your fine-tune must be redone and re-evaluated.
+
+## Interview Q&A
+Q*: A stakeholder says "let's fine-tune GPT on our wiki". How do you respond?
+A: Ask what problem we are solving. If it is answering from the wiki, RAG is better: it updates instantly, cites pages, respects permissions and costs less. Fine-tuning would add facts unreliably and need retraining for every change. I'd build RAG plus an eval set, and only fine-tune if a behaviour gap remains.
+Q*: What is your order of attempts for improving an LLM feature?
+A: Measure first with an eval set. Then prompt engineering (instructions, examples, structure), then a stronger model, then RAG or tools for missing knowledge, then fine-tuning for remaining behaviour, cost or latency gaps. Continued pre-training only for whole-domain or language gaps.
+Q: When does fine-tuning save money?
+A: When a high-volume, narrow task can move from a large model with a long prompt to a small fine-tuned model with a short prompt. Cheaper per token, fewer tokens and lower latency outweigh the training and hosting costs.
+
+# 02 | RAG vs Fine-Tuning: Where Each Fits | A side-by-side matrix, knowledge vs behaviour, freshness, citations, permissions, latency and cost, combining them (RAFT, fine-tuned retrievers), long context and CAG as alternatives, interview scenarios | RAG vs Fine-Tuning
+
+## Side-by-Side
+```text
+                       RAG                                  Fine-tuning
+Fixes                  missing / private / fresh knowledge   behaviour: format, style, task skill
+Update speed           minutes (re-index)                    retrain (hours–days) + re-evaluate
+Citations              yes, natural                          no
+Per-user permissions   yes (filter at retrieval)             no (knowledge is in the weights)
+Hallucination on facts lower (grounded)                      can rise (confident recall of fuzzy facts)
+Data needed            documents (unlabelled)                labelled examples (hundreds–thousands+)
+Upfront cost           pipeline engineering                  data creation + training
+Per-query cost         + retrieval + longer prompts          shorter prompts; can use a smaller model
+Latency                + retrieval (~50–300 ms)              can be lower (small model, short prompt)
+Explainability         see which chunks were used            opaque
+Risk                   bad retrieval → bad answer            forgetting, overfitting, maintenance on new base models
+```
+
+## Knowledge vs Behaviour
+- **Knowledge**: "What is our refund window in Germany?" The fact lives in a document and changes. → RAG.
+- **Behaviour**: "Always answer in our JSON schema, in a calm support tone, under 80 words, and escalate legal threats." → prompting first, then fine-tuning if it is inconsistent.
+- **Skill**: "Turn customer emails into our internal ticket taxonomy." A narrow task with labelled examples. → fine-tuning shines (especially on a small model).
+
+## Combining Them
+- **Fine-tune the generator to use retrieved context better**: train on (question, retrieved chunks including distractors, cited answer). Called **RAFT** (Retrieval-Augmented Fine-Tuning). It teaches the model to ignore irrelevant chunks and cite.
+- **Fine-tune the retriever**: fine-tune the embedding model or the re-ranker on your query-passage pairs. This is often the best return on investment inside RAG.
+- **Fine-tune for format, RAG for facts**: the common production combination.
+- **Fine-tune a small router or grader** for an agentic RAG pipeline, to cut cost.
+
+## Long Context and CAG as Alternatives
+- Small, static knowledge (one manual, < ~100–200K tokens): **put it in the prompt** with prompt caching (CAG). No retriever and no training.
+- Grows, changes often or needs permissions: RAG.
+- Long context is also how you **test** whether retrieval is the bottleneck: if the model answers well with the whole document in context, fix the retrieval.
+
+## What Interviewers Want to Hear
+- You **diagnose first** (knowledge vs behaviour), have an **eval set**, start cheap, and know they **combine**.
+- You mention **freshness, citations, permissions** for RAG, and **format, cost, latency, small models** for fine-tuning.
+- You mention **maintenance**: re-indexing is routine, re-fine-tuning on each new base model is a project.
+
+## Interview Q&A
+Q*: Compare RAG and fine-tuning in 30 seconds.
+A: RAG injects knowledge at query time: fresh, citable, permission-aware, and easy to update, at the cost of retrieval latency and longer prompts. Fine-tuning changes the model's behaviour: format, tone, task skill, or making a small model good enough, at the cost of labelled data, training and retraining. Facts → RAG, behaviour → fine-tuning, often both.
+Q*: Can fine-tuning reduce hallucinations?
+A: It can reduce format errors and teach the model to say "I don't know" or to cite context (as in RAFT). But fine-tuning in new facts often increases confident hallucination about those facts. Grounding with RAG is the main tool against factual hallucination.
+Q: What is RAFT?
+A: Retrieval-Augmented Fine-Tuning: fine-tune the model on questions paired with retrieved documents (relevant ones plus distractors) and answers that cite the relevant document. The model gets better at using the context and ignoring noise in your domain.
+Q: Your model gives correct facts but the wrong format 15% of the time. What do you do?
+A: First use structured outputs or a JSON Schema, a clearer prompt and examples, plus validation and repair. If it still fails on hard cases, fine-tune on a few hundred to a few thousand correct examples, especially if moving to a smaller model.
+
+@ Intermediate
+# 03 | Fine-Tuning Methods: Full, LoRA, QLoRA & PEFT | Full fine-tuning memory math, LoRA maths and hyper-parameters, QLoRA, DoRA and other PEFT methods (adapters, prefix and prompt tuning, IA3), which layers to target, merging and multi-adapter serving | Methods
+
+## Full Fine-Tuning
+- Update **all weights**. The highest quality ceiling, used for big domain shifts or by labs.
+- Memory with Adam in mixed precision ≈ **16 bytes per parameter** (2 weights + 2 gradients + 12 FP32 optimiser states and master weights). A 7B model needs ~112 GB before activations, so several GPUs or ZeRO / FSDP sharding.
+- One **full model copy per task**, and the most risk of forgetting.
+
+## LoRA: Low-Rank Adaptation
+- Idea: the weight **update** during fine-tuning has a **low intrinsic rank**. So freeze W₀ and learn **ΔW = B·A**, where W₀ is d×k, B is d×r, A is r×k, and r ≪ d (e.g. 16).
+- Forward pass: h = W₀x + (α/r)·B·A·x. B starts at zero, so training starts exactly from the base model.
+- Parameters per adapted matrix: r(d + k) instead of d·k. For d = k = 4096 and r = 16: 131K vs 16.8M, **~0.8%**.
+- **Hyper-parameters**: rank `r` (8–64, higher for harder tasks), `lora_alpha` (often r or 2r), dropout (0–0.1), learning rate (~1e-4 to 2e-4, about 10× higher than full fine-tuning), **target modules** (attention q, k, v, o, and the MLP gate, up and down projections. Targeting all linear layers usually works best).
+- **Merging**: W = W₀ + (α/r)·B·A, so there is no extra inference latency. Or keep adapters separate and **hot-swap** them.
+
+## QLoRA
+- Load the frozen base in **4-bit NF4** (a data type tuned for normally distributed weights), use **double quantization** (quantize the quantization constants too) and **paged optimisers** to survive memory spikes. Train LoRA adapters in BF16 on top.
+- Fine-tune **65–70B on one 48–80 GB GPU**, or 7–8B on a consumer 16–24 GB GPU.
+- Slightly slower than LoRA (dequantization overhead), and quality is close to 16-bit LoRA.
+
+## Other PEFT Methods
+- **DoRA**: splits weights into magnitude and direction, applies LoRA to the direction. Often a little better than LoRA at the same rank.
+- **Adapters**: small bottleneck MLPs inserted between layers (the original PEFT). They add inference latency unless merged.
+- **Prefix tuning / prompt tuning / P-tuning**: learn "virtual token" vectors prepended to the input or to each layer. Very few parameters, weaker on small models.
+- **IA³**: learns vectors that rescale activations. Tiny and fast, less expressive.
+- In practice: **LoRA or QLoRA is the default**. Others are interview vocabulary.
+
+## Multi-Adapter Serving
+- One base model in GPU memory plus **many LoRA adapters** (one per customer or task) loaded on demand. vLLM, LoRAX and S-LoRA batch requests for different adapters together.
+- Much cheaper than hosting one full fine-tuned model per task.
+- Hosted APIs (OpenAI, Bedrock, Vertex, Together, Fireworks) serve your fine-tunes for you, sometimes at a higher per-token price.
+
+## Interview Q&A
+Q*: Explain the maths of LoRA.
+A: Freeze the pre-trained weight W₀ and add a trainable low-rank product B·A with rank r much smaller than the matrix dimensions, scaled by α/r. B is initialised to zero so training starts from the base model. Only A and B are trained, cutting trainable parameters to a fraction of a percent, and at the end B·A can be merged into W₀.
+Q*: How does QLoRA fit a 70B fine-tune on one GPU?
+A: The frozen base weights are stored in 4-bit NF4, cutting 140 GB to ~35 GB, with double quantization saving more. Only small LoRA adapters are trained in higher precision, and paged optimisers move optimiser state to CPU memory during spikes.
+Q: Which layers should LoRA target?
+A: Applying it to all linear layers (attention q, k, v, o and the MLP projections) generally gives the best quality. Attention-only is cheaper but weaker. Tune the rank to the task difficulty.
+Q: Why use a higher learning rate for LoRA than for full fine-tuning?
+A: Only a tiny number of freshly initialised parameters are trained and their effect is scaled, so they need larger steps (around 1e-4) to learn in a reasonable time. Full fine-tuning uses ~1e-5 to avoid wrecking the pre-trained weights.
+
+# 04 | Data for Fine-Tuning | The chat JSONL format, how many examples, quality rules, covering edge cases, synthetic data and distillation from a stronger model, cleaning and dedup, train / validation / test splits, data for preference tuning | Training Data
+
+## The Format
+- Most stacks use **chat-format JSONL**: one example per line with a `messages` list (system, user, assistant), and optionally tool calls.
+```json
+{"messages": [
+  {"role": "system", "content": "Classify the ticket. Reply with JSON: {\"category\": ..., \"priority\": ...}"},
+  {"role": "user", "content": "Card charged twice for order #4411, need refund asap"},
+  {"role": "assistant", "content": "{\"category\": \"billing.duplicate_charge\", \"priority\": \"high\"}"}
+]}
+```
+- Train with the **same system prompt and format you will use in production**.
+- Loss is usually computed on **assistant tokens only**.
+- **Preference data** (DPO): `{"prompt": ..., "chosen": ..., "rejected": ...}`.
+
+## How Many Examples
+- **Format, tone or style**: 100–1,000 good examples.
+- **Classification / extraction** on a small model: 1K–10K, with **enough per class** (at least 50–100 for rare classes).
+- **New complex skill**: 10K–100K+.
+- OpenAI's guidance: a minimum of 10, with improvements usually seen from **50–100**. Then **double the data and watch the eval curve**. If doubling helps little, more data won't fix it.
+
+## Quality Rules
+- **Correct**: every assistant answer is what you want the model to say. Errors are learned too.
+- **Consistent**: the same kind of input always gets the same style of output. Inconsistent labels cap accuracy.
+- **Diverse and representative**: real input distribution, lengths, languages, typos, edge cases and **hard negatives**.
+- **Include refusals and "I don't know"** cases if you want that behaviour.
+- **No leakage**: test examples must not appear in training (dedupe near-duplicates across splits).
+! 1,000 clean examples beat 10,000 noisy ones. Spend the time on review.
+
+## Synthetic Data and Distillation
+- Use a **strong model** to generate inputs (realistic user messages) and/or outputs (ideal answers), then **filter**: validate the format, check with a judge model, have humans spot-check a sample.
+- **Distillation recipe**: run the big model with your best prompt on 5K–50K real inputs, keep the outputs that pass your graders, and fine-tune a small model on them. You often get most of the big model's quality at **10–50× lower cost**.
+- Risks: copying the teacher's mistakes, low diversity (everything sounds the same), and licence terms that may forbid training competing models on outputs.
+
+## Splits and Hygiene
+- **Train / validation / test**, e.g. 80 / 10 / 10. Validation is for early stopping and hyper-parameters. Test is touched once, for the final report.
+- Split by **entity or time** when needed (all tickets from one customer in one split), to avoid optimistic leakage.
+- Version the datasets and record which data produced which model.
+- Strip **PII and secrets** unless needed and allowed: fine-tuned models can memorise and leak training data.
+
+## Interview Q&A
+Q*: How would you build a fine-tuning dataset for ticket classification?
+A: Sample real tickets across categories, languages and lengths. Get them labelled by trained annotators with clear guidelines (or labelled by an LLM and reviewed). Measure inter-annotator agreement, balance rare classes, dedupe, split by customer or time into train, validation and test, and format them as chat examples matching the production prompt.
+Q*: Is synthetic data OK for fine-tuning?
+A: Yes, if it is filtered and grounded in real input distributions. A strong model can generate answers (distillation) or inputs (augmentation), but you must validate them with graders and human spot-checks, keep diversity, and still test on real data.
+Q: Why compute the loss only on assistant tokens?
+A: You want the model to learn to produce the responses, not to predict the users' messages or the fixed system prompt. Training on those wastes capacity and can teach odd behaviour.
+
+# 05 | Preference Tuning & Distillation in Practice | When SFT is not enough, collecting preference pairs, DPO with TRL, ORPO and KTO, reinforcement fine-tuning with graders, distilling a big model into a small one step by step | Preference & Distillation
+
+## When SFT Is Not Enough
+- SFT teaches "do this". It struggles with **"prefer this over that"**: the more concise answer, the safer refusal, the warmer tone, the answer that cites correctly.
+- Preference tuning learns from **comparisons**, which are easier to label than writing perfect answers.
+- Typical pipeline: **SFT first** (format and task), then **DPO** (quality and preferences).
+
+## Collecting Preference Pairs
+- Sample 2–4 responses per prompt from your SFT model (with temperature).
+- Label the **chosen** and **rejected** answers by humans, by an LLM judge with a rubric, or by rules (tests pass, schema valid, length).
+- Good pairs differ in the **quality you care about**, not randomly. Include hard cases.
+
+## DPO with Hugging Face TRL
+```python
+from datasets import load_dataset
+from peft import LoraConfig
+from trl import DPOConfig, DPOTrainer
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_id = "my-org/support-sft-8b"                     # start from the SFT checkpoint
+model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype="bfloat16")
+tok = AutoTokenizer.from_pretrained(model_id)
+pairs = load_dataset("json", data_files="prefs.jsonl")["train"]   # prompt / chosen / rejected
+
+trainer = DPOTrainer(
+    model=model,
+    args=DPOConfig(output_dir="out-dpo", beta=0.1, learning_rate=5e-6,
+                   num_train_epochs=1, per_device_train_batch_size=4),
+    train_dataset=pairs,
+    processing_class=tok,
+    peft_config=LoraConfig(r=16, lora_alpha=32, target_modules="all-linear"),
+)
+trainer.train()
+```
+- **beta** controls how far the model may move from the reference: lower allows more change.
+
+## ORPO, KTO and Reinforcement Fine-Tuning
+- **ORPO**: one stage that combines SFT with an odds-ratio preference penalty. No reference model is needed.
+- **KTO**: uses **unpaired** thumbs-up / thumbs-down labels. Handy when you only have user feedback logs.
+- **Reinforcement fine-tuning (RFT)**: you provide prompts plus a **grader** (code or a model) that scores answers, and the model is trained with RL to maximise the score. Good for tasks with checkable correctness (medical coding, legal citation format, maths). Offered by OpenAI for some reasoning models, and doable with TRL's GRPO trainer.
+
+## Distilling a Big Model into a Small One
+- 1. Fix the **task and eval set**. Measure the big model (teacher) and the small model (student) with prompts.
+- 2. Collect **5K–50K real or realistic inputs**.
+- 3. Run the **teacher** with the best prompt (and reasoning if useful). Store its outputs.
+- 4. **Filter** the outputs with graders (schema valid, judge score, tests pass).
+- 5. **SFT the student** (LoRA is fine) on the filtered pairs.
+- 6. **Evaluate** the student vs the teacher on the held-out test. Ship it if it is within your tolerance at a big cost or latency saving.
+- 7. Optionally add **DPO** using teacher-preferred vs student-generated answers.
+
+## Interview Q&A
+Q*: Why do SFT before DPO?
+A: SFT first teaches the task and format, so the model produces sensible candidate answers. DPO then refines its preferences between good and better answers. Running DPO on a model that cannot do the task yet gives weak, noisy pairs.
+Q*: How would you distil GPT-class quality into a small model for an extraction task?
+A: Run the large model on thousands of real documents with the best prompt, validate and filter its JSON outputs, fine-tune a small open model with LoRA on those pairs, then compare it against the large model on a held-out human-labelled test set, plus its cost and latency, before switching traffic.
+Q: What does the beta parameter in DPO control?
+A: The strength of the implicit KL constraint to the reference model. A higher beta keeps the tuned model closer to the reference, and a lower beta lets preferences change it more, with more risk of drift.
+
+@ Advanced
+# 06 | Hands-On: LoRA with TRL & Hosted Fine-Tuning APIs | A complete QLoRA SFT script, key settings, reading the loss curves, merging and serving the adapter, hosted fine-tuning (OpenAI, Bedrock, Vertex, Together) and its workflow, tool choices (TRL, Unsloth, Axolotl, LLaMA-Factory) | Hands-On
+
+## QLoRA SFT with TRL
+```python
+import torch
+from datasets import load_dataset
+from peft import LoraConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from trl import SFTConfig, SFTTrainer
+
+base = "meta-llama/Llama-3.1-8B-Instruct"
+bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                         bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.bfloat16)
+model = AutoModelForCausalLM.from_pretrained(base, quantization_config=bnb, device_map="auto")
+tok = AutoTokenizer.from_pretrained(base)
+
+data = load_dataset("json", data_files={"train": "train.jsonl", "validation": "val.jsonl"})
+
+trainer = SFTTrainer(
+    model=model,
+    processing_class=tok,
+    train_dataset=data["train"],
+    eval_dataset=data["validation"],
+    peft_config=LoraConfig(r=16, lora_alpha=32, lora_dropout=0.05,
+                           target_modules="all-linear", task_type="CAUSAL_LM"),
+    args=SFTConfig(
+        output_dir="out-lora", num_train_epochs=2, learning_rate=2e-4,
+        per_device_train_batch_size=4, gradient_accumulation_steps=4,
+        lr_scheduler_type="cosine", warmup_ratio=0.03, bf16=True,
+        eval_strategy="steps", eval_steps=50, logging_steps=10,
+        assistant_only_loss=True,                 # learn the answers, not the prompts
+    ),
+)
+trainer.train()
+trainer.save_model("out-lora")                    # saves the small adapter only
+```
+
+## Reading the Loss Curves
+- **Training and validation loss both fall**, then flatten: good. Stop around where validation flattens.
+- **Training loss keeps falling, validation rises**: **overfitting**. Use fewer epochs, more data, a lower rank or learning rate, more dropout.
+- **Loss barely moves**: the learning rate is too low, the data format is wrong (labels masked badly), or the task is already solved by the base model.
+- **Loss near zero quickly**: duplicated or trivially easy data, or leakage.
+! Loss is a sanity check, not the goal. Judge the model on the task eval set.
+
+## Merge and Serve
+```python
+from peft import AutoPeftModelForCausalLM
+m = AutoPeftModelForCausalLM.from_pretrained("out-lora", torch_dtype="bfloat16")
+m.merge_and_unload().save_pretrained("support-8b-merged")     # one standalone model
+```
+- Or serve the base model plus the adapter with vLLM: `vllm serve meta-llama/Llama-3.1-8B-Instruct --enable-lora --lora-modules support=out-lora`, then call it with model `"support"`.
+
+## Hosted Fine-Tuning APIs
+- **OpenAI**: upload JSONL → create a fine-tuning job (supervised, DPO, or reinforcement fine-tuning on supported models) → get a model ID like `ft:...` → call it like any model. You pay per training token plus per-token inference.
+- **AWS Bedrock, Google Vertex AI, Azure AI Foundry**: fine-tune selected closed and open models inside your cloud account.
+- **Together, Fireworks, Predibase** and others: LoRA fine-tuning and serving for open models.
+- Pros: no GPUs, fast. Cons: limited control (hyper-parameters, methods), base-model choice and lock-in.
+```python
+from openai import OpenAI
+client = OpenAI()
+f = client.files.create(file=open("train.jsonl", "rb"), purpose="fine-tune")
+job = client.fine_tuning.jobs.create(training_file=f.id, model="<a fine-tunable model>",
+                                     suffix="ticket-router")
+# poll client.fine_tuning.jobs.retrieve(job.id) → job.fine_tuned_model, then use it as model=...
+```
+
+## Tooling
+- **Hugging Face TRL + PEFT**: the reference library for SFT, DPO, GRPO and reward modelling.
+- **Unsloth**: hand-written kernels for ~2× faster, lower-memory LoRA / QLoRA on one GPU. Great for Colab and single-GPU work.
+- **Axolotl, LLaMA-Factory, torchtune**: config-driven fine-tuning recipes with many models and methods.
+- **DeepSpeed / FSDP**: multi-GPU sharding for full fine-tuning.
+
+## Interview Q&A
+Q*: Walk me through fine-tuning an open model with QLoRA.
+A: Prepare chat-format JSONL with train and validation splits. Load the base model in 4-bit NF4 with bitsandbytes. Configure LoRA (rank ~16, all linear layers). Train with TRL's SFTTrainer for 1–3 epochs at ~2e-4 with assistant-only loss, watching validation loss. Save the adapter, evaluate it on the test set against the base model, then merge it or serve it as a LoRA adapter in vLLM.
+Q*: Your validation loss starts rising after epoch 1. What do you do?
+A: That is overfitting. Stop at the best checkpoint (early stopping), reduce epochs or the learning rate, add more or more diverse data, lower the LoRA rank or add dropout, and check for duplicated examples.
+Q: Hosted fine-tuning vs doing it yourself?
+A: Hosted is quicker and needs no GPU or MLOps work, but gives less control and ties you to the provider's models and pricing. Self-managed gives full control over the model, methods and data location, at the cost of infrastructure and expertise.
+
+# 07 | Evaluating, Costing & Maintaining Fine-Tuned Models | Baselines, task metrics and judges, regression and safety checks, overfitting and forgetting, training and serving cost math, the TCO of a fine-tune, retraining when base models change, continued pre-training and training from scratch | Eval & Cost
+
+## Evaluate Against Strong Baselines
+- Compare the fine-tune against: **(a)** the base model with your **best prompt**, **(b)** a **bigger model** with the best prompt, and **(c)** the previous production version.
+- Use **task metrics** (accuracy, macro-F1, exact match, schema validity, field-level F1 for extraction), plus **an LLM judge with a rubric** for open-ended outputs, plus **human review** of a sample.
+- Report results **per slice** (language, category, length) and with **confidence intervals**.
+
+## Regression and Safety Checks
+- **General capability**: a small general benchmark set (instruction following, maths, reasoning) to catch **catastrophic forgetting**.
+- **Safety**: harmful-request refusal, jailbreak prompts, PII leakage (does it repeat training data?).
+- **Format robustness**: unusual inputs, empty input, very long input, other languages.
+- **Calibration**: does it still say "I don't know" when it should?
+
+## Cost Math
+- **Hosted training cost** ≈ training tokens × epochs × price per 1M training tokens. Example: 5,000 examples × 600 tokens × 3 epochs = 9M tokens. Multiply by the provider's training rate (check the current price list).
+- **Self-hosted training**: GPU-hours × hourly price. LoRA on 8B with 5K examples ≈ 1–3 hours on one A100 / H100 (very roughly $2–$4/hour, Nov 2026) → **tens of dollars**. QLoRA on 70B ≈ many hours on one 80 GB GPU → **~$100–$500**. A full fine-tune of 70B needs a multi-GPU cluster for days → **thousands**.
+- **Serving cost**: hosting a dedicated fine-tuned model (GPUs 24/7) vs multi-LoRA on a shared base vs hosted per-token pricing.
+- **The hidden majority**: data labelling and review, eval building, engineers' time, and repeating it all when you change the base model.
+
+## Total Cost of Ownership: Is It Worth It?
+- Savings per month = (old cost per request − new cost per request) × requests per month.
+- Example: 3M requests/month move from a large model ($0.004 each) to a fine-tuned small model ($0.0004 each) → ~$10,800/month saved. That justifies a few thousand dollars of data and training work.
+- At **low volume**, prompting a strong model is almost always cheaper overall.
+
+## Maintenance
+- New base models ship every few months. The fine-tune is tied to its base, so plan to **re-run the pipeline** (data → train → eval) on the new base and compare.
+- Keep the **data, configs and eval set versioned** so retraining is a script, not a project.
+- Monitor production drift (new categories, new phrasing) and add **fresh labelled data** periodically.
+
+## Continued Pre-Training and Training from Scratch
+- **Continued (domain-adaptive) pre-training**: next-token training on **billions of unlabelled domain tokens** (biomedical papers, legal corpora, a new language), then SFT and preference tuning again. Used when the base model lacks the domain's vocabulary and style. Mix in general data to limit forgetting.
+- **Training from scratch**: needs trillions of tokens (or a narrow, huge proprietary dataset), large GPU clusters, and data, infra and research teams. Reasons: sovereignty, licensing, a new modality, or a very small special model (on-device). For almost every company, the answer is **"no, adapt an existing model"**.
+
+## Interview Q&A
+Q*: How do you prove a fine-tune was worth it?
+A: Show on a held-out test set that it beats the base model with the best prompt (and matches or approaches a bigger model) on task metrics, with no regressions on general and safety checks, and that the cost or latency savings at our volume exceed the training, data and maintenance costs.
+Q*: What risks come with fine-tuning?
+A: Catastrophic forgetting, overfitting to narrow data, memorising and leaking sensitive training data, weakened safety behaviour, lock-in to one base model, and the ongoing cost of retraining and re-evaluating.
+Q: When is continued pre-training justified?
+A: When a large domain or language corpus exists and evals show the base model fundamentally lacks the domain's vocabulary or knowledge, which instruction fine-tuning and RAG cannot fix. Then you adapt the base on billions of domain tokens before instruction tuning.
+Q: How do you plan for base model upgrades?
+A: Keep the data pipeline, training configs and eval suite versioned and automated. When a new base model ships, first check whether it meets the bar with prompting alone. If not, re-run the fine-tune and compare against the current production model before switching.

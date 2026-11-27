@@ -1,0 +1,531 @@
+@ Must-Know
+# b | Interview Basics: LLM Architecture & Inference | How LLMs work inside: tokens, attention, the transformer block, training stages, long context, MoE, the KV cache, quantization and serving. Turn on Quiz mode, answer each one out loud, then open it. | ★ Interview Basics
+
+## Inside the Model
+Q*: How does an LLM generate text?
+A: It is a next-token predictor. The text is split into tokens, each token becomes a vector, and a stack of transformer layers mixes information between tokens with attention. The last layer produces a probability for every token in the vocabulary. One token is picked (greedy or sampled), appended to the input, and the loop repeats until a stop token or the length limit.
+Q*: What is a token and why does it matter?
+A: A token is a sub-word piece produced by a tokenizer such as BPE. In English one token is about 4 characters, or 0.75 words. Pricing, context limits and latency are all counted in tokens. Tokenization also explains odd failures such as counting letters, reversing words and arithmetic on long numbers.
+Q*: Explain self-attention.
+A: Each token makes three vectors: a query, a key and a value. A token's query is compared with every key (dot product, scaled by √d and passed through softmax) to get attention weights. The token's new representation is the weighted sum of the values. So every token can pull in information from any other token, in parallel. In decoder LLMs a causal mask stops tokens from seeing the future.
+Q*: Why multi-head attention?
+A: Several attention heads run in parallel on smaller projections, and each can learn a different relationship (syntax, coreference, position). Their outputs are concatenated and projected back. It is richer than one big head for the same cost.
+Q*: What is inside one transformer block?
+A: Normalisation (LayerNorm or RMSNorm) → multi-head self-attention → residual add → normalisation → feed-forward network (an MLP, often SwiGLU) → residual add. Attention mixes information across tokens, the feed-forward layer processes each token on its own and holds much of the model's knowledge. Models stack 30–100+ of these blocks.
+Q*: How does the model know word order?
+A: Attention alone ignores order, so positions are injected. The original transformer added sinusoidal position vectors. Most modern LLMs use RoPE (rotary position embeddings), which rotates the query and key vectors by an angle that depends on position, so attention scores depend on relative distance. ALiBi adds a distance penalty instead.
+Q: Encoder vs decoder vs encoder-decoder models?
+A: Encoder-only (BERT) sees the whole text in both directions, so it suits classification and embeddings. Decoder-only (GPT, Llama, Claude) predicts the next token with causal attention, so it suits generation. Encoder-decoder (T5, original transformer) encodes the input, then decodes an output, which suits translation and summarisation. Decoder-only won for general LLMs because it scales simply with one objective and does in-context learning well.
+
+## Training
+Q*: What are the stages of training an LLM?
+A: 1. Pre-training: next-token prediction on trillions of tokens of web, code and books. This gives knowledge and language ability, and is the expensive part. 2. Supervised fine-tuning (SFT) on instruction-response examples, which teaches the assistant format. 3. Preference tuning (RLHF with a reward model and PPO, or DPO) to make answers helpful, honest and safe. 4. Often reinforcement learning on verifiable tasks (maths, code) to build reasoning.
+Q*: RLHF vs DPO?
+A: RLHF trains a reward model on human preference pairs, then optimises the LLM against it with RL (PPO) plus a KL penalty that keeps it close to the original. DPO skips the reward model and RL: it uses the preference pairs directly in a simple classification-style loss. DPO is simpler and more stable. RLHF can be more flexible.
+Q*: What are scaling laws?
+A: Loss falls predictably, as a power law, as you add parameters, data and compute. Chinchilla (2022) showed a compute-optimal model needs about 20 training tokens per parameter. Today's models train on far more tokens than that ("over-training"), because a smaller model that was trained longer is cheaper to serve.
+Q: What makes a "reasoning model" different?
+A: It is trained, mostly with reinforcement learning on problems with checkable answers, to produce a long internal chain of thought before answering. It spends more tokens (test-time compute) for better accuracy on maths, code and planning, at the cost of latency and price.
+Q: Why do LLMs hallucinate?
+A: They are trained to produce plausible continuations, not verified facts. They have no built-in source lookup, knowledge is compressed and fuzzy for rare facts, and training and evals often reward a confident guess over "I don't know". Grounding (RAG), citations, verification and abstention training reduce it.
+
+## Efficiency & Scale
+Q*: What is the KV cache?
+A: During generation, the keys and values of all earlier tokens are stored so each new token only computes its own query, key and value and attends to the cache, instead of recomputing the whole prompt every step. It makes decoding fast, but uses a lot of GPU memory that grows with sequence length × batch size.
+Q*: Prefill vs decode?
+A: Prefill processes the whole prompt in one parallel pass and is compute-bound. It sets time to first token. Decode generates one token at a time, reading all the weights and the KV cache each step, and is memory-bandwidth-bound. It sets tokens per second. That is why long prompts hurt TTFT and long answers hurt total latency.
+Q*: What is Mixture of Experts?
+A: The feed-forward layer is replaced by many expert MLPs plus a router that sends each token to the top-k (e.g. 2 of 8, or 8 of 256) experts. The model has a huge total parameter count but only a fraction is active per token, so you get large-model quality at lower compute per token. All experts must still fit in memory.
+Q*: What is quantization?
+A: Storing weights (and sometimes activations or the KV cache) in fewer bits: FP16/BF16 → INT8 or FP8 → INT4. It cuts memory and speeds up memory-bound decoding with a small quality loss. Common methods: GPTQ, AWQ, GGUF (llama.cpp), bitsandbytes. A 70B model needs ~140 GB at FP16 but ~35–40 GB at 4-bit.
+Q: Why is attention expensive for long context, and what helps?
+A: Standard attention compares every token with every other token, which is O(n²) compute. FlashAttention computes the same result in tiles without storing the n×n matrix. GQA/MQA shrink the KV cache by sharing key/value heads. Sliding-window and sparse attention limit how far tokens look. RoPE scaling (YaRN, position interpolation) extends the trained context length.
+Q: What is speculative decoding?
+A: A small draft model proposes several tokens, and the big model checks them all in one forward pass, accepting the longest prefix it agrees with. The output distribution is the same as the big model's, but you get 2–3× faster decoding when the draft is usually right.
+
+@ Beginner
+# 01 | Tokens & Tokenization | Why sub-word tokens, BPE step by step, byte-level BPE, SentencePiece and WordPiece, vocabulary size trade-offs, special tokens and chat templates, token gotchas, embedding and output layers | Tokenization
+
+## Why Sub-Word Tokens
+- **Characters**: tiny vocabulary but very long sequences, so attention cost explodes. **Whole words**: short sequences but a huge vocabulary, and unknown words break it.
+- **Sub-words** sit in between: common words become one token ("the"), rare words split into pieces ("tokenization" → "token" + "ization"), and nothing is ever unknown.
+- Rule of thumb for English: **1 token ≈ 4 characters ≈ 0.75 words**. Code, numbers and non-Latin scripts use **more tokens** for the same text.
+
+## Byte-Pair Encoding (BPE)
+- **Training**: start from single characters (or bytes). Count every adjacent pair in the corpus, **merge the most frequent pair** into a new token, and repeat until the vocabulary reaches the target size (e.g. 100K).
+- **Encoding**: apply the learned merges in order to new text.
+- **Byte-level BPE** (GPT-2 onward, tiktoken) starts from the 256 byte values, so **any** text, emoji or binary can be encoded.
+```text
+corpus: "low lower lowest"
+start:  l o w _ l o w e r _ l o w e s t
+merge 1: (l,o) → lo       lo w _ lo w e r _ lo w e s t
+merge 2: (lo,w) → low     low _ low e r _ low e s t
+merge 3: (e,r) → er ...   the vocabulary now holds "low", "er", ...
+```
+
+## Other Tokenizers
+- **WordPiece** (BERT): like BPE but merges the pair that most increases the likelihood of the corpus. It marks word-continuation pieces with `##`.
+- **SentencePiece** (Llama 1/2, T5, Gemma): treats text as a raw stream including spaces (shown as `▁`), and supports BPE or a **Unigram** model. It is language-independent and needs no pre-tokenization.
+- **tiktoken** encodings: `cl100k_base` (GPT-4, GPT-3.5, text-embedding-3) and `o200k_base` (GPT-4o and later).
+
+## Vocabulary Size Trade-offs
+- Typical sizes: **32K** (Llama 2), **100K–128K** (GPT-4, Llama 3), **200K–256K** (GPT-4o, Gemma).
+- **Bigger vocabulary**: fewer tokens per text (cheaper, more context fits, better for multilingual text), but bigger embedding and output matrices and rarer tokens that get less training.
+- **Smaller vocabulary**: smaller matrices, but longer sequences.
+
+## Special Tokens and Chat Templates
+- Special tokens mark structure: `<|begin_of_text|>`, `<|eot_id|>`, `<|im_start|>system`, end-of-sequence, padding, tool-call markers.
+- A **chat template** turns a list of messages (system, user, assistant) into one token sequence with these markers. Using the **wrong template** with an open model badly hurts quality.
+- In Hugging Face: `tokenizer.apply_chat_template(messages, add_generation_prompt=True)`.
+
+## Token Gotchas
+- **Counting letters** ("how many r's in strawberry"): the model sees "straw" + "berry", not letters.
+- **Arithmetic** on long numbers: digits are grouped inconsistently into tokens.
+- **Leading spaces matter**: " Hello" and "Hello" are different tokens.
+- **Non-English text** can cost 2–4× more tokens, and so more money and context.
+- **Glitch tokens**: rare tokens seen almost never in training can produce odd behaviour.
+
+## From Tokens to Vectors and Back
+- **Embedding layer**: a lookup table of shape [vocab_size × d_model]. Token ID → vector.
+- **LM head (unembedding)**: the final hidden state × [d_model × vocab_size] → **logits** (one score per token) → softmax → probabilities.
+- Many models **tie** the input embedding and output matrices to save parameters.
+- These token embeddings are **not** the sentence embeddings used for RAG. Embedding models are separately trained encoders that output one vector per text.
+
+## Interview Q&A
+Q*: How does BPE build its vocabulary?
+A: It starts from characters or bytes and repeatedly merges the most frequent adjacent pair into a new token until it reaches the target vocabulary size. Encoding new text applies those merges in the same order.
+Q*: Why are LLMs bad at counting letters in a word?
+A: They never see letters: the word arrives as one or a few sub-word tokens, so letter-level information is only indirectly learned.
+Q: What is the trade-off in vocabulary size?
+A: A larger vocabulary shortens sequences (cheaper inference, more context, better multilingual efficiency) but enlarges the embedding and output layers and spreads training over rarer tokens.
+Q: What is a chat template?
+A: The model-specific format that converts role-tagged messages into a single token sequence with special tokens marking each role and turn. It must match what the model was fine-tuned on.
+
+# 02 | The Transformer: Attention from Scratch | Queries, keys and values, scaled dot-product attention step by step, causal masking, multi-head attention, the cost of attention, a NumPy implementation | Attention
+
+## Intuition
+- Each token asks a question (**query**), advertises what it contains (**key**) and carries content to share (**value**).
+- A token compares its query with every key. High similarity means "pay attention to that token", and it takes a weighted mix of their values.
+- "The **animal** didn't cross the street because **it** was tired": attention lets "it" pull information from "animal".
+
+## Scaled Dot-Product Attention
+- Inputs: X of shape [n tokens × d_model]. Learned matrices W_Q, W_K, W_V project X into **Q, K, V**.
+- **Attention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V**
+- **Q·Kᵀ** gives an [n × n] matrix of similarity scores. **Dividing by √d_k** keeps the scores from growing with dimension, which would make softmax saturate and the gradients vanish. **Softmax** turns each row into weights that sum to 1. **× V** gives the weighted mix.
+```python
+import numpy as np
+
+def attention(X, Wq, Wk, Wv, causal=True):
+    Q, K, V = X @ Wq, X @ Wk, X @ Wv                 # [n, d_k] each
+    scores = Q @ K.T / np.sqrt(K.shape[-1])          # [n, n]
+    if causal:                                       # token i may only see tokens <= i
+        scores = np.where(np.tril(np.ones_like(scores)) == 1, scores, -1e9)
+    w = np.exp(scores - scores.max(-1, keepdims=True))
+    w = w / w.sum(-1, keepdims=True)                 # softmax per row
+    return w @ V                                     # [n, d_k]
+```
+
+## Causal Masking
+- In a decoder LLM, token i must not see tokens after it, or training would be cheating (it could read the answer).
+- The mask sets future scores to **−∞** before softmax, so their weights become 0.
+- Because of this mask, one forward pass over a training sequence gives a **next-token prediction at every position at once**. That is why training is parallel.
+
+## Multi-Head Attention
+- Split d_model into **h heads** of size d_model / h (e.g. 4096 / 32 = 128). Each head has its own W_Q, W_K, W_V and attends independently.
+- Concatenate the head outputs and multiply by **W_O** to mix them back to d_model.
+- Heads specialise: some track the previous token, some track syntax, some copy repeated patterns ("induction heads").
+
+## Self vs Cross Attention
+- **Self-attention**: Q, K and V all come from the same sequence (every decoder LLM layer).
+- **Cross-attention**: Q from one sequence (the decoder), K and V from another (the encoder output). Used in encoder-decoder models, and in some multimodal models to look at image features.
+
+## The Cost of Attention
+- The score matrix is **n × n**, so compute and memory grow **quadratically** with sequence length: doubling the context quadruples the attention work.
+- Per-token decode cost grows **linearly** with context, because each new token attends to all cached keys.
+- This is why long context is expensive, and why efficient attention exists (sheet 06).
+
+## Interview Q&A
+Q*: Write the attention formula and explain each part.
+A: softmax(QKᵀ/√d_k)V. QKᵀ scores how well each query matches each key. Dividing by √d_k keeps the variance stable so softmax does not saturate. Softmax normalises each row into weights. Multiplying by V produces a weighted average of value vectors for each token.
+Q*: Why scale by √d_k?
+A: Dot products of random vectors grow in magnitude with dimension. Large scores push softmax into regions where one weight is ~1 and gradients are ~0. Scaling keeps the scores around unit variance.
+Q*: What does the causal mask do?
+A: It blocks each position from attending to later positions by setting those scores to minus infinity before softmax. This keeps generation autoregressive and lets training predict every next token in parallel.
+Q: What is the complexity of self-attention?
+A: O(n²·d) time and O(n²) memory for the score matrix in the naive form, where n is the sequence length.
+
+# 03 | Decoder Block, Positions & Model Families | The full decoder block, residuals and normalisation, the feed-forward layer and SwiGLU, positional encodings (sinusoidal, learned, RoPE, ALiBi), parameter counting, encoder vs decoder vs encoder-decoder, multimodal and SSM models | Decoder & Families
+
+## The Decoder Block
+```text
+x ─► RMSNorm ─► Multi-Head Self-Attention (causal) ─► + x ─► RMSNorm ─► Feed-Forward (SwiGLU) ─► + ─► next block
+     └────────────────────── residual ──────────────────┘     └─────────────── residual ─────────────┘
+```
+- **Residual connections** (x + f(x)) let gradients flow through 100+ layers, and let each layer add a small update to a shared "residual stream".
+- **Pre-norm** (normalise before each sub-layer) trains more stably than the original post-norm. **RMSNorm** (scale only, no mean subtraction) is cheaper than LayerNorm and used by Llama, Qwen and Mistral.
+- After the last block: a final norm → LM head → logits.
+
+## The Feed-Forward Network
+- Applied to **each token independently**: expand d_model → ~4× (or ~2.7× with gated variants), apply a non-linearity, project back.
+- **SwiGLU** (Llama, PaLM): FFN(x) = W₂(SiLU(W₁x) ⊙ W₃x). The gate improves quality over plain ReLU or GELU.
+- The FFN layers hold about **two-thirds of the parameters** and act like a big key-value memory of facts and patterns.
+
+## Positional Encodings
+- **Sinusoidal** (original 2017): fixed sine and cosine waves of different frequencies added to the embeddings.
+- **Learned absolute** (GPT-2, BERT): one learned vector per position. It cannot go past the trained length.
+- **RoPE (Rotary Position Embedding)**: rotates each pair of dimensions in Q and K by an angle proportional to the position. The dot product then depends on the **relative distance** between tokens. Used by Llama, Qwen, Mistral and most modern LLMs. Context can be extended with **position interpolation, NTK-aware scaling or YaRN**.
+- **ALiBi**: no position vectors. It adds a penalty to attention scores proportional to distance, and extrapolates well to longer inputs.
+
+## Counting Parameters
+- Per layer ≈ **12 × d_model²** (4d² for attention Q, K, V, O plus ~8d² for an FFN with 4× expansion).
+- Total ≈ 12 × layers × d² + vocab × d (embeddings).
+- Example: GPT-3 has d = 12,288 and 96 layers. 12 × 96 × 12,288² ≈ **174B**, close to its 175B.
+- Memory to load weights = parameters × bytes per parameter (2 for FP16/BF16). A 7B model ≈ **14 GB**, 70B ≈ **140 GB**.
+
+## Model Families
+- **Encoder-only** (BERT, RoBERTa, DeBERTa): bidirectional attention, trained with **masked language modelling**. Used for classification, NER, embeddings and re-rankers.
+- **Decoder-only** (GPT series, Llama, Mistral, Qwen, Claude, Gemini): causal attention, **next-token prediction**. General generation, chat, code and agents.
+- **Encoder-decoder** (T5, BART, the original transformer, Whisper): the encoder reads the input, the decoder generates with cross-attention. Strong for translation, summarisation and speech-to-text.
+- **Why decoder-only dominates**: one simple objective on any text, it scales cleanly, it does zero- and few-shot learning in context, and it handles any task as text in, text out.
+
+## Multimodal Models
+- **Vision**: an image encoder (a ViT) splits the image into patches, encodes them, and a projector maps them into the LLM's token-embedding space. The LLM then attends to "image tokens" like text tokens.
+- **Audio**: audio is encoded (e.g. Whisper-style) into tokens, and speech output uses audio tokens or a separate speech decoder.
+- Native multimodal models (GPT-4o, Gemini) are trained on mixed modalities from early on.
+
+## Beyond Transformers
+- **State Space Models (Mamba)**: a recurrent-style layer with **linear** cost in sequence length and constant memory per token at inference. Hybrid models (Jamba, some Qwen and NVIDIA models) mix SSM and attention layers.
+- **Diffusion language models**: generate by iteratively denoising whole sequences. Still an active research area.
+
+## Interview Q&A
+Q*: Why do transformers use residual connections and normalisation?
+A: Residuals give gradients a direct path through deep stacks and let each layer make incremental updates. Normalisation (pre-norm RMSNorm today) keeps activations at a stable scale, so very deep models train reliably.
+Q*: What is RoPE and why is it popular?
+A: Rotary position embeddings rotate query and key vectors by position-dependent angles so that attention scores depend on the relative offset between tokens. It needs no extra parameters, works with the KV cache, and can be stretched to longer contexts with scaling methods such as YaRN.
+Q*: Why is BERT not used as a chatbot?
+A: BERT is an encoder trained to fill in masked tokens using both directions. It is not trained to generate text left to right, so it suits understanding tasks (classification, embeddings, re-ranking), not open-ended generation.
+Q: Roughly how much GPU memory does a 13B model need?
+A: About 26 GB just for FP16 weights (13B × 2 bytes), plus memory for the KV cache and activations. With 4-bit quantization the weights take roughly 7–8 GB.
+Q: What does the feed-forward layer do?
+A: It transforms each token's vector independently through an expand-activate-project MLP. It holds most of the parameters and much of the stored factual knowledge, while attention moves information between tokens.
+
+@ Intermediate
+# 04 | How LLMs Are Trained: Pre-training & Scaling Laws | The next-token objective and cross-entropy loss, training data and its mix, compute and FLOPs, scaling laws and Chinchilla, emergent abilities, distributed training, what pre-training gives and does not give | Pre-training
+
+## The Objective
+- **Next-token prediction**: for every position, predict the next token. The loss is **cross-entropy** = −log p(correct token), averaged over all tokens.
+- **Perplexity** = exp(average loss). Lower is better. A perplexity of 10 means the model is as uncertain as picking among ~10 equally likely tokens.
+- **Teacher forcing**: during training, the model always conditions on the **true** previous tokens, not its own predictions.
+
+## Data
+- Trillions of tokens: filtered web crawl (Common Crawl), code (GitHub), books, papers, Wikipedia, maths, multilingual text and synthetic data. Llama 3 was trained on ~15T tokens.
+- **Quality filtering** (classifiers, heuristics), **deduplication**, toxicity and PII filtering, and a carefully tuned **data mix** matter as much as size.
+- **Annealing / mid-training**: the final phase up-weights high-quality, code, maths and long-context data.
+- **Knowledge cutoff**: the model knows nothing after its data ends, which is a reason for RAG and tools.
+
+## Compute
+- Training FLOPs ≈ **6 × parameters × tokens** (2 for the forward pass, 4 for the backward pass).
+- Example: 70B parameters × 15T tokens × 6 ≈ 6.3 × 10²⁴ FLOPs, which is months on thousands of GPUs and costs tens of millions of dollars.
+- This is why almost nobody pre-trains from scratch. Teams **adapt** existing models.
+
+## Scaling Laws
+- **Kaplan et al. (2020)**: loss falls as a **power law** in parameters, data and compute.
+- **Chinchilla (Hoffmann et al., 2022)**: for a fixed compute budget, scale parameters and tokens **equally**. The compute-optimal ratio is **~20 tokens per parameter**. Chinchilla (70B, 1.4T tokens) beat the larger Gopher (280B).
+- **Over-training**: modern small models train far past 20 tokens per parameter (e.g. an 8B model on 15T tokens, ~1,900 per parameter). The extra training is a one-off cost, but a smaller model is cheaper for **every** inference afterward.
+- **Test-time compute scaling**: reasoning models show that spending more tokens thinking at inference also improves accuracy predictably.
+
+## Emergent Abilities and In-Context Learning
+- Abilities such as few-shot learning, chain-of-thought and following instructions appear more reliably as scale increases. Some apparent "jumps" are artefacts of all-or-nothing metrics.
+- **In-context learning**: the model learns a task from examples in the prompt without any weight updates.
+
+## Distributed Training (names to know)
+- **Data parallel**: each GPU gets a copy of the model and a slice of the batch, and gradients are averaged. **FSDP / ZeRO** shard the parameters, gradients and optimiser state across GPUs to save memory.
+- **Tensor parallel**: split each matrix multiply across GPUs. **Pipeline parallel**: split the layers across GPUs. **Expert parallel** for MoE.
+- **Mixed precision**: BF16 compute with FP32 master weights. FP8 on newer hardware.
+- Memory per parameter during training with Adam ≈ **16 bytes** (weights, gradients, two optimiser moments, master copy), which is why training needs much more memory than inference.
+
+## What Pre-training Gives (and Doesn't)
+- **Gives**: language, world knowledge, reasoning patterns, coding ability, all compressed into the weights.
+- **Doesn't give**: following instructions politely, refusing harmful requests, a consistent assistant persona, or reliably saying "I don't know". A base model just **continues text**. That is the job of post-training (sheet 05).
+
+## Interview Q&A
+Q*: What loss is used to pre-train an LLM?
+A: Cross-entropy on next-token prediction: the negative log probability of the true next token, averaged over every position in every training sequence.
+Q*: What did Chinchilla show?
+A: For a fixed compute budget, the best model balances parameters and training tokens, roughly 20 tokens per parameter, so many earlier models were too big and under-trained. Today models are trained well beyond that ratio to make inference cheaper.
+Q*: What is the difference between a base model and a chat model?
+A: A base model is the pre-trained next-token predictor: it continues text and does not reliably follow instructions. A chat or instruct model has been post-trained with SFT and preference tuning to follow instructions, use a chat format and behave safely.
+Q: How do you estimate training compute?
+A: About 6 × parameters × training tokens FLOPs. Divide by the effective GPU throughput (e.g. 40% of an H100's peak) to get GPU-hours.
+Q: What is perplexity?
+A: The exponential of the average cross-entropy loss: the effective number of equally likely choices the model faces per token. Lower is better. It is useful for comparing language models on the same tokenizer and data, but it does not measure helpfulness.
+
+# 05 | Post-training: SFT, RLHF, DPO & Reasoning Models | Instruction tuning, chat formatting, reward models, RLHF with PPO and the KL penalty, DPO and its relatives, Constitutional AI and RLAIF, RL with verifiable rewards and GRPO, reasoning models and test-time compute, distillation, alignment trade-offs | Post-training
+
+## Supervised Fine-Tuning (SFT)
+- Train on **(prompt, ideal response)** pairs in the chat format: instructions, Q&A, coding, refusals, tool use. Loss only on the **response tokens**.
+- Tens of thousands to a few million high-quality examples. **Quality beats quantity** (the LIMA paper showed 1,000 carefully curated examples go a long way).
+- Teaches **format and behaviour**. Little new knowledge is added.
+
+## RLHF (Reinforcement Learning from Human Feedback)
+- 1. Sample several responses per prompt. Humans **rank** or pick the better one.
+- 2. Train a **reward model** (often the LLM with a scalar head) to predict human preference (Bradley-Terry loss on chosen vs rejected).
+- 3. Optimise the LLM with **PPO** to maximise reward **minus a KL penalty** against the SFT model. The KL term stops it drifting into gibberish that fools the reward model (**reward hacking**).
+- Used for InstructGPT and ChatGPT. Powerful but complex: four models in memory (policy, reference, reward, value) and unstable training.
+
+## DPO and Friends
+- **DPO (Direct Preference Optimization, 2023)**: shows the RLHF objective can be solved with a simple loss on preference pairs. It increases the likelihood of the chosen response relative to the rejected one, compared with a frozen reference model. No reward model, no sampling, no RL loop.
+- Variants: **IPO**, **KTO** (works with single thumbs-up / down labels instead of pairs), **ORPO** (merges SFT and preference into one step), **SimPO**.
+- DPO is the default for open-model preference tuning because it is cheap and stable.
+
+## RLAIF and Constitutional AI
+- **RLAIF**: AI feedback instead of human feedback. A strong model judges which response is better.
+- **Constitutional AI** (Anthropic): the model critiques and revises its own outputs against a written set of principles, then preference training uses AI-labelled comparisons. It scales oversight and makes values explicit.
+
+## RL with Verifiable Rewards and Reasoning Models
+- For maths, code and logic, the reward can be **checked automatically**: is the final answer correct, do the unit tests pass? No human or reward model is needed.
+- **GRPO** (Group Relative Policy Optimization, DeepSeek): sample a group of answers per prompt and use each answer's reward **relative to the group average** as the advantage. It drops PPO's value model, so it is cheaper.
+- Training this way teaches models to produce **long chains of thought**: self-checking, backtracking, trying alternatives (OpenAI o-series, DeepSeek-R1, Claude extended thinking, Gemini thinking).
+- **Test-time compute**: more thinking tokens → better accuracy on hard problems. Many APIs expose a **reasoning effort or thinking budget** setting.
+- Costs: higher latency and price per answer, and overthinking on simple tasks.
+
+## Distillation
+- Train a **smaller student** on the outputs (or token probabilities) of a **larger teacher**. Most small "mini" or "flash" models and many open reasoning models are distilled.
+- Response distillation: SFT on teacher answers. Logit distillation: match the teacher's probability distribution (KL loss), which needs access to the logits.
+- Check licence terms before distilling from a commercial model's outputs.
+
+## Alignment Trade-offs
+- **Helpfulness vs harmlessness**: over-refusal is a real failure mode.
+- **Sycophancy**: preference training can reward agreeing with the user. Evals and data must counter it.
+- **Alignment tax**: post-training can slightly reduce some raw capabilities or calibration.
+- **Reward hacking**: optimising a proxy reward too hard finds loopholes. Use KL penalties, better reward models and evaluation.
+
+## Interview Q&A
+Q*: Walk me through RLHF.
+A: Collect human preference comparisons between model responses, train a reward model to predict which response humans prefer, then fine-tune the LLM with PPO to maximise that reward while a KL penalty keeps it close to the SFT model to avoid reward hacking.
+Q*: Why has DPO become popular?
+A: It reaches a similar goal to RLHF with a single supervised-style loss on chosen vs rejected pairs, with no reward model or RL loop. It is simpler, cheaper and more stable to train.
+Q*: How are reasoning models trained?
+A: Mostly with reinforcement learning on tasks whose answers can be checked automatically (maths, code tests). The reward for correct final answers encourages long, self-correcting chains of thought, often with algorithms like PPO or GRPO, followed by SFT and distillation into smaller models.
+Q: What is GRPO?
+A: Group Relative Policy Optimization: for each prompt it samples several responses and uses each one's reward minus the group mean (normalised) as its advantage. It removes the separate value network PPO needs.
+Q: What is model distillation?
+A: Training a small student model to imitate a large teacher, either on its generated answers or by matching its output probabilities, to get much of the teacher's quality at a fraction of the inference cost.
+
+# 06 | Efficient Attention, Long Context & Mixture of Experts | FlashAttention, MQA, GQA and MLA, sliding-window and sparse attention, extending context with RoPE scaling, lost in the middle and needle-in-a-haystack, Mixture of Experts routing and its trade-offs | Long Context & MoE
+
+## FlashAttention
+- Standard attention writes the n × n score matrix to slow GPU memory (HBM). That is memory-heavy and slow.
+- **FlashAttention** computes attention in **tiles** inside fast on-chip SRAM with an online softmax, never storing the full matrix. The result is **exact** (not an approximation), memory drops to O(n), and it is several times faster.
+- Versions 2 and 3 add better parallelism and FP8 support on newer GPUs. It is on by default in modern frameworks.
+
+## Sharing Key/Value Heads: MQA, GQA, MLA
+- **Multi-Head Attention (MHA)**: every head has its own K and V, so the KV cache is large.
+- **Multi-Query Attention (MQA)**: all query heads share **one** K/V head. The KV cache is tiny, with a slight quality loss.
+- **Grouped-Query Attention (GQA)**: query heads are split into groups that each share a K/V head (e.g. 32 query heads, 8 KV heads). Nearly MHA quality with a **4× smaller KV cache**. Used by Llama 2 70B, Llama 3, Mistral and Qwen.
+- **Multi-head Latent Attention (MLA)** (DeepSeek-V2/V3): compresses K and V into a small latent vector per token and caches that. Very small KV cache with strong quality.
+
+## Sliding-Window and Sparse Attention
+- **Sliding window** (Mistral 7B, Gemma layers): each token attends only to the last W tokens (e.g. 4,096). Information still flows further through stacked layers. Cost is linear in sequence length.
+- **Interleaved local and global layers**: most layers use windows, a few use full attention.
+- **Sparse attention patterns** and **attention sinks** (keep the first tokens plus a recent window) support streaming over very long inputs.
+
+## Extending the Context Window
+- Models are pre-trained at a shorter length (e.g. 8K), then **extended** (to 128K–1M) with **RoPE scaling** plus a short fine-tune on long documents.
+- **Position interpolation**: squeeze the new positions into the trained range. **NTK-aware scaling / YaRN**: scale the RoPE frequencies unevenly, which keeps local precision and extends far.
+- A long context needs a large **KV cache** and quadratic prefill compute, so long prompts are slow and expensive even when supported.
+
+## Does the Model Actually Use Long Context?
+- **Lost in the middle** (Liu et al., 2023): accuracy is highest when the relevant information is at the **start or end** of the context and drops in the middle.
+- **Needle in a haystack** tests (find one planted fact) are easy for modern models. Harder tests (RULER, multi-needle, reasoning over the whole document) show real degradation as length grows.
+- Practical advice: put instructions and key facts at the **start or end**, keep context focused, and prefer retrieval over dumping everything.
+
+## Mixture of Experts (MoE)
+- Replace each FFN with **E expert FFNs** and a **router** (a small linear layer + softmax) that picks the **top-k experts per token**. The output is the gate-weighted sum of the chosen experts.
+- **Mixtral 8x7B**: 8 experts, top-2, **~47B total, ~13B active** per token. **DeepSeek-V3**: **671B total, ~37B active**, many fine-grained experts plus shared experts.
+- **Benefits**: more knowledge capacity for the same compute per token, so faster training and inference per unit of quality.
+- **Costs**: **all experts must sit in memory** (VRAM is set by total parameters), routing needs a **load-balancing loss** so experts are used evenly, expert-parallel communication is needed across GPUs, and fine-tuning is trickier.
+- Many frontier models are believed to be MoE.
+
+## Interview Q&A
+Q*: What is the difference between MHA, MQA and GQA?
+A: MHA gives every query head its own key and value head. MQA shares a single key/value head across all query heads. GQA shares one key/value head per group of query heads. GQA keeps most of MHA's quality while shrinking the KV cache several times, which is why most modern LLMs use it.
+Q*: Is FlashAttention an approximation?
+A: No. It computes exactly the same attention output, but reorders the computation into tiles in fast on-chip memory with an online softmax, so it avoids storing the n×n matrix and is much faster and lighter on memory.
+Q*: A 1M-token context model exists. Why still use RAG?
+A: Long prompts cost more per request, have slower time to first token, and models still miss details in the middle. RAG also handles corpora far bigger than any window, frequent updates, per-user permissions and citations.
+Q*: Why does an MoE model need lots of memory if only a few experts run?
+A: Every token may route to different experts, so all of them must be loaded and ready. Compute per token follows the active parameters, but memory follows the total.
+Q: What is "lost in the middle"?
+A: The finding that LLMs use information at the beginning and end of a long context much better than information in the middle, so the position of key facts in the prompt matters.
+
+@ Advanced
+# 07 | Inference: Prefill, Decode & the KV Cache | The generation loop, prefill vs decode, latency metrics (TTFT, TPOT, throughput), KV cache size math, continuous batching and PagedAttention, prefix and prompt caching, speculative decoding, decoding strategies, structured generation | Inference
+
+## The Generation Loop
+```text
+prompt tokens ──► PREFILL (one parallel pass, fills KV cache) ──► first token
+                                                                   │
+                         ┌─────────────────────────────────────────┘
+                         ▼
+                      DECODE step: new token attends to KV cache → logits → pick → append → repeat
+```
+
+## Prefill vs Decode
+- **Prefill**: all prompt tokens are processed together with large matrix multiplies, so the GPU is **compute-bound** and well used. Its duration sets **time to first token (TTFT)**, and it grows with prompt length.
+- **Decode**: one token per step per sequence. Every step must read **all model weights and the whole KV cache** from memory for very little compute, so it is **memory-bandwidth-bound**. It sets **time per output token (TPOT)**.
+- Consequence: output tokens are slower and pricier than input tokens. APIs charge output at about **3–5× the input price**.
+
+## Latency and Throughput Metrics
+- **TTFT**: time until the first token arrives. Users feel it the most, so stream.
+- **TPOT / inter-token latency (ITL)**: time between tokens. ~20–50 ms (20–50 tokens/s) feels smooth.
+- **End-to-end latency** ≈ TTFT + TPOT × output tokens.
+- **Throughput**: total tokens/second across all users. Batching raises throughput but can raise each user's latency. That trade-off is the core of serving.
+
+## KV Cache Size
+- **KV bytes per token** = 2 (K and V) × layers × kv_heads × head_dim × bytes per value.
+- **Llama 3 8B** (32 layers, 8 KV heads, head_dim 128, FP16): 2 × 32 × 8 × 128 × 2 = **128 KB per token**. An 8K-token conversation ≈ **1 GB**. 32 concurrent users at 8K ≈ 32 GB, more than the 16 GB of weights.
+- Without GQA (32 KV heads) it would be 4× bigger, which is why GQA and MLA matter.
+- **KV cache quantization** (FP8 / INT8) halves it again.
+
+## Continuous Batching and PagedAttention
+- **Static batching** waits for the whole batch to finish, so short requests sit idle behind long ones.
+- **Continuous (in-flight) batching**: requests join and leave the batch **at every decode step**, keeping the GPU busy. This raises throughput many times.
+- **PagedAttention** (vLLM): stores the KV cache in fixed-size **pages** like OS virtual memory, which removes fragmentation, packs more sequences per GPU and lets requests share common prefix pages.
+- **Chunked prefill**: splits long prompts into pieces interleaved with decode steps, so one huge prompt does not stall everyone.
+
+## Prefix and Prompt Caching
+- If many requests share the same beginning (system prompt, tool definitions, a long document), the server can **reuse the KV cache** for that prefix instead of recomputing it.
+- Provider **prompt caching** (OpenAI automatic caching, Anthropic `cache_control`, Gemini context caching) gives big discounts on cached input tokens and lower TTFT.
+- Design prompts with **stable content first, variable content last**.
+
+## Speculative Decoding
+- A small, fast **draft** model (or extra prediction heads: **Medusa, EAGLE**, or n-gram lookup) proposes the next k tokens.
+- The big **target** model scores all k in **one** forward pass and accepts the longest agreeing prefix, plus one correction token. With the proper acceptance rule the output distribution is **identical** to the target model's.
+- Speed-ups of **2–3×** when drafts are often right (code, structured text, repetitive text).
+
+## Decoding Strategies
+- **Greedy**: always take the top token. Deterministic, but can loop and be dull.
+- **Beam search**: keep the best B sequences. Good for translation, rarely used for chat.
+- **Sampling** with **temperature**, **top-k** and **top-p (nucleus)**. **min-p** keeps tokens above a fraction of the top probability. Covered in "LLMs, Prompting & APIs" sheet 05.
+- **Repetition / frequency penalties** reduce loops.
+
+## Structured / Constrained Generation
+- **Constrained decoding** masks the logits so only tokens valid under a **JSON Schema, regex or grammar** can be chosen. The output is guaranteed parseable.
+- Used by OpenAI Structured Outputs, and in open stacks by Outlines, XGrammar and llama.cpp grammars.
+
+## Interview Q&A
+Q*: Why is generating output tokens slower than reading input tokens?
+A: Input tokens are processed in parallel in one compute-bound prefill pass. Output tokens are generated one at a time, and each step must stream all the weights and the KV cache from GPU memory, so decode is memory-bandwidth-bound and much slower per token.
+Q*: Calculate the KV cache per token for a model with 32 layers, 8 KV heads and head dimension 128 in FP16.
+A: 2 × 32 × 8 × 128 × 2 bytes = 131,072 bytes ≈ 128 KB per token, so 1 GB for an 8K-token sequence.
+Q*: What are continuous batching and PagedAttention?
+A: Continuous batching adds and removes requests from the running batch at each decode step so the GPU never waits on the slowest request. PagedAttention stores the KV cache in small non-contiguous pages, which removes memory waste and allows prefix sharing. Together they are why vLLM gets high throughput.
+Q: Does speculative decoding change the output quality?
+A: No. With the standard acceptance rule, the generated distribution matches the target model exactly. It only changes speed, which depends on how often the draft tokens are accepted.
+Q: How do you lower TTFT?
+A: Shorten the prompt (fewer RAG chunks, trimmed history), use prompt or prefix caching for the static part, use a smaller or faster model, avoid queueing with more capacity or priority, and use chunked prefill on self-hosted servers.
+
+# 08 | Quantization, Serving & GPU Memory Math | Number formats, post-training quantization (GPTQ, AWQ, GGUF, bitsandbytes), FP8, quality trade-offs, sizing GPUs for a model, serving engines (vLLM, SGLang, TGI, TensorRT-LLM, llama.cpp, Ollama), parallelism, API vs self-host cost, choosing open vs closed models | Quantization & Serving
+
+## Number Formats
+- **FP32**: 4 bytes. Training master weights.
+- **FP16 / BF16**: 2 bytes. Standard inference precision. BF16 has FP32's range, so it is safer for training.
+- **FP8** (E4M3 / E5M2): 1 byte, native on H100, H200 and Blackwell GPUs. Close to BF16 quality for inference.
+- **INT8**: 1 byte. **INT4 / FP4 / NF4**: half a byte. Below 4 bits quality usually drops fast.
+
+## Post-Training Quantization Methods
+- **bitsandbytes** (LLM.int8, NF4): load-time quantization in Hugging Face. Easy, used in **QLoRA** fine-tuning.
+- **GPTQ**: quantizes layer by layer using a small calibration set to minimise output error. 4-bit GPU inference.
+- **AWQ** (Activation-aware Weight Quantization): protects the ~1% of weights that matter most, based on activation sizes. Strong 4-bit quality and fast kernels.
+- **GGUF** (llama.cpp): a file format with k-quants (Q4_K_M, Q5_K_M, Q8_0) for CPU, Apple Silicon and consumer GPUs. Used by Ollama and LM Studio.
+- **SmoothQuant / W8A8**: quantize both weights and activations to 8 bits for faster compute.
+- What can be quantized: **weights** (most common), **activations**, and the **KV cache**.
+
+## Quality Trade-offs
+- 8-bit is usually **near-lossless**. 4-bit (AWQ / GPTQ / Q4_K_M) loses a little, often acceptable, and more on maths, code and long reasoning.
+- A **bigger model at 4-bit often beats a smaller model at 16-bit** for the same memory.
+- Always evaluate the quantized model on **your task**, not just perplexity.
+
+## GPU Memory Math
+- **Weights** = parameters × bytes per parameter.
+```text
+Model   FP16      INT8     INT4
+7-8B    ~16 GB    ~8 GB    ~4-5 GB
+13B     ~26 GB    ~13 GB   ~7-8 GB
+70B     ~140 GB   ~70 GB   ~35-40 GB
+```
+- **Plus the KV cache** (sheet 07) × concurrent users × context length, **plus ~10–20% overhead** (activations, CUDA graphs).
+- Example: Llama 3 70B in FP16 needs 140 GB of weights, so 2 × 80 GB H100 with tensor parallelism is tight. In FP8 / INT8 (~70 GB) it fits on 1 H100 with little KV room, or comfortably on 2. In INT4 (~40 GB) it fits on one 48 GB card.
+
+## Serving Engines
+- **vLLM**: PagedAttention, continuous batching, prefix caching, many quantization formats, an OpenAI-compatible server. The default open-source choice.
+- **SGLang**: fast serving with RadixAttention (prefix-tree cache reuse) and strong structured-output support.
+- **TGI** (Hugging Face Text Generation Inference) and **TensorRT-LLM / NVIDIA NIM / Triton** for maximum NVIDIA performance.
+- **llama.cpp / Ollama / LM Studio**: local inference on laptops, CPUs and Apple Silicon with GGUF.
+- **Managed open-model hosting**: AWS Bedrock, Azure AI Foundry, Google Vertex, Together, Fireworks, Groq and others, paid per token.
+
+## Parallelism for Big Models
+- **Tensor parallel**: split each layer's matrices across GPUs in one node (fast NVLink needed).
+- **Pipeline parallel**: different layers on different GPUs or nodes.
+- **Expert parallel**: different MoE experts on different GPUs.
+- **Data parallel replicas** behind a load balancer for more throughput.
+
+## API vs Self-Hosting Cost
+- **API**: pay per input and output token, no GPUs to manage, frontier quality, elastic scaling. Data goes to the provider (enterprise terms and regional hosting help).
+- **Self-host**: pay for GPUs per hour (busy or idle), plus engineers' time. It wins with **high, steady utilisation**, **strict data control**, **custom fine-tuned models**, or very low latency needs.
+- Break-even thinking: a GPU-hour costs a few dollars (an H100 is very roughly $2–$4/hour in the cloud, Nov 2026). Compare it with tokens/hour at your utilisation × the API price per token. Below ~30–50% steady utilisation, APIs usually win.
+
+## Open vs Closed Models
+- **Closed** (GPT, Claude, Gemini): best general quality, newest features (tools, long context, multimodal), no infrastructure.
+- **Open weights** (Llama, Qwen, Mistral, DeepSeek, Gemma, gpt-oss): run anywhere, fine-tune fully, keep data in-house, fixed versions, no per-token fees.
+- Common pattern: closed frontier models for hard reasoning, and a small open or "mini" model for high-volume, simple tasks (classification, extraction, routing).
+
+## Interview Q&A
+Q*: How much GPU memory do you need to serve a 70B model?
+A: About 140 GB for the FP16 weights alone (2 bytes per parameter), so at least two 80 GB GPUs, plus memory for the KV cache, which grows with concurrent users and context. With 8-bit or FP8 it is ~70 GB, and with 4-bit ~35–40 GB.
+Q*: GPTQ vs AWQ vs GGUF?
+A: GPTQ and AWQ are 4-bit GPU weight-quantization methods. GPTQ minimises layer output error with calibration data, and AWQ protects the most important weights based on activations. GGUF is llama.cpp's file format with various k-quant levels, aimed at CPUs, Macs and consumer GPUs.
+Q*: When would you self-host an LLM instead of using an API?
+A: When data cannot leave our environment, when we need a custom fine-tuned open model, when traffic is high and steady enough that GPUs stay busy (cheaper than per-token pricing), or when we need guaranteed latency and fixed model versions. Otherwise APIs are cheaper and simpler.
+Q: Why is vLLM fast?
+A: PagedAttention removes KV cache fragmentation and enables prefix sharing, continuous batching keeps the GPU full, and optimised kernels (FlashAttention, quantized matmuls) plus prefix caching and speculative decoding reduce work.
+Q: Does quantization speed up inference?
+A: Usually yes for decode, because decode is memory-bandwidth-bound and smaller weights mean fewer bytes to read per token. It also frees memory for bigger batches and more KV cache. The speed-up depends on having good low-bit kernels.
+
+@ Review
+# 09 | Rapid-Fire: LLM Internals | Short answers to the internals questions interviewers fire off, numbers to remember, and how to explain a transformer in two minutes | Rapid-fire
+
+## Numbers to Remember
+- 1 token ≈ 4 characters ≈ 0.75 English words.
+- Weights memory: parameters × 2 bytes at FP16 (7B ≈ 14 GB, 70B ≈ 140 GB). 4-bit ≈ ÷4.
+- Training FLOPs ≈ 6 × parameters × tokens. Inference ≈ 2 × parameters FLOPs per token.
+- Chinchilla ≈ 20 tokens per parameter. Modern small models train on 1,000+.
+- Llama 3 8B KV cache ≈ 128 KB per token (FP16, GQA).
+- Attention cost: O(n²) with sequence length.
+- Output tokens cost ~3–5× input tokens on most APIs.
+
+## Explain a Transformer in Two Minutes
+- "Text is split into tokens and each becomes a vector. Positions are added with RoPE. Then a stack of identical blocks runs. In each block, **self-attention** lets every token look at earlier tokens and mix in what is relevant, and a **feed-forward network** transforms each token on its own. Residual connections and normalisation keep the deep stack stable. The final vector of the last token is projected onto the vocabulary to give next-token probabilities. We sample a token, append it and repeat, caching keys and values so each step is cheap. Training is next-token prediction on trillions of tokens, then instruction tuning and preference tuning to make it a helpful assistant."
+
+## Rapid-Fire Q&A
+Q*: What is a logit?
+A: The raw, unnormalised score the model assigns to each vocabulary token before softmax turns the scores into probabilities.
+Q*: What does temperature do mathematically?
+A: It divides the logits before softmax. Below 1 it sharpens the distribution (more deterministic), above 1 it flattens it (more random). Temperature 0 is effectively greedy decoding.
+Q*: Why are LLM outputs non-deterministic even at temperature 0?
+A: Floating-point arithmetic on GPUs is not perfectly associative, and batching with other requests changes the order of operations, so tiny numeric differences can flip a close token choice. Then the generations diverge.
+Q*: What is the context window?
+A: The maximum number of tokens (input plus output) the model can attend to in one request, limited by its training and position encoding, and in practice by KV cache memory and cost.
+Q: What is an embedding dimension (d_model)?
+A: The width of the vector each token is represented by inside the model, e.g. 4,096 for Llama 3 8B. It sets the size of most weight matrices.
+Q: What is weight tying?
+A: Using the same matrix for the input token embeddings and the output LM head (transposed) to save parameters and improve training for smaller models.
+Q: What are "hidden states" and the "residual stream"?
+A: The vector for each token after each layer. Each block reads from it and adds its update back, so it is the running representation that the final layer turns into logits.
+Q: What is an induction head?
+A: An attention circuit that spots an earlier occurrence of the current token and copies the token that followed it. It is a key mechanism behind in-context learning and pattern copying.
+Q: What is model collapse?
+A: Quality degradation when models are trained repeatedly on their own (or other models') generated data without enough fresh human data, losing diversity and rare knowledge.
+Q: Dense vs MoE model, in one line?
+A: A dense model uses all parameters for every token. An MoE model routes each token to a few experts, so total parameters are large but active compute per token is small.

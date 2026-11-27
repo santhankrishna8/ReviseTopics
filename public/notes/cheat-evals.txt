@@ -1,0 +1,78 @@
+# 01 | LLM Evals Cheat Sheet | Evaluating LLM apps on one page: the eval loop, datasets, graders, LLM-as-judge, RAG and agent evals, statistics, CI, techniques and benchmarks. | Evals on one page
+
+### Basics
+
+## The Eval Loop
+```text
+define "good" (checkable criteria) → dataset (50–200 real + edge cases, tagged)
+→ run system (prompt/model/RAG/agent) → grade (code > judge > human) → error analysis
+→ change ONE thing → re-run → compare to baseline → ship behind a CI gate → monitor online
+```
+! Evals are to LLM apps what tests are to code, but graded on pass rates, not 100%.
+
+## Datasets
+- Sources: production logs (best), tickets, experts, past bugs, synthetic (filtered).
+- Cover happy paths, edge cases, adversarial cases and unanswerable ones. **Tag slices** (language, category, difficulty).
+- Version it. Never put eval items in prompts or training data.
+
+### Graders
+
+## Grader Types
+```text
+code        exact match, regex, JSON Schema, tool-call args, run code/SQL, final state
+reference   F1, BLEU/ROUGE (weak), embedding similarity, judge-with-reference
+judge       rubric (pointwise) or A vs B (pairwise), reasoning before verdict
+human       experts + rubric, blind, measure agreement (kappa) → calibrate judges
+```
+
+## LLM-as-Judge
+- One criterion per judge, a binary or small-scale rubric, examples of pass and fail, reasoning first, structured output.
+- Biases: **position, verbosity, self-preference**, leniency. Swap A/B order and use a different model family.
+- **Calibrate**: 50–100 human labels → agreement / precision / recall of the judge.
+
+### By System
+
+## RAG Evals
+- **Retrieval**: Hit@k, Recall@k, Precision@k, MRR, nDCG, context precision and recall.
+- **Generation**: faithfulness / groundedness, answer relevance, correctness, citation accuracy, refusal on unanswerable questions.
+- Tools: Ragas, TruLens (RAG triad), DeepEval.
+
+## Agent Evals
+- **Outcome** (task success on the final state) + **trajectory** (tools, arguments, steps, loops) + efficiency (tokens, $, latency).
+- **pass@k** = at least one of k trials succeeds. **pass^k** = all k succeed (reliability).
+
+## Safety Evals
+- Red-teaming: jailbreaks, prompt injection (direct and indirect), PII leaks, harmful content, bias.
+- Track both the attack success rate **and** over-refusal on benign prompts.
+
+### Rigor
+
+## Statistics
+- Outputs vary: run **several trials** per case. Report the mean ± **95% CI** (≈ 1.96·√(p(1−p)/n)).
+- With n = 100 at p = 0.8 the CI is ±8 points, so small differences are noise. **Paired comparisons** on the same cases.
+- Temperature 0 for deterministic tasks, and still check variance.
+
+## CI & Production
+- Fast suite on every PR touching prompts, models, retrieval or tools. Fail on a regression beyond noise vs the **baseline**.
+- Online: sampled judging, thumbs, implicit signals (retries, edits), A/B tests, drift alerts.
+- **Data flywheel**: production failures → new eval cases.
+
+### Techniques & Benchmarks
+
+## Evaluation Techniques
+- Reference-based · reference-free · execution-based · pairwise / Elo · human · adversarial · online.
+- Classic metrics: accuracy, precision, recall, F1 (classifiers), perplexity (LM fit), pass@k (code), BLEU / ROUGE (overlap).
+
+## Benchmarks to Know
+```text
+knowledge   MMLU(-Pro), GPQA Diamond, HLE          maths   GSM8K, MATH, AIME
+code        HumanEval, LiveCodeBench, SWE-bench Verified
+agents      τ-bench, BFCL, GAIA, WebArena, OSWorld
+instruct    IFEval, MT-Bench, Arena-Hard, AlpacaEval
+truth/safe  TruthfulQA, SimpleQA, HarmBench          context  RULER, NIAH
+embeddings  MTEB, BEIR                               people   LMArena (Elo)
+```
+- Watch for **contamination** and **saturation**. Benchmarks shortlist models, and your evals decide.
+
+## Tools
+- promptfoo, DeepEval, Ragas, OpenAI Evals API, LangSmith, Braintrust, Langfuse, Inspect, Arize Phoenix.

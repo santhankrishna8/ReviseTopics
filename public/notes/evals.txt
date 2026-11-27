@@ -27,6 +27,13 @@ A: Run a fast regression eval on every pull request that changes prompts, models
 Q*: How do you choose between two models or prompts?
 A: Run both on the same eval set and compare quality, cost per request and latency (p50 and p95). Pick the cheapest, fastest option that meets the quality bar, and check the per-slice scores: a new model can win overall but lose on an important slice such as non-English tickets or injection attempts.
 
+Q*: Name the main LLM benchmarks and what they test.
+A: MMLU / MMLU-Pro and GPQA (knowledge and expert science), GSM8K, MATH and AIME (maths), HumanEval and LiveCodeBench (code), SWE-bench Verified (fixing real GitHub issues), τ-bench and BFCL (tool use and agents), IFEval (instruction following), RULER (long context), TruthfulQA and SimpleQA (hallucination), MTEB (embeddings), and LMArena (human preference Elo).
+Q*: Which LLM evaluation techniques do you know?
+A: Reference-based (exact match, F1, BLEU/ROUGE, similarity, judge with a reference), reference-free (rubric judge, faithfulness, classifiers, validators), execution-based (run the code or SQL, check the agent's final state), pairwise (win rate, Elo), human evaluation, red-teaming, and online signals (A/B tests, feedback, sampled judging).
+Q: What is perplexity?
+A: exp(mean cross-entropy loss): how well a model predicts text. Lower is better. It is useful for pre-training and quantization checks, and useless for helpfulness. It is only comparable with the same tokenizer.
+
 ## Gotchas
 Q: Why not just use public benchmarks like MMLU?
 A: They measure general ability on someone else's tasks, often leak into training data (contamination) and are saturated at the top. They help shortlist models; only an eval on your own task and data tells you which one works for your product.
@@ -613,3 +620,73 @@ Q*: Describe an eval you built.
 A: A harness for two support features: ticket triage graded by code (valid JSON, correct category, per-class precision and recall) and grounded QA graded by code checks (refuses unanswerable questions, includes required facts, ignores injected instructions) plus a gpt-4o faithfulness judge with a pass/fail rubric. It has tagged slices, repeated trials, confidence intervals, baseline diffs and a CI exit code. It caught a weakened prompt that made the model invent answers to unanswerable questions.
 Q: What would you improve in it?
 A: Harder cases (it scores 100%, so it is saturated), calibrating the judge against 50 hand labels, a judge-based refusal check instead of exact phrase matching, cost tracking in money, and running it in CI on every prompt change.
+
+# 10 | Benchmarks, Leaderboards & Evaluation Techniques | Benchmark families (knowledge, reasoning, maths, code, agents, long context, safety), how leaderboards like LMArena and Elo work, perplexity, human evaluation, contamination and saturation, a map of LLM evaluation techniques, reading a model card critically | Benchmarks
+
+## Why Know Benchmarks
+- Interviewers ask "which model would you pick and why?". Benchmarks help **shortlist** models, but **your own evals decide**.
+- Know what each benchmark measures and its weaknesses.
+
+## Benchmark Families (names to know)
+- **Knowledge / general**: **MMLU** (57 subjects, multiple choice, now saturated), **MMLU-Pro** (harder, 10 options), **GPQA Diamond** (graduate-level science, "Google-proof"), **Humanity's Last Exam (HLE)** (very hard expert questions).
+- **Reasoning / maths**: **GSM8K** (grade-school maths, saturated), **MATH**, **AIME** (competition maths), **ARC-AGI** (abstract visual puzzles), **BIG-Bench Hard**.
+- **Code**: **HumanEval / MBPP** (function writing, pass@k, saturated), **LiveCodeBench** (fresh problems, contamination-resistant), **SWE-bench Verified** (fix real GitHub issues so the tests pass), **Terminal-Bench**.
+- **Agents / tool use**: **τ-bench (tau-bench)** (customer-service tasks with policies, uses pass^k), **BFCL** (function calling), **GAIA** (general assistant tasks), **WebArena / OSWorld** (web and computer use).
+- **Long context**: **Needle in a Haystack**, **RULER**, **LongBench**, multi-round coreference tests.
+- **Instruction following / chat**: **IFEval** (verifiable instructions like "use exactly 3 bullets"), **MT-Bench** (multi-turn, judged by GPT-4), **AlpacaEval** and **Arena-Hard** (LLM-judged win rates vs a baseline).
+- **Truthfulness / safety**: **TruthfulQA**, **SimpleQA** (short factual questions, measures hallucination and abstention), **HarmBench**, **StrongREJECT** (jailbreaks), **BBQ** (bias).
+- **Multimodal**: **MMMU**, **ChartQA**, **DocVQA**.
+- **Retrieval / embeddings**: **MTEB / MMTEB**, **BEIR**.
+
+## Leaderboards and Elo
+- **LMArena (formerly Chatbot Arena)**: users chat with two anonymous models side by side and vote for the better answer. Votes are turned into ratings with an **Elo / Bradley-Terry model**.
+- **Elo intuition**: beating a higher-rated model gains more points. A 100-point gap ≈ a 64% expected win rate.
+- Strengths: real prompts, human preference, hard to overfit directly. Weaknesses: preference for **style and length** (style control helps), users' prompts are not your workload, and the rankings can be gamed through private testing.
+- Others: Artificial Analysis (quality, speed, price), the Open LLM Leaderboard (archived), the Hugging Face MTEB board, and SWE-bench and Aider leaderboards for code.
+
+## Classic Metrics Behind the Scenes
+- **Perplexity**: exp(mean cross-entropy). It measures language-modelling fit on a corpus. Useful for pre-training and comparing quantizations, and useless for helpfulness. It is only comparable with the **same tokenizer**.
+- **Accuracy / exact match** for multiple choice and short answers. **pass@k** for code (probability that at least 1 of k samples passes the tests).
+- **BLEU / ROUGE / METEOR**: n-gram overlap for translation and summarisation. Weak correlation with quality for LLM outputs. **BERTScore**: embedding similarity.
+- **Win rate**: the share of pairwise comparisons won against a baseline (LLM-judged or human).
+
+## Human Evaluation
+- **Gold standard** for subjective quality: experts or trained raters with a rubric, blind to which model wrote what.
+- Pairwise comparisons are more reliable than 1–10 scores. Measure **inter-rater agreement** (Cohen's or Krippendorff's kappa).
+- Expensive and slow, so use it to **calibrate LLM judges** and audit samples, not for every run.
+
+## Contamination and Saturation
+- **Contamination**: test questions leaked into the training data, so scores reflect memory, not ability. Signs: big gaps between old and fresh versions of a benchmark, or verbatim completion of test items.
+- Mitigations: **fresh or rolling benchmarks** (LiveCodeBench, LiveBench), held-out private sets, canary strings, and paraphrased variants.
+- **Saturation**: top models all score ~90%+ (MMLU, GSM8K, HumanEval), so the benchmark no longer separates them. Move to harder sets.
+- **Benchmark ≠ product**: a model that tops leaderboards can still fail your format, latency, cost or domain.
+
+## A Map of LLM Evaluation Techniques
+- **Reference-based**: compare with a gold answer (exact match, F1, BLEU / ROUGE, embedding similarity, LLM judge with a reference).
+- **Reference-free**: judge quality directly (rubric judge, faithfulness to context, toxicity classifiers, format validators).
+- **Execution-based**: run the output (unit tests for code, SQL against a database, checking the final state for agents).
+- **Pairwise / preference**: A vs B by humans or judges → win rate or Elo.
+- **Human evaluation**: expert ratings, A/B tests with users, feedback signals.
+- **Adversarial / red-teaming**: jailbreaks, injection, bias probes, stress tests.
+- **Online**: A/B tests, implicit signals (copy, retry, edit distance), sampled judging of live traffic.
+
+## Reading a Model Card Critically
+- Which **version** and settings (reasoning effort, tools allowed, number of attempts, pass@1 vs best-of-n)?
+- Is it the **same harness** as the competitors (prompt format, few-shot count, scaffolding for agent benchmarks)?
+- Are the benchmarks **relevant to my use case** and **not saturated or contaminated**?
+- What about **cost and latency** at that score?
+! "It's #1 on the leaderboard" is a reason to include a model in your eval, not to ship it.
+
+## Interview Q&A
+Q*: How would you choose a model for a new product?
+A: Shortlist from public benchmarks and leaderboards that match the task (e.g. SWE-bench for coding agents, τ-bench for tool-using support agents, MTEB for embeddings), plus cost and latency data. Then run my own eval set on the shortlist and pick the cheapest, fastest model that meets the quality bar, checking safety and format behaviour too.
+Q*: How does LMArena rank models?
+A: Users compare two anonymous models' answers to the same prompt and vote. Millions of pairwise votes are fitted with a Bradley-Terry / Elo model into ratings, where the rating gap predicts the win probability. It reflects human preference on general chat, with known biases toward style and length.
+Q*: What is benchmark contamination?
+A: When benchmark test items appear in a model's training data, so it can recall answers rather than solve them, inflating scores. Fresh or private benchmarks, paraphrased variants and contamination checks reduce it.
+Q: What is perplexity good for, and what not?
+A: It is good for measuring how well a model predicts text: comparing pre-training runs, checking quantization damage, domain fit. It does not measure helpfulness, correctness, instruction following or safety, and it is not comparable across different tokenizers.
+Q: What does SWE-bench Verified measure?
+A: Whether a model, usually inside an agent scaffold, can resolve real GitHub issues from popular Python repositories so that hidden tests pass. The Verified subset was human-checked so that issues are solvable and the tests are fair.
+Q: What is IFEval?
+A: An instruction-following benchmark with automatically checkable instructions ("answer in under 100 words", "include the keyword X twice", "respond in JSON"). Grading is by code, not by a judge.

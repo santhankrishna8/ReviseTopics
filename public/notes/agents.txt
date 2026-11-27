@@ -21,6 +21,15 @@ A: Least-privilege tools, input validation, step and cost limits, timeouts, huma
 Q: How do you evaluate an agent?
 A: Test it on a set of realistic tasks and measure task success rate, number of steps, tool errors, cost and latency; review the traces (LangSmith, Langfuse, OpenTelemetry) to see where it goes wrong.
 
+Q*: What are the layers of an agentic AI system?
+A: Interface (chat, API, Slack), orchestration (the loop or graph that decides the next step), the model, context and memory, knowledge (RAG, SQL, search), tools and actions (function calling, MCP, sandboxes), guardrails and governance, evaluation and observability, and infrastructure (hosting, queues, state, caching, cost limits).
+Q*: What is the "lethal trifecta" for agents?
+A: Access to private data, exposure to untrusted content, and the ability to communicate externally. Together they let a prompt injection steal data, so remove at least one: restrict data, treat content as untrusted, or block or approve outbound actions.
+Q: What are semantic, episodic and procedural memory?
+A: Semantic: facts and preferences ("user prefers Python"). Episodic: summaries of past interactions and how tasks went. Procedural: rules and instructions the agent follows and can refine. All live outside the context window and are loaded when relevant.
+Q: MCP vs A2A?
+A: MCP connects an agent to tools and data. A2A (Agent2Agent) lets independent agents discover each other through Agent Cards and delegate whole tasks to each other, with streaming status and artifacts.
+
 ## MCP
 Q*: What is MCP (Model Context Protocol)?
 A: An open standard from Anthropic for connecting AI applications to tools and data. Instead of writing a custom integration for every app and service, a service exposes one MCP server, and any MCP client (Claude, IDEs, agent frameworks) can use it. "USB-C for AI tools."
@@ -98,7 +107,179 @@ A: A committed CLAUDE.md, shared settings with permission rules, project skills 
 Q: Does an agentic tool replace code review?
 A: No. It speeds up implementation, but humans still review diffs, especially for security, architecture and behaviour changes, and tests must verify the work.
 
+# 02 | The Agentic AI Stack: Layers End to End | The layers of an agentic system from interface to infrastructure, what each layer does, the choices and tools at each layer, how a request flows through them, autonomy levels, where RAG and fine-tuning fit | Agentic Layers
+
+## Why Think in Layers
+- "Build an agent" in an interview really means a **system**: the model is one part, and most reliability comes from the layers around it.
+- Layers let you say **what can be swapped** (model, framework, vector DB) and **where controls live** (guardrails, permissions, evals).
+
+## The Layers (top to bottom)
+```text
+ 1  Interface / channels      chat UI, Slack, API, voice, IDE, email, scheduled jobs
+ 2  Orchestration / control   the agent loop or workflow graph, planning, routing, multi-agent coordination, HITL
+ 3  Reasoning / model         LLM(s): frontier for planning, small for routing/grading; prompts; structured output
+ 4  Context & memory          system prompt, history, short-term state, long-term memory, context engineering
+ 5  Knowledge / retrieval     RAG over docs, SQL, search, knowledge graphs
+ 6  Tools & actions           function calling, MCP servers, APIs, code execution sandbox, browser/computer use
+ 7  Guardrails & governance   input/output filters, permissions, approval gates, policy, PII, audit
+ 8  Evaluation & observability traces, metrics, offline evals, online monitoring, feedback loop
+ 9  Infrastructure / runtime  model hosting or APIs, queues, state store, caching, secrets, scaling, cost controls
+```
+
+## Layer by Layer
+- **1. Interface**: where requests come from and how results return. Streaming, async jobs for long tasks, notifications when done, showing progress and asking for approval.
+- **2. Orchestration**: **who decides the next step**. Code (a workflow or DAG), the LLM (an agent loop), or a mix (a graph with LLM-decided edges). Handles retries, timeouts, step budgets, checkpoints and human-in-the-loop. Tools: LangGraph, OpenAI Agents SDK, Claude Agent SDK, CrewAI, AutoGen, LlamaIndex Workflows, Temporal for durable execution, or a hand-written loop.
+- **3. Model**: pick by task. A strong model for planning and hard reasoning, a fast cheap model for classification, routing and grading. Structured outputs for anything code consumes. **Fine-tuning** lives here (a small model specialised for one step).
+- **4. Context & memory**: what the model sees each step. Short-term (the thread's messages and scratchpad), long-term (user facts, past episodes, learned procedures), plus compaction and summarisation (see sheet 03).
+- **5. Knowledge**: **RAG lives here**, as a tool or a pre-step. Also SQL tools, search APIs and graph queries.
+- **6. Tools**: how the agent acts. Clear schemas, least privilege, idempotent where possible, results that are easy for an LLM to read. **MCP** standardises how tools are packaged and discovered. Code runs in a **sandbox**.
+- **7. Guardrails**: checks on inputs (injection, abuse), outputs (PII, policy, schema), actions (allow-lists, approval for risky calls) and identity (act with the user's permissions). See sheet 04.
+- **8. Eval & observability**: trace every LLM call and tool call (inputs, outputs, tokens, latency). Offline task suites, online sampling with judges, user feedback. This turns failures into test cases.
+- **9. Infrastructure**: model gateways (routing across providers, fallbacks, rate limits), queues for long tasks, a state database for checkpoints, caches, secret management, per-tenant quotas and cost budgets.
+
+## How a Request Flows
+```text
+user ─► (1) API ─► (7) input guard ─► (2) orchestrator ─► (4) build context ─► (3) LLM decides
+                                              ▲                                        │ tool call
+                                              │                                        ▼
+                                   (8) trace every step ◄── (7) action guard ─► (6) tool / (5) RAG
+                                              │                                        │ result
+                                              └──────── loop until done / budget ◄─────┘
+                                                              │
+                                              (7) output guard ─► (1) stream answer + sources
+```
+
+## Autonomy Levels
+- **L0 single call**: one prompt, one answer.
+- **L1 workflow / chain**: fixed steps defined in code, with LLM calls inside. Most production systems.
+- **L2 router / tool-using assistant**: the LLM picks one tool or route per turn.
+- **L3 agent loop**: the LLM plans and calls tools repeatedly until done, within budgets.
+- **L4 multi-agent / long-running autonomous**: several agents, hours-long tasks, acting with little supervision.
+! Pick the lowest level that solves the task. Each level up adds cost, latency, variance and risk.
+
+## Where RAG and Fine-Tuning Fit
+- **RAG** = the knowledge layer: the agent's `search` tools or a retrieval pre-step. Use it whenever answers depend on private or changing data.
+- **Fine-tuning** = the model layer: specialise small models for routing, grading, extraction, or reliable calls to **your own tools**. Rarely needed for the main planner.
+- **Prompt and context engineering** = layers 3 and 4: the first thing to improve.
+
+## Interview Q&A
+Q*: What are the layers of an agentic AI system?
+A: Interface, orchestration (the loop or graph that decides steps), the model layer, context and memory, knowledge and retrieval, tools and actions (function calling, MCP, sandboxes), guardrails and governance, evaluation and observability, and the infrastructure runtime (hosting, queues, state, caching, cost controls).
+Q*: Where does RAG sit in an agent architecture?
+A: In the knowledge layer, usually exposed to the agent as one or more search tools (or as a retrieval step before the model is called). It gives the agent access to private and up-to-date information with citations and permission filtering.
+Q*: Workflow or agent: how do you decide?
+A: If the steps are known in advance, use a workflow: code controls the sequence and the LLM fills in each step. It is cheaper, faster, more testable and predictable. Use an agent only when the path genuinely depends on intermediate results and cannot be scripted, and then add budgets, guardrails and evals.
+Q: What lives in the orchestration layer?
+A: The control logic: the agent loop or state graph, planning and routing, retries, timeouts, step and cost budgets, checkpointing for resume, multi-agent hand-offs and human approval interrupts.
+Q: What is an LLM gateway?
+A: An infrastructure service between apps and model providers that handles routing across models, fallbacks during outages, rate limits, caching, keys and secrets, logging and per-team cost tracking.
+
 @ Intermediate
+
+# 03 | Agent Memory Systems | Short-term vs long-term memory, working memory and compaction, episodic, semantic and procedural memory, writing and retrieving memories, memory stores and tools (Mem0, Letta, LangGraph store), forgetting and privacy | Agent Memory
+
+## Why Memory Is Hard
+- The model is **stateless**: anything it "remembers" must be put back into the context each call.
+- The context window is **finite and expensive**, so memory is about **choosing what to keep, where, and when to bring it back**.
+
+## Short-Term (Working) Memory
+- The current thread: messages, tool calls and results, the plan, and the scratchpad. Saved by a **checkpointer** so the task can pause and resume.
+- When it grows too large: **trim** old turns, **summarise** older parts into a running summary, **clear old tool outputs** (keep a one-line result), and keep **structured progress notes** (a todo list, decisions made).
+
+## Long-Term Memory Types
+- **Semantic memory**: facts about the user or world. "Prefers Python", "Account is on the Enterprise plan", "Office is in Berlin". Stored as key-value pairs, profile documents or embedded facts.
+- **Episodic memory**: past experiences. "Last week we migrated the billing service, and the rollback step failed". Stored as summaries of past sessions or trajectories, retrieved by similarity. Useful as **few-shot examples** of what worked.
+- **Procedural memory**: how to do things, meaning learned instructions, rules and skills. Often the **system prompt or instruction files** that the agent itself updates ("always run the linter before committing").
+
+## Writing Memories
+- **Hot path**: the agent calls a `save_memory` tool during the conversation when it learns something important. Immediate, but adds latency and the model may forget to save.
+- **Background**: after the session, a separate job extracts facts and episodes from the transcript, dedupes them against existing memories, and updates or deletes conflicting ones.
+- Store **who / what / when / source**, and keep it **small and atomic** ("user's timezone is CET", not a whole chat log).
+- Resolve **conflicts**: a newer fact replaces an older one ("moved to Lisbon" overrides "lives in Berlin").
+
+## Retrieving Memories
+- At the start of a task or turn: fetch the **profile** (small, always loaded) plus the **top-k relevant memories** by semantic search over the current query, filtered by user or namespace.
+- Or give the agent a **`search_memory` tool** and let it decide.
+- Rank by relevance plus **recency** plus importance. Cap the tokens spent on memory.
+
+## Stores and Tools
+- **LangGraph**: checkpointers for thread state, plus a **Store** for long-term memory organised by namespace (e.g. `("user", user_id)`), with optional semantic search.
+- **Mem0**: a memory layer that extracts, dedupes, updates and retrieves memories for agents.
+- **Letta (formerly MemGPT)**: the agent manages its own memory tiers (in-context "core memory" blocks, plus archival and recall storage) through tools, like an OS paging memory.
+- **Zep / Graphiti**: temporal knowledge graphs of user facts that change over time.
+- Plain building blocks: Postgres tables, a vector DB, Redis for session state.
+
+## Forgetting, Privacy and Safety
+- Users must be able to **see, correct and delete** what is remembered (GDPR "right to be forgotten").
+- **Never store secrets** (passwords, keys) or sensitive data without consent and purpose.
+- **Memory poisoning**: an attacker (or a prompt injection) plants false "memories" that steer future sessions. Validate what gets written, record its source, and scope memories per user.
+- Expire stale memories (TTL) and decay unused ones.
+
+## Interview Q&A
+Q*: Explain the types of agent memory.
+A: Short-term memory is the current thread's context and state, saved by checkpoints. Long-term memory spans sessions: semantic (facts and preferences), episodic (summaries of past interactions and how tasks went) and procedural (rules and instructions the agent follows and can refine).
+Q*: How would you add memory to a support assistant?
+A: Keep thread state with a checkpointer and summarise long chats. After each session, a background job extracts durable facts (product, plan, preferences, open issues) into a per-customer store with timestamps and sources, deduping and updating conflicts. At the start of each conversation, load the profile plus a few relevant past-ticket summaries. Let users view and delete them.
+Q: Hot-path vs background memory writing?
+A: Hot-path means the agent saves memories via a tool during the conversation: immediate, but it adds latency and depends on the model choosing to save. Background extraction processes transcripts afterwards: no latency, better dedup and conflict handling, but new memories appear only later.
+Q: What is memory poisoning?
+A: Malicious or wrong content gets saved into long-term memory, often through prompt injection, and then influences future sessions. Defend by validating writes, recording sources, scoping memory per user and letting users review it.
+
+# 04 | Guardrails, Safety & Sandboxing for Agents | Threat model, input and output guardrails, tool and action guardrails, permission models, human approval, code execution sandboxes, prompt injection in agents, the lethal trifecta, budgets and kill switches, guardrail tools | Agent Guardrails
+
+## Threat Model
+- An agent **reads untrusted content** (web pages, emails, files, tool output) and **can act** (send, buy, delete, run code). That combination is the risk.
+- **The lethal trifecta** (Simon Willison): access to **private data** + exposure to **untrusted content** + the ability to **communicate externally**. Together they allow data theft through prompt injection. Remove at least one leg.
+- Other risks: runaway loops (cost), wrong but confident actions, privilege escalation, leaking secrets in logs, and harmful outputs.
+
+## Input Guardrails
+- Classify requests for **abuse, off-topic and jailbreak attempts** (moderation APIs, Llama Guard-style classifiers, a small LLM classifier).
+- Detect **prompt injection** in user input and in retrieved or tool content (classifiers, heuristics). Detection is never perfect.
+- Validate sizes and formats. Strip hidden text and HTML from documents.
+
+## Output Guardrails
+- **Schema validation** of structured outputs (Pydantic). Repair or retry on failure.
+- **PII / secret scanning** before showing or sending output.
+- **Policy checks**: topic restrictions, banned claims, brand rules (a judge model or rules).
+- **Groundedness checks** for answers that must be supported by sources.
+
+## Tool and Action Guardrails
+- **Least privilege**: each tool can do only what this task needs (read-only by default, scoped tokens, specific tables or folders).
+- **Act as the user**: tools run with the end user's identity and permissions, never a super-admin key.
+- **Allow-lists**: URLs the agent may fetch, recipients it may email, commands it may run.
+- **Validate arguments in code** (amount limits, ID formats, which environment). Never trust the model's arguments blindly.
+- **Idempotency keys and dry-run modes** for side-effecting tools.
+
+## Human-in-the-Loop Approval
+- Require approval for **irreversible, costly or external actions**: payments, deletes, deployments, outbound emails or posts, permission changes.
+- Show the human **exactly what will happen** (a diff, the email text, the amount), with approve / edit / reject.
+- Implement it with an **interrupt and resume** (e.g. LangGraph `interrupt()`) so the agent pauses safely with its state saved.
+
+## Sandboxing Code and Computer Use
+- Run generated code in an **isolated sandbox**: containers with gVisor, Firecracker micro-VMs, or managed sandboxes (E2B, Modal, the providers' code-interpreter tools).
+- Use **no network by default**, or an egress allow-list. Read-only mounts, CPU, memory and time limits, a disposable environment per task.
+- For browser or computer-use agents: a separate VM or browser profile with no saved credentials, plus confirmation before purchases or logins.
+
+## Budgets and Kill Switches
+- Cap **steps, tool calls, tokens, money and wall time** per task and per user per day.
+- Detect loops (the same tool with the same arguments repeated).
+- Provide a **global kill switch** and per-tool disable flags. Alert on spend anomalies.
+
+## Guardrail Tooling
+- **NVIDIA NeMo Guardrails** (rails defined in config), **Guardrails AI** (validators on outputs), **Llama Guard / ShieldGemma** (safety classifiers), provider moderation endpoints, and the **OpenAI Agents SDK guardrails** (input and output checks that can trip and stop a run).
+- Guardrails add latency and false positives, so run cheap checks in parallel with the main call where possible and measure their precision and recall.
+
+## Interview Q&A
+Q*: How do you secure an agent that can read email and send messages?
+A: Break the lethal trifecta: limit which data it can read, treat email content as untrusted, and restrict outbound communication with recipient allow-lists and human approval for every send. Run tools with the user's scoped permissions, validate arguments in code, log everything and monitor for unusual sends.
+Q*: Why can't prompt injection be fixed with a better system prompt?
+A: The model processes instructions and data in the same token stream and cannot reliably tell them apart, so a cleverly written document can override instructions. Real protection limits what a successful injection can do: least privilege, no dangerous tool combinations, approvals and output checks.
+Q*: How do you sandbox code execution for an agent?
+A: Run code in an isolated container or micro-VM (gVisor, Firecracker, E2B) with no network or an egress allow-list, no secrets, read-only inputs, strict CPU, memory and time limits, and a fresh environment per task. Return only stdout, stderr and files to the agent.
+Q: What actions need human approval?
+A: Anything irreversible, costly, externally visible or security-sensitive: payments, deletions, deployments, sending messages or posts, changing permissions, and modifying production data.
+Q: What are input and output guardrails?
+A: Input guardrails check requests and incoming content before the model acts: abuse, jailbreaks, injection, off-topic. Output guardrails check what the model produces before it is shown or executed: schema validity, PII, policy violations, unsupported claims.
 
 # 05 | Prompting CLI Coding Agents | Clear specifications, invariants, constraints, acceptance criteria and verification, explore-plan-code-commit, good and bad prompts | Prompting Agents
 
@@ -844,3 +1025,66 @@ Q: Which actions should require human approval?
 A: Irreversible, costly or externally visible ones such as payments, deletes, outbound messages, deployments and permission changes; reads and drafts can run automatically.
 Q: Short-term vs long-term memory in LangGraph?
 A: Short-term memory is thread-scoped state saved by the checkpointer; long-term memory is a store shared across threads, organised by namespaces such as a user ID.
+
+# 16 | Agents in Production: A2A, Cost, Latency & When Not to Use Agents | Agent-to-agent protocol (A2A) vs MCP, agent cards and tasks, durable execution, cost and latency control, observability and tracing, evaluating agents in production, common failure modes, when an agent is the wrong tool, agent system design walkthrough | Agents in Production
+
+## A2A: Agent-to-Agent Protocol
+- **MCP** connects an agent to **tools and data** (agent → server). **A2A** (Agent2Agent, started by Google and now under the Linux Foundation) connects **agents to other agents** across teams and vendors.
+- Each agent publishes an **Agent Card** (JSON at a well-known URL): name, skills, endpoint and auth requirements.
+- A client agent sends a **task**. The remote agent works on it (possibly for a long time), streams status updates and returns **artifacts**. Messages are JSON-RPC over HTTP with SSE streaming and push notifications.
+- The remote agent stays **opaque**: you delegate a goal, not tool calls. They are complementary: an agent uses MCP for its tools and A2A to delegate to peers.
+
+## Durable Execution for Long Tasks
+- Long agent runs (minutes to hours) must survive crashes, deploys and waiting for humans.
+- **Checkpoint** state after each step (LangGraph checkpointers), or run on a **durable workflow engine** (Temporal, Inngest, AWS Step Functions) that replays from the last completed step.
+- Make tool calls **idempotent** so retries don't double-charge or double-send.
+- Return a **task ID** immediately and notify on completion. Don't hold an HTTP request open for an hour.
+
+## Cost Control
+- Cost per task = Σ over steps of (input tokens × input price + output tokens × output price) + tool costs. Agents **resend the growing history** every step, so cost grows roughly **quadratically** with steps without caching or compaction.
+- Levers: **prompt caching** of the static prefix and history, **compaction** of old steps, a **small model** for routine steps and routing, **step and token budgets**, parallel tool calls instead of sequential ones, and caching tool results.
+- Track **cost per successful task**, not per call.
+
+## Latency Control
+- Every step is a model round-trip (~1–10 s). Fewer steps is the biggest win: better tools (one `get_order_with_items` call instead of three), clearer instructions, parallel tool calls.
+- Stream intermediate progress to the user. Run slow tasks asynchronously.
+- Use fast models for simple decisions, and reasoning models only where needed.
+
+## Observability
+- Trace every run as a tree: the run → each LLM call (prompt, output, tokens, latency) → each tool call (arguments, result, errors).
+- Tools: LangSmith, Langfuse, Arize Phoenix, Braintrust, OpenTelemetry GenAI semantic conventions, plus provider dashboards.
+- Metrics: task success rate, steps per task, tool error rate, loop rate, human-escalation rate, cost and latency per task, guardrail trips.
+
+## Common Failure Modes
+- **Wrong tool or wrong arguments**: vague tool descriptions or overlapping tools.
+- **Loops**: repeating the same failing call. Detect it and stop.
+- **Premature success**: claims "done" without verifying. Require verification steps (run the tests, re-read the record).
+- **Context overflow and drift**: forgets the goal after many steps. Compact, and keep a goal and plan note.
+- **Error cascades**: one bad step poisons the rest. Validate outputs between steps.
+- **Over-delegation in multi-agent setups**: agents chatting endlessly. Set a clear owner and a termination condition.
+
+## When Not to Use an Agent
+- The steps are **known in advance**: use a workflow or prompt chain.
+- **Strict latency** (< 1–2 s) or **very high volume** at low margins.
+- **Zero-tolerance correctness** with no way to verify (legal filings, financial postings without review).
+- No good **tools or APIs** exist for the agent to act through.
+- You can't **evaluate** it. If you can't measure success, you can't ship an autonomous system safely.
+
+## System Design: A Customer-Support Agent
+- **Scope**: answer from the knowledge base, look up orders, issue refunds up to €50, and escalate to a human otherwise.
+- **Layers**: chat UI → input guardrails → LangGraph agent (a planner model plus a small router) → tools: `search_kb` (hybrid RAG with ACLs), `get_order(order_id)` (read-only, scoped to the authenticated customer), `issue_refund(order_id, amount)` (limit in code, approval above €50), `create_ticket` → output guardrails (PII, policy) → streamed reply.
+- **Memory**: thread checkpoints, a customer profile store, summaries of past tickets.
+- **Evals**: 200 scripted conversations with simulated users. Graded on resolution, correct tool use, policy compliance (no refunds over the limit) and tone. Tracked online with judge sampling and CSAT.
+- **Ops**: traces, cost per resolved conversation, escalation rate, kill switch for refunds.
+
+## Interview Q&A
+Q*: MCP vs A2A?
+A: MCP standardises how an agent connects to tools, data and prompts on servers it controls through calls. A2A standardises how independent agents discover each other (Agent Cards) and delegate whole tasks to each other, with streaming status and artifacts, without exposing their internals. An agent typically uses MCP for its tools and A2A to collaborate with other agents.
+Q*: Why do agent costs grow faster than the number of steps?
+A: Each step resends the whole growing conversation, including previous tool results, so the total input tokens grow roughly with the square of the step count. Prompt caching, compaction of old steps, smaller models for routine steps and step budgets keep it in check.
+Q*: When would you not use an agent?
+A: When the steps are known (use a workflow), when latency or cost budgets are tight at high volume, when correctness must be perfect and cannot be verified automatically, when good tools don't exist, or when there is no way to evaluate success.
+Q: How do you run an agent task that takes an hour?
+A: Make it asynchronous: return a task ID, run the agent on a durable execution engine or with checkpointing after each step, make tools idempotent, handle human approvals as interrupts, stream or push progress updates, and notify on completion.
+Q: What metrics do you track for an agent in production?
+A: Task success rate, cost and latency per successful task, steps per task, tool error and retry rates, loop detections, guardrail trips, human escalation rate and user satisfaction, all broken down by task type.
